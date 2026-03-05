@@ -1,5 +1,6 @@
 #include "rdp.hpp"
 #include "rdp_command_ingest.hpp"
+#include "rdp_frame_fallback_policy.hpp"
 #include "rdp_frame_mapping.hpp"
 #include "rdp_init_policy.hpp"
 #include "rdp_retro_image_mapping.hpp"
@@ -272,12 +273,16 @@ static void complete_frame_error()
 
 void complete_frame()
 {
-	if (!frontend)
-	{
-		complete_frame_error();
-		device->next_frame_context();
+	if (detail::handle_complete_frame_fallback(
+			    bool(frontend),
+			    bool(device),
+			    [&]() {
+				    complete_frame_error();
+			    },
+			    [&]() {
+				    device->next_frame_context();
+			    }))
 		return;
-	}
 
 	timeline_value = frontend->signal_timeline();
 

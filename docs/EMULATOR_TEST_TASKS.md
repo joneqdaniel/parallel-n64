@@ -179,7 +179,7 @@
 - `Next`: immediate next step.
 
 ## Current Status
-- Active phase: `T10` execution (`M14` local TSAN tier wiring in progress).
+- Active phase: `T10` execution (`M15` complete-frame fallback resilience coverage in progress).
 - Hi-res plan: on hold for new feature work until emulator behavior test baseline is established.
 - Open risk: local optional tiers depend on host tooling (Vulkan/lavapipe + `rdp-validate-dump`) and may skip when unavailable.
 
@@ -603,3 +603,15 @@
   - `./run-tests.sh --profile emu-tsan`,
   - `./run-tests.sh --profile emu-required`.
   - Current host note: TSAN preflight reports unsupported runtime (`unexpected memory mapping`) and skips the TSAN tier cleanly.
+- 2026-03-05: Advanced `T10` (`M15`) complete-frame fallback resilience coverage:
+  - Added `mupen64plus-video-paraLLEl/rdp_frame_fallback_policy.hpp` with shared helper for:
+    - frontend-available bypass path,
+    - frontend-missing fallback sequencing (`complete_frame_error` -> `next_frame_context`),
+    - defensive short-circuit when frontend and device are both unavailable.
+  - Updated `mupen64plus-video-paraLLEl/rdp.cpp::complete_frame()` to use the shared fallback helper.
+  - Added `tests/emulator_behavior/emu_unit_rdp_frame_fallback_policy_test.cpp` as `emu.unit.rdp_frame_fallback_policy`.
+    - Covers bypass semantics, fallback ordering, and no-device safety short-circuit behavior.
+  - Registered target in `tests/emulator_behavior/CMakeLists.txt`.
+- 2026-03-05: Validated current `T10` (`M15`) slice with:
+  - `./run-tests.sh -R emu.unit.rdp_frame_fallback_policy`,
+  - `./run-tests.sh --profile emu-required`.

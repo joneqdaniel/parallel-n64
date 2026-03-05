@@ -179,7 +179,7 @@
 - `Next`: immediate next step.
 
 ## Current Status
-- Active phase: `T10` execution (`M6` frame-glue image-slot resilience coverage in progress).
+- Active phase: `T10` execution (`M7` renderer state-machine policy coverage in progress).
 - Hi-res plan: on hold for new feature work until emulator behavior test baseline is established.
 - Open risk: local optional tiers depend on host tooling (Vulkan/lavapipe + `rdp-validate-dump`) and may skip when unavailable.
 
@@ -508,4 +508,17 @@
   - Registered target in `tests/emulator_behavior/CMakeLists.txt`.
 - 2026-03-05: Validated current `T10` (`M6`) slice with:
   - `./run-tests.sh -R emu.unit.rdp_retro_image_mapping`,
+  - `./run-tests.sh --profile emu-required`.
+- 2026-03-05: Advanced `T10` (`M7`) renderer state-machine coverage for `SetOtherModes`:
+  - Added `parallel-rdp/parallel-rdp/rdp_other_modes_policy.hpp` with shared decode helper:
+    - cycle type mode-bit transitions,
+    - dither/coverage/z-mode decode,
+    - blend-cycle decode,
+    - primitive-depth enable decode.
+  - Updated `parallel-rdp/parallel-rdp/rdp_device.cpp::op_set_other_modes()` to use shared helper (no intended behavior change).
+  - Added `tests/emulator_behavior/emu_unit_rdp_other_modes_policy_test.cpp` as `emu.unit.rdp_other_modes_policy`.
+    - Covers cycle transitions, texture pipeline flags, blend cycle decode, alpha/depth flag matrix, and primitive-depth bit behavior.
+  - Registered target in `tests/emulator_behavior/CMakeLists.txt`.
+- 2026-03-05: Validated current `T10` (`M7`) slice with:
+  - `./run-tests.sh -R emu.unit.rdp_other_modes_policy`,
   - `./run-tests.sh --profile emu-required`.

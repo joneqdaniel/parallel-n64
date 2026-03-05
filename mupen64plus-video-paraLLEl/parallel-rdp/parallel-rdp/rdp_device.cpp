@@ -22,6 +22,7 @@
 
 #include "rdp_device.hpp"
 #include "rdp_common.hpp"
+#include "rdp_other_modes_policy.hpp"
 #include "rdp_triangle_setup_policy.hpp"
 #include <chrono>
 
@@ -438,70 +439,15 @@ void CommandProcessor::op_set_scissor(const uint32_t *words)
 
 void CommandProcessor::op_set_other_modes(const uint32_t *words)
 {
-	STATE_MASK(static_state.flags, bool(words[0] & (1 << 19)), RASTERIZATION_PERSPECTIVE_CORRECT_BIT);
-	STATE_MASK(static_state.flags, bool(words[0] & (1 << 18)), RASTERIZATION_DETAIL_LOD_ENABLE_BIT);
-	STATE_MASK(static_state.flags, bool(words[0] & (1 << 17)), RASTERIZATION_SHARPEN_LOD_ENABLE_BIT);
-	STATE_MASK(static_state.flags, bool(words[0] & (1 << 16)), RASTERIZATION_TEX_LOD_ENABLE_BIT);
-	STATE_MASK(static_state.flags, bool(words[0] & (1 << 15)), RASTERIZATION_TLUT_BIT);
-	STATE_MASK(static_state.flags, bool(words[0] & (1 << 14)), RASTERIZATION_TLUT_TYPE_BIT);
-	STATE_MASK(static_state.flags, bool(words[0] & (1 << 13)), RASTERIZATION_SAMPLE_MODE_BIT);
-	STATE_MASK(static_state.flags, bool(words[0] & (1 << 12)), RASTERIZATION_SAMPLE_MID_TEXEL_BIT);
-	STATE_MASK(static_state.flags, bool(words[0] & (1 << 11)), RASTERIZATION_BILERP_0_BIT);
-	STATE_MASK(static_state.flags, bool(words[0] & (1 << 10)), RASTERIZATION_BILERP_1_BIT);
-	STATE_MASK(static_state.flags, bool(words[0] & (1 << 9)), RASTERIZATION_CONVERT_ONE_BIT);
-	STATE_MASK(depth_blend.flags, bool(words[1] & (1 << 14)), DEPTH_BLEND_FORCE_BLEND_BIT);
-	STATE_MASK(static_state.flags, bool(words[1] & (1 << 13)), RASTERIZATION_ALPHA_CVG_SELECT_BIT);
-	STATE_MASK(static_state.flags, bool(words[1] & (1 << 12)), RASTERIZATION_CVG_TIMES_ALPHA_BIT);
-	STATE_MASK(depth_blend.flags, bool(words[1] & (1 << 7)), DEPTH_BLEND_COLOR_ON_COVERAGE_BIT);
-	STATE_MASK(depth_blend.flags, bool(words[1] & (1 << 6)), DEPTH_BLEND_IMAGE_READ_ENABLE_BIT);
-	STATE_MASK(depth_blend.flags, bool(words[1] & (1 << 5)), DEPTH_BLEND_DEPTH_UPDATE_BIT);
-	STATE_MASK(depth_blend.flags, bool(words[1] & (1 << 4)), DEPTH_BLEND_DEPTH_TEST_BIT);
-	STATE_MASK(static_state.flags, bool(words[1] & (1 << 3)), RASTERIZATION_AA_BIT);
-	STATE_MASK(depth_blend.flags, bool(words[1] & (1 << 3)), DEPTH_BLEND_AA_BIT);
-
-	STATE_MASK(static_state.flags, bool(words[1] & (1 << 1)), RASTERIZATION_ALPHA_TEST_DITHER_BIT);
-	STATE_MASK(static_state.flags, bool(words[1] & (1 << 0)), RASTERIZATION_ALPHA_TEST_BIT);
-	static_state.dither = (words[0] >> 4) & 0x0f;
-	STATE_MASK(depth_blend.flags, RGBDitherMode(static_state.dither >> 2) != RGBDitherMode::Off, DEPTH_BLEND_DITHER_ENABLE_BIT);
-	depth_blend.coverage_mode = static_cast<CoverageMode>((words[1] >> 8) & 3);
-	depth_blend.z_mode = static_cast<ZMode>((words[1] >> 10) & 3);
-
-	static_state.flags &= ~(RASTERIZATION_MULTI_CYCLE_BIT |
-	                        RASTERIZATION_FILL_BIT |
-	                        RASTERIZATION_COPY_BIT);
-	depth_blend.flags &= ~DEPTH_BLEND_MULTI_CYCLE_BIT;
-
-	switch (CycleType((words[0] >> 20) & 3))
-	{
-	case CycleType::Cycle2:
-		static_state.flags |= RASTERIZATION_MULTI_CYCLE_BIT;
-		depth_blend.flags |= DEPTH_BLEND_MULTI_CYCLE_BIT;
-		break;
-
-	case CycleType::Fill:
-		static_state.flags |= RASTERIZATION_FILL_BIT;
-		break;
-
-	case CycleType::Copy:
-		static_state.flags |= RASTERIZATION_COPY_BIT;
-		break;
-
-	default:
-		break;
-	}
-
-	depth_blend.blend_cycles[0].blend_1a = static_cast<BlendMode1A>((words[1] >> 30) & 3);
-	depth_blend.blend_cycles[1].blend_1a = static_cast<BlendMode1A>((words[1] >> 28) & 3);
-	depth_blend.blend_cycles[0].blend_1b = static_cast<BlendMode1B>((words[1] >> 26) & 3);
-	depth_blend.blend_cycles[1].blend_1b = static_cast<BlendMode1B>((words[1] >> 24) & 3);
-	depth_blend.blend_cycles[0].blend_2a = static_cast<BlendMode2A>((words[1] >> 22) & 3);
-	depth_blend.blend_cycles[1].blend_2a = static_cast<BlendMode2A>((words[1] >> 20) & 3);
-	depth_blend.blend_cycles[0].blend_2b = static_cast<BlendMode2B>((words[1] >> 18) & 3);
-	depth_blend.blend_cycles[1].blend_2b = static_cast<BlendMode2B>((words[1] >> 16) & 3);
+	const bool enable_primitive_depth = detail::apply_set_other_modes_words(
+			static_state,
+			depth_blend,
+			words[0],
+			words[1]);
 
 	renderer.set_static_rasterization_state(static_state);
 	renderer.set_depth_blend_state(depth_blend);
-	renderer.set_enable_primitive_depth(bool(words[1] & (1 << 2)));
+	renderer.set_enable_primitive_depth(enable_primitive_depth);
 }
 
 void CommandProcessor::op_set_texture_image(const uint32_t *words)

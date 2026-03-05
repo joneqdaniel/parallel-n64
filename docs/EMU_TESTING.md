@@ -57,4 +57,5 @@ This repo uses tiered, local-only emulator-behavior test gates to separate requi
 - `run-tests.sh` profile mapping/guard behavior is locked by `emu.unit.test_runner_profile_contract`.
 - `run-dump-tests.sh` CLI/env handoff behavior is locked by `emu.unit.dump_runner_contract`.
 - `run-build.sh` CLI/env handoff behavior is locked by `emu.unit.build_runner_contract`.
+- `run-build.sh` auto-cleans when effective build flags change; set `RUN_BUILD_AUTO_CLEAN=0` to disable.
 - `run-n64.sh` runtime launch contract behavior is locked by `emu.unit.run_n64_contract`.

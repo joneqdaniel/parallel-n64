@@ -208,7 +208,7 @@
 - `Next`: immediate next step.
 
 ## Current Status
-- Active phase: `T10` execution (`M46` HIRES runtime capability contract + M4 registry readiness policy closure complete; HIRES-readiness and emu-required gates are green).
+- Active phase: `T10` execution (`M47` local build-runner stale-object auto-clean closure complete; HIRES-readiness and emu-required gates are green).
 - Hi-res plan: on hold for new feature work until emulator behavior test baseline is established.
 - Open risk: local optional tiers depend on host tooling (Vulkan/lavapipe + `rdp-validate-dump`) and may skip when unavailable.
 - Conformance minipack hash fixture work is explicitly deferred pending additional fixture details.
@@ -1002,3 +1002,19 @@
   - `./run-tests.sh --profile hires-readiness`,
   - `./run-tests.sh --profile emu-required`,
   - `./run-tests.sh -R emu.unit.hires_registry_policy`.
+- 2026-03-05: Advanced `T10` (`M47`) local build-runner stale-object auto-clean closure:
+  - Updated `run-build.sh` to fingerprint effective build flags (`HAVE_PARALLEL`, `HAVE_PARALLEL_RSP`, `DEBUG`, passthrough args) and auto-run `make clean` when the fingerprint changes.
+  - Added persistent local state file contract (`.build/run-build.last-fingerprint`) and `RUN_BUILD_AUTO_CLEAN=0` escape hatch.
+  - Expanded `tests/emulator_behavior/support/emu_build_runner_contract.sh` to lock:
+    - auto-clean env/default wiring,
+    - fingerprint state file + hash generation,
+    - auto-clean status message and fingerprint state update behavior.
+  - Updated `docs/EMU_TESTING.md` with the new `run-build.sh` auto-clean behavior note.
+- 2026-03-05: Validated current `T10` (`M47`) slice with:
+  - `./run-tests.sh -R emu.unit.build_runner_contract`,
+  - `./run-tests.sh --profile emu-required`,
+  - `./run-tests.sh --profile hires-readiness`,
+  - `./run-build.sh --clean`,
+  - upstream parity repro/verification in `~/code/mupen/parallel-n64-upstream`:
+    - `make clean && make HAVE_PARALLEL=1 HAVE_PARALLEL_RSP=1 HAVE_VULKAN_DEBUG=1`,
+    - followed by non-clean normal build reproduces the same stale-object link failure.

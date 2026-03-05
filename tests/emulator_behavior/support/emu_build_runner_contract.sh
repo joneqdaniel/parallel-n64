@@ -34,6 +34,8 @@ require_pattern "--no-parallel-rsp       Build with HAVE_PARALLEL_RSP=0" \
   "usage text missing --no-parallel-rsp option"
 require_pattern "--parallel-rsp          Build with HAVE_PARALLEL_RSP=1" \
   "usage text missing --parallel-rsp option"
+require_pattern 'Set `RUN_BUILD_AUTO_CLEAN=0` to disable this behavior.' \
+  "usage text missing RUN_BUILD_AUTO_CLEAN override note"
 
 # Required argument guard.
 require_pattern "--jobs requires a value." \
@@ -54,6 +56,16 @@ require_pattern 'if (( DO_CLEAN )); then' \
   "clean branch guard missing"
 require_pattern 'make clean' \
   "clean branch command missing"
+require_pattern 'AUTO_CLEAN="${RUN_BUILD_AUTO_CLEAN:-1}"' \
+  "RUN_BUILD_AUTO_CLEAN default wiring missing"
+require_pattern 'STATE_FILE="$STATE_DIR/run-build.last-fingerprint"' \
+  "build fingerprint state file wiring missing"
+require_pattern 'BUILD_FINGERPRINT="$(compute_build_fingerprint)"' \
+  "build fingerprint computation missing"
+require_pattern 'sha256sum' \
+  "build fingerprint hash generation missing"
+require_pattern 'echo "[build] auto-clean: build flags changed"' \
+  "auto-clean change detection message missing"
 require_pattern 'make -j"$JOBS" \' \
   "make invocation missing jobs wiring"
 require_pattern 'HAVE_PARALLEL="$HAVE_PARALLEL" \' \
@@ -64,6 +76,8 @@ require_pattern 'DEBUG="$MAKE_DEBUG" \' \
   "make invocation missing DEBUG wiring"
 require_pattern '"${passthrough_args[@]}"' \
   "make passthrough args wiring missing"
+require_pattern 'printf '\''%s\n'\'' "$BUILD_FINGERPRINT" > "$STATE_FILE"' \
+  "build fingerprint state update missing"
 require_pattern 'echo "[build] output: $SCRIPT_DIR/parallel_n64_libretro.so"' \
   "output path summary line missing"
 

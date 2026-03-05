@@ -208,7 +208,7 @@
 - `Next`: immediate next step.
 
 ## Current Status
-- Active phase: `T10` execution (`M38` replacement-cache parser/decode matrix closure complete; expanding additional HIRES-risk readiness tests).
+- Active phase: `T10` execution (`M39` renderer lookup fast-path policy closure complete; expanding additional HIRES-risk readiness tests).
 - Hi-res plan: on hold for new feature work until emulator behavior test baseline is established.
 - Open risk: local optional tiers depend on host tooling (Vulkan/lavapipe + `rdp-validate-dump`) and may skip when unavailable.
 
@@ -910,4 +910,18 @@
   - Registered both new targets in `tests/hires_textures/CMakeLists.txt`.
 - 2026-03-05: Validated current `T10` (`M38`) slice with:
   - `./run-tests.sh -R "hires.texture_replacement_provider_parser_edge|hires.texture_replacement_provider_decode_matrix|hires.texture_replacement_provider|hires.texture_keying"`,
+  - `./run-tests.sh --profile emu-required`.
+- 2026-03-05: Advanced `T10` (`M39`) renderer HIRES fast-path policy closure:
+  - Added `parallel-rdp/parallel-rdp/rdp_hires_lookup_policy.hpp` with testable helpers for:
+    - RDRAM-view validity contract (`non-null`, `size > 0`, power-of-two maskability),
+    - TLUT-shadow update gate contract,
+    - replacement-lookup gate contract (`provider present`, non-TLUT mode, non-zero key dimensions),
+    - lookup hit/miss counter update contract.
+  - Integrated helper in `parallel-rdp/parallel-rdp/rdp_renderer.cpp` without intended behavior change:
+    - centralized gating for TLUT shadow vs replacement lookup path selection,
+    - centralized lookup counter updates.
+  - Added `tests/emulator_behavior/emu_unit_hires_lookup_policy_test.cpp` as `emu.unit.hires_lookup_policy` and registered in `tests/emulator_behavior/CMakeLists.txt`.
+  - Gap closure: “feature-off fast path” and lookup counter invariants are now explicitly locked for future HIRES pipeline changes.
+- 2026-03-05: Validated current `T10` (`M39`) slice with:
+  - `./run-tests.sh -R "emu.unit.hires_(runtime|state|lookup)_policy|hires.texture_replacement_provider_(decode_matrix|parser_edge)|hires.texture_keying|hires.texture_replacement_provider"`,
   - `./run-tests.sh --profile emu-required`.

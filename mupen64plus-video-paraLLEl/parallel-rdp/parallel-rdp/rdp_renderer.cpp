@@ -22,6 +22,7 @@
 
 #include "rdp_renderer.hpp"
 #include "rdp_device.hpp"
+#include "rdp_hires_lookup_policy.hpp"
 #include "rdp_hires_state_policy.hpp"
 #include "texture_replacement.hpp"
 #include "texture_keying.hpp"
@@ -3294,13 +3295,15 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 
 	upload.inv_tmem_stride_words = 1.0f / float(upload.tmem_stride_words);
 
-	if (cpu_rdram && rdram_size && (rdram_size & (rdram_size - 1)) == 0)
+	const bool rdram_view_ok = detail::hires_rdram_view_valid(cpu_rdram, rdram_size);
+	const bool is_tlut_mode = info.mode == UploadMode::TLUT;
+	if (rdram_view_ok)
 	{
 		const uint32_t bpp_bytes = 1u << (unsigned(info.size) - 1);
 		const uint32_t row_stride_bytes = upload.vram_width * bpp_bytes;
 		const uint32_t src_base_addr = info.tex_addr + ((info.tex_width * key_start_y + key_start_x) << (unsigned(info.size) - 1));
 
-		if (info.mode == UploadMode::TLUT)
+		if (detail::should_update_tlut_shadow(rdram_view_ok, is_tlut_mode))
 		{
 			const uint32_t bytes = key_width_pixels * key_height_pixels * bpp_bytes;
 			const uint32_t max_copy = std::min<uint32_t>(bytes, sizeof(tlut_shadow));
@@ -3316,7 +3319,12 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 				     src_base_addr & 0x00ffffffu, max_copy, tile);
 			}
 		}
-		else if (replacement_provider && key_width_pixels > 0 && key_height_pixels > 0)
+		else if (detail::should_run_hires_lookup(
+		             rdram_view_ok,
+		             replacement_provider != nullptr,
+		             is_tlut_mode,
+		             key_width_pixels,
+		             key_height_pixels))
 		{
 			uint32_t texture_crc = rice_crc32_wrapped(cpu_rdram, rdram_size, src_base_addr,
 			                                          key_width_pixels, key_height_pixels,
@@ -3357,11 +3365,7 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 			repl_state.orig_w = uint16_t(std::min<uint32_t>(key_width_pixels, 0xffffu));
 			repl_state.orig_h = uint16_t(std::min<uint32_t>(key_height_pixels, 0xffffu));
 
-			hires_lookup_total++;
-			if (hit)
-				hires_lookup_hits++;
-			else
-				hires_lookup_misses++;
+			detail::record_hires_lookup_result(hit, hires_lookup_total, hires_lookup_hits, hires_lookup_misses);
 
 			if (hires_debug)
 			{

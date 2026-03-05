@@ -184,6 +184,15 @@ target_include_directories(emu_unit_hires_state_policy_test PRIVATE
 target_compile_features(emu_unit_hires_state_policy_test PRIVATE cxx_std_17)
 add_test(NAME emu.unit.hires_state_policy COMMAND emu_unit_hires_state_policy_test)
 
+add_executable(emu_unit_hires_lookup_policy_test
+  emu_unit_hires_lookup_policy_test.cpp
+)
+target_include_directories(emu_unit_hires_lookup_policy_test PRIVATE
+  "${CMAKE_SOURCE_DIR}"
+)
+target_compile_features(emu_unit_hires_lookup_policy_test PRIVATE cxx_std_17)
+add_test(NAME emu.unit.hires_lookup_policy COMMAND emu_unit_hires_lookup_policy_test)
+
 add_executable(emu_unit_rdp_scanout_coherency_policy_test
   emu_unit_rdp_scanout_coherency_policy_test.cpp
 )

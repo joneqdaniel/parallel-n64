@@ -129,6 +129,7 @@
 ## Current Status
 - Active phase: `T7` (Doc-Backed Behavior Conformance).
 - Hi-res plan: on hold for new feature work until emulator behavior test baseline is established.
+- Open risk: `T7` still lacks deterministic golden-image/hash assertions for software-Vulkan output.
 
 ## Change Log
 - 2026-03-05: Initialized non-hires emulator behavior test track and separated it from hi-res tasks.
@@ -272,6 +273,19 @@
   - Asserts these non-Full sync commands do not raise the DP interrupt.
 - 2026-03-05: Revalidated after texture-load conformance coverage with:
   - `./run-tests.sh -R emu.conformance`,
+  - `./run-tests.sh -R emu.unit`,
+  - `./run-tests.sh`,
+  - `./run-build.sh`,
+  - `timeout --signal=INT --kill-after=5 20s ./run-n64.sh -- --verbose`.
+- 2026-03-05: Expanded `T7` conformance coverage for command lengths and VI scaling/crop edge math:
+  - Added `tests/emulator_behavior/emu_conformance_rdp_command_lengths_test.cpp` as `emu.conformance.rdp_command_lengths`.
+    - Asserts variable command length decode for `FillTriangle`, `TextureRectangle`, `ShadeTextureZBufferTriangle`, `SyncFull`, and `FillRectangle`.
+    - Asserts `SyncFull` interrupt behavior within the mixed command stream.
+  - Added `tests/emulator_behavior/emu_conformance_vi_scaling_crop_test.cpp` as `emu.conformance.vi_scaling_crop`.
+    - Asserts PAL detection, left/right clamp behavior, scaled coordinate math, and scanout offset/length calculations under clamped scenarios.
+- 2026-03-05: Revalidated after command-length + VI scaling/crop additions with:
+  - `./run-tests.sh -R emu.conformance`,
+  - `EMU_ENABLE_RUNTIME_CONFORMANCE=1 ./run-tests.sh -R emu.conformance.runtime_smoke_lavapipe`,
   - `./run-tests.sh -R emu.unit`,
   - `./run-tests.sh`,
   - `./run-build.sh`,

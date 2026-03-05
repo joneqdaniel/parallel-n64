@@ -159,6 +159,15 @@ target_include_directories(emu_conformance_vi_scanout_range_test PRIVATE
 target_compile_features(emu_conformance_vi_scanout_range_test PRIVATE cxx_std_17)
 add_test(NAME emu.conformance.vi_scanout_range COMMAND emu_conformance_vi_scanout_range_test)
 
+add_executable(emu_conformance_vi_scaling_crop_test
+  emu_conformance_vi_scaling_crop_test.cpp
+)
+target_include_directories(emu_conformance_vi_scaling_crop_test PRIVATE
+  "${CMAKE_SOURCE_DIR}/mupen64plus-video-paraLLEl/parallel-rdp/parallel-rdp"
+)
+target_compile_features(emu_conformance_vi_scaling_crop_test PRIVATE cxx_std_17)
+add_test(NAME emu.conformance.vi_scaling_crop COMMAND emu_conformance_vi_scaling_crop_test)
+
 add_executable(emu_conformance_rdp_command_fields_test
   emu_conformance_rdp_command_fields_test.cpp
 )
@@ -168,6 +177,16 @@ target_include_directories(emu_conformance_rdp_command_fields_test PRIVATE
 )
 target_compile_features(emu_conformance_rdp_command_fields_test PRIVATE cxx_std_17)
 add_test(NAME emu.conformance.rdp_command_fields COMMAND emu_conformance_rdp_command_fields_test)
+
+add_executable(emu_conformance_rdp_command_lengths_test
+  emu_conformance_rdp_command_lengths_test.cpp
+)
+target_include_directories(emu_conformance_rdp_command_lengths_test PRIVATE
+  "${CMAKE_SOURCE_DIR}"
+  "${CMAKE_SOURCE_DIR}/libretro-common/include"
+)
+target_compile_features(emu_conformance_rdp_command_lengths_test PRIVATE cxx_std_17)
+add_test(NAME emu.conformance.rdp_command_lengths COMMAND emu_conformance_rdp_command_lengths_test)
 
 add_executable(emu_conformance_rdp_texture_load_sequence_test
   emu_conformance_rdp_texture_load_sequence_test.cpp

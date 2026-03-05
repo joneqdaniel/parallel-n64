@@ -10,6 +10,7 @@ list_only=0
 selected_profile="all"
 build_dir_overridden=0
 enable_tsan=0
+enable_runtime_conformance=0
 has_regex_override=0
 declare -a ctest_args
 ctest_args=(--output-on-failure)
@@ -23,13 +24,14 @@ Options:
   --clean               Remove build dir before configuring
   --list                List tests without running them
   --build-dir PATH      Override build dir (default: ./build/ctest)
-  --profile NAME        Test profile: all|emu-required|emu-optional|emu-conformance|emu-dump|emu-tsan
+  --profile NAME        Test profile: all|emu-required|emu-optional|emu-conformance|emu-runtime-conformance|emu-dump|emu-tsan
   -R REGEX              Pass test regex to ctest
   -h, --help            Show this help
 
 Examples:
   ./run-tests.sh
   ./run-tests.sh --profile emu-required
+  ./run-tests.sh --profile emu-runtime-conformance
   ./run-tests.sh --profile emu-tsan
   ./run-tests.sh --list
   ./run-tests.sh -R hires.texture_keying
@@ -144,6 +146,10 @@ case "$selected_profile" in
   emu-conformance)
     ctest_args+=(-R "^emu\\.conformance\\.")
     ;;
+  emu-runtime-conformance)
+    enable_runtime_conformance=1
+    ctest_args+=(-R "^emu\\.conformance\\.(runtime_smoke_lavapipe|lavapipe_frame_hash)$")
+    ;;
   emu-dump)
     ctest_args+=(-R "^emu\\.dump\\.")
     ;;
@@ -179,6 +185,10 @@ if (( enable_tsan )) && [[ "${EMU_TSAN_FORCE:-0}" != "1" ]]; then
     echo "[tests] set EMU_TSAN_FORCE=1 to force execution anyway."
     exit 0
   fi
+fi
+
+if (( enable_runtime_conformance )); then
+  export EMU_ENABLE_RUNTIME_CONFORMANCE=1
 fi
 
 if (( clean_build )) && [[ -d "$BUILD_DIR" ]]; then

@@ -23,6 +23,7 @@ Local helpers:
 * `./run-build.sh` - build core with fork defaults (`HAVE_PARALLEL=1 HAVE_PARALLEL_RSP=1`)
 * `./run-tests.sh` - configure/build/run local CTest suite
 * `./run-tests.sh --profile emu-required` - required emulator-behavior gate (`emu.unit.*`)
+* `./run-tests.sh --profile emu-runtime-conformance` - runtime lavapipe conformance tier
 * `./run-dump-tests.sh --provision-validator` - provision validator and run `emu.dump.*` against baseline dump fixtures
 
 Task trackers:

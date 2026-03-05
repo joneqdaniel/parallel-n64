@@ -8,6 +8,8 @@ This repo uses tiered, local-only emulator-behavior test gates to separate requi
   - `./run-tests.sh --profile emu-required`
 - Optional conformance gate:
   - `./run-tests.sh --profile emu-conformance`
+- Optional runtime lavapipe conformance gate:
+  - `./run-tests.sh --profile emu-runtime-conformance`
 - Optional dump-replay gate (provisions validator if missing):
   - `./run-dump-tests.sh --provision-validator`
 - Optional strict dump-composition gate:
@@ -23,6 +25,7 @@ This repo uses tiered, local-only emulator-behavior test gates to separate requi
 - `emu-required`: `emu.unit.*`
 - `emu-optional`: `emu.conformance.*` + `emu.dump.*`
 - `emu-conformance`: `emu.conformance.*`
+- `emu-runtime-conformance`: runtime lavapipe conformance (`runtime_smoke_lavapipe` + `lavapipe_frame_hash`) with opt-in env automatically set
 - `emu-dump`: `emu.dump.*`
 - `emu-tsan`: `emu.unit.command_ring_policy` + `emu.unit.worker_thread` with ThreadSanitizer flags
 

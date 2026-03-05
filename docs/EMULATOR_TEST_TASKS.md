@@ -179,7 +179,7 @@
 - `Next`: immediate next step.
 
 ## Current Status
-- Active phase: `T10` execution (`M17` strict dump composition CLI coverage in progress).
+- Active phase: `T10` execution (`M18` runtime conformance profile wiring in progress).
 - Hi-res plan: on hold for new feature work until emulator behavior test baseline is established.
 - Open risk: local optional tiers depend on host tooling (Vulkan/lavapipe + `rdp-validate-dump`) and may skip when unavailable.
 
@@ -640,4 +640,16 @@
     - `docs/EMU_TESTING.md` includes strict dump-composition gate command.
 - 2026-03-05: Validated current `T10` (`M17`) slice with:
   - `./run-dump-tests.sh --strict-composition --required-tags smoke,sync`,
+  - `./run-tests.sh --profile emu-required`.
+- 2026-03-05: Advanced `T10` (`M18`) runtime conformance profile wiring:
+  - Updated `run-tests.sh` with `--profile emu-runtime-conformance`:
+    - targets runtime lavapipe checks only:
+      - `emu.conformance.runtime_smoke_lavapipe`
+      - `emu.conformance.lavapipe_frame_hash`
+    - auto-exports `EMU_ENABLE_RUNTIME_CONFORMANCE=1` to make runtime tier reproducible with one command.
+  - Updated docs:
+    - `docs/EMU_TESTING.md` profile/command list includes `emu-runtime-conformance`,
+    - `README.md` local helper list includes runtime conformance profile command.
+- 2026-03-05: Validated current `T10` (`M18`) slice with:
+  - `./run-tests.sh --profile emu-runtime-conformance`,
   - `./run-tests.sh --profile emu-required`.

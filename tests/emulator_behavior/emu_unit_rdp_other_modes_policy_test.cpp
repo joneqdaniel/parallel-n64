@@ -168,6 +168,64 @@ static void test_texture_pipeline_flag_decode()
 	check((static_state.flags & RASTERIZATION_CONVERT_ONE_BIT) != 0u, "convert-one flag mismatch");
 	check((depth_blend.flags & DEPTH_BLEND_FORCE_BLEND_BIT) != 0u, "force blend flag mismatch");
 }
+
+static void test_coverage_and_z_mode_full_matrix()
+{
+	StaticRasterizationState static_state = {};
+	DepthBlendState depth_blend = {};
+
+	for (uint32_t coverage = 0; coverage < 4; coverage++)
+	{
+		for (uint32_t zmode = 0; zmode < 4; zmode++)
+		{
+			uint32_t word1 = (coverage << 8) | (zmode << 10);
+			detail::apply_set_other_modes_words(static_state, depth_blend, 0u, word1);
+			check(depth_blend.coverage_mode == static_cast<CoverageMode>(coverage),
+			      "coverage mode matrix decode mismatch");
+			check(depth_blend.z_mode == static_cast<ZMode>(zmode),
+			      "z mode matrix decode mismatch");
+		}
+	}
+}
+
+static void test_depth_blend_control_bits_toggle_cleanly()
+{
+	StaticRasterizationState static_state = {};
+	DepthBlendState depth_blend = {};
+	depth_blend.flags = DEPTH_BLEND_FORCE_BLEND_BIT |
+	                    DEPTH_BLEND_COLOR_ON_COVERAGE_BIT |
+	                    DEPTH_BLEND_IMAGE_READ_ENABLE_BIT |
+	                    DEPTH_BLEND_DEPTH_UPDATE_BIT |
+	                    DEPTH_BLEND_DEPTH_TEST_BIT |
+	                    DEPTH_BLEND_AA_BIT;
+	static_state.flags = RASTERIZATION_AA_BIT;
+
+	detail::apply_set_other_modes_words(static_state, depth_blend, 0u, 0u);
+	check((depth_blend.flags & DEPTH_BLEND_FORCE_BLEND_BIT) == 0u, "force blend bit should clear");
+	check((depth_blend.flags & DEPTH_BLEND_COLOR_ON_COVERAGE_BIT) == 0u, "color-on-coverage bit should clear");
+	check((depth_blend.flags & DEPTH_BLEND_IMAGE_READ_ENABLE_BIT) == 0u, "image-read bit should clear");
+	check((depth_blend.flags & DEPTH_BLEND_DEPTH_UPDATE_BIT) == 0u, "depth-update bit should clear");
+	check((depth_blend.flags & DEPTH_BLEND_DEPTH_TEST_BIT) == 0u, "depth-test bit should clear");
+	check((depth_blend.flags & DEPTH_BLEND_AA_BIT) == 0u, "depth AA bit should clear");
+	check((static_state.flags & RASTERIZATION_AA_BIT) == 0u, "raster AA bit should clear");
+
+	uint32_t word1 = 0;
+	word1 |= (1u << 14); // force blend
+	word1 |= (1u << 7);  // color on coverage
+	word1 |= (1u << 6);  // image read
+	word1 |= (1u << 5);  // depth update
+	word1 |= (1u << 4);  // depth test
+	word1 |= (1u << 3);  // AA mirror
+	detail::apply_set_other_modes_words(static_state, depth_blend, 0u, word1);
+
+	check((depth_blend.flags & DEPTH_BLEND_FORCE_BLEND_BIT) != 0u, "force blend bit should set");
+	check((depth_blend.flags & DEPTH_BLEND_COLOR_ON_COVERAGE_BIT) != 0u, "color-on-coverage bit should set");
+	check((depth_blend.flags & DEPTH_BLEND_IMAGE_READ_ENABLE_BIT) != 0u, "image-read bit should set");
+	check((depth_blend.flags & DEPTH_BLEND_DEPTH_UPDATE_BIT) != 0u, "depth-update bit should set");
+	check((depth_blend.flags & DEPTH_BLEND_DEPTH_TEST_BIT) != 0u, "depth-test bit should set");
+	check((depth_blend.flags & DEPTH_BLEND_AA_BIT) != 0u, "depth AA bit should set");
+	check((static_state.flags & RASTERIZATION_AA_BIT) != 0u, "raster AA bit should set");
+}
 }
 
 int main()
@@ -176,6 +234,8 @@ int main()
 	test_dither_and_coverage_decode();
 	test_blend_cycle_decode_and_primitive_depth_enable();
 	test_texture_pipeline_flag_decode();
+	test_coverage_and_z_mode_full_matrix();
+	test_depth_blend_control_bits_toggle_cleanly();
 	std::cout << "emu_unit_rdp_other_modes_policy_test: PASS" << std::endl;
 	return 0;
 }

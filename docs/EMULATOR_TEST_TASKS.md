@@ -179,7 +179,7 @@
 - `Next`: immediate next step.
 
 ## Current Status
-- Active phase: `T10` execution (`M20` texture-rectangle policy coverage in progress).
+- Active phase: `T10` execution (`M21` other-modes matrix expansion in progress).
 - Hi-res plan: on hold for new feature work until emulator behavior test baseline is established.
 - Open risk: local optional tiers depend on host tooling (Vulkan/lavapipe + `rdp-validate-dump`) and may skip when unavailable.
 
@@ -681,4 +681,13 @@
   - Registered target in `tests/emulator_behavior/CMakeLists.txt`.
 - 2026-03-05: Validated current `T10` (`M20`) slice with:
   - `./run-tests.sh -R emu.unit.rdp_tex_rect_policy`,
+  - `./run-tests.sh --profile emu-required`.
+- 2026-03-05: Advanced `T10` (`M21`) other-modes matrix expansion:
+  - Expanded `tests/emulator_behavior/emu_unit_rdp_other_modes_policy_test.cpp` with:
+    - full `coverage_mode` decode matrix (`0..3`),
+    - full `z_mode` decode matrix (`0..3`),
+    - depth-blend control bit clear/set toggle checks for force blend, color-on-coverage, image-read, depth update/test, and AA mirror bits.
+  - This hardens renderer state-machine coverage for depth/coverage behavior decoding without changing runtime logic.
+- 2026-03-05: Validated current `T10` (`M21`) slice with:
+  - `./run-tests.sh -R emu.unit.rdp_other_modes_policy`,
   - `./run-tests.sh --profile emu-required`.

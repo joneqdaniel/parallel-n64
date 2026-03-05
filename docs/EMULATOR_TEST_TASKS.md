@@ -100,7 +100,7 @@
   - Exit criteria:
     - `ctest -R emu.dump` passes on baseline corpus with stable hashes.
 
-- [ ] T9: Local Gating and Developer Workflow
+- [x] T9: Local Gating and Developer Workflow
   - Deliverables:
     - Wire emulator behavior suite into local `run-tests.sh` categories.
     - Define tiered gating:
@@ -127,7 +127,7 @@
 - `Next`: immediate next step.
 
 ## Current Status
-- Active phase: `T9` (Local Gating and Developer Workflow).
+- Active phase: `Complete` (T0-T9 closed).
 - Hi-res plan: on hold for new feature work until emulator behavior test baseline is established.
 - Open risk: local optional tiers depend on host tooling (Vulkan/lavapipe + `rdp-validate-dump`) and may skip when unavailable.
 
@@ -363,3 +363,12 @@
 - 2026-03-05: Switched `T9` to local-only gating by request:
   - Removed `.github/workflows/emulator-tests.yml`.
   - Kept tiered local gate commands and local triage documentation as the source of truth.
+- 2026-03-05: Completed `T9` local-only gate closure:
+  - Confirmed required tier:
+    - `./run-tests.sh --profile emu-required`
+  - Confirmed optional conformance tier:
+    - `./run-tests.sh --profile emu-conformance`
+    - runtime lavapipe conformance tests remain skip-by-default unless explicitly enabled.
+  - Confirmed optional dump tier:
+    - `./run-dump-tests.sh --provision-validator`
+  - Local tiered gating + contributor workflow docs are now finalized for this track.

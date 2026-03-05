@@ -24,6 +24,7 @@
 #include "rdp_common.hpp"
 #include "rdp_memory_path_policy.hpp"
 #include "rdp_other_modes_policy.hpp"
+#include "rdp_rect_setup_policy.hpp"
 #include "rdp_scanout_coherency_policy.hpp"
 #include "rdp_scissor_policy.hpp"
 #include "rdp_triangle_setup_policy.hpp"
@@ -621,32 +622,15 @@ void CommandProcessor::op_set_fill_color(const uint32_t *words)
 
 void CommandProcessor::op_fill_rectangle(const uint32_t *words)
 {
-	uint32_t xl = (words[0] >> 12) & 0xfff;
-	uint32_t yl = (words[0] >> 0) & 0xfff;
-	uint32_t xh = (words[1] >> 12) & 0xfff;
-	uint32_t yh = (words[1] >> 0) & 0xfff;
-
-	if ((static_state.flags & (RASTERIZATION_COPY_BIT | RASTERIZATION_FILL_BIT)) != 0)
-		yl |= 3;
-
-	TriangleSetup setup = {};
-	setup.xh = xh << 13;
-	setup.xl = xl << 13;
-	setup.xm = xl << 13;
-	setup.ym = yl;
-	setup.yl = yl;
-	setup.yh = yh;
-	setup.flags = TRIANGLE_SETUP_FLIP_BIT | TRIANGLE_SETUP_DISABLE_UPSCALING_BIT;
-
-	renderer.draw_flat_primitive(setup);
+	auto rect = detail::decode_rectangle_coordinates(words[0], words[1]);
+	rect = detail::apply_copy_fill_y_adjust(rect, static_state.flags);
+	renderer.draw_flat_primitive(detail::build_fill_rectangle_setup(rect));
 }
 
 void CommandProcessor::op_texture_rectangle(const uint32_t *words)
 {
-	uint32_t xl = (words[0] >> 12) & 0xfff;
-	uint32_t yl = (words[0] >> 0) & 0xfff;
-	uint32_t xh = (words[1] >> 12) & 0xfff;
-	uint32_t yh = (words[1] >> 0) & 0xfff;
+	auto rect = detail::decode_rectangle_coordinates(words[0], words[1]);
+	rect = detail::apply_copy_fill_y_adjust(rect, static_state.flags);
 	uint32_t tile = (words[1] >> 24) & 0x7;
 
 	int32_t s = (words[2] >> 16) & 0xffff;
@@ -656,18 +640,15 @@ void CommandProcessor::op_texture_rectangle(const uint32_t *words)
 	dsdx = sext<16>(dsdx);
 	dtdy = sext<16>(dtdy);
 
-	if ((static_state.flags & (RASTERIZATION_COPY_BIT | RASTERIZATION_FILL_BIT)) != 0)
-		yl |= 3;
-
 	TriangleSetup setup = {};
 	AttributeSetup attr = {};
 
-	setup.xh = xh << 13;
-	setup.xl = xl << 13;
-	setup.xm = xl << 13;
-	setup.ym = yl;
-	setup.yl = yl;
-	setup.yh = yh;
+	setup.xh = rect.xh << 13;
+	setup.xl = rect.xl << 13;
+	setup.xm = rect.xl << 13;
+	setup.ym = rect.yl;
+	setup.yl = rect.yl;
+	setup.yh = rect.yh;
 	setup.flags = TRIANGLE_SETUP_FLIP_BIT |
 	              (quirks.u.options.native_resolution_tex_rect ? TRIANGLE_SETUP_DISABLE_UPSCALING_BIT : 0) |
 	              (quirks.u.options.native_texture_lod ? TRIANGLE_SETUP_NATIVE_LOD_BIT : 0);
@@ -687,10 +668,8 @@ void CommandProcessor::op_texture_rectangle(const uint32_t *words)
 
 void CommandProcessor::op_texture_rectangle_flip(const uint32_t *words)
 {
-	uint32_t xl = (words[0] >> 12) & 0xfff;
-	uint32_t yl = (words[0] >> 0) & 0xfff;
-	uint32_t xh = (words[1] >> 12) & 0xfff;
-	uint32_t yh = (words[1] >> 0) & 0xfff;
+	auto rect = detail::decode_rectangle_coordinates(words[0], words[1]);
+	rect = detail::apply_copy_fill_y_adjust(rect, static_state.flags);
 	uint32_t tile = (words[1] >> 24) & 0x7;
 
 	int32_t s = (words[2] >> 16) & 0xffff;
@@ -700,18 +679,15 @@ void CommandProcessor::op_texture_rectangle_flip(const uint32_t *words)
 	dsdx = sext<16>(dsdx);
 	dtdy = sext<16>(dtdy);
 
-	if ((static_state.flags & (RASTERIZATION_COPY_BIT | RASTERIZATION_FILL_BIT)) != 0)
-		yl |= 3;
-
 	TriangleSetup setup = {};
 	AttributeSetup attr = {};
 
-	setup.xh = xh << 13;
-	setup.xl = xl << 13;
-	setup.xm = xl << 13;
-	setup.ym = yl;
-	setup.yl = yl;
-	setup.yh = yh;
+	setup.xh = rect.xh << 13;
+	setup.xl = rect.xl << 13;
+	setup.xm = rect.xl << 13;
+	setup.ym = rect.yl;
+	setup.yl = rect.yl;
+	setup.yh = rect.yh;
 	setup.flags = TRIANGLE_SETUP_FLIP_BIT | TRIANGLE_SETUP_DISABLE_UPSCALING_BIT |
 	              (quirks.u.options.native_resolution_tex_rect ? TRIANGLE_SETUP_DISABLE_UPSCALING_BIT : 0) |
 	              (quirks.u.options.native_texture_lod ? TRIANGLE_SETUP_NATIVE_LOD_BIT : 0);

@@ -179,7 +179,7 @@
 - `Next`: immediate next step.
 
 ## Current Status
-- Active phase: `T10` execution (`M18` runtime conformance profile wiring in progress).
+- Active phase: `T10` execution (`M19` rectangle setup policy coverage in progress).
 - Hi-res plan: on hold for new feature work until emulator behavior test baseline is established.
 - Open risk: local optional tiers depend on host tooling (Vulkan/lavapipe + `rdp-validate-dump`) and may skip when unavailable.
 
@@ -652,4 +652,19 @@
     - `README.md` local helper list includes runtime conformance profile command.
 - 2026-03-05: Validated current `T10` (`M18`) slice with:
   - `./run-tests.sh --profile emu-runtime-conformance`,
+  - `./run-tests.sh --profile emu-required`.
+- 2026-03-05: Advanced `T10` (`M19`) rectangle setup policy coverage:
+  - Added `parallel-rdp/parallel-rdp/rdp_rect_setup_policy.hpp` with shared helpers for:
+    - 12-bit rectangle coordinate decode,
+    - copy/fill-mode Y adjustment behavior (`yl |= 3`),
+    - fill-rectangle triangle setup packing.
+  - Updated `parallel-rdp/parallel-rdp/rdp_device.cpp` to use shared rectangle helpers in:
+    - `op_fill_rectangle`,
+    - `op_texture_rectangle`,
+    - `op_texture_rectangle_flip`.
+  - Added `tests/emulator_behavior/emu_unit_rdp_rect_setup_policy_test.cpp` as `emu.unit.rdp_rect_setup_policy`.
+    - Covers decode masking, mode-bit Y adjustment, and fill-setup packing/flag invariants.
+  - Registered target in `tests/emulator_behavior/CMakeLists.txt`.
+- 2026-03-05: Validated current `T10` (`M19`) slice with:
+  - `./run-tests.sh -R emu.unit.rdp_rect_setup_policy`,
   - `./run-tests.sh --profile emu-required`.

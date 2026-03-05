@@ -376,6 +376,67 @@ static void test_repeated_syncfull_synchronous_ordering()
 	      "expected repeated signal->wait->interrupt ordering");
 }
 
+static void test_syncfull_without_frontend_still_interrupts()
+{
+	std::vector<uint32_t> dram_words(0x2000 / 4, 0);
+	std::vector<uint32_t> dmem_words(0x1000 / 4, 0);
+	uint8_t *dram = reinterpret_cast<uint8_t *>(dram_words.data());
+	uint8_t *dmem = reinterpret_cast<uint8_t *>(dmem_words.data());
+
+	write_u32(dram, 0x00, 0x29000000u);
+	write_u32(dram, 0x04, 0x13579bdfu);
+
+	std::array<uint32_t, 64> cmd_data = {};
+	CommandIngestState state = {};
+	state.cmd_data = cmd_data.data();
+
+	uint32_t dpc_start = 0;
+	uint32_t dpc_end = 0x08u;
+	uint32_t dpc_current = 0x00u;
+	uint32_t dpc_status = 0;
+	CallbackHarness h = {};
+	CommandIngestHooks hooks = make_hooks(h, false, true);
+
+	process_command_ingest(state, dram, dmem, dpc_start, dpc_end, dpc_current, dpc_status, hooks);
+
+	check(h.enqueue_calls == 0, "frontend-disabled SyncFull should not enqueue");
+	check(h.signal_calls == 0, "frontend-disabled SyncFull should not signal");
+	check(h.wait_calls == 0, "frontend-disabled SyncFull should not wait");
+	check(h.interrupt_calls == 1, "frontend-disabled SyncFull should still interrupt");
+}
+
+static void test_syncfull_with_missing_timeline_callbacks_still_interrupts()
+{
+	std::vector<uint32_t> dram_words(0x2000 / 4, 0);
+	std::vector<uint32_t> dmem_words(0x1000 / 4, 0);
+	uint8_t *dram = reinterpret_cast<uint8_t *>(dram_words.data());
+	uint8_t *dmem = reinterpret_cast<uint8_t *>(dmem_words.data());
+
+	write_u32(dram, 0x00, 0x29000000u);
+	write_u32(dram, 0x04, 0x2468ace0u);
+
+	std::array<uint32_t, 64> cmd_data = {};
+	CommandIngestState state = {};
+	state.cmd_data = cmd_data.data();
+
+	uint32_t dpc_start = 0;
+	uint32_t dpc_end = 0x08u;
+	uint32_t dpc_current = 0x00u;
+	uint32_t dpc_status = 0;
+	CallbackHarness h = {};
+	CommandIngestHooks hooks = make_hooks(h, true, true);
+	hooks.signal_timeline = nullptr;
+	hooks.wait_for_timeline = nullptr;
+
+	process_command_ingest(state, dram, dmem, dpc_start, dpc_end, dpc_current, dpc_status, hooks);
+
+	check(h.enqueue_calls == 1, "frontend-enabled SyncFull should still enqueue");
+	check(h.signal_calls == 0, "missing signal callback should skip signaling");
+	check(h.wait_calls == 0, "missing wait callback should skip waiting");
+	check(h.interrupt_calls == 1, "SyncFull should still interrupt with missing timeline callbacks");
+	check(h.order.size() == 1 && h.order[0] == 3, "interrupt should still be observed in callback ordering");
+}
+
 static void test_commands_below_8_do_not_enqueue()
 {
 	std::vector<uint32_t> dram_words(0x2000 / 4, 0);
@@ -516,6 +577,8 @@ int main()
 	test_incomplete_command_resume_across_calls();
 	test_syncfull_synchronous_ordering();
 	test_repeated_syncfull_synchronous_ordering();
+	test_syncfull_without_frontend_still_interrupts();
+	test_syncfull_with_missing_timeline_callbacks_still_interrupts();
 	test_commands_below_8_do_not_enqueue();
 	test_opcode_boundary_low_and_high();
 	test_high_address_bits_are_masked_before_dram_guard();

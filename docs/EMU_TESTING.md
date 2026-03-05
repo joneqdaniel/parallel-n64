@@ -25,7 +25,7 @@ This repo uses tiered, local-only emulator-behavior test gates to separate requi
 - `emu-required`: `emu.unit.*`
 - `emu-optional`: `emu.conformance.*` + `emu.dump.*`
 - `emu-conformance`: `emu.conformance.*`
-- `emu-runtime-conformance`: runtime lavapipe conformance (`runtime_smoke_lavapipe` + `lavapipe_frame_hash` + `lavapipe_vi_filters_hash` + `lavapipe_vi_filters_mixed_hash`) with opt-in env automatically set
+- `emu-runtime-conformance`: runtime lavapipe conformance (`runtime_smoke_lavapipe` + `lavapipe_frame_hash` + `lavapipe_vi_filters_hash` + `lavapipe_vi_filters_mixed_hash` + `lavapipe_vi_downscale_hash`) with opt-in env automatically set
 - `emu-dump`: `emu.dump.*`
 - `emu-tsan`: `emu.unit.command_ring_policy` + `emu.unit.worker_thread` with ThreadSanitizer flags
 

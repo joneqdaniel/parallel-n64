@@ -137,7 +137,8 @@
     - Additional gaps identified during `M1`-`M4`:
       - DP parser robustness expansion:
         - opcode boundary/fuzz-style coverage for malformed lengths and multi-command tail truncation,
-        - repeated `SyncFull` sequencing and MI interrupt edge-order verification in mixed streams.
+        - repeated `SyncFull` sequencing and MI interrupt edge-order verification in mixed streams,
+        - `SyncFull` interrupt behavior when frontend callbacks are unavailable.
       - Command processor memory/coherency paths:
         - host-import disabled path (`PARALLEL_RDP_ALLOW_EXTERNAL_HOST=0`) behavior verification,
         - non-host-coherent RDRAM copyback/coherency operation ordering checks.
@@ -147,8 +148,8 @@
       - VI interlace/filter matrix expansion:
         - serrate/interlace field handling by `VCurrentLine` parity and `VI_CONTROL_SERRATE_BIT`,
         - runtime hash fixtures across AA/divot/dither/gamma combinations (deterministic lavapipe tier).
-      - Runtime conformance matrix breadth:
-        - add at least one deterministic lavapipe hash fixture specifically exercising downscale interaction under explicit core-option control.
+      - Runtime conformance content breadth:
+        - add at least one deterministic lavapipe hash fixture using a second ROM target (beyond current Paper Mario baseline) to reduce single-title bias.
       - Frame glue resilience paths:
         - explicit tests for `complete_frame_error()` fallback invariants when frontend/context transitions occur mid-frame,
         - retro image slot reuse/index-rotation metadata stability across frame contexts.
@@ -181,7 +182,7 @@
 - `Next`: immediate next step.
 
 ## Current Status
-- Active phase: `T10` execution (`M23` runtime VI mixed filter hash coverage in progress).
+- Active phase: `T10` execution (`M25` SyncFull callback-absence robustness in progress).
 - Hi-res plan: on hold for new feature work until emulator behavior test baseline is established.
 - Open risk: local optional tiers depend on host tooling (Vulkan/lavapipe + `rdp-validate-dump`) and may skip when unavailable.
 
@@ -713,4 +714,24 @@
   - Gap tracking update: runtime VI filter breadth now has both disabled and mixed/enabled deterministic hashes; remaining runtime-matrix gap is explicit downscale-focused hash coverage.
 - 2026-03-05: Validated current `T10` (`M23`) slice with:
   - `./run-tests.sh --profile emu-runtime-conformance`,
+  - `./run-tests.sh --profile emu-required`.
+- 2026-03-05: Advanced `T10` (`M24`) runtime VI downscale hash coverage:
+  - Added `tests/emulator_behavior/support/emu_conformance_lavapipe_vi_downscale_hash.sh`:
+    - deterministic lavapipe screenshot hash run with explicit upscaling/downscaling option path (`4x` + `1/2`),
+    - keeps VI filter toggles and startup checks explicit to isolate downscale behavior.
+  - Registered `emu.conformance.lavapipe_vi_downscale_hash` in `tests/emulator_behavior/CMakeLists.txt`.
+  - Updated `run-tests.sh --profile emu-runtime-conformance` and `docs/EMU_TESTING.md` to include the downscale runtime target.
+  - Runtime matrix note: disabled, mixed/enabled, and downscale-focused VI hash variants are now all covered in local runtime conformance.
+- 2026-03-05: Validated current `T10` (`M24`) slice with:
+  - `./run-tests.sh --profile emu-runtime-conformance`,
+  - `./run-tests.sh --profile emu-required`.
+- 2026-03-05: Advanced `T10` (`M25`) SyncFull callback-absence robustness:
+  - Expanded `tests/emulator_behavior/emu_unit_rdp_command_ingest_test.cpp` with:
+    - `SyncFull` behavior when frontend is unavailable while synchronous mode is enabled,
+    - `SyncFull` behavior when timeline callbacks are absent (`signal_timeline`/`wait_for_timeline` null).
+  - Locks:
+    - interrupt signaling remains active in both fallback conditions,
+    - timeline signaling/waiting is skipped safely when prerequisites are missing.
+- 2026-03-05: Validated current `T10` (`M25`) slice with:
+  - `./run-tests.sh -R emu.unit.rdp_command_ingest`,
   - `./run-tests.sh --profile emu-required`.

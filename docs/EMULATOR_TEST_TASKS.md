@@ -208,7 +208,7 @@
 - `Next`: immediate next step.
 
 ## Current Status
-- Active phase: `T10` execution (`M37` HIRES state-lifecycle leakage guards complete; expanding additional HIRES-risk readiness tests).
+- Active phase: `T10` execution (`M38` replacement-cache parser/decode matrix closure complete; expanding additional HIRES-risk readiness tests).
 - Hi-res plan: on hold for new feature work until emulator behavior test baseline is established.
 - Open risk: local optional tiers depend on host tooling (Vulkan/lavapipe + `rdp-validate-dump`) and may skip when unavailable.
 
@@ -890,4 +890,24 @@
   - Gap closure: stale replacement/tlut/counter state leakage across provider transitions is now explicitly guarded.
 - 2026-03-05: Validated current `T10` (`M37`) slice with:
   - `./run-tests.sh -R "emu.unit.hires_(runtime|state)_policy|hires"`,
+  - `./run-tests.sh --profile emu-required`.
+- 2026-03-05: Advanced `T10` (`M38`) replacement-cache parser/decode matrix closure:
+  - Added `tests/hires_textures/hires_replacement_provider_decode_matrix_test.cpp` and `hires.texture_replacement_provider_decode_matrix`.
+    - Locks decode behavior across currently-supported payload encodings:
+      - `GL_RGBA + UNSIGNED_BYTE`,
+      - `GL_RGB + UNSIGNED_BYTE`,
+      - `GL_RGB + UNSIGNED_SHORT_5_6_5`,
+      - `GL_RGBA + UNSIGNED_SHORT_5_5_5_1`,
+      - `GL_RGBA + UNSIGNED_SHORT_4_4_4_4`,
+      - `GL_LUMINANCE + UNSIGNED_BYTE`,
+      - `GL_TEXFMT_GZ` compressed payload decode.
+    - Locks replacement selection precedence for exact formatsize vs wildcard fallback across multi-file caches.
+    - Locks malformed-neighbor resilience (`.htc` truncation does not block valid file loads) and failed-load state clear semantics.
+  - Added `tests/hires_textures/hires_replacement_provider_parser_edge_test.cpp` and `hires.texture_replacement_provider_parser_edge`.
+    - Locks `.hts` new-format and old-format parsing compatibility contracts.
+    - Locks `.hts` record/index formatsize precedence and invalid-index offset skip behavior.
+    - Locks stable decode failure behavior for corrupt compressed payloads and short RGB payloads.
+  - Registered both new targets in `tests/hires_textures/CMakeLists.txt`.
+- 2026-03-05: Validated current `T10` (`M38`) slice with:
+  - `./run-tests.sh -R "hires.texture_replacement_provider_parser_edge|hires.texture_replacement_provider_decode_matrix|hires.texture_replacement_provider|hires.texture_keying"`,
   - `./run-tests.sh --profile emu-required`.

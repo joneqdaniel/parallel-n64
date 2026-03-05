@@ -156,7 +156,7 @@
 - `Next`: immediate next step.
 
 ## Current Status
-- Active phase: `T10` planning (coverage expansion backlog defined).
+- Active phase: `T10` execution (`M1` Vulkan glue coverage in progress).
 - Hi-res plan: on hold for new feature work until emulator behavior test baseline is established.
 - Open risk: local optional tiers depend on host tooling (Vulkan/lavapipe + `rdp-validate-dump`) and may skip when unavailable.
 
@@ -408,3 +408,17 @@
   - VI golden/hash expansion.
   - Dump corpus expansion beyond baseline smoke fixture.
   - Runtime conformance enablement for reproducible local execution.
+- 2026-03-05: Started `T10` (`M1` Vulkan integration glue coverage):
+  - Added `mupen64plus-video-paraLLEl/rdp_vulkan_glue.hpp` with testable helpers for:
+    - `parallel_create_device` hook-driven policy (`create_device_with_hooks`),
+    - frontend queue/device mapping (`populate_frontend_context_from_context`),
+    - stable Vulkan app info (`parallel_application_info`).
+  - Updated `mupen64plus-video-paraLLEl/rdp.cpp` to use the Vulkan glue helpers for:
+    - `parallel_create_device`,
+    - `parallel_get_application_info`.
+  - Added `tests/emulator_behavior/emu_unit_rdp_vulkan_glue_test.cpp` as `emu.unit.rdp_vulkan_glue`.
+    - Covers missing-hook rejection, loader/context/device-init failure paths, context destroy behavior, success-path ownership handoff, argument forwarding, and queue family mapping.
+  - Registered target in `tests/emulator_behavior/CMakeLists.txt`.
+- 2026-03-05: Validated current `T10` (`M1`) slice with:
+  - `./run-tests.sh -R emu.unit.rdp_vulkan_glue`,
+  - `./run-tests.sh --profile emu-required`.

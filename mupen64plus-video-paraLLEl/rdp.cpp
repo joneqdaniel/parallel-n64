@@ -3,6 +3,7 @@
 #include "rdp_frame_mapping.hpp"
 #include "rdp_init_policy.hpp"
 #include "rdp_scanout_fallback.hpp"
+#include "rdp_vulkan_glue.hpp"
 #include "Gfx #1.3.h"
 #include "parallel.h"
 #include "z64.h"
@@ -376,41 +377,50 @@ bool parallel_create_device(struct retro_vulkan_context *frontend_context, VkIns
                             const char **required_device_layers, unsigned num_required_device_layers,
                             const VkPhysicalDeviceFeatures *required_features)
 {
-	if (!Vulkan::Context::init_loader(get_instance_proc_addr))
-		return false;
+	::RDP::detail::CreateDeviceHooks hooks = {};
+	hooks.userdata = &::RDP::context;
+	hooks.context_creation_flags = Vulkan::CONTEXT_CREATION_DISABLE_BINDLESS_BIT;
+	hooks.init_loader = [](PFN_vkGetInstanceProcAddr proc_addr, void *) -> bool {
+		return Vulkan::Context::init_loader(proc_addr);
+	};
+	hooks.create_context = [](void *userdata) -> void * {
+		auto *ctx_holder = static_cast<std::unique_ptr<Vulkan::Context> *>(userdata);
+		ctx_holder->reset(new Vulkan::Context);
+		return ctx_holder->get();
+	};
+	hooks.init_device_from_instance = [](void *context_ptr,
+			VkInstance init_instance, VkPhysicalDevice init_gpu, VkSurfaceKHR init_surface,
+			const char **req_device_extensions, unsigned req_num_device_extensions,
+			const char **req_device_layers, unsigned req_num_device_layers,
+			const VkPhysicalDeviceFeatures *req_features,
+			uint32_t creation_flags, void *) -> bool {
+		auto *ctx = static_cast<Vulkan::Context *>(context_ptr);
+		return ctx->init_device_from_instance(
+				init_instance, init_gpu, init_surface,
+				req_device_extensions, req_num_device_extensions,
+				req_device_layers, req_num_device_layers,
+				req_features, creation_flags);
+	};
+	hooks.destroy_context = [](void *, void *userdata) {
+		auto *ctx_holder = static_cast<std::unique_ptr<Vulkan::Context> *>(userdata);
+		ctx_holder->reset();
+	};
+	hooks.populate_frontend_context = [](retro_vulkan_context *frontend, void *context_ptr, void *) {
+		auto *ctx = static_cast<Vulkan::Context *>(context_ptr);
+		::RDP::detail::populate_frontend_context_from_context(frontend, *ctx);
+	};
+	hooks.release_device = [](void *context_ptr, void *) {
+		// Frontend owns the device.
+		static_cast<Vulkan::Context *>(context_ptr)->release_device();
+	};
 
-	::RDP::context.reset(new Vulkan::Context);
-	if (!::RDP::context->init_device_from_instance(
-				instance, gpu, surface, required_device_extensions, num_required_device_extensions,
-				required_device_layers, num_required_device_layers, required_features, Vulkan::CONTEXT_CREATION_DISABLE_BINDLESS_BIT))
-	{
-		::RDP::context.reset();
-		return false;
-	}
-
-	frontend_context->gpu = ::RDP::context->get_gpu();
-	frontend_context->device = ::RDP::context->get_device();
-	frontend_context->queue = ::RDP::context->get_graphics_queue();
-	frontend_context->queue_family_index = ::RDP::context->get_graphics_queue_family();
-	frontend_context->presentation_queue = ::RDP::context->get_graphics_queue();
-	frontend_context->presentation_queue_family_index = ::RDP::context->get_graphics_queue_family();
-
-	// Frontend owns the device.
-	::RDP::context->release_device();
-	return true;
+	return ::RDP::detail::create_device_with_hooks(
+			hooks, frontend_context, instance, gpu, surface, get_instance_proc_addr,
+			required_device_extensions, num_required_device_extensions,
+			required_device_layers, num_required_device_layers, required_features);
 }
-
-static const VkApplicationInfo parallel_app_info = {
-	VK_STRUCTURE_TYPE_APPLICATION_INFO,
-	nullptr,
-	"paraLLEl-RDP",
-	0,
-	"Granite",
-	0,
-	VK_API_VERSION_1_1,
-};
 
 const VkApplicationInfo *parallel_get_application_info(void)
 {
-	return &parallel_app_info;
+	return ::RDP::detail::parallel_application_info();
 }

@@ -27,6 +27,7 @@
 #include "rdp_rect_setup_policy.hpp"
 #include "rdp_scanout_coherency_policy.hpp"
 #include "rdp_scissor_policy.hpp"
+#include "rdp_tex_rect_policy.hpp"
 #include "rdp_triangle_setup_policy.hpp"
 #include <chrono>
 
@@ -631,78 +632,38 @@ void CommandProcessor::op_texture_rectangle(const uint32_t *words)
 {
 	auto rect = detail::decode_rectangle_coordinates(words[0], words[1]);
 	rect = detail::apply_copy_fill_y_adjust(rect, static_state.flags);
-	uint32_t tile = (words[1] >> 24) & 0x7;
 
-	int32_t s = (words[2] >> 16) & 0xffff;
-	int32_t t = (words[2] >> 0) & 0xffff;
-	int32_t dsdx = (words[3] >> 16) & 0xffff;
-	int32_t dtdy = (words[3] >> 0) & 0xffff;
-	dsdx = sext<16>(dsdx);
-	dtdy = sext<16>(dtdy);
+	detail::TextureRectanglePolicyInput input = {};
+	input.rect = rect;
+	input.word1 = words[1];
+	input.word2 = words[2];
+	input.word3 = words[3];
+	input.raster_flags = static_state.flags;
+	input.flip = false;
+	input.native_resolution_tex_rect = quirks.u.options.native_resolution_tex_rect;
+	input.native_texture_lod = quirks.u.options.native_texture_lod;
 
-	TriangleSetup setup = {};
-	AttributeSetup attr = {};
-
-	setup.xh = rect.xh << 13;
-	setup.xl = rect.xl << 13;
-	setup.xm = rect.xl << 13;
-	setup.ym = rect.yl;
-	setup.yl = rect.yl;
-	setup.yh = rect.yh;
-	setup.flags = TRIANGLE_SETUP_FLIP_BIT |
-	              (quirks.u.options.native_resolution_tex_rect ? TRIANGLE_SETUP_DISABLE_UPSCALING_BIT : 0) |
-	              (quirks.u.options.native_texture_lod ? TRIANGLE_SETUP_NATIVE_LOD_BIT : 0);
-	setup.tile = tile;
-
-	attr.s = s << 16;
-	attr.t = t << 16;
-	attr.dsdx = dsdx << 11;
-	attr.dtde = dtdy << 11;
-	attr.dtdy = dtdy << 11;
-
-	if ((static_state.flags & RASTERIZATION_COPY_BIT) != 0)
-		setup.flags |= TRIANGLE_SETUP_SKIP_XFRAC_BIT;
-
-	renderer.draw_shaded_primitive(setup, attr);
+	auto policy = detail::build_texture_rectangle_policy(input);
+	renderer.draw_shaded_primitive(policy.setup, policy.attr);
 }
 
 void CommandProcessor::op_texture_rectangle_flip(const uint32_t *words)
 {
 	auto rect = detail::decode_rectangle_coordinates(words[0], words[1]);
 	rect = detail::apply_copy_fill_y_adjust(rect, static_state.flags);
-	uint32_t tile = (words[1] >> 24) & 0x7;
 
-	int32_t s = (words[2] >> 16) & 0xffff;
-	int32_t t = (words[2] >> 0) & 0xffff;
-	int32_t dsdx = (words[3] >> 16) & 0xffff;
-	int32_t dtdy = (words[3] >> 0) & 0xffff;
-	dsdx = sext<16>(dsdx);
-	dtdy = sext<16>(dtdy);
+	detail::TextureRectanglePolicyInput input = {};
+	input.rect = rect;
+	input.word1 = words[1];
+	input.word2 = words[2];
+	input.word3 = words[3];
+	input.raster_flags = static_state.flags;
+	input.flip = true;
+	input.native_resolution_tex_rect = quirks.u.options.native_resolution_tex_rect;
+	input.native_texture_lod = quirks.u.options.native_texture_lod;
 
-	TriangleSetup setup = {};
-	AttributeSetup attr = {};
-
-	setup.xh = rect.xh << 13;
-	setup.xl = rect.xl << 13;
-	setup.xm = rect.xl << 13;
-	setup.ym = rect.yl;
-	setup.yl = rect.yl;
-	setup.yh = rect.yh;
-	setup.flags = TRIANGLE_SETUP_FLIP_BIT | TRIANGLE_SETUP_DISABLE_UPSCALING_BIT |
-	              (quirks.u.options.native_resolution_tex_rect ? TRIANGLE_SETUP_DISABLE_UPSCALING_BIT : 0) |
-	              (quirks.u.options.native_texture_lod ? TRIANGLE_SETUP_NATIVE_LOD_BIT : 0);
-	setup.tile = tile;
-
-	attr.s = s << 16;
-	attr.t = t << 16;
-	attr.dtdx = dtdy << 11;
-	attr.dsde = dsdx << 11;
-	attr.dsdy = dsdx << 11;
-
-	if ((static_state.flags & RASTERIZATION_COPY_BIT) != 0)
-		setup.flags |= TRIANGLE_SETUP_SKIP_XFRAC_BIT;
-
-	renderer.draw_shaded_primitive(setup, attr);
+	auto policy = detail::build_texture_rectangle_policy(input);
+	renderer.draw_shaded_primitive(policy.setup, policy.attr);
 }
 
 void CommandProcessor::op_set_prim_depth(const uint32_t *words)

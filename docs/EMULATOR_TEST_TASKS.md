@@ -179,7 +179,7 @@
 - `Next`: immediate next step.
 
 ## Current Status
-- Active phase: `T10` execution (`M19` rectangle setup policy coverage in progress).
+- Active phase: `T10` execution (`M20` texture-rectangle policy coverage in progress).
 - Hi-res plan: on hold for new feature work until emulator behavior test baseline is established.
 - Open risk: local optional tiers depend on host tooling (Vulkan/lavapipe + `rdp-validate-dump`) and may skip when unavailable.
 
@@ -667,4 +667,18 @@
   - Registered target in `tests/emulator_behavior/CMakeLists.txt`.
 - 2026-03-05: Validated current `T10` (`M19`) slice with:
   - `./run-tests.sh -R emu.unit.rdp_rect_setup_policy`,
+  - `./run-tests.sh --profile emu-required`.
+- 2026-03-05: Advanced `T10` (`M20`) texture-rectangle policy coverage:
+  - Added `parallel-rdp/parallel-rdp/rdp_tex_rect_policy.hpp` with shared helper for:
+    - texture-rectangle setup packing (`xh/xl/xm/ym/yl/yh`, tile decode),
+    - flag policy across flip/copy/native-resolution/native-lod combinations,
+    - attribute gradient decode/sign-extension for normal and flip modes.
+  - Updated `parallel-rdp/parallel-rdp/rdp_device.cpp` to use shared texture-rectangle policy helper in:
+    - `op_texture_rectangle`,
+    - `op_texture_rectangle_flip`.
+  - Added `tests/emulator_behavior/emu_unit_rdp_tex_rect_policy_test.cpp` as `emu.unit.rdp_tex_rect_policy`.
+    - Covers copy-mode skip-xfrac behavior, flip/native flag interactions, tile decode masking, and signed gradient mapping.
+  - Registered target in `tests/emulator_behavior/CMakeLists.txt`.
+- 2026-03-05: Validated current `T10` (`M20`) slice with:
+  - `./run-tests.sh -R emu.unit.rdp_tex_rect_policy`,
   - `./run-tests.sh --profile emu-required`.

@@ -18,3 +18,7 @@ To build Android hardfp library with the new CXD4 RSP + NEON + Parallel RDP do:
 
 To build Android arm64 library with the new CXD4 RSP + Parallel RDP + dynarec do:
 * ndk-build APP_ABI=arm64-v8a
+
+Local helpers:
+* `./run-build.sh` - build core with fork defaults (`HAVE_PARALLEL=1 HAVE_PARALLEL_RSP=1`)
+* `./run-tests.sh` - configure/build/run local CTest suite

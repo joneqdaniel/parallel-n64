@@ -53,3 +53,4 @@ I will post updates in this format as work progresses:
   - `timeout --signal=INT --kill-after=5 20s ./run-n64.sh -- --verbose` with forced `parallel` + hi-res `enabled` passes (`lookups=31902 hits=18376 misses=13526 provider=on`).
 - 2026-03-04: Marked M3 complete after runtime hit/miss validation and local unit coverage for keying and replacement provider decode paths.
 - 2026-03-04: Promoted local M3 tests to first-class CMake/CTest targets for the fork (`cmake -S . -B build/ctest` + `ctest --test-dir build/ctest`).
+- 2026-03-04: Added `run-build.sh` helper for consistent local core builds with this fork's defaults (`HAVE_PARALLEL=1`, `HAVE_PARALLEL_RSP=1`).

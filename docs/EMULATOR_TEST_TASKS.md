@@ -179,7 +179,7 @@
 - `Next`: immediate next step.
 
 ## Current Status
-- Active phase: `T10` execution (`M10` dump corpus manifest/composition gate coverage in progress).
+- Active phase: `T10` execution (`M11` deterministic DP ingest fuzz coverage in progress).
 - Hi-res plan: on hold for new feature work until emulator behavior test baseline is established.
 - Open risk: local optional tiers depend on host tooling (Vulkan/lavapipe + `rdp-validate-dump`) and may skip when unavailable.
 
@@ -555,4 +555,13 @@
   - Registered `emu.dump.manifest` in `tests/emulator_behavior/CMakeLists.txt`.
 - 2026-03-05: Validated current `T10` (`M10`) slice with:
   - `./run-tests.sh -R emu.dump.manifest`,
+  - `./run-tests.sh --profile emu-required`.
+- 2026-03-05: Advanced `T10` (`M11`) deterministic ingest fuzz coverage:
+  - Expanded `tests/emulator_behavior/emu_unit_rdp_command_ingest_test.cpp` with a fixed-seed fuzz-style stream test:
+    - exercises mixed opcode payloads across DRAM/XBUS paths,
+    - asserts parser index invariants (`cmd_cur/cmd_ptr`) and freeze-bit clearing over many randomized iterations,
+    - keeps deterministic behavior for reproducible local debugging.
+  - This extends the DP parser robustness backlog beyond static hand-crafted edge streams.
+- 2026-03-05: Validated current `T10` (`M11`) slice with:
+  - `./run-tests.sh -R emu.unit.rdp_command_ingest`,
   - `./run-tests.sh --profile emu-required`.

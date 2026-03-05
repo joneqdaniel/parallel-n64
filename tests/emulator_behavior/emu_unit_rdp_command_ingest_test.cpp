@@ -460,6 +460,56 @@ static void test_high_address_bits_are_masked_before_dram_guard()
 	check(h.interrupt_calls == 1, "high address bits should be masked, allowing command decode");
 	check(dpc_start == dpc_end && dpc_current == dpc_end, "DPC start/current should reset to end");
 }
+
+static uint32_t next_rand(uint32_t &state)
+{
+	state ^= state << 13;
+	state ^= state >> 17;
+	state ^= state << 5;
+	return state;
+}
+
+static void test_deterministic_fuzz_stream_bounds()
+{
+	constexpr unsigned max_qwords = 32;
+
+	std::vector<uint32_t> dram_words(0x2000 / 4, 0);
+	std::vector<uint32_t> dmem_words(0x1000 / 4, 0);
+	uint8_t *dram = reinterpret_cast<uint8_t *>(dram_words.data());
+	uint8_t *dmem = reinterpret_cast<uint8_t *>(dmem_words.data());
+
+	std::array<uint32_t, max_qwords * 2> cmd_data = {};
+	uint32_t rng = 0x1a2b3c4du;
+
+	for (unsigned iter = 0; iter < 256; iter++)
+	{
+		CommandIngestState state = {};
+		state.cmd_data = cmd_data.data();
+
+		const unsigned qwords = (next_rand(rng) % max_qwords) + 1;
+		for (unsigned i = 0; i < qwords * 2; i++)
+		{
+			const uint32_t value = next_rand(rng);
+			write_u32(dram, i * sizeof(uint32_t), value);
+			write_u32(dmem, i * sizeof(uint32_t), value);
+		}
+
+		uint32_t dpc_start = 0;
+		uint32_t dpc_current = 0;
+		uint32_t dpc_end = qwords * sizeof(uint64_t);
+		uint32_t dpc_status = (next_rand(rng) & 1u) ? DP_STATUS_XBUS_DMA : 0u;
+		dpc_status |= DP_STATUS_FREEZE;
+
+		CallbackHarness h = {};
+		CommandIngestHooks hooks = make_hooks(h, false, false);
+		process_command_ingest(state, dram, dmem, dpc_start, dpc_end, dpc_current, dpc_status, hooks);
+
+		check((dpc_status & DP_STATUS_FREEZE) == 0, "fuzz: freeze bit should always clear");
+		check(state.cmd_cur >= 0 && state.cmd_ptr >= 0, "fuzz: parser indices must remain non-negative");
+		check(state.cmd_cur <= state.cmd_ptr, "fuzz: cmd_cur must not exceed cmd_ptr");
+		check(state.cmd_ptr <= int(max_qwords), "fuzz: cmd_ptr should remain within copied qword range");
+	}
+}
 }
 
 int main()
@@ -475,6 +525,7 @@ int main()
 	test_commands_below_8_do_not_enqueue();
 	test_opcode_boundary_low_and_high();
 	test_high_address_bits_are_masked_before_dram_guard();
+	test_deterministic_fuzz_stream_bounds();
 	std::cout << "emu_unit_rdp_command_ingest_test: PASS" << std::endl;
 	return 0;
 }

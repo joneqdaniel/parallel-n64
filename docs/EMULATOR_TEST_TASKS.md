@@ -179,7 +179,7 @@
 - `Next`: immediate next step.
 
 ## Current Status
-- Active phase: `T10` execution (`M11` deterministic DP ingest fuzz coverage in progress).
+- Active phase: `T10` execution (`M12` VI serrate/scale policy coverage in progress).
 - Hi-res plan: on hold for new feature work until emulator behavior test baseline is established.
 - Open risk: local optional tiers depend on host tooling (Vulkan/lavapipe + `rdp-validate-dump`) and may skip when unavailable.
 
@@ -564,4 +564,17 @@
   - This extends the DP parser robustness backlog beyond static hand-crafted edge streams.
 - 2026-03-05: Validated current `T10` (`M11`) slice with:
   - `./run-tests.sh -R emu.unit.rdp_command_ingest`,
+  - `./run-tests.sh --profile emu-required`.
+- 2026-03-05: Advanced `T10` (`M12`) VI serrate/scale policy coverage:
+  - Added `mupen64plus-video-paraLLEl/parallel-rdp/parallel-rdp/vi_scale_policy.hpp` with shared helper for:
+    - serrate enable/disable policy from VI status + deinterlace option,
+    - overscan crop expansion policy under interlaced and non-interlaced modes,
+    - render-target dimensions and adjusted vertical domain derivation,
+    - serrate push-constant field selection from `VCurrentLine` parity.
+  - Updated `parallel-rdp/parallel-rdp/video_interface.cpp::scale_stage()` to use shared policy helper (no intended behavior change).
+  - Added `tests/emulator_behavior/emu_unit_vi_scale_policy_test.cpp` as `emu.unit.vi_scale_policy`.
+    - Covers non-serrate deinterlace override behavior, serrate vertical-domain doubling, field-select parity behavior, and PAL vs NTSC vertical sizing.
+  - Registered target in `tests/emulator_behavior/CMakeLists.txt`.
+- 2026-03-05: Validated current `T10` (`M12`) slice with:
+  - `./run-tests.sh -R emu.unit.vi_scale_policy`,
   - `./run-tests.sh --profile emu-required`.

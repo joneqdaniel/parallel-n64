@@ -24,6 +24,7 @@
 #include "rdp_renderer.hpp"
 #include "luts.hpp"
 #include "vi_scanout_policy.hpp"
+#include "vi_scale_policy.hpp"
 
 #ifndef PARALLEL_RDP_SHADER_DIR
 #include "shaders/slangmosh.hpp"
@@ -516,23 +517,32 @@ Vulkan::ImageHandle VideoInterface::scale_stage(Vulkan::CommandBuffer &cmd, Vulk
 	Vulkan::ImageHandle scale_image;
 	Vulkan::QueryPoolHandle start_ts, end_ts;
 	bool fetch_bug = need_fetch_bug_emulation(regs, scaling_factor);
-	bool serrate = (regs.status & VI_CONTROL_SERRATE_BIT) != 0 && !options.upscale_deinterlacing;
+	detail::VIScalePolicyInput scale_policy_input = {};
+	scale_policy_input.is_pal = regs.is_pal;
+	scale_policy_input.status = regs.status;
+	scale_policy_input.v_start = regs.v_start;
+	scale_policy_input.v_res = regs.v_res;
+	scale_policy_input.v_current_line = regs.v_current_line;
+	scale_policy_input.crop_overscan_pixels = options.crop_overscan_pixels;
+	scale_policy_input.scaling_factor = scaling_factor;
+	scale_policy_input.upscale_deinterlacing = options.upscale_deinterlacing;
 
-	unsigned crop_pixels_x = options.crop_overscan_pixels * scaling_factor;
-	unsigned crop_pixels_y = crop_pixels_x * (serrate ? 2 : 1);
+	auto scale_policy = detail::derive_vi_scale_policy(scale_policy_input);
+	unsigned crop_pixels_x = scale_policy.crop_pixels_x;
+	unsigned crop_pixels_y = scale_policy.crop_pixels_y;
 
 	Vulkan::ImageCreateInfo rt_info = Vulkan::ImageCreateInfo::render_target(
-			VI_SCANOUT_WIDTH * scaling_factor,
-			((regs.is_pal ? VI_V_RES_PAL: VI_V_RES_NTSC) >> int(!serrate)) * scaling_factor,
+			scale_policy.render_target_width,
+			scale_policy.render_target_height,
 			VK_FORMAT_R8G8B8A8_UNORM);
-
-	rt_info.width -= 2 * crop_pixels_x;
-	rt_info.height -= 2 * crop_pixels_y;
 
 	rt_info.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
 	rt_info.initial_layout = VK_IMAGE_LAYOUT_UNDEFINED;
 	rt_info.misc = Vulkan::IMAGE_MISC_MUTABLE_SRGB_BIT;
 	scale_image = device->create_image(rt_info);
+
+	regs.v_start = scale_policy.adjusted_v_start;
+	regs.v_res = scale_policy.adjusted_v_res;
 
 	Vulkan::RenderPassInfo rp;
 	rp.color_attachments[0] = &scale_image->get_view();
@@ -577,16 +587,9 @@ Vulkan::ImageHandle VideoInterface::scale_stage(Vulkan::CommandBuffer &cmd, Vulk
 		uint32_t serrate_mask;
 		uint32_t serrate_select;
 	} push = {};
-
-	if (serrate)
-	{
-		regs.v_start *= 2;
-		regs.v_res *= 2;
-		push.serrate_shift = 1;
-		push.serrate_mask = 1;
-		bool field_state = regs.v_current_line == 0;
-		push.serrate_select = int(field_state);
-	}
+	push.serrate_shift = scale_policy.serrate_shift;
+	push.serrate_mask = scale_policy.serrate_mask;
+	push.serrate_select = scale_policy.serrate_select;
 
 	push.x_offset = regs.x_start;
 	push.y_offset = regs.y_start;

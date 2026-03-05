@@ -250,6 +250,16 @@ target_include_directories(emu_unit_vi_register_interaction_matrix_test PRIVATE
 target_compile_features(emu_unit_vi_register_interaction_matrix_test PRIVATE cxx_std_17)
 add_test(NAME emu.unit.vi_register_interaction_matrix COMMAND emu_unit_vi_register_interaction_matrix_test)
 
+add_executable(emu_unit_vi_scale_policy_test
+  emu_unit_vi_scale_policy_test.cpp
+)
+target_include_directories(emu_unit_vi_scale_policy_test PRIVATE
+  "${CMAKE_SOURCE_DIR}"
+  "${CMAKE_SOURCE_DIR}/mupen64plus-video-paraLLEl/parallel-rdp/parallel-rdp"
+)
+target_compile_features(emu_unit_vi_scale_policy_test PRIVATE cxx_std_17)
+add_test(NAME emu.unit.vi_scale_policy COMMAND emu_unit_vi_scale_policy_test)
+
 add_executable(emu_conformance_rdp_command_fields_test
   emu_conformance_rdp_command_fields_test.cpp
 )

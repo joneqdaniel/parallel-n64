@@ -1,6 +1,6 @@
 # Emulator Test Tiers
 
-This repo uses tiered emulator-behavior test gates to separate required checks from heavier optional checks.
+This repo uses tiered, local-only emulator-behavior test gates to separate required checks from heavier optional checks.
 
 ## Local Commands
 
@@ -38,3 +38,4 @@ This repo uses tiered emulator-behavior test gates to separate required checks f
 
 - `emu.dump.*` is skip-by-default without `rdp-validate-dump`.
 - Baseline fixture is committed at `tests/rdp_dumps/baseline_minimal_eof.rdp`.
+- Remote CI enforcement is intentionally disabled for now; run tiers locally.

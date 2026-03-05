@@ -10,7 +10,7 @@
   - `mupen64plus-video-paraLLEl/rdp.cpp`
   - `mupen64plus-video-paraLLEl/z64.h`
   - `mupen64plus-video-paraLLEl/parallel-rdp/parallel-rdp/*`
-  - Test harness + CI/CTest integration.
+  - Test harness + local CTest integration.
 - Out of scope:
   - Hi-res texture replacement behavior and related cache/keying tests (tracked in `docs/HIRES_TEXTURE_TASKS.md`).
   - New rendering features that are not required to make tests deterministic and enforceable.
@@ -100,16 +100,16 @@
   - Exit criteria:
     - `ctest -R emu.dump` passes on baseline corpus with stable hashes.
 
-- [ ] T9: CI Gating and Developer Workflow
+- [ ] T9: Local Gating and Developer Workflow
   - Deliverables:
-    - Wire emulator behavior suite into `run-tests.sh` categories and CI jobs.
+    - Wire emulator behavior suite into local `run-tests.sh` categories.
     - Define tiered gating:
       - required: `emu.unit.*`
-      - optional/nightly: `emu.conformance.*`, `emu.dump.*`
+      - optional: `emu.conformance.*`, `emu.dump.*`
     - Add failure triage docs and update contributor guidance.
   - Exit criteria:
-    - PRs can be blocked on unit-regression failures.
-    - Nightly job reports conformance drift with reproducible artifacts.
+    - Local required gate command is stable and documented.
+    - Optional local tiers are runnable with deterministic setup guidance.
 
 ## Phase Execution Policy
 - Work one phase at a time; no phase jumping.
@@ -127,9 +127,9 @@
 - `Next`: immediate next step.
 
 ## Current Status
-- Active phase: `T9` (CI Gating and Developer Workflow).
+- Active phase: `T9` (Local Gating and Developer Workflow).
 - Hi-res plan: on hold for new feature work until emulator behavior test baseline is established.
-- Open risk: CI optional tiers now exist but have not yet accumulated historical drift signal (first scheduled runs pending).
+- Open risk: local optional tiers depend on host tooling (Vulkan/lavapipe + `rdp-validate-dump`) and may skip when unavailable.
 
 ## Change Log
 - 2026-03-05: Initialized non-hires emulator behavior test track and separated it from hi-res tasks.
@@ -352,14 +352,14 @@
   - Updated docs/README references for baseline-vs-local dump workflow.
 - 2026-03-05: Closed `T8` against baseline fixture:
   - `RDP_VALIDATE_DUMP_BIN=/home/auro/code/mupen/parallel-rdp-upstream/build/rdp-validate-dump ./run-tests.sh -R emu.dump` (passes both normal and sync-only on committed corpus).
-- 2026-03-05: Started `T9` CI gating + workflow wiring:
+- 2026-03-05: Started `T9` local gating wiring:
   - Added `run-tests.sh --profile` with tiered mappings:
     - `emu-required` -> `emu.unit.*`
     - `emu-optional` -> `emu.conformance.*` + `emu.dump.*`
     - `emu-conformance` -> `emu.conformance.*`
     - `emu-dump` -> `emu.dump.*`
   - Added `docs/EMU_TESTING.md` with required/optional commands and failure triage flow.
-  - Added `.github/workflows/emulator-tests.yml`:
-    - required gate on push/PR (`emu-required`)
-    - optional conformance + dump jobs on schedule/workflow_dispatch
   - Updated `README.md` helper references for tiered test usage.
+- 2026-03-05: Switched `T9` to local-only gating by request:
+  - Removed `.github/workflows/emulator-tests.yml`.
+  - Kept tiered local gate commands and local triage documentation as the source of truth.

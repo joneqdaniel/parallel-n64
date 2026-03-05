@@ -253,3 +253,15 @@
   - `./run-tests.sh`,
   - `./run-build.sh`,
   - `timeout --signal=INT --kill-after=5 20s ./run-n64.sh -- --verbose`.
+- 2026-03-05: Added optional software-Vulkan runtime conformance smoke:
+  - Added `tests/emulator_behavior/support/emu_conformance_runtime_smoke.sh` and registered `emu.conformance.runtime_smoke_lavapipe`.
+  - The runtime smoke test is opt-in (`EMU_ENABLE_RUNTIME_CONFORMANCE=1`) and otherwise returns skip (`ctest` `SKIP_RETURN_CODE=77`).
+  - The test enforces lavapipe selection (`VK_DRIVER_FILES=<lavapipe icd>`) and verifies both software-device detection plus successful gfx startup during a 20s run.
+- 2026-03-05: Validated optional runtime conformance smoke with:
+  - `EMU_ENABLE_RUNTIME_CONFORMANCE=1 ./run-tests.sh -R emu.conformance.runtime_smoke_lavapipe`.
+- 2026-03-05: Revalidated full baseline after runtime smoke wiring with:
+  - `./run-tests.sh -R emu.conformance`,
+  - `./run-tests.sh -R emu.unit`,
+  - `./run-tests.sh`,
+  - `./run-build.sh`,
+  - `timeout --signal=INT --kill-after=5 20s ./run-n64.sh -- --verbose`.

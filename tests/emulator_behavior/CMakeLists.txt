@@ -168,3 +168,9 @@ target_include_directories(emu_conformance_rdp_command_fields_test PRIVATE
 )
 target_compile_features(emu_conformance_rdp_command_fields_test PRIVATE cxx_std_17)
 add_test(NAME emu.conformance.rdp_command_fields COMMAND emu_conformance_rdp_command_fields_test)
+
+add_test(
+  NAME emu.conformance.runtime_smoke_lavapipe
+  COMMAND bash "${CMAKE_CURRENT_SOURCE_DIR}/support/emu_conformance_runtime_smoke.sh"
+)
+set_tests_properties(emu.conformance.runtime_smoke_lavapipe PROPERTIES SKIP_RETURN_CODE 77)

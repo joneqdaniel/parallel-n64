@@ -85,6 +85,6 @@ int main()
 	ci4[2] = 0x4b;
 	check(compute_ci4_max_index(ci4.data(), ci4.size(), 0, 6, 1, 3) == 0xe, "compute_ci4_max_index mismatch");
 
-	std::cout << "texture_keying_test: PASS" << std::endl;
+	std::cout << "hires_keying_test: PASS" << std::endl;
 	return 0;
 }

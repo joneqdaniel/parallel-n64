@@ -1,0 +1,20 @@
+find_package(ZLIB REQUIRED)
+
+set(HIRES_RDP_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/mupen64plus-video-paraLLEl/parallel-rdp/parallel-rdp")
+set(HIRES_REPLACEMENT_IMPL "${HIRES_RDP_INCLUDE_DIR}/texture_replacement.cpp")
+
+add_executable(hires_texture_keying_test
+  hires_keying_test.cpp
+)
+target_include_directories(hires_texture_keying_test PRIVATE "${HIRES_RDP_INCLUDE_DIR}")
+target_compile_features(hires_texture_keying_test PRIVATE cxx_std_17)
+add_test(NAME hires.texture_keying COMMAND hires_texture_keying_test)
+
+add_executable(hires_texture_replacement_provider_test
+  hires_replacement_provider_test.cpp
+  "${HIRES_REPLACEMENT_IMPL}"
+)
+target_include_directories(hires_texture_replacement_provider_test PRIVATE "${HIRES_RDP_INCLUDE_DIR}")
+target_compile_features(hires_texture_replacement_provider_test PRIVATE cxx_std_17)
+target_link_libraries(hires_texture_replacement_provider_test PRIVATE ZLIB::ZLIB)
+add_test(NAME hires.texture_replacement_provider COMMAND hires_texture_replacement_provider_test)

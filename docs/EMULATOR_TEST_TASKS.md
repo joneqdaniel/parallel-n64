@@ -158,7 +158,9 @@
         - enforce minimum corpus composition (TMEM/TLUT, depth/coverage, sync-heavy, rect-heavy).
       - Tooling quality:
         - optional TSAN profile for command-ring/worker-thread races in local debug runs,
-        - deterministic seed capture for all synthetic conformance tests to simplify regression triage.
+        - deterministic seed capture for all synthetic conformance tests to simplify regression triage,
+        - explicit test-runner profile contract checks (`run-tests.sh --profile` mappings, conflict handling) to prevent gate drift,
+        - explicit dump-runner contract checks (`run-dump-tests.sh` flags, env export, and handoff behavior) to prevent local gate drift.
   - Exit criteria:
     - New tests exist for Vulkan glue entrypoints and are mapped into `emu.unit.*` or `emu.conformance.*`.
     - Renderer + VI expansion includes at least one non-trivial golden/hash set each with deterministic local pass behavior.
@@ -182,7 +184,7 @@
 - `Next`: immediate next step.
 
 ## Current Status
-- Active phase: `T10` execution (`M25` SyncFull callback-absence robustness in progress).
+- Active phase: `T10` execution (`M27` test-runner profile contract coverage in progress).
 - Hi-res plan: on hold for new feature work until emulator behavior test baseline is established.
 - Open risk: local optional tiers depend on host tooling (Vulkan/lavapipe + `rdp-validate-dump`) and may skip when unavailable.
 
@@ -734,4 +736,25 @@
     - timeline signaling/waiting is skipped safely when prerequisites are missing.
 - 2026-03-05: Validated current `T10` (`M25`) slice with:
   - `./run-tests.sh -R emu.unit.rdp_command_ingest`,
+  - `./run-tests.sh --profile emu-required`.
+- 2026-03-05: Advanced `T10` (`M26`) second-ROM runtime conformance coverage:
+  - Added `tests/emulator_behavior/support/emu_conformance_lavapipe_sm64_frame_hash.sh`:
+    - deterministic lavapipe screenshot hash run for `Super Mario 64 (USA)` with explicit Parallel-RDP options,
+    - isolates save/savestate paths to temporary directories to remove persistent-state nondeterminism.
+  - Registered `emu.conformance.lavapipe_sm64_frame_hash` in `tests/emulator_behavior/CMakeLists.txt`.
+  - Updated `run-tests.sh --profile emu-runtime-conformance` and `docs/EMU_TESTING.md` to include the SM64 runtime target.
+  - Gap closure: runtime conformance is no longer Paper-Mario-only; now includes a second title-specific deterministic hash fixture.
+- 2026-03-05: Validated current `T10` (`M26`) slice with:
+  - `./run-tests.sh --profile emu-runtime-conformance`,
+  - `./run-tests.sh --profile emu-required`,
+  - `EMU_ENABLE_RUNTIME_CONFORMANCE=1 ./run-tests.sh -R emu.conformance.lavapipe_sm64_frame_hash` (repeat-pass determinism check).
+- 2026-03-05: Advanced `T10` (`M27`) test-runner profile contract coverage:
+  - Added `tests/emulator_behavior/support/emu_test_runner_profile_contract.sh` and registered `emu.unit.test_runner_profile_contract`.
+    - Locks `run-tests.sh` usage/profile surface,
+    - locks profile regex mappings (required/optional/conformance/runtime/dump/tsan),
+    - locks conflict handling (`--profile` + `-R`), runtime env enablement, TSAN preflight/force override, and unknown-profile failure path.
+  - Gap closure: prevents silent drift between documented local gate profiles and script implementation.
+- 2026-03-05: Validated current `T10` (`M27`) slice with:
+  - `./run-tests.sh -R emu.unit.test_runner_profile_contract`,
+  - `./run-tests.sh --profile emu-runtime-conformance`,
   - `./run-tests.sh --profile emu-required`.

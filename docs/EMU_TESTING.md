@@ -25,7 +25,7 @@ This repo uses tiered, local-only emulator-behavior test gates to separate requi
 - `emu-required`: `emu.unit.*`
 - `emu-optional`: `emu.conformance.*` + `emu.dump.*`
 - `emu-conformance`: `emu.conformance.*`
-- `emu-runtime-conformance`: runtime lavapipe conformance (`runtime_smoke_lavapipe` + `lavapipe_frame_hash` + `lavapipe_vi_filters_hash` + `lavapipe_vi_filters_mixed_hash` + `lavapipe_vi_downscale_hash`) with opt-in env automatically set
+- `emu-runtime-conformance`: runtime lavapipe conformance (`runtime_smoke_lavapipe` + `lavapipe_frame_hash` + `lavapipe_vi_filters_hash` + `lavapipe_vi_filters_mixed_hash` + `lavapipe_vi_downscale_hash` + `lavapipe_sm64_frame_hash`) with opt-in env automatically set
 - `emu-dump`: `emu.dump.*`
 - `emu-tsan`: `emu.unit.command_ring_policy` + `emu.unit.worker_thread` with ThreadSanitizer flags
 
@@ -51,3 +51,4 @@ This repo uses tiered, local-only emulator-behavior test gates to separate requi
 - Set `EMU_TSAN_FORCE=1` to bypass preflight and force TSAN execution.
 - Randomized ingest fuzz tests are deterministic by default and log their seed.
 - Set `EMU_FUZZ_SEED=<value>` (hex or decimal) to reproduce/override `emu.unit.rdp_command_ingest` fuzz runs.
+- `run-tests.sh` profile mapping/guard behavior is locked by `emu.unit.test_runner_profile_contract`.

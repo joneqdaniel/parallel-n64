@@ -44,6 +44,7 @@ I will post updates in this format as work progresses:
   - `tests/hires_textures/hires_keying_test.cpp` validates `formatsize`, wrapped reads, CRC behavior, and CI max-index helpers.
   - `tests/hires_textures/hires_replacement_provider_test.cpp` validates `.htc` + `.hts` cache load, lookup, wildcard formatsize fallback, and RGBA8 decode using generated fixtures.
   - Run commands:
+    - `./run-tests.sh`
     - `cmake -S . -B build/ctest`
     - `cmake --build build/ctest --parallel`
     - `ctest --test-dir build/ctest --output-on-failure`

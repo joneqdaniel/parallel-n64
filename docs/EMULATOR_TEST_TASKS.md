@@ -208,7 +208,7 @@
 - `Next`: immediate next step.
 
 ## Current Status
-- Active phase: `T10` execution (`M42` HIRES capability auto-disable policy closure complete; expanding additional HIRES-risk readiness tests).
+- Active phase: `T10` execution (`M43` legacy `.htc` compatibility closure complete; running final HIRES-readiness gap pass).
 - Hi-res plan: on hold for new feature work until emulator behavior test baseline is established.
 - Open risk: local optional tiers depend on host tooling (Vulkan/lavapipe + `rdp-validate-dump`) and may skip when unavailable.
 
@@ -956,4 +956,12 @@
   - Gap closure: “auto-disable when required GPU features are missing” is now a locked unit-test contract ready for M4 integration.
 - 2026-03-05: Validated current `T10` (`M42`) slice with:
   - `./run-tests.sh -R "emu.unit.hires_(runtime|state|lookup|ci_palette|key_state|capability)_policy|hires.texture_replacement_provider_(decode_matrix|parser_edge)|hires.texture_keying|hires.texture_replacement_provider"`,
+  - `./run-tests.sh --profile emu-required`.
+- 2026-03-05: Advanced `T10` (`M43`) legacy `.htc` compatibility closure:
+  - Expanded `tests/hires_textures/hires_replacement_provider_parser_edge_test.cpp` with old-version `.htc` fixture coverage:
+    - legacy record stream parsing without per-record `formatsize`,
+    - wildcard formatsize match behavior for old-version cache entries.
+  - Gap closure: legacy `.htc` pack compatibility contract is now explicitly tested alongside existing `.hts` compatibility coverage.
+- 2026-03-05: Validated current `T10` (`M43`) slice with:
+  - `./run-tests.sh -R "hires.texture_replacement_provider_parser_edge|hires.texture_replacement_provider_decode_matrix|hires.texture_replacement_provider|hires.texture_keying|emu.unit.hires_(runtime|state|lookup|ci_palette|key_state|capability)_policy"`,
   - `./run-tests.sh --profile emu-required`.

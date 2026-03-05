@@ -207,6 +207,34 @@ static void write_htc(const std::filesystem::path &path, const std::vector<HtcRe
 	gzclose(fp);
 }
 
+static void write_htc_old(const std::filesystem::path &path, const std::vector<HtcRecord> &records)
+{
+	gzFile fp = gzopen(path.c_str(), "wb");
+	check(fp != nullptr, "failed to create old .htc fixture");
+
+	const int32_t old_version = 0x07000000;
+	gzwrite(fp, &old_version, sizeof(old_version));
+
+	for (const auto &record : records)
+	{
+		const uint8_t is_hires = record.is_hires ? 1 : 0;
+		const uint32_t data_size = static_cast<uint32_t>(record.blob.size());
+
+		gzwrite(fp, &record.checksum64, sizeof(record.checksum64));
+		gzwrite(fp, &record.width, sizeof(record.width));
+		gzwrite(fp, &record.height, sizeof(record.height));
+		gzwrite(fp, &record.format, sizeof(record.format));
+		gzwrite(fp, &record.texture_format, sizeof(record.texture_format));
+		gzwrite(fp, &record.pixel_type, sizeof(record.pixel_type));
+		gzwrite(fp, &is_hires, sizeof(is_hires));
+		gzwrite(fp, &data_size, sizeof(data_size));
+		if (!record.blob.empty())
+			gzwrite(fp, record.blob.data(), static_cast<unsigned>(record.blob.size()));
+	}
+
+	gzclose(fp);
+}
+
 static void test_hts_formatsize_fallback_and_invalid_offsets()
 {
 	const auto dir = make_temp_dir("parallel_n64_hires_hts_new");
@@ -283,6 +311,28 @@ static void test_decode_failures_are_stable_for_corrupt_entries()
 
 	std::filesystem::remove_all(dir);
 }
+
+static void test_old_version_htc_parsing_uses_wildcard_formatsize()
+{
+	const auto dir = make_temp_dir("parallel_n64_hires_htc_old");
+	const uint64_t key = 0x778899aabbccddeeull;
+	const std::vector<uint8_t> payload = { 0x12, 0x34, 0x56, 0x78 };
+
+	write_htc_old(dir / "old_format.htc", {
+		HtcRecord{ key, 0, 1, 1, GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE, true, payload },
+	});
+
+	ReplacementProvider provider;
+	provider.set_enabled(true);
+	check(provider.load_cache_dir(dir.string()), "failed to load old-format .htc fixture");
+
+	ReplacementImage image = {};
+	check(provider.decode_rgba8(key, 0x2201, &image),
+	      "old-format .htc entry should match through wildcard formatsize");
+	check(image.rgba8 == payload, "old-format .htc payload mismatch");
+
+	std::filesystem::remove_all(dir);
+}
 }
 
 int main()
@@ -290,6 +340,7 @@ int main()
 	test_hts_formatsize_fallback_and_invalid_offsets();
 	test_old_version_hts_parsing();
 	test_decode_failures_are_stable_for_corrupt_entries();
+	test_old_version_htc_parsing_uses_wildcard_formatsize();
 
 	std::cout << "hires_replacement_provider_parser_edge_test: PASS" << std::endl;
 	return 0;

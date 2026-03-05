@@ -22,3 +22,7 @@ To build Android arm64 library with the new CXD4 RSP + Parallel RDP + dynarec do
 Local helpers:
 * `./run-build.sh` - build core with fork defaults (`HAVE_PARALLEL=1 HAVE_PARALLEL_RSP=1`)
 * `./run-tests.sh` - configure/build/run local CTest suite
+
+Task trackers:
+* `docs/EMULATOR_TEST_TASKS.md` - non-HIRES emulator behavior test roadmap
+* `docs/HIRES_TEXTURE_TASKS.md` - hi-res texture replacement roadmap

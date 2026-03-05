@@ -208,7 +208,7 @@
 - `Next`: immediate next step.
 
 ## Current Status
-- Active phase: `T10` execution (`M47` local build-runner stale-object auto-clean closure complete; HIRES-readiness and emu-required gates are green).
+- Active phase: `T10` execution (`M48` local HIRES mini-pack tooling coverage complete; emu-required and hires-readiness gates are green).
 - Hi-res plan: on hold for new feature work until emulator behavior test baseline is established.
 - Open risk: local optional tiers depend on host tooling (Vulkan/lavapipe + `rdp-validate-dump`) and may skip when unavailable.
 - Conformance minipack hash fixture work is explicitly deferred pending additional fixture details.
@@ -1018,3 +1018,13 @@
   - upstream parity repro/verification in `~/code/mupen/parallel-n64-upstream`:
     - `make clean && make HAVE_PARALLEL=1 HAVE_PARALLEL_RSP=1 HAVE_VULKAN_DEBUG=1`,
     - followed by non-clean normal build reproduces the same stale-object link failure.
+- 2026-03-05: Advanced `T10` (`M48`) local HIRES mini-pack tooling + compatibility coverage:
+  - Added `tools/hires_minipack.py` with:
+    - `from-keys` generator (`.hts` and `.htc`) using deterministic synthetic RGBA8 payloads,
+    - optional zlib payload generation (`GL_TEXFMT_GZ`) to exercise decode paths,
+    - `validate` command for `.hts`/`.htc` structure checks.
+  - Added `tests/hires_textures/hires_minipack_tool_test.cpp` as `hires.texture_minipack_tool`:
+    - generates a mini-pack via the new tool,
+    - validates files via tool validation path,
+    - loads/decode-checks output through `ReplacementProvider` to lock generator/parser compatibility.
+  - Updated `docs/HIRES_TEXTURE_TASKS.md` with local mini-pack tool usage and status.

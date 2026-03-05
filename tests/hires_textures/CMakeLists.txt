@@ -36,3 +36,13 @@ target_include_directories(hires_texture_replacement_provider_parser_edge_test P
 target_compile_features(hires_texture_replacement_provider_parser_edge_test PRIVATE cxx_std_17)
 target_link_libraries(hires_texture_replacement_provider_parser_edge_test PRIVATE ZLIB::ZLIB)
 add_test(NAME hires.texture_replacement_provider_parser_edge COMMAND hires_texture_replacement_provider_parser_edge_test)
+
+add_executable(hires_minipack_tool_test
+  hires_minipack_tool_test.cpp
+  "${HIRES_REPLACEMENT_IMPL}"
+)
+target_include_directories(hires_minipack_tool_test PRIVATE "${HIRES_RDP_INCLUDE_DIR}")
+target_compile_definitions(hires_minipack_tool_test PRIVATE PARALLEL_N64_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
+target_compile_features(hires_minipack_tool_test PRIVATE cxx_std_17)
+target_link_libraries(hires_minipack_tool_test PRIVATE ZLIB::ZLIB)
+add_test(NAME hires.texture_minipack_tool COMMAND hires_minipack_tool_test)

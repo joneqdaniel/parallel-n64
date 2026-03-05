@@ -7,6 +7,7 @@
 - Local texture cache artifacts (`*.htc`, `*.hts`) are ignored in git.
 - Conformance hash minipack work is deferred until separate fixture details are finalized.
 - CI policy for this track is local-only for now (no remote GitHub CI gating additions).
+- A local mini-pack generator is available for key-driven cache fixtures (`tools/hires_minipack.py`).
 
 ## Vulkan Capability Contract (Descriptor Indexing Path)
 HIRES replacement may run only when all required descriptor-indexing capabilities are available:
@@ -46,6 +47,20 @@ I will post updates in this format as work progresses:
 - `Validated`: build/tests/manual checks run.
 - `Next`: immediate next implementation step.
 
+## Local Mini-Pack Tool
+- Script: `tools/hires_minipack.py`
+- Commands:
+  - Generate from key CSV:
+    - `python3 tools/hires_minipack.py from-keys --keys keys.csv --out-dir ./cache_minipack --name MINIPACK --emit hts,htc --scale 4 --compress none`
+  - Validate generated cache files:
+    - `python3 tools/hires_minipack.py validate --path ./cache_minipack`
+- CSV columns:
+  - Required: `checksum64`, `formatsize`
+  - Optional: `orig_w`, `orig_h`, `repl_w`, `repl_h`
+- Output:
+  - Emits `.hts`/`.htc` files matching current `ReplacementProvider` parse contracts.
+  - Writes `<name>_manifest.json` with key and synthetic texture metadata.
+
 ## Change Log
 - 2026-03-04: Created tracker and aligned scope to latest-hardware-only descriptor-indexing path.
 - 2026-03-04: Added ignore rules for local hires cache artifacts in `.gitignore`.
@@ -78,3 +93,9 @@ I will post updates in this format as work progresses:
 - 2026-03-05: Put hi-res implementation phases on hold while a separate non-hires emulator behavior test program is established (`docs/EMULATOR_TEST_TASKS.md`).
 - 2026-03-05: Deferred minipack hash conformance fixture work pending additional requirements; continuing unit-test-first readiness work for M4/M5.
 - 2026-03-05: Locked local-only CI policy for emulator/hires test gates (no remote CI additions at this stage).
+- 2026-03-05: Added local mini-pack generator tooling for key-driven fixture creation:
+  - Added `tools/hires_minipack.py` with:
+    - `from-keys` generation path for `.hts` and `.htc`,
+    - synthetic deterministic RGBA8 payload generation (with optional zlib payload compression),
+    - `validate` command for `.hts`/`.htc` structural integrity checks.
+  - Added `tests/hires_textures/hires_minipack_tool_test.cpp` + `hires.texture_minipack_tool` to lock generator-provider compatibility.

@@ -34,4 +34,4 @@ Release/
 *.hts
 
 # Local RDP dump corpus artifacts
-tests/rdp_dumps/*.rdp
+tests/rdp_dumps/local/*.rdp

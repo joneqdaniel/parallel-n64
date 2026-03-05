@@ -72,6 +72,12 @@ if [[ -z "$build_dir" ]]; then
   build_dir="$source_dir/build"
 fi
 
+if (( ! refresh )) && [[ -x "$build_dir/rdp-validate-dump" ]]; then
+  echo "[validator] using existing binary: $build_dir/rdp-validate-dump" >&2
+  echo "$build_dir/rdp-validate-dump"
+  exit 0
+fi
+
 if [[ ! -d "$source_dir/.git" ]]; then
   echo "[validator] cloning $repo_url -> $source_dir" >&2
   git clone --recursive "$repo_url" "$source_dir"

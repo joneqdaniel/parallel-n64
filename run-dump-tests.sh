@@ -6,7 +6,7 @@ validator_bin="${RDP_VALIDATE_DUMP_BIN:-}"
 dump_dir="${RDP_DUMP_CORPUS_DIR:-$SCRIPT_DIR/tests/rdp_dumps}"
 provision_validator=0
 capture_if_missing=0
-capture_output="${RDP_CAPTURE_OUTPUT:-$dump_dir/paper_mario_smoke.rdp}"
+capture_output="${RDP_CAPTURE_OUTPUT:-$dump_dir/local/paper_mario_smoke.rdp}"
 capture_output_explicit=0
 capture_rom="${RDP_CAPTURE_ROM:-/home/auro/code/n64_roms/Paper Mario (USA).zip}"
 capture_frames="${RDP_CAPTURE_FRAMES:-180}"
@@ -108,7 +108,7 @@ fi
 export RDP_DUMP_CORPUS_DIR="$dump_dir"
 
 if (( ! capture_output_explicit )); then
-  capture_output="${RDP_DUMP_CORPUS_DIR}/paper_mario_smoke.rdp"
+  capture_output="${RDP_DUMP_CORPUS_DIR}/local/paper_mario_smoke.rdp"
 fi
 
 if [[ -z "${RDP_VALIDATE_DUMP_BIN:-}" && (( provision_validator )) ]]; then

@@ -93,7 +93,7 @@
   - Exit criteria:
     - `ctest -R emu.conformance` passes in local/software-Vulkan environment.
 
-- [ ] T8: Dump Replay Regression Suite
+- [x] T8: Dump Replay Regression Suite
   - Deliverables:
     - Curated dump corpus integrated from `DUMPING.md` workflow.
     - Replay checks with standard and sync-only validation modes.
@@ -127,9 +127,9 @@
 - `Next`: immediate next step.
 
 ## Current Status
-- Active phase: `T8` (Dump Replay Regression Suite).
+- Active phase: `T9` (CI Gating and Developer Workflow).
 - Hi-res plan: on hold for new feature work until emulator behavior test baseline is established.
-- Open risk: dump corpus is still locally generated (not committed), so out-of-the-box `emu.dump.*` remains skip-by-default unless provisioning/capture flow is run.
+- Open risk: `emu.dump.*` still depends on externally provisioned `rdp-validate-dump` (intentional), so default local runs skip unless validator is present.
 
 ## Change Log
 - 2026-03-05: Initialized non-hires emulator behavior test track and separated it from hi-res tasks.
@@ -345,3 +345,10 @@
     - `/home/auro/code/mupen/parallel-rdp-upstream/build/rdp-validate-dump /tmp/paper_mario_t8_test.rdp --sync-only`
   - Verified test harness pass with overrides:
     - `RDP_VALIDATE_DUMP_BIN=... RDP_DUMP_CORPUS_DIR=/tmp/rdp_corpus_t8 ./run-tests.sh -R emu.dump`
+- 2026-03-05: Added committed baseline dump corpus fixture and local-capture partitioning:
+  - Added `tests/rdp_dumps/baseline_minimal_eof.rdp` (tiny valid RDPDUMP2 fixture; fast smoke replay).
+  - Added `tests/rdp_dumps/local/.gitkeep` and moved ignore rule to `tests/rdp_dumps/local/*.rdp`.
+  - Updated `run-dump-tests.sh` default capture target to `tests/rdp_dumps/local/paper_mario_smoke.rdp`.
+  - Updated docs/README references for baseline-vs-local dump workflow.
+- 2026-03-05: Closed `T8` against baseline fixture:
+  - `RDP_VALIDATE_DUMP_BIN=/home/auro/code/mupen/parallel-rdp-upstream/build/rdp-validate-dump ./run-tests.sh -R emu.dump` (passes both normal and sync-only on committed corpus).

@@ -1,21 +1,28 @@
 # RDP Dump Corpus (Local)
 
-This directory is the default local corpus location for `emu.dump.*` tests.
+This directory is the default corpus location for `emu.dump.*` tests.
 
-- Committed files: only `.gitkeep` and this README.
-- Local dump files (`*.rdp`) are intentionally ignored by Git.
+- Committed baseline fixture:
+  - `baseline_minimal_eof.rdp` (tiny smoke fixture; header + EOF)
+- Local captures:
+  - place under `tests/rdp_dumps/local/` (ignored by Git)
 
 Quick flow:
 
 ```bash
-./run-dump-tests.sh --provision-validator --capture-if-missing
+./run-dump-tests.sh --provision-validator
 ```
 
 This will:
 
 1. Build `rdp-validate-dump` if it is not already available.
-2. Capture one Angrylion dump if the corpus directory is empty.
-3. Run `ctest -R emu.dump` through `run-tests.sh`.
+2. Run `ctest -R emu.dump` through `run-tests.sh` using the committed baseline fixture.
+
+Optional local capture flow:
+
+```bash
+./run-dump-tests.sh --provision-validator --dump-dir tests/rdp_dumps/local --capture-if-missing
+```
 
 Requirements:
 

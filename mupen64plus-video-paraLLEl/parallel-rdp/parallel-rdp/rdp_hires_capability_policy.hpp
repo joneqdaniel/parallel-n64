@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 namespace RDP
 {
 namespace detail
@@ -23,7 +25,13 @@ enum class HiresDescriptorRequirement
 	MissingDescriptorBindingVariableDescriptorCount,
 	MissingDescriptorBindingPartiallyBound,
 	MissingDescriptorBindingUpdateAfterBind,
+	MissingUpdateAfterBindSampledImageLimit,
 };
+
+inline constexpr uint32_t hires_min_update_after_bind_sampled_images()
+{
+	return 4096u;
+}
 
 inline HiresDescriptorRequirement validate_hires_descriptor_support(const HiresDescriptorFeatureSupport &support)
 {
@@ -40,6 +48,45 @@ inline HiresDescriptorRequirement validate_hires_descriptor_support(const HiresD
 	if (!support.descriptor_binding_update_after_bind)
 		return HiresDescriptorRequirement::MissingDescriptorBindingUpdateAfterBind;
 	return HiresDescriptorRequirement::Supported;
+}
+
+inline HiresDescriptorRequirement validate_hires_descriptor_support(
+		const HiresDescriptorFeatureSupport &support,
+		uint32_t max_update_after_bind_sampled_images)
+{
+	const auto feature_requirement = validate_hires_descriptor_support(support);
+	if (feature_requirement != HiresDescriptorRequirement::Supported)
+		return feature_requirement;
+
+	if (max_update_after_bind_sampled_images < hires_min_update_after_bind_sampled_images())
+		return HiresDescriptorRequirement::MissingUpdateAfterBindSampledImageLimit;
+
+	return HiresDescriptorRequirement::Supported;
+}
+
+inline const char *describe_hires_descriptor_requirement(HiresDescriptorRequirement requirement)
+{
+	switch (requirement)
+	{
+	case HiresDescriptorRequirement::Supported:
+		return "supported";
+	case HiresDescriptorRequirement::MissingDescriptorIndexing:
+		return "descriptor indexing is unavailable";
+	case HiresDescriptorRequirement::MissingRuntimeDescriptorArray:
+		return "runtime descriptor array is unavailable";
+	case HiresDescriptorRequirement::MissingSampledImageArrayNonUniformIndexing:
+		return "sampled-image non-uniform indexing is unavailable";
+	case HiresDescriptorRequirement::MissingDescriptorBindingVariableDescriptorCount:
+		return "descriptor binding variable descriptor count is unavailable";
+	case HiresDescriptorRequirement::MissingDescriptorBindingPartiallyBound:
+		return "descriptor binding partially-bound is unavailable";
+	case HiresDescriptorRequirement::MissingDescriptorBindingUpdateAfterBind:
+		return "descriptor binding update-after-bind is unavailable";
+	case HiresDescriptorRequirement::MissingUpdateAfterBindSampledImageLimit:
+		return "maxDescriptorSetUpdateAfterBindSampledImages is below required minimum";
+	}
+
+	return "unknown requirement";
 }
 
 inline bool should_enable_hires_after_capability_check(bool requested,

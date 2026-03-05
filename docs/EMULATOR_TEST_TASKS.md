@@ -208,9 +208,10 @@
 - `Next`: immediate next step.
 
 ## Current Status
-- Active phase: `T10` execution (`M44` HIRES-readiness runner profile closure complete; HIRES-readiness test gap pass is green).
+- Active phase: `T10` execution (`M46` HIRES runtime capability contract + M4 registry readiness policy closure complete; HIRES-readiness and emu-required gates are green).
 - Hi-res plan: on hold for new feature work until emulator behavior test baseline is established.
 - Open risk: local optional tiers depend on host tooling (Vulkan/lavapipe + `rdp-validate-dump`) and may skip when unavailable.
+- Conformance minipack hash fixture work is explicitly deferred pending additional fixture details.
 
 ## Change Log
 - 2026-03-05: Initialized non-hires emulator behavior test track and separated it from hi-res tasks.
@@ -975,3 +976,29 @@
   - `./run-tests.sh --profile hires-readiness`,
   - `./run-tests.sh -R emu.unit.test_runner_profile_contract`,
   - `./run-tests.sh --profile emu-required`.
+- 2026-03-05: Advanced `T10` (`M45`) HIRES Vulkan capability contract + runtime auto-disable integration:
+  - Expanded `parallel-rdp/parallel-rdp/rdp_hires_capability_policy.hpp` with:
+    - explicit minimum descriptor-image limit contract (`maxDescriptorSetUpdateAfterBindSampledImages >= 4096`),
+    - combined feature+limit validation helper,
+    - human-readable disable-reason mapping for runtime logging.
+  - Integrated capability gating in `mupen64plus-video-paraLLEl/rdp.cpp::init()`:
+    - derives descriptor-indexing support from device features/properties,
+    - auto-disables HIRES when contract is not met,
+    - logs the concrete disable reason and limit values.
+  - Expanded `tests/emulator_behavior/emu_unit_hires_capability_policy_test.cpp` to cover:
+    - limit-gate failure,
+    - reason-string mapping.
+  - Documented capability contract + local-only CI/minipack deferral in `docs/HIRES_TEXTURE_TASKS.md`.
+- 2026-03-05: Advanced `T10` (`M46`) M4 GPU registry contract scaffolding:
+  - Added `parallel-rdp/parallel-rdp/rdp_hires_registry_policy.hpp` with testable helpers for:
+    - lazy-upload state machine transitions (`Missing/Queued/Ready/Failed`),
+    - descriptor-handle validity sentinel/bounds and allocation exhaustion,
+    - upload-queue gate behavior for ready/queued/missing states,
+    - budget decision policy (`Admit`, `EvictOldestThenAdmit`, `RejectOverBudget`),
+    - eviction-candidate selection that skips pinned textures.
+  - Added `tests/emulator_behavior/emu_unit_hires_registry_policy_test.cpp` as `emu.unit.hires_registry_policy` and registered in `tests/emulator_behavior/CMakeLists.txt`.
+  - Gap closure: M4 registry lifecycle semantics are now locked by local unit tests before Vulkan upload-path implementation.
+- 2026-03-05: Validated current `T10` (`M45`/`M46`) slice with:
+  - `./run-tests.sh --profile hires-readiness`,
+  - `./run-tests.sh --profile emu-required`,
+  - `./run-tests.sh -R emu.unit.hires_registry_policy`.

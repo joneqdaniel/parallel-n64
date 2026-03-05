@@ -5,6 +5,27 @@
 - GPU requirement: descriptor indexing path only.
 - Fallback behavior: auto-disable feature when required GPU features are missing.
 - Local texture cache artifacts (`*.htc`, `*.hts`) are ignored in git.
+- Conformance hash minipack work is deferred until separate fixture details are finalized.
+- CI policy for this track is local-only for now (no remote GitHub CI gating additions).
+
+## Vulkan Capability Contract (Descriptor Indexing Path)
+HIRES replacement may run only when all required descriptor-indexing capabilities are available:
+
+- `supports_descriptor_indexing` (core/extension support reported by Vulkan context).
+- `VkPhysicalDeviceDescriptorIndexingFeaturesEXT` flags:
+  - `runtimeDescriptorArray`
+  - `shaderSampledImageArrayNonUniformIndexing`
+  - `descriptorBindingVariableDescriptorCount`
+  - `descriptorBindingPartiallyBound`
+  - `descriptorBindingSampledImageUpdateAfterBind`
+- `VkPhysicalDeviceDescriptorIndexingPropertiesEXT` limit:
+  - `maxDescriptorSetUpdateAfterBindSampledImages >= 4096`
+
+Expected fallback behavior:
+
+- If any required capability is missing, HIRES auto-disables at runtime.
+- A concrete disable reason is logged.
+- Renderer/provider attachment and lookup work stays disabled.
 
 ## Milestones
 - [x] M0: Repo hygiene for local packs (`.gitignore` update).
@@ -55,3 +76,5 @@ I will post updates in this format as work progresses:
 - 2026-03-04: Promoted local M3 tests to first-class CMake/CTest targets for the fork (`cmake -S . -B build/ctest` + `ctest --test-dir build/ctest`).
 - 2026-03-04: Added `run-build.sh` helper for consistent local core builds with this fork's defaults (`HAVE_PARALLEL=1`, `HAVE_PARALLEL_RSP=1`).
 - 2026-03-05: Put hi-res implementation phases on hold while a separate non-hires emulator behavior test program is established (`docs/EMULATOR_TEST_TASKS.md`).
+- 2026-03-05: Deferred minipack hash conformance fixture work pending additional requirements; continuing unit-test-first readiness work for M4/M5.
+- 2026-03-05: Locked local-only CI policy for emulator/hires test gates (no remote CI additions at this stage).

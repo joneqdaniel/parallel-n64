@@ -2,6 +2,7 @@
 
 #include <cstdlib>
 #include <iostream>
+#include <string>
 
 using namespace RDP::detail;
 
@@ -32,6 +33,9 @@ static void test_validate_hires_descriptor_support_matrix()
 {
 	check(validate_hires_descriptor_support(all_supported()) == HiresDescriptorRequirement::Supported,
 	      "all-required descriptor features should be accepted");
+	check(validate_hires_descriptor_support(all_supported(),
+	                                        hires_min_update_after_bind_sampled_images()) == HiresDescriptorRequirement::Supported,
+	      "all-required descriptor features with required sampled-image limit should be accepted");
 
 	{
 		auto support = all_supported();
@@ -69,6 +73,13 @@ static void test_validate_hires_descriptor_support_matrix()
 		check(validate_hires_descriptor_support(support) == HiresDescriptorRequirement::MissingDescriptorBindingUpdateAfterBind,
 		      "update-after-bind missing should be reported");
 	}
+	{
+		auto support = all_supported();
+		check(validate_hires_descriptor_support(support,
+		                                        hires_min_update_after_bind_sampled_images() - 1) ==
+		              HiresDescriptorRequirement::MissingUpdateAfterBindSampledImageLimit,
+		      "insufficient update-after-bind sampled-image limit should be reported");
+	}
 }
 
 static void test_should_enable_hires_after_capability_check()
@@ -80,12 +91,25 @@ static void test_should_enable_hires_after_capability_check()
 	check(!should_enable_hires_after_capability_check(true, HiresDescriptorRequirement::MissingDescriptorBindingPartiallyBound),
 	      "hires should auto-disable when required descriptor features are missing");
 }
+
+static void test_describe_hires_descriptor_requirement()
+{
+	check(std::string(describe_hires_descriptor_requirement(HiresDescriptorRequirement::Supported)) == "supported",
+	      "supported requirement text mismatch");
+	check(std::string(describe_hires_descriptor_requirement(HiresDescriptorRequirement::MissingDescriptorIndexing)) ==
+	              "descriptor indexing is unavailable",
+	      "descriptor indexing requirement text mismatch");
+	check(std::string(describe_hires_descriptor_requirement(HiresDescriptorRequirement::MissingUpdateAfterBindSampledImageLimit)) ==
+	              "maxDescriptorSetUpdateAfterBindSampledImages is below required minimum",
+	      "sampled-image limit requirement text mismatch");
+}
 }
 
 int main()
 {
 	test_validate_hires_descriptor_support_matrix();
 	test_should_enable_hires_after_capability_check();
+	test_describe_hires_descriptor_requirement();
 
 	std::cout << "emu_unit_hires_capability_policy_test: PASS" << std::endl;
 	return 0;

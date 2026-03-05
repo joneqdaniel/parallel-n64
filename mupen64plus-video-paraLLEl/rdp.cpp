@@ -10,6 +10,7 @@
 #include "parallel.h"
 #include "z64.h"
 #include "parallel-rdp/parallel-rdp/rdp_hires_runtime_policy.hpp"
+#include "parallel-rdp/parallel-rdp/rdp_hires_capability_policy.hpp"
 #include <assert.h>
 #include <stdlib.h>
 
@@ -159,6 +160,27 @@ bool init()
 			features.supports_external_memory_host,
 			features.host_memory_properties.minImportedHostPointerAlignment);
 
+	detail::HiresDescriptorFeatureSupport hires_support = {};
+	hires_support.descriptor_indexing = features.supports_descriptor_indexing;
+	hires_support.runtime_descriptor_array = features.descriptor_indexing_features.runtimeDescriptorArray;
+	hires_support.sampled_image_array_non_uniform_indexing =
+			features.descriptor_indexing_features.shaderSampledImageArrayNonUniformIndexing;
+	hires_support.descriptor_binding_variable_descriptor_count =
+			features.descriptor_indexing_features.descriptorBindingVariableDescriptorCount;
+	hires_support.descriptor_binding_partially_bound =
+			features.descriptor_indexing_features.descriptorBindingPartiallyBound;
+	hires_support.descriptor_binding_update_after_bind =
+			features.descriptor_indexing_features.descriptorBindingSampledImageUpdateAfterBind;
+	const uint32_t max_hires_update_after_bind_sampled_images =
+			features.descriptor_indexing_properties.maxDescriptorSetUpdateAfterBindSampledImages;
+	const detail::HiresDescriptorRequirement hires_requirement =
+			detail::validate_hires_descriptor_support(
+					hires_support,
+					max_hires_update_after_bind_sampled_images);
+	const bool hires_capabilities_ok = detail::should_enable_hires_after_capability_check(
+			hires_textures,
+			hires_requirement);
+
 	uintptr_t aligned_rdram = host_mem_plan.aligned_rdram;
 	uintptr_t offset = host_mem_plan.offset;
 
@@ -209,14 +231,23 @@ bool init()
 
 	hires_cache_path = detail::resolve_hires_cache_path(hires_cache_path, getenv("PARALLEL_RDP_HIRES_CACHE_PATH"));
 
-	if (hires_textures)
+	if (hires_textures && !hires_capabilities_ok)
+	{
+		log_cb(RETRO_LOG_WARN,
+		       "Hi-res textures requested, but disabled: %s (maxDescriptorSetUpdateAfterBindSampledImages=%u, required>=%u).\n",
+		       detail::describe_hires_descriptor_requirement(hires_requirement),
+		       max_hires_update_after_bind_sampled_images,
+		       detail::hires_min_update_after_bind_sampled_images());
+	}
+
+	if (hires_capabilities_ok)
 	{
 		log_cb(RETRO_LOG_INFO,
 		       "Hi-res textures enabled (path=%s, filter=%u, srgb_mode=%u).\n",
 		       hires_cache_path.c_str(), hires_filter, hires_srgb);
 	}
 
-	frontend->configure_hires_replacement(hires_textures, hires_cache_path.c_str());
+	frontend->configure_hires_replacement(hires_capabilities_ok, hires_cache_path.c_str());
 
 	timeline_value = 0;
 	pending_timeline_value = 0;

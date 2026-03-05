@@ -22,6 +22,7 @@
 
 #include "rdp_device.hpp"
 #include "rdp_common.hpp"
+#include "rdp_hires_runtime_policy.hpp"
 #include "rdp_memory_path_policy.hpp"
 #include "rdp_other_modes_policy.hpp"
 #include "rdp_rect_setup_policy.hpp"
@@ -794,16 +795,19 @@ void CommandProcessor::configure_hires_replacement(bool enable, const char *cach
 	replacement_provider.set_enabled(enable);
 	renderer.set_replacement_provider(nullptr);
 
-	if (!enable)
+	auto outcome = detail::classify_hires_configure_outcome(enable, cache_path, false);
+	if (outcome == detail::HiresConfigureOutcome::Disabled)
 		return;
 
-	if (!cache_path || !*cache_path)
+	if (outcome == detail::HiresConfigureOutcome::MissingPath)
 	{
 		LOGW("Hi-res replacement enabled, but cache path is empty.\n");
 		return;
 	}
 
-	if (!replacement_provider.load_cache_dir(cache_path))
+	const bool load_ok = replacement_provider.load_cache_dir(cache_path);
+	outcome = detail::classify_hires_configure_outcome(enable, cache_path, load_ok);
+	if (outcome == detail::HiresConfigureOutcome::LoadFailed)
 	{
 		LOGW("Hi-res replacement cache load failed for path: %s\n", cache_path);
 		return;
@@ -811,7 +815,8 @@ void CommandProcessor::configure_hires_replacement(bool enable, const char *cach
 
 	LOGI("Hi-res replacement cache loaded: %zu entries from %s\n",
 	     replacement_provider.entry_count(), cache_path);
-	renderer.set_replacement_provider(&replacement_provider);
+	if (detail::should_attach_hires_provider(outcome))
+		renderer.set_replacement_provider(&replacement_provider);
 }
 
 void CommandProcessor::set_vi_register(VIRegister reg, uint32_t value)

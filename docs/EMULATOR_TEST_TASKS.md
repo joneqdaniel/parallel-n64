@@ -208,7 +208,7 @@
 - `Next`: immediate next step.
 
 ## Current Status
-- Active phase: `T10` execution (`M34` backlog expansion from audit + HIRES-inspired readiness cases in progress).
+- Active phase: `T10` execution (`M36` HIRES-readiness policy + plugin export contract closures in progress).
 - Hi-res plan: on hold for new feature work until emulator behavior test baseline is established.
 - Open risk: local optional tiers depend on host tooling (Vulkan/lavapipe + `rdp-validate-dump`) and may skip when unavailable.
 
@@ -854,3 +854,30 @@
     - toggle lifecycle/state-leakage checks,
     - cache-path precedence contracts,
     - TLUT/palette invalidation scaffolding coverage.
+- 2026-03-05: Advanced `T10` (`M35`) HIRES runtime-policy readiness coverage:
+  - Added `parallel-rdp/parallel-rdp/rdp_hires_runtime_policy.hpp` with testable policy helpers for:
+    - explicit-vs-env cache path resolution precedence,
+    - feature-on/off load-attempt gating,
+    - configure outcome classification (`Disabled`, `MissingPath`, `LoadFailed`, `LoadSucceeded`),
+    - provider-attach decision contract,
+    - descriptor sentinel validity helpers.
+  - Integrated policy helpers without intended behavior change in:
+    - `mupen64plus-video-paraLLEl/rdp.cpp` (cache path resolution),
+    - `parallel-rdp/parallel-rdp/rdp_device.cpp::configure_hires_replacement()` (outcome-driven attach/load flow).
+  - Added `tests/emulator_behavior/emu_unit_hires_runtime_policy_test.cpp` as `emu.unit.hires_runtime_policy`.
+  - Expanded `tests/hires_textures/hires_replacement_provider_test.cpp` with provider lifecycle checks:
+    - `clear()` purges entries,
+    - cleared provider cannot lookup/decode stale entries,
+    - reload after clear restores expected matches.
+- 2026-03-05: Validated current `T10` (`M35`) slice with:
+  - `./run-tests.sh -R emu.unit.hires_runtime_policy`,
+  - `./run-tests.sh -R hires`,
+  - `./run-tests.sh --profile emu-required`.
+- 2026-03-05: Advanced `T10` (`M36`) plugin legacy-export contract closure:
+  - Expanded `tests/emulator_behavior/emu_unit_plugin_contract_test.cpp` with:
+    - explicit no-op contract checks for legacy plugin exports (`parallelChangeWindow`, `parallelReadScreen2`, `parallelDrawScreen`, `parallelSetRenderingCallback`, `parallelInitiateGFX`, `parallelMoveScreen`, `parallelProcessDList`, `parallelViStatusChanged`, `parallelViWidthChanged`, `parallelFBWrite`, `parallelFBRead`, `parallelFBGetFrameBufferInfo`),
+    - explicit delegation checks for `parallel_profile_video_refresh_begin/end`.
+  - Gap closure: plugin no-op and profile-refresh wrapper behavior is now locked by unit tests.
+- 2026-03-05: Validated current `T10` (`M36`) slice with:
+  - `./run-tests.sh -R emu.unit.plugin_contract`,
+  - `./run-tests.sh --profile emu-required`.

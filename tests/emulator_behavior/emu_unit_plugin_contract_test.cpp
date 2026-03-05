@@ -136,6 +136,45 @@ static void test_entrypoint_delegation()
 	parallelRomClosed();
 }
 
+static void test_legacy_noop_entrypoints_contract()
+{
+	reset_state();
+
+	int width = 320;
+	int height = 240;
+	uint8_t pixel_buf[4] = {};
+	GFX_INFO gfx = {};
+
+	parallelChangeWindow();
+	parallelReadScreen2(pixel_buf, &width, &height, 1);
+	parallelDrawScreen();
+	parallelSetRenderingCallback(nullptr);
+	check(parallelInitiateGFX(gfx) == 1, "parallelInitiateGFX should return true");
+	parallelMoveScreen(10, 20);
+	parallelProcessDList();
+	parallelViStatusChanged();
+	parallelViWidthChanged();
+	parallelFBWrite(0x1234u, 16u);
+	parallelFBRead(0x1234u);
+	parallelFBGetFrameBufferInfo(nullptr);
+
+	check(width == 320 && height == 240, "parallelReadScreen2 should remain a no-op");
+	check(g_state.process_commands_calls == 0, "legacy no-op entrypoints should not process commands");
+	check(g_state.complete_frame_calls == 0, "legacy no-op entrypoints should not complete frames");
+	check(g_state.retro_return_calls == 0, "legacy no-op entrypoints should not call retro_return");
+}
+
+static void test_profile_refresh_delegation()
+{
+	reset_state();
+
+	parallel_profile_video_refresh_begin();
+	parallel_profile_video_refresh_end();
+
+	check(g_state.refresh_begin_calls == 1, "parallel_profile_video_refresh_begin should delegate once");
+	check(g_state.refresh_end_calls == 1, "parallel_profile_video_refresh_end should delegate once");
+}
+
 static void test_init_deinit_contract()
 {
 	reset_state();
@@ -237,6 +276,8 @@ int main()
 	test_plugin_version_contract();
 	test_entrypoint_link_surface();
 	test_entrypoint_delegation();
+	test_legacy_noop_entrypoints_contract();
+	test_profile_refresh_delegation();
 	test_init_deinit_contract();
 	std::cout << "emu_unit_plugin_contract_test: PASS" << std::endl;
 	return 0;

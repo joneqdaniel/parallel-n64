@@ -9,6 +9,7 @@
 #include "Gfx #1.3.h"
 #include "parallel.h"
 #include "z64.h"
+#include "parallel-rdp/parallel-rdp/rdp_hires_runtime_policy.hpp"
 #include <assert.h>
 #include <stdlib.h>
 
@@ -206,11 +207,7 @@ bool init()
 	quirks.set_native_resolution_tex_rect(native_tex_rect);
 	frontend->set_quirks(quirks);
 
-	if (hires_cache_path.empty())
-	{
-		if (const char *env = getenv("PARALLEL_RDP_HIRES_CACHE_PATH"))
-			hires_cache_path = env;
-	}
+	hires_cache_path = detail::resolve_hires_cache_path(hires_cache_path, getenv("PARALLEL_RDP_HIRES_CACHE_PATH"));
 
 	if (hires_textures)
 	{

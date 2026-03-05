@@ -161,6 +161,15 @@ int main()
 	provider.set_enabled(false);
 	check(!provider.lookup(key_htc, formatsize, &meta), "disabled provider should not match");
 
+	provider.clear();
+	check(provider.entry_count() == 0, "provider clear should remove all loaded entries");
+	check(!provider.lookup(key_htc, formatsize, &meta), "cleared provider should not match");
+	check(!provider.decode_rgba8(key_htc, formatsize, &image), "cleared provider should not decode entries");
+
+	provider.set_enabled(true);
+	check(provider.load_cache_dir(test_dir.string()), "provider should reload fixtures after clear");
+	check(provider.lookup(key_htc, formatsize, &meta), "reloaded provider should match expected key");
+
 	std::filesystem::remove_all(test_dir);
 	std::cout << "hires_replacement_provider_test: PASS (entries=" << provider.entry_count() << ")" << std::endl;
 	return 0;

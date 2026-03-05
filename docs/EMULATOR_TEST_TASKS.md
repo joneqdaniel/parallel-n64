@@ -111,7 +111,7 @@
     - Local required gate command is stable and documented.
     - Optional local tiers are runnable with deterministic setup guidance.
 
-- [ ] T10: Video Core Coverage Expansion
+- [x] T10: Video Core Coverage Expansion
   - Deliverables:
     - Add explicit Vulkan integration glue tests for:
       - `parallel_create_device`
@@ -208,10 +208,10 @@
 - `Next`: immediate next step.
 
 ## Current Status
-- Active phase: `T10` execution (`M48` local HIRES mini-pack tooling coverage complete; emu-required and hires-readiness gates are green).
-- Hi-res plan: on hold for new feature work until emulator behavior test baseline is established.
-- Open risk: local optional tiers depend on host tooling (Vulkan/lavapipe + `rdp-validate-dump`) and may skip when unavailable.
-- Conformance minipack hash fixture work is explicitly deferred pending additional fixture details.
+- Plan status: complete (`T0`..`T10` closed on 2026-03-05).
+- Local required gate remains green: `./run-tests.sh --profile emu-required`.
+- Residual environment caveat: optional local tiers (`emu-runtime-conformance`, `emu-dump`) may skip when host tooling (`lavapipe`, `rdp-validate-dump`) is unavailable.
+- Archive note: this plan is closure-complete and can be deleted or moved to an archive doc when no longer needed.
 
 ## Change Log
 - 2026-03-05: Initialized non-hires emulator behavior test track and separated it from hi-res tasks.
@@ -1028,3 +1028,7 @@
     - validates files via tool validation path,
     - loads/decode-checks output through `ReplacementProvider` to lock generator/parser compatibility.
   - Updated `docs/HIRES_TEXTURE_TASKS.md` with local mini-pack tool usage and status.
+- 2026-03-05: Closed `T10` / plan closeout (`M49`):
+  - Marked `T10` complete after closure of the enumerated gap list and validation gates.
+  - Updated current status to closure-complete and archive-ready.
+  - Confirmed no remaining mandatory deliverables for this non-HIRES test-plan track.

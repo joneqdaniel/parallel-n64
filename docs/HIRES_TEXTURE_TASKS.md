@@ -39,6 +39,16 @@ Expected fallback behavior:
 - [ ] M7: Mips/LOD/filtering + memory budget controls.
 - [ ] M8: Validation + performance pass + docs.
 
+## Current Status
+- Feature milestone state: `M0`..`M3` complete; `M4`..`M8` pending.
+- Pre-`M4` readiness work is complete and locally gated:
+  - descriptor-indexing capability contract + runtime auto-disable behavior are implemented and tested;
+  - registry lifecycle/descriptor-handle policy scaffolding is implemented and tested;
+  - local mini-pack generation + validation tooling is implemented and compatibility-tested against `ReplacementProvider`;
+  - `./run-tests.sh --profile hires-readiness` is the local safety gate for HIRES readiness.
+- Important boundary: this readiness work does not mark `M4` complete; descriptor-backed GPU upload/registry runtime wiring is still pending.
+- Next execution target: implement `M4` runtime GPU registry path, then move to `M5` shader late-swap integration.
+
 ## Status Update Format
 I will post updates in this format as work progresses:
 - `Phase`: current milestone ID.
@@ -99,3 +109,6 @@ I will post updates in this format as work progresses:
     - synthetic deterministic RGBA8 payload generation (with optional zlib payload compression),
     - `validate` command for `.hts`/`.htc` structural integrity checks.
   - Added `tests/hires_textures/hires_minipack_tool_test.cpp` + `hires.texture_minipack_tool` to lock generator-provider compatibility.
+- 2026-03-05: Synced tracker after emulator-test-plan closure:
+  - Confirmed this HIRES plan remains active with `M4`..`M8` still open.
+  - Added explicit pre-`M4` readiness status so implemented scaffolding is visible without overstating milestone completion.

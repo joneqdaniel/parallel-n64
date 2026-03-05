@@ -22,6 +22,7 @@
 
 #include "rdp_renderer.hpp"
 #include "rdp_device.hpp"
+#include "rdp_hires_state_policy.hpp"
 #include "texture_replacement.hpp"
 #include "texture_keying.hpp"
 #include "rdp_device_capability_policy.hpp"
@@ -661,12 +662,8 @@ void Renderer::set_tmem(Vulkan::Buffer *buffer)
 void Renderer::set_replacement_provider(const ReplacementProvider *provider)
 {
 	replacement_provider = provider;
-	for (auto &tile : replacement_tiles)
-		tile = {};
-	hires_lookup_total = 0;
-	hires_lookup_hits = 0;
-	hires_lookup_misses = 0;
-	tlut_shadow_valid = false;
+	detail::reset_hires_tracking_state(
+			replacement_tiles, tlut_shadow_valid, hires_lookup_total, hires_lookup_hits, hires_lookup_misses);
 }
 
 void Renderer::set_hires_debug(bool enable)

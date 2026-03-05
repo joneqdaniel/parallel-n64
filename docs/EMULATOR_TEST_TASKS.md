@@ -208,7 +208,7 @@
 - `Next`: immediate next step.
 
 ## Current Status
-- Active phase: `T10` execution (`M36` HIRES-readiness policy + plugin export contract closures in progress).
+- Active phase: `T10` execution (`M37` HIRES state-lifecycle leakage guards complete; expanding additional HIRES-risk readiness tests).
 - Hi-res plan: on hold for new feature work until emulator behavior test baseline is established.
 - Open risk: local optional tiers depend on host tooling (Vulkan/lavapipe + `rdp-validate-dump`) and may skip when unavailable.
 
@@ -880,4 +880,14 @@
   - Gap closure: plugin no-op and profile-refresh wrapper behavior is now locked by unit tests.
 - 2026-03-05: Validated current `T10` (`M36`) slice with:
   - `./run-tests.sh -R emu.unit.plugin_contract`,
+  - `./run-tests.sh --profile emu-required`.
+- 2026-03-05: Advanced `T10` (`M37`) HIRES state-lifecycle leakage guards:
+  - Added `parallel-rdp/parallel-rdp/rdp_hires_state_policy.hpp` with testable helpers for:
+    - replacement/tlut/counter reset contract,
+    - provider-change identity contract.
+  - Integrated helper in `parallel-rdp/parallel-rdp/rdp_renderer.cpp::set_replacement_provider()` to centralize and lock reset behavior.
+  - Added `tests/emulator_behavior/emu_unit_hires_state_policy_test.cpp` as `emu.unit.hires_state_policy` and registered in `tests/emulator_behavior/CMakeLists.txt`.
+  - Gap closure: stale replacement/tlut/counter state leakage across provider transitions is now explicitly guarded.
+- 2026-03-05: Validated current `T10` (`M37`) slice with:
+  - `./run-tests.sh -R "emu.unit.hires_(runtime|state)_policy|hires"`,
   - `./run-tests.sh --profile emu-required`.

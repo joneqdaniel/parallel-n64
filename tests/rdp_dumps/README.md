@@ -23,11 +23,17 @@ This will:
 Strict composition gate (optional):
 
 ```bash
-RDP_DUMP_STRICT_COMPOSITION=1 ./run-tests.sh -R emu.dump.manifest
+./run-dump-tests.sh --strict-composition
 ```
 
 By default, manifest validation requires `smoke,sync` tags.
 Strict mode raises requirements to a broader behavior tag set.
+
+You can override required tags explicitly:
+
+```bash
+./run-dump-tests.sh --strict-composition --required-tags smoke,sync,depth
+```
 
 Optional local capture flow:
 

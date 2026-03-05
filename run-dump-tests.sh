@@ -10,6 +10,8 @@ capture_output="${RDP_CAPTURE_OUTPUT:-$dump_dir/local/paper_mario_smoke.rdp}"
 capture_output_explicit=0
 capture_rom="${RDP_CAPTURE_ROM:-/home/auro/code/n64_roms/Paper Mario (USA).zip}"
 capture_frames="${RDP_CAPTURE_FRAMES:-180}"
+strict_composition=0
+required_tags_csv="${RDP_DUMP_REQUIRED_TAGS:-}"
 declare -a passthrough_args=()
 
 usage() {
@@ -27,12 +29,15 @@ Options:
                        Output dump path used by --capture-if-missing
   --capture-rom PATH   ROM path used by --capture-if-missing
   --capture-frames N   Max frames used by --capture-if-missing (default: 180)
+  --strict-composition Enable strict manifest composition gate
+  --required-tags CSV  Override required manifest tags (e.g. smoke,sync,depth)
   -h, --help           Show this help
 
 Examples:
   ./run-dump-tests.sh
   ./run-dump-tests.sh --validator /opt/parallel-rdp/rdp-validate-dump
   ./run-dump-tests.sh --provision-validator --capture-if-missing
+  ./run-dump-tests.sh --strict-composition --required-tags smoke,sync
   ./run-dump-tests.sh --dump-dir ./local_dumps -- --output-on-failure
 USAGE
 }
@@ -86,6 +91,17 @@ while (($#)); do
         exit 2
       fi
       ;;
+    --strict-composition)
+      strict_composition=1
+      ;;
+    --required-tags)
+      shift
+      required_tags_csv="${1:-}"
+      if [[ -z "$required_tags_csv" ]]; then
+        echo "--required-tags requires a CSV value." >&2
+        exit 2
+      fi
+      ;;
     --)
       shift
       passthrough_args+=("$@")
@@ -106,6 +122,12 @@ if [[ -n "$validator_bin" ]]; then
   export RDP_VALIDATE_DUMP_BIN="$validator_bin"
 fi
 export RDP_DUMP_CORPUS_DIR="$dump_dir"
+if (( strict_composition )); then
+  export RDP_DUMP_STRICT_COMPOSITION=1
+fi
+if [[ -n "$required_tags_csv" ]]; then
+  export RDP_DUMP_REQUIRED_TAGS="$required_tags_csv"
+fi
 
 if (( ! capture_output_explicit )); then
   capture_output="${RDP_DUMP_CORPUS_DIR}/local/paper_mario_smoke.rdp"
@@ -129,5 +151,7 @@ fi
 
 echo "[dump-tests] validator: ${RDP_VALIDATE_DUMP_BIN:-<auto>}" 
 echo "[dump-tests] corpus: $RDP_DUMP_CORPUS_DIR"
+echo "[dump-tests] strict-composition: ${RDP_DUMP_STRICT_COMPOSITION:-0}"
+echo "[dump-tests] required-tags: ${RDP_DUMP_REQUIRED_TAGS:-<default>}"
 
 "$SCRIPT_DIR/run-tests.sh" -R emu.dump "${passthrough_args[@]}"

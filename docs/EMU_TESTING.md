@@ -10,6 +10,8 @@ This repo uses tiered, local-only emulator-behavior test gates to separate requi
   - `./run-tests.sh --profile emu-conformance`
 - Optional dump-replay gate (provisions validator if missing):
   - `./run-dump-tests.sh --provision-validator`
+- Optional strict dump-composition gate:
+  - `./run-dump-tests.sh --strict-composition`
 - Optional combined non-required gate:
   - `./run-tests.sh --profile emu-optional`
 - Optional TSAN race check tier (local debug):

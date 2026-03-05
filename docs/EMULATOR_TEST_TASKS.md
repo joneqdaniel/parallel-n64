@@ -179,7 +179,7 @@
 - `Next`: immediate next step.
 
 ## Current Status
-- Active phase: `T10` execution (`M16` deterministic seed capture coverage in progress).
+- Active phase: `T10` execution (`M17` strict dump composition CLI coverage in progress).
 - Hi-res plan: on hold for new feature work until emulator behavior test baseline is established.
 - Open risk: local optional tiers depend on host tooling (Vulkan/lavapipe + `rdp-validate-dump`) and may skip when unavailable.
 
@@ -629,4 +629,15 @@
   - Registered `emu.unit.seed_policy` in `tests/emulator_behavior/CMakeLists.txt`.
 - 2026-03-05: Validated current `T10` (`M16`) slice with:
   - `./run-tests.sh -R \"emu.unit.(seed_policy|rdp_command_ingest)\"`,
+  - `./run-tests.sh --profile emu-required`.
+- 2026-03-05: Advanced `T10` (`M17`) strict dump composition CLI coverage:
+  - Updated `run-dump-tests.sh` to add:
+    - `--strict-composition` (exports `RDP_DUMP_STRICT_COMPOSITION=1`),
+    - `--required-tags <csv>` (exports `RDP_DUMP_REQUIRED_TAGS` override),
+    - explicit runtime logging of strict mode and required tag set for easier local triage.
+  - Updated docs:
+    - `tests/rdp_dumps/README.md` strict-mode command examples now use `run-dump-tests.sh`,
+    - `docs/EMU_TESTING.md` includes strict dump-composition gate command.
+- 2026-03-05: Validated current `T10` (`M17`) slice with:
+  - `./run-dump-tests.sh --strict-composition --required-tags smoke,sync`,
   - `./run-tests.sh --profile emu-required`.

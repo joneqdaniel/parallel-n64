@@ -137,6 +137,7 @@
     - Additional gaps identified during `M1`-`M4`:
       - DP parser robustness expansion:
         - opcode boundary/fuzz-style coverage for malformed lengths and multi-command tail truncation,
+        - full opcode-length LUT matrix coverage (`0x00..0x3f`) for command segmentation invariants,
         - repeated `SyncFull` sequencing and MI interrupt edge-order verification in mixed streams,
         - `SyncFull` interrupt behavior when frontend callbacks are unavailable.
       - Command processor memory/coherency paths:
@@ -186,7 +187,7 @@
 - `Next`: immediate next step.
 
 ## Current Status
-- Active phase: `T10` execution (`M30` runtime-launcher contract coverage in progress).
+- Active phase: `T10` execution (`M31` opcode-length LUT matrix coverage in progress).
 - Hi-res plan: on hold for new feature work until emulator behavior test baseline is established.
 - Open risk: local optional tiers depend on host tooling (Vulkan/lavapipe + `rdp-validate-dump`) and may skip when unavailable.
 
@@ -789,4 +790,13 @@
   - Gap closure: prevents drift in local runtime launch workflow used by conformance/debug runs.
 - 2026-03-05: Validated current `T10` (`M30`) slice with:
   - `./run-tests.sh -R emu.unit.run_n64_contract`,
+  - `./run-tests.sh --profile emu-required`.
+- 2026-03-05: Advanced `T10` (`M31`) full opcode-length LUT matrix coverage:
+  - Expanded `tests/emulator_behavior/emu_unit_rdp_command_ingest_test.cpp` with `test_full_opcode_length_lut_matrix()`.
+    - Executes one deterministic parser pass per opcode (`0x00..0x3f`),
+    - locks expected qword lengths for every opcode,
+    - locks enqueue gating (`>= 8`), `SyncFull` interrupt behavior (`0x29` only), and parser/DPC reset invariants.
+  - Gap closure: command-length decode is now comprehensively guarded, not sample-based.
+- 2026-03-05: Validated current `T10` (`M31`) slice with:
+  - `./run-tests.sh -R emu.unit.rdp_command_ingest`,
   - `./run-tests.sh --profile emu-required`.

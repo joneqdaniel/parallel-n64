@@ -565,6 +565,64 @@ static void test_deterministic_fuzz_stream_bounds()
 		check(state.cmd_ptr <= int(max_qwords), "fuzz: cmd_ptr should remain within copied qword range");
 	}
 }
+
+static void test_full_opcode_length_lut_matrix()
+{
+	static const unsigned expected_lengths[64] = {
+		1, 1, 1, 1, 1, 1, 1, 1, 4, 6, 12, 14, 12, 14, 20, 22,
+		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,  1,  1,  1,  1,  1,
+		1, 1, 1, 1, 2, 2, 1, 1, 1, 1, 1,  1,  1,  1,  1,  1,
+		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,  1,  1,  1,  1,  1,
+	};
+
+	std::vector<uint32_t> dram_words(0x4000 / 4, 0);
+	std::vector<uint32_t> dmem_words(0x1000 / 4, 0);
+	uint8_t *dram = reinterpret_cast<uint8_t *>(dram_words.data());
+	uint8_t *dmem = reinterpret_cast<uint8_t *>(dmem_words.data());
+
+	for (uint32_t opcode = 0; opcode < 64; opcode++)
+	{
+		std::fill(dram_words.begin(), dram_words.end(), 0u);
+		std::fill(dmem_words.begin(), dmem_words.end(), 0u);
+
+		const unsigned qwords = expected_lengths[opcode];
+		for (unsigned i = 0; i < qwords; i++)
+		{
+			const uint32_t w0 = (i == 0) ? (opcode << 24) : (0x10000000u | (opcode << 8) | i);
+			const uint32_t w1 = 0xa0000000u | (opcode << 8) | i;
+			write_u32(dram, i * sizeof(uint64_t), w0);
+			write_u32(dram, i * sizeof(uint64_t) + 4u, w1);
+		}
+
+		std::array<uint32_t, 128> cmd_data = {};
+		CommandIngestState state = {};
+		state.cmd_data = cmd_data.data();
+
+		uint32_t dpc_start = 0;
+		uint32_t dpc_current = 0;
+		uint32_t dpc_end = qwords * sizeof(uint64_t);
+		uint32_t dpc_status = 0;
+
+		CallbackHarness h = {};
+		CommandIngestHooks hooks = make_hooks(h, true, false);
+		process_command_ingest(state, dram, dmem, dpc_start, dpc_end, dpc_current, dpc_status, hooks);
+
+		const bool should_enqueue = opcode >= 8;
+		check(h.enqueue_calls == (should_enqueue ? 1u : 0u), "opcode LUT matrix enqueue mismatch");
+		if (should_enqueue)
+		{
+			check(h.last_num_words == qwords * 2u, "opcode LUT matrix enqueue length mismatch");
+			check(h.last_words.size() == qwords * 2u, "opcode LUT matrix payload size mismatch");
+			check((h.last_words[0] >> 24) == opcode, "opcode LUT matrix payload opcode mismatch");
+		}
+
+		const unsigned expected_interrupts = (opcode == 0x29u) ? 1u : 0u;
+		check(h.interrupt_calls == expected_interrupts, "opcode LUT matrix interrupt mismatch");
+		check(h.signal_calls == 0u && h.wait_calls == 0u, "opcode LUT matrix should stay async");
+		check(state.cmd_cur == 0 && state.cmd_ptr == 0, "opcode LUT matrix parser state should reset");
+		check(dpc_start == dpc_end && dpc_current == dpc_end, "opcode LUT matrix DPC reset mismatch");
+	}
+}
 }
 
 int main()
@@ -583,6 +641,7 @@ int main()
 	test_opcode_boundary_low_and_high();
 	test_high_address_bits_are_masked_before_dram_guard();
 	test_deterministic_fuzz_stream_bounds();
+	test_full_opcode_length_lut_matrix();
 	std::cout << "emu_unit_rdp_command_ingest_test: PASS" << std::endl;
 	return 0;
 }

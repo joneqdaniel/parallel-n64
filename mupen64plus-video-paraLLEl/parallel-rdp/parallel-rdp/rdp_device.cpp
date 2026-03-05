@@ -22,6 +22,7 @@
 
 #include "rdp_device.hpp"
 #include "rdp_common.hpp"
+#include "rdp_memory_path_policy.hpp"
 #include "rdp_other_modes_policy.hpp"
 #include "rdp_triangle_setup_policy.hpp"
 #include <chrono>
@@ -64,23 +65,24 @@ CommandProcessor::CommandProcessor(Vulkan::Device &device_, void *rdram_ptr,
 
 	if (rdram_ptr)
 	{
-		bool allow_memory_host = true;
-		if (const char *env = getenv("PARALLEL_RDP_ALLOW_EXTERNAL_HOST"))
-			allow_memory_host = strtol(env, nullptr, 0) > 0;
+		const auto decision = detail::decide_rdram_memory_path(
+				true,
+				device.get_device_features().supports_external_memory_host,
+				rdram_size,
+				rdram_offset,
+				device.get_device_features().host_memory_properties.minImportedHostPointerAlignment,
+				getenv("PARALLEL_RDP_ALLOW_EXTERNAL_HOST"));
 
-		if (allow_memory_host && device.get_device_features().supports_external_memory_host)
+		if (decision.use_external_host_import)
 		{
-			size_t import_size = rdram_size + rdram_offset;
-			size_t align = device.get_device_features().host_memory_properties.minImportedHostPointerAlignment;
-			import_size = (import_size + align - 1) & ~(align - 1);
-			info.size = import_size;
+			info.size = decision.imported_size;
 			rdram = device.create_imported_host_buffer(info, VK_EXTERNAL_MEMORY_HANDLE_TYPE_HOST_ALLOCATION_BIT_EXT, rdram_ptr);
 		}
 		else
 		{
 			LOGW("VK_EXT_external_memory_host is not supported on this device. Falling back to a slower path.\n");
-			is_host_coherent = false;
-			rdram_offset = 0;
+			is_host_coherent = decision.host_coherent;
+			rdram_offset = decision.effective_rdram_offset;
 			host_rdram = static_cast<uint8_t *>(rdram_ptr) + rdram_offset_;
 
 			BufferCreateInfo device_rdram = {};

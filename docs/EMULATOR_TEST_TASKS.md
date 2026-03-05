@@ -179,7 +179,7 @@
 - `Next`: immediate next step.
 
 ## Current Status
-- Active phase: `T10` execution (`M7` renderer state-machine policy coverage in progress).
+- Active phase: `T10` execution (`M8` command-processor memory path policy coverage in progress).
 - Hi-res plan: on hold for new feature work until emulator behavior test baseline is established.
 - Open risk: local optional tiers depend on host tooling (Vulkan/lavapipe + `rdp-validate-dump`) and may skip when unavailable.
 
@@ -521,4 +521,16 @@
   - Registered target in `tests/emulator_behavior/CMakeLists.txt`.
 - 2026-03-05: Validated current `T10` (`M7`) slice with:
   - `./run-tests.sh -R emu.unit.rdp_other_modes_policy`,
+  - `./run-tests.sh --profile emu-required`.
+- 2026-03-05: Advanced `T10` (`M8`) command-processor memory-path policy coverage:
+  - Added `parallel-rdp/parallel-rdp/rdp_memory_path_policy.hpp` with shared helpers for:
+    - `PARALLEL_RDP_ALLOW_EXTERNAL_HOST` env toggle parsing,
+    - imported-host size alignment policy,
+    - external-host import vs fallback decision matrix.
+  - Updated `parallel-rdp/parallel-rdp/rdp_device.cpp` constructor to use shared memory-path decision helper (no intended behavior change).
+  - Added `tests/emulator_behavior/emu_unit_rdp_memory_path_policy_test.cpp` as `emu.unit.rdp_memory_path_policy`.
+    - Covers env parsing, alignment behavior, and feature/env matrix outcomes (import path vs fallback path).
+  - Registered target in `tests/emulator_behavior/CMakeLists.txt`.
+- 2026-03-05: Validated current `T10` (`M8`) slice with:
+  - `./run-tests.sh -R emu.unit.rdp_memory_path_policy`,
   - `./run-tests.sh --profile emu-required`.

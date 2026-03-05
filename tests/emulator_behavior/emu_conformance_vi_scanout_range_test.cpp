@@ -64,6 +64,26 @@ int main()
 	check(need_fetch_bug_emulation(decoded, 1u), "fetch bug must be enabled when y_add < 1024 at native scale");
 	check(!need_fetch_bug_emulation(decoded, 2u), "fetch bug must be disabled when scaling > 1");
 
+	// Origin alignment should follow pixel size (16-bit => 2-byte, 32-bit => 4-byte alignment).
+	regs[unsigned(VIRegister::Control)] = VI_CONTROL_TYPE_RGBA5551_BIT;
+	regs[unsigned(VIRegister::Origin)] = 0x1001u;
+	regs[unsigned(VIRegister::Width)] = 320u;
+	regs[unsigned(VIRegister::HStart)] = make_vi_start_register(VI_H_OFFSET_NTSC, VI_H_OFFSET_NTSC + 320u);
+	regs[unsigned(VIRegister::VStart)] = make_vi_start_register(VI_V_OFFSET_NTSC, VI_V_OFFSET_NTSC + 480u);
+	regs[unsigned(VIRegister::XScale)] = make_vi_scale_register(1024u, 0u);
+	regs[unsigned(VIRegister::YScale)] = make_vi_scale_register(1024u, 0u);
+	decoded = decode_vi_registers(regs.data());
+	compute_scanout_memory_range(decoded, offset, length);
+	check(offset != 0u && length != 0u, "16-bit alignment case should produce a non-empty range");
+	check((offset & 1u) == 0u, "16-bit scanout offset should be 2-byte aligned");
+
+	regs[unsigned(VIRegister::Control)] = VI_CONTROL_TYPE_RGBA8888_BIT;
+	regs[unsigned(VIRegister::Origin)] = 0x1003u;
+	decoded = decode_vi_registers(regs.data());
+	compute_scanout_memory_range(decoded, offset, length);
+	check(offset != 0u && length != 0u, "32-bit alignment case should produce a non-empty range");
+	check((offset & 3u) == 0u, "32-bit scanout offset should be 4-byte aligned");
+
 	std::cout << "emu_conformance_vi_scanout_range_test: PASS" << std::endl;
 	return 0;
 }

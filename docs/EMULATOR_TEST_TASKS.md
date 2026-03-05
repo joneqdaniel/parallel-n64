@@ -150,6 +150,8 @@
       - VI interlace/filter matrix expansion:
         - serrate/interlace field handling by `VCurrentLine` parity and `VI_CONTROL_SERRATE_BIT`,
         - runtime hash fixtures across AA/divot/dither/gamma combinations (deterministic lavapipe tier).
+      - VI scanout memory-range edge coverage:
+        - explicit origin-alignment checks for 16-bit vs 32-bit scanout modes.
       - Runtime conformance content breadth:
         - add at least one deterministic lavapipe hash fixture using a second ROM target (beyond current Paper Mario baseline) to reduce single-title bias.
       - Frame glue resilience paths:
@@ -188,7 +190,7 @@
 - `Next`: immediate next step.
 
 ## Current Status
-- Active phase: `T10` execution (`M32` XBUS long-command decode parity coverage in progress).
+- Active phase: `T10` execution (`M33` VI scanout origin-alignment coverage in progress).
 - Hi-res plan: on hold for new feature work until emulator behavior test baseline is established.
 - Open risk: local optional tiers depend on host tooling (Vulkan/lavapipe + `rdp-validate-dump`) and may skip when unavailable.
 
@@ -809,4 +811,13 @@
   - Gap closure: prevents DRAM/XBUS divergence on large command-length decode paths.
 - 2026-03-05: Validated current `T10` (`M32`) slice with:
   - `./run-tests.sh -R emu.unit.rdp_command_ingest`,
+  - `./run-tests.sh --profile emu-required`.
+- 2026-03-05: Advanced `T10` (`M33`) VI scanout origin-alignment coverage:
+  - Expanded `tests/emulator_behavior/emu_conformance_vi_scanout_range_test.cpp` with:
+    - 16-bit scanout origin-alignment assertion (`offset` aligned to 2 bytes),
+    - 32-bit scanout origin-alignment assertion (`offset` aligned to 4 bytes),
+    - non-empty range assertions to ensure alignment checks exercise active scanout paths.
+  - Gap closure: explicit lock on pixel-size-dependent VI scanout origin alignment behavior.
+- 2026-03-05: Validated current `T10` (`M33`) slice with:
+  - `./run-tests.sh -R emu.conformance.vi_scanout_range`,
   - `./run-tests.sh --profile emu-required`.

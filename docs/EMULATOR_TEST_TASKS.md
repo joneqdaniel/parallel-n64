@@ -134,11 +134,34 @@
     - Promote runtime conformance from mostly skip-by-default into reproducible local tier runs:
       - documented deterministic environment setup,
       - explicit commands for enabling lavapipe runtime checks in regular local validation.
+    - Additional gaps identified during `M1`-`M4`:
+      - DP parser robustness expansion:
+        - opcode boundary/fuzz-style coverage for malformed lengths and multi-command tail truncation,
+        - repeated `SyncFull` sequencing and MI interrupt edge-order verification in mixed streams.
+      - Command processor memory/coherency paths:
+        - host-import disabled path (`PARALLEL_RDP_ALLOW_EXTERNAL_HOST=0`) behavior verification,
+        - non-host-coherent RDRAM copyback/coherency operation ordering checks.
+      - Renderer state-machine edge coverage:
+        - `SetOtherModes` interaction matrix (cycle type, alpha compare, coverage mode, z mode),
+        - scissor + fill/rect clipping invariants across boundary-aligned coordinates.
+      - VI interlace/filter matrix expansion:
+        - serrate/interlace field handling by `VCurrentLine` parity and `VI_CONTROL_SERRATE_BIT`,
+        - runtime hash fixtures across AA/divot/dither/gamma combinations (deterministic lavapipe tier).
+      - Frame glue resilience paths:
+        - explicit tests for `complete_frame_error()` fallback invariants when frontend/context transitions occur mid-frame,
+        - retro image slot reuse/index-rotation metadata stability across frame contexts.
+      - Dump corpus quality gates:
+        - add corpus manifest with per-dump behavior tags + expected validator mode coverage,
+        - enforce minimum corpus composition (TMEM/TLUT, depth/coverage, sync-heavy, rect-heavy).
+      - Tooling quality:
+        - optional TSAN profile for command-ring/worker-thread races in local debug runs,
+        - deterministic seed capture for all synthetic conformance tests to simplify regression triage.
   - Exit criteria:
     - New tests exist for Vulkan glue entrypoints and are mapped into `emu.unit.*` or `emu.conformance.*`.
     - Renderer + VI expansion includes at least one non-trivial golden/hash set each with deterministic local pass behavior.
     - Dump tier includes multiple curated dumps with stable `normal` + `sync-only` validation.
     - Runtime conformance workflow is documented and repeatable locally without ad-hoc manual steps.
+    - Added gaps above are either covered by tests or explicitly deferred with rationale in this document.
 
 ## Phase Execution Policy
 - Work one phase at a time; no phase jumping.
@@ -457,3 +480,11 @@
 - 2026-03-05: Validated current `T10` (`M4`) slice with:
   - `./run-tests.sh -R emu.unit.rdp_triangle_setup_policy`,
   - `./run-tests.sh --profile emu-required`.
+- 2026-03-05: Expanded `T10` backlog definition with additional uncovered gaps:
+  - DP parser robustness/fuzz-style boundary cases.
+  - Command processor host-import/coherency path validation.
+  - Renderer `SetOtherModes` and scissor/clipping interaction matrices.
+  - VI serrate/interlace + filter combination runtime hash fixtures.
+  - Frame glue resilience around error fallback + image slot rotation.
+  - Dump corpus manifest/composition gates.
+  - Optional TSAN and deterministic-seed tooling checks.

@@ -203,3 +203,21 @@ add_test(
   COMMAND bash "${CMAKE_CURRENT_SOURCE_DIR}/support/emu_conformance_runtime_smoke.sh"
 )
 set_tests_properties(emu.conformance.runtime_smoke_lavapipe PROPERTIES SKIP_RETURN_CODE 77)
+
+add_test(
+  NAME emu.conformance.lavapipe_frame_hash
+  COMMAND bash "${CMAKE_CURRENT_SOURCE_DIR}/support/emu_conformance_lavapipe_frame_hash.sh"
+)
+set_tests_properties(emu.conformance.lavapipe_frame_hash PROPERTIES SKIP_RETURN_CODE 77)
+
+add_test(
+  NAME emu.dump.validate
+  COMMAND bash "${CMAKE_CURRENT_SOURCE_DIR}/support/emu_dump_validate.sh" normal
+)
+set_tests_properties(emu.dump.validate PROPERTIES SKIP_RETURN_CODE 77)
+
+add_test(
+  NAME emu.dump.validate_sync_only
+  COMMAND bash "${CMAKE_CURRENT_SOURCE_DIR}/support/emu_dump_validate.sh" sync-only
+)
+set_tests_properties(emu.dump.validate_sync_only PROPERTIES SKIP_RETURN_CODE 77)

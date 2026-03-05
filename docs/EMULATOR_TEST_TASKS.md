@@ -86,7 +86,7 @@
   - Exit criteria:
     - Core data-structure and command-model regressions are caught without GPU replay.
 
-- [ ] T7: Doc-Backed Behavior Conformance (Software Vulkan Tier)
+- [x] T7: Doc-Backed Behavior Conformance (Software Vulkan Tier)
   - Deliverables:
     - Small synthetic command-list tests for fill rect, texture load basics, sync commands, and VI scaling/crop.
     - Golden-image/hash checks on lavapipe (or equivalent software Vulkan).
@@ -127,9 +127,9 @@
 - `Next`: immediate next step.
 
 ## Current Status
-- Active phase: `T7` (Doc-Backed Behavior Conformance).
+- Active phase: `T8` (Dump Replay Regression Suite).
 - Hi-res plan: on hold for new feature work until emulator behavior test baseline is established.
-- Open risk: `T7` still lacks deterministic golden-image/hash assertions for software-Vulkan output.
+- Open risk: `emu.dump.*` harness is wired, but no local `.rdp` corpus or `rdp-validate-dump` binary is provisioned yet (tests currently skip).
 
 ## Change Log
 - 2026-03-05: Initialized non-hires emulator behavior test track and separated it from hi-res tasks.
@@ -286,6 +286,38 @@
 - 2026-03-05: Revalidated after command-length + VI scaling/crop additions with:
   - `./run-tests.sh -R emu.conformance`,
   - `EMU_ENABLE_RUNTIME_CONFORMANCE=1 ./run-tests.sh -R emu.conformance.runtime_smoke_lavapipe`,
+  - `./run-tests.sh -R emu.unit`,
+  - `./run-tests.sh`,
+  - `./run-build.sh`,
+  - `timeout --signal=INT --kill-after=5 20s ./run-n64.sh -- --verbose`.
+- 2026-03-05: Added deterministic lavapipe frame-hash conformance:
+  - Added `tests/emulator_behavior/support/emu_conformance_lavapipe_frame_hash.sh`.
+  - Registered `emu.conformance.lavapipe_frame_hash` (skip-by-default; enabled with `EMU_ENABLE_RUNTIME_CONFORMANCE=1`).
+  - Uses RetroArch `--max-frames` + `--max-frames-ss` capture and asserts SHA-256:
+    - `56fa573b5b79fca2062685f1c9b6a16bdc635a37c311a7a7a3cc6711fd3e2c2a`
+  - Confirms lavapipe device selection and successful gfx startup before hash assertion.
+- 2026-03-05: Completed `T7` with full conformance gate coverage:
+  - Synthetic command coverage: fill/rectangle, texture-load sequence, variable-length command parsing, sync semantics.
+  - VI coverage: register packing + scaling/crop/clamp + scanout range behavior.
+  - Software-Vulkan coverage: runtime smoke + deterministic frame hash on lavapipe.
+- 2026-03-05: Validated `T7` completion with:
+  - `./run-tests.sh -R emu.conformance`,
+  - `EMU_ENABLE_RUNTIME_CONFORMANCE=1 ./run-tests.sh -R \"emu.conformance.(runtime_smoke_lavapipe|lavapipe_frame_hash)\"`,
+  - `./run-tests.sh -R emu.unit`,
+  - `./run-tests.sh`,
+  - `./run-build.sh`,
+  - `timeout --signal=INT --kill-after=5 20s ./run-n64.sh -- --verbose`.
+- 2026-03-05: Started `T8` dump replay harness wiring:
+  - Added `tests/emulator_behavior/support/emu_dump_validate.sh` with `normal|sync-only` modes.
+  - Added `ctest` targets:
+    - `emu.dump.validate`
+    - `emu.dump.validate_sync_only`
+  - Added `tests/rdp_dumps/.gitkeep` as the default local corpus directory anchor.
+  - Skip behavior:
+    - returns skip if `rdp-validate-dump` is unavailable (`RDP_VALIDATE_DUMP_BIN` override supported),
+    - returns skip if no `.rdp` files are found in `RDP_DUMP_CORPUS_DIR` (default `tests/rdp_dumps`).
+- 2026-03-05: Validated initial `T8` harness state with:
+  - `./run-tests.sh -R emu.dump` (expected skip without corpus/tooling),
   - `./run-tests.sh -R emu.unit`,
   - `./run-tests.sh`,
   - `./run-build.sh`,

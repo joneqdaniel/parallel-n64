@@ -51,6 +51,9 @@ CommandProcessor::CommandProcessor(Vulkan::Device &device_, void *rdram_ptr,
 	  timeline_worker(FenceExecutor{&device, &thread_timeline_value})
 #endif
 {
+	if (rdram_ptr)
+		host_rdram = static_cast<uint8_t *>(rdram_ptr) + rdram_offset_;
+
 	BufferCreateInfo info = {};
 	info.size = rdram_size;
 	info.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
@@ -141,10 +144,14 @@ CommandProcessor::CommandProcessor(Vulkan::Device &device_, void *rdram_ptr,
 
 	if (const char *env = getenv("PARALLEL_RDP_BENCH"))
 		timestamp = strtol(env, nullptr, 0) > 0;
+
+	if (const char *env = getenv("PARALLEL_RDP_HIRES_DEBUG"))
+		renderer.set_hires_debug(strtol(env, nullptr, 0) > 0);
 }
 
 CommandProcessor::~CommandProcessor()
 {
+	renderer.log_hires_summary();
 	idle();
 }
 
@@ -167,6 +174,7 @@ void CommandProcessor::init_renderer()
 	renderer.set_rdram(rdram.get(), host_rdram, rdram_offset, rdram_size, is_host_coherent);
 	renderer.set_hidden_rdram(hidden_rdram.get());
 	renderer.set_tmem(tmem.get());
+	renderer.set_replacement_provider(nullptr);
 
 	unsigned factor = 1;
 	if (flags & COMMAND_PROCESSOR_FLAG_UPSCALING_8X_BIT)
@@ -914,6 +922,32 @@ void CommandProcessor::set_quirks(const Quirks &quirks_)
 		quirks_.u.words[0],
 	};
 	enqueue_command(2, words);
+}
+
+void CommandProcessor::configure_hires_replacement(bool enable, const char *cache_path)
+{
+	replacement_provider.clear();
+	replacement_provider.set_enabled(enable);
+	renderer.set_replacement_provider(nullptr);
+
+	if (!enable)
+		return;
+
+	if (!cache_path || !*cache_path)
+	{
+		LOGW("Hi-res replacement enabled, but cache path is empty.\n");
+		return;
+	}
+
+	if (!replacement_provider.load_cache_dir(cache_path))
+	{
+		LOGW("Hi-res replacement cache load failed for path: %s\n", cache_path);
+		return;
+	}
+
+	LOGI("Hi-res replacement cache loaded: %zu entries from %s\n",
+	     replacement_provider.entry_count(), cache_path);
+	renderer.set_replacement_provider(&replacement_provider);
 }
 
 void CommandProcessor::set_vi_register(VIRegister reg, uint32_t value)

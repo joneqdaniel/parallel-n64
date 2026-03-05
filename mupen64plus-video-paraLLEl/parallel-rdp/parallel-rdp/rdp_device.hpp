@@ -31,6 +31,7 @@
 #include "rdp_common.hpp"
 #include "command_ring.hpp"
 #include "worker_thread.hpp"
+#include "texture_replacement.hpp"
 
 #ifndef GRANITE_VULKAN_MT
 #error "Granite Vulkan backend must be built with multithreading support."
@@ -135,6 +136,7 @@ public:
 	void enqueue_command_direct(unsigned num_words, const uint32_t *words);
 
 	void set_quirks(const Quirks &quirks);
+	void configure_hires_replacement(bool enable, const char *cache_path);
 
 	// Interact with memory.
 	void *begin_read_rdram();
@@ -167,6 +169,7 @@ private:
 
 	VideoInterface vi;
 	Renderer renderer;
+	ReplacementProvider replacement_provider;
 
 	void clear_hidden_rdram();
 	void clear_tmem();

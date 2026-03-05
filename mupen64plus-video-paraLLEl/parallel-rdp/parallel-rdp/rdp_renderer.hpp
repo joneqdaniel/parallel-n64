@@ -31,6 +31,7 @@
 namespace RDP
 {
 struct CoherencyOperation;
+class ReplacementProvider;
 
 struct SyncObject
 {
@@ -100,6 +101,9 @@ public:
 	void set_tile_size(uint32_t tile, uint32_t slo, uint32_t shi, uint32_t tlo, uint32_t thi);
 	void load_tile(uint32_t tile, const LoadTileInfo &info);
 	void load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint32_t tmem_offset);
+	void set_replacement_provider(const ReplacementProvider *provider);
+	void set_hires_debug(bool enable);
+	void log_hires_summary() const;
 
 	void set_blend_color(uint32_t color);
 	void set_fog_color(uint32_t color);
@@ -157,7 +161,10 @@ private:
 	bool is_host_coherent = false;
 	Vulkan::Buffer *hidden_rdram = nullptr;
 	Vulkan::Buffer *tmem = nullptr;
+	uint8_t *cpu_rdram = nullptr;
 	const ShaderBank *shader_bank = nullptr;
+	const ReplacementProvider *replacement_provider = nullptr;
+	bool hires_debug = false;
 
 	bool init_caps();
 	void init_blender_lut();
@@ -201,6 +208,21 @@ private:
 	void ensure_command_buffer();
 
 	TileInfo tiles[Limits::MaxNumTiles];
+	struct ReplacementTileState
+	{
+		uint64_t checksum64 = 0;
+		uint16_t formatsize = 0;
+		uint16_t orig_w = 0;
+		uint16_t orig_h = 0;
+		bool valid = false;
+		bool hit = false;
+	};
+	ReplacementTileState replacement_tiles[Limits::MaxNumTiles] = {};
+	uint8_t tlut_shadow[512] = {};
+	bool tlut_shadow_valid = false;
+	uint64_t hires_lookup_total = 0;
+	uint64_t hires_lookup_hits = 0;
+	uint64_t hires_lookup_misses = 0;
 	Vulkan::BufferHandle tmem_instances;
 	Vulkan::BufferHandle span_setups;
 	Vulkan::BufferHandle blender_divider_lut_buffer;

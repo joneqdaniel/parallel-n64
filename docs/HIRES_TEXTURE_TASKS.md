@@ -33,3 +33,6 @@ I will post updates in this format as work progresses:
 - 2026-03-04: Completed M2 standalone loader in paraLLEl-RDP (`texture_replacement.*`) with `.hts` index parsing, `.htc` gzip-record parsing, `(checksum64, formatsize)` lookup (with wildcard fallback), zlib blob handling, and decode to canonical RGBA8.
 - 2026-03-04: Added non-Windows `-lz` link flag for paraLLEl builds to satisfy loader zlib usage.
 - 2026-03-04: Validated M2 on local `PAPER MARIO_HIRESTEXTURES.hts` (loaded 15159 entries; lookup + RGBA8 decode succeeded on sampled key).
+- 2026-03-04: Started M3 integration: wired cache provider into `CommandProcessor`, added renderer-side TLUT shadowing, `formatsize` keying, per-tile replacement key state, and debug logging/counters for key hit/miss tracing.
+- 2026-03-04: M3 build validation passed (`make HAVE_PARALLEL=1 HAVE_PARALLEL_RSP=1`) and default local smoke test passed.
+- 2026-03-04: Forcing `parallel-n64-gfxplugin = "parallel"` currently triggers an early runtime core dump in local smoke runs before keying logs can be validated; key matching validation remains pending until this runtime path is stable.

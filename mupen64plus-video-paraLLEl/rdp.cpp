@@ -252,6 +252,8 @@ bool init()
 		       hires_cache_path.c_str(), hires_filter, hires_srgb);
 	}
 
+	frontend->configure_hires_replacement(hires_textures, hires_cache_path.c_str());
+
 	timeline_value = 0;
 	pending_timeline_value = 0;
 	width = 0;

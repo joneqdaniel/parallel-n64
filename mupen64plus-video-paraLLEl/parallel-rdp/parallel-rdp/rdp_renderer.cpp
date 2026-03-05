@@ -22,6 +22,7 @@
 
 #include "rdp_renderer.hpp"
 #include "rdp_device.hpp"
+#include "texture_replacement.hpp"
 #include "logging.hpp"
 #include "bitops.hpp"
 #include "luts.hpp"
@@ -32,9 +33,118 @@
 #else
 #include "shaders/slangmosh.hpp"
 #endif
+#include <algorithm>
+#include <cstring>
 
 namespace RDP
 {
+namespace
+{
+static const char *load_mode_to_string(UploadMode mode)
+{
+	switch (mode)
+	{
+	case UploadMode::Tile:
+		return "tile";
+	case UploadMode::TLUT:
+		return "tlut";
+	case UploadMode::Block:
+		return "block";
+	default:
+		return "unknown";
+	}
+}
+
+static uint16_t formatsize_key(TextureFormat fmt, TextureSize siz)
+{
+	return uint16_t(uint8_t(fmt)) | (uint16_t(uint8_t(siz)) << 8);
+}
+
+static inline uint8_t wrapped_read_u8(const uint8_t *rdram, size_t rdram_size, uint32_t addr)
+{
+	return rdram[addr & uint32_t(rdram_size - 1)];
+}
+
+static uint32_t wrapped_read_u32(const uint8_t *rdram, size_t rdram_size, uint32_t addr)
+{
+	uint32_t v = 0;
+	v |= uint32_t(wrapped_read_u8(rdram, rdram_size, addr + 0)) << 0;
+	v |= uint32_t(wrapped_read_u8(rdram, rdram_size, addr + 1)) << 8;
+	v |= uint32_t(wrapped_read_u8(rdram, rdram_size, addr + 2)) << 16;
+	v |= uint32_t(wrapped_read_u8(rdram, rdram_size, addr + 3)) << 24;
+	return v;
+}
+
+static uint32_t rice_crc32_wrapped(const uint8_t *rdram, size_t rdram_size, uint32_t base_addr,
+                                   uint32_t width, uint32_t height, uint32_t size, uint32_t row_stride)
+{
+	if (!rdram || rdram_size == 0 || width == 0 || height == 0)
+		return 0;
+
+	const uint32_t bytes_per_line = (width << size) >> 1;
+	if (bytes_per_line < 4)
+		return 0;
+
+	uint32_t crc = 0;
+	uint32_t line = 0;
+	for (int y = int(height) - 1; y >= 0; y--, line++)
+	{
+		uint32_t esi = 0;
+		uint32_t row_addr = (base_addr + line * row_stride) & uint32_t(rdram_size - 1);
+		for (int x = int(bytes_per_line) - 4; x >= 0; x -= 4)
+		{
+			esi = wrapped_read_u32(rdram, rdram_size, row_addr + uint32_t(x));
+			esi ^= uint32_t(x);
+			crc = (crc << 4) + ((crc >> 28) & 15);
+			crc += esi;
+		}
+
+		esi ^= uint32_t(y);
+		crc += esi;
+	}
+
+	return crc;
+}
+
+static uint32_t compute_ci8_max_index(const uint8_t *rdram, size_t rdram_size, uint32_t base_addr,
+                                      uint32_t width, uint32_t height, uint32_t row_stride)
+{
+	uint32_t cimax = 0;
+	for (uint32_t y = 0; y < height; y++)
+	{
+		const uint32_t row_addr = (base_addr + y * row_stride) & uint32_t(rdram_size - 1);
+		for (uint32_t x = 0; x < width; x++)
+		{
+			const uint32_t idx = wrapped_read_u8(rdram, rdram_size, row_addr + x);
+			cimax = std::max(cimax, idx);
+			if (cimax == 0xff)
+				return cimax;
+		}
+	}
+	return cimax;
+}
+
+static uint32_t compute_ci4_max_index(const uint8_t *rdram, size_t rdram_size, uint32_t base_addr,
+                                      uint32_t width, uint32_t height, uint32_t row_stride)
+{
+	uint32_t cimax = 0;
+	const uint32_t row_bytes = (width + 1) >> 1;
+	for (uint32_t y = 0; y < height; y++)
+	{
+		const uint32_t row_addr = (base_addr + y * row_stride) & uint32_t(rdram_size - 1);
+		for (uint32_t x = 0; x < row_bytes; x++)
+		{
+			const uint8_t v = wrapped_read_u8(rdram, rdram_size, row_addr + x);
+			cimax = std::max<uint32_t>(cimax, (v >> 4) & 0xf);
+			cimax = std::max<uint32_t>(cimax, v & 0xf);
+			if (cimax == 0xf)
+				return cimax;
+		}
+	}
+	return cimax;
+}
+}
+
 Renderer::Renderer(CommandProcessor &processor_)
 	: processor(processor_)
 {
@@ -570,6 +680,7 @@ bool Renderer::init_internal_upscaling_factor(const RendererOptions &options)
 void Renderer::set_rdram(Vulkan::Buffer *buffer, uint8_t *host_rdram, size_t offset, size_t size, bool coherent)
 {
 	rdram = buffer;
+	cpu_rdram = host_rdram;
 	rdram_offset = offset;
 	rdram_size = size;
 	is_host_coherent = coherent;
@@ -634,6 +745,34 @@ void Renderer::set_tmem(Vulkan::Buffer *buffer)
 {
 	tmem = buffer;
 	device->set_name(*tmem, "tmem");
+}
+
+void Renderer::set_replacement_provider(const ReplacementProvider *provider)
+{
+	replacement_provider = provider;
+	for (auto &tile : replacement_tiles)
+		tile = {};
+	hires_lookup_total = 0;
+	hires_lookup_hits = 0;
+	hires_lookup_misses = 0;
+	tlut_shadow_valid = false;
+}
+
+void Renderer::set_hires_debug(bool enable)
+{
+	hires_debug = enable;
+}
+
+void Renderer::log_hires_summary() const
+{
+	if (!replacement_provider && !hires_debug)
+		return;
+
+	LOGI("Hi-res keying summary: lookups=%llu hits=%llu misses=%llu provider=%s.\n",
+	     static_cast<unsigned long long>(hires_lookup_total),
+	     static_cast<unsigned long long>(hires_lookup_hits),
+	     static_cast<unsigned long long>(hires_lookup_misses),
+	     replacement_provider ? "on" : "off");
 }
 
 void Renderer::flush_and_signal()
@@ -2978,6 +3117,25 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 	size.tlo = info.tlo;
 	size.thi = info.thi;
 
+	uint32_t key_width_pixels = 0;
+	uint32_t key_height_pixels = 0;
+	uint32_t key_start_x = 0;
+	uint32_t key_start_y = 0;
+	if (info.mode == UploadMode::Block)
+	{
+		key_width_pixels = (info.shi - info.slo + 1) & 0xfff;
+		key_height_pixels = 1;
+		key_start_x = info.slo;
+		key_start_y = info.tlo;
+	}
+	else
+	{
+		key_width_pixels = (((info.shi >> 2) - (info.slo >> 2)) + 1) & 0xfff;
+		key_height_pixels = ((info.thi >> 2) - (info.tlo >> 2)) + 1;
+		key_start_x = info.slo >> 2;
+		key_start_y = info.tlo >> 2;
+	}
+
 	if (meta.fmt == TextureFormat::YUV && ((meta.size != TextureSize::Bpp16) || (info.size != TextureSize::Bpp16)))
 	{
 		LOGE("Only 16bpp is supported for YUV uploads.\n");
@@ -3227,6 +3385,93 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 	upload.mode = int32_t(upload_mode);
 
 	upload.inv_tmem_stride_words = 1.0f / float(upload.tmem_stride_words);
+
+	if (cpu_rdram && rdram_size && (rdram_size & (rdram_size - 1)) == 0)
+	{
+		const uint32_t bpp_bytes = 1u << (unsigned(info.size) - 1);
+		const uint32_t row_stride_bytes = upload.vram_width * bpp_bytes;
+		const uint32_t src_base_addr = info.tex_addr + ((info.tex_width * key_start_y + key_start_x) << (unsigned(info.size) - 1));
+
+		if (info.mode == UploadMode::TLUT)
+		{
+			const uint32_t bytes = key_width_pixels * key_height_pixels * bpp_bytes;
+			const uint32_t max_copy = std::min<uint32_t>(bytes, sizeof(tlut_shadow));
+			for (uint32_t i = 0; i < max_copy; i++)
+				tlut_shadow[i] = wrapped_read_u8(cpu_rdram, rdram_size, src_base_addr + i);
+			if (max_copy < sizeof(tlut_shadow))
+				memset(tlut_shadow + max_copy, 0, sizeof(tlut_shadow) - max_copy);
+			tlut_shadow_valid = max_copy > 0;
+
+			if (hires_debug)
+			{
+				LOGI("Hi-res keying TLUT update: addr=0x%06x bytes=%u tile=%u.\n",
+				     src_base_addr & 0x00ffffffu, max_copy, tile);
+			}
+		}
+		else if (replacement_provider && key_width_pixels > 0 && key_height_pixels > 0)
+		{
+			uint32_t texture_crc = rice_crc32_wrapped(cpu_rdram, rdram_size, src_base_addr,
+			                                          key_width_pixels, key_height_pixels,
+			                                          uint32_t(info.size), row_stride_bytes);
+			uint32_t palette_crc = 0;
+
+			if (meta.fmt == TextureFormat::CI && tlut_shadow_valid)
+			{
+				if (meta.size == TextureSize::Bpp8)
+				{
+					const uint32_t cimax = compute_ci8_max_index(cpu_rdram, rdram_size, src_base_addr,
+					                                              key_width_pixels, key_height_pixels,
+					                                              row_stride_bytes);
+					const uint32_t entries = std::min<uint32_t>(cimax + 1, 256u);
+					palette_crc = rice_crc32_wrapped(tlut_shadow, sizeof(tlut_shadow), 0, entries, 1, 2, 512);
+				}
+				else if (meta.size == TextureSize::Bpp4)
+				{
+					const uint32_t cimax = compute_ci4_max_index(cpu_rdram, rdram_size, src_base_addr,
+					                                              key_width_pixels, key_height_pixels,
+					                                              row_stride_bytes);
+					const uint32_t entries = std::min<uint32_t>(cimax + 1, 16u);
+					const uint32_t bank = std::min<uint32_t>(meta.palette, 15u);
+					palette_crc = rice_crc32_wrapped(tlut_shadow, sizeof(tlut_shadow), bank * 32, entries, 1, 2, 32);
+				}
+			}
+
+			const uint64_t checksum64 = (uint64_t(palette_crc) << 32) | uint64_t(texture_crc);
+			const uint16_t formatsize = formatsize_key(meta.fmt, meta.size);
+			ReplacementMeta repl_meta = {};
+			const bool hit = replacement_provider->lookup(checksum64, formatsize, &repl_meta);
+
+			auto &repl_state = replacement_tiles[tile & (Limits::MaxNumTiles - 1)];
+			repl_state.valid = true;
+			repl_state.hit = hit;
+			repl_state.checksum64 = checksum64;
+			repl_state.formatsize = formatsize;
+			repl_state.orig_w = uint16_t(std::min<uint32_t>(key_width_pixels, 0xffffu));
+			repl_state.orig_h = uint16_t(std::min<uint32_t>(key_height_pixels, 0xffffu));
+
+			hires_lookup_total++;
+			if (hit)
+				hires_lookup_hits++;
+			else
+				hires_lookup_misses++;
+
+			if (hires_debug)
+			{
+				LOGI("Hi-res keying %s: mode=%s addr=0x%06x tile=%u fmt=%u siz=%u wh=%ux%u key=%016llx fs=%u hit=%d.\n",
+				     hit ? "hit" : "miss",
+				     load_mode_to_string(info.mode),
+				     src_base_addr & 0x00ffffffu,
+				     tile,
+				     unsigned(meta.fmt),
+				     unsigned(meta.size),
+				     key_width_pixels,
+				     key_height_pixels,
+				     static_cast<unsigned long long>(checksum64),
+				     unsigned(formatsize),
+				     hit ? 1 : 0);
+			}
+		}
+	}
 
 	stream.tmem_upload_infos.push_back(upload);
 	if (stream.tmem_upload_infos.size() + 1 >= Limits::MaxTMEMInstances)

@@ -27,3 +27,7 @@ Release/
 **/*.sln
 **/*.vcxproj
 **/*.vcxproj.filters
+
+# Local hi-res texture cache artifacts
+*.htc
+*.hts

@@ -111,6 +111,35 @@
     - Local required gate command is stable and documented.
     - Optional local tiers are runnable with deterministic setup guidance.
 
+- [ ] T10: Video Core Coverage Expansion
+  - Deliverables:
+    - Add explicit Vulkan integration glue tests for:
+      - `parallel_create_device`
+      - `parallel_get_application_info`
+      - failure-path and ownership handoff behavior (`release_device`, queue family assignments).
+    - Expand renderer behavioral conformance coverage in `parallel-rdp/rdp_renderer`:
+      - triangle raster edge/subpixel cases,
+      - combiner/blender mode interactions,
+      - coverage and Z write/read edge behavior.
+    - Expand `rdp_device` feature/extension negotiation tests:
+      - capability matrix checks for required/optional extensions,
+      - fallback-path assertions for unsupported feature sets,
+      - env-toggle path checks used for debug/validation modes.
+    - Expand VI validation in `video_interface`:
+      - broader golden/hash fixtures for filter/interlace combinations,
+      - register interaction matrix across crop/scale/start fields.
+    - Expand dump regression corpus beyond baseline smoke fixture:
+      - curated real-content `.rdp` set partitioned by behavior class (TMEM/TLUT, depth/coverage, sync-heavy),
+      - stable pass expectations for normal and `--sync-only`.
+    - Promote runtime conformance from mostly skip-by-default into reproducible local tier runs:
+      - documented deterministic environment setup,
+      - explicit commands for enabling lavapipe runtime checks in regular local validation.
+  - Exit criteria:
+    - New tests exist for Vulkan glue entrypoints and are mapped into `emu.unit.*` or `emu.conformance.*`.
+    - Renderer + VI expansion includes at least one non-trivial golden/hash set each with deterministic local pass behavior.
+    - Dump tier includes multiple curated dumps with stable `normal` + `sync-only` validation.
+    - Runtime conformance workflow is documented and repeatable locally without ad-hoc manual steps.
+
 ## Phase Execution Policy
 - Work one phase at a time; no phase jumping.
 - Each phase needs:
@@ -127,7 +156,7 @@
 - `Next`: immediate next step.
 
 ## Current Status
-- Active phase: `Complete` (T0-T9 closed).
+- Active phase: `T10` planning (coverage expansion backlog defined).
 - Hi-res plan: on hold for new feature work until emulator behavior test baseline is established.
 - Open risk: local optional tiers depend on host tooling (Vulkan/lavapipe + `rdp-validate-dump`) and may skip when unavailable.
 
@@ -372,3 +401,10 @@
   - Confirmed optional dump tier:
     - `./run-dump-tests.sh --provision-validator`
   - Local tiered gating + contributor workflow docs are now finalized for this track.
+- 2026-03-05: Added `T10` expansion list to cover remaining video-core test coverage gaps:
+  - Vulkan integration glue coverage.
+  - Renderer behavior depth/coverage/combiner edge cases.
+  - Device feature negotiation matrix checks.
+  - VI golden/hash expansion.
+  - Dump corpus expansion beyond baseline smoke fixture.
+  - Runtime conformance enablement for reproducible local execution.

@@ -152,6 +152,24 @@
         - runtime hash fixtures across AA/divot/dither/gamma combinations (deterministic lavapipe tier).
       - VI scanout memory-range edge coverage:
         - explicit origin-alignment checks for 16-bit vs 32-bit scanout modes.
+      - Plugin/export surface closure:
+        - explicit no-op entrypoint contract checks for legacy plugin exports (`parallelChangeWindow`, `parallelReadScreen2`, `parallelDrawScreen`, `parallelSetRenderingCallback`, `parallelInitiateGFX`, `parallelMoveScreen`, `parallelProcessDList`, `parallelViStatusChanged`, `parallelViWidthChanged`, `parallelFBWrite`, `parallelFBRead`, `parallelFBGetFrameBufferInfo`),
+        - explicit delegation checks for `parallel_profile_video_refresh_begin/end`.
+      - Vulkan exported-wrapper closure:
+        - direct unit coverage for exported `parallel_create_device` and `parallel_get_application_info` wrappers (not only helper-policy tests).
+      - Complete-frame error integration closure:
+        - explicit integration-level coverage for `complete_frame_error()` sequencing and side effects (error image generation + slot publish + flush).
+      - Renderer unsupported-input behavior locks:
+        - unit/conformance assertions for currently unsupported texture-load combinations that log `FIXME` paths, to keep failure behavior stable while coverage expands.
+      - Ingest guard-intent clarification:
+        - explicit tests documenting the masked-address behavior vs theoretical high-address guard intent in DRAM ingest path, so future refactors cannot silently change semantics.
+      - Forward-looking test cases inspired by `docs/HIRES_TEXTURE_TASKS.md` (M4-M8 readiness, non-feature-specific):
+        - capability-gating contract tests for “auto-disable when required GPU features are missing” behavior,
+        - strict “feature-off fast path” tests asserting no extra provider/registry work when replacement path is disabled,
+        - descriptor/handle validity contract tests (invalid sentinel and bounds behavior) for upcoming registry plumbing,
+        - replacement-toggle state lifecycle tests across frame/context boundaries (enable/disable transitions without stale state leakage),
+        - cache-path precedence contract tests (explicit option vs environment fallback) for deterministic runtime configuration,
+        - TLUT/palette invalidation contract scaffolding tests to protect CI-key update behavior before shader-stage integration.
       - Runtime conformance content breadth:
         - add at least one deterministic lavapipe hash fixture using a second ROM target (beyond current Paper Mario baseline) to reduce single-title bias.
       - Frame glue resilience paths:
@@ -190,7 +208,7 @@
 - `Next`: immediate next step.
 
 ## Current Status
-- Active phase: `T10` execution (`M33` VI scanout origin-alignment coverage in progress).
+- Active phase: `T10` execution (`M34` backlog expansion from audit + HIRES-inspired readiness cases in progress).
 - Hi-res plan: on hold for new feature work until emulator behavior test baseline is established.
 - Open risk: local optional tiers depend on host tooling (Vulkan/lavapipe + `rdp-validate-dump`) and may skip when unavailable.
 
@@ -821,3 +839,18 @@
 - 2026-03-05: Validated current `T10` (`M33`) slice with:
   - `./run-tests.sh -R emu.conformance.vi_scanout_range`,
   - `./run-tests.sh --profile emu-required`.
+- 2026-03-05: Expanded `T10` backlog (`M34`) with new gap audit + HIRES-inspired readiness cases:
+  - Added concrete untested export/wrapper/integration gaps:
+    - plugin no-op entrypoint contracts,
+    - profile refresh wrapper delegation,
+    - direct exported `parallel_create_device` / `parallel_get_application_info` coverage,
+    - `complete_frame_error()` integration sequencing coverage,
+    - renderer unsupported-input (`FIXME`) behavior locks,
+    - ingest masked-address guard-intent documentation tests.
+  - Added forward-looking, non-feature-specific unit-test backlog inspired by `docs/HIRES_TEXTURE_TASKS.md` M4-M8:
+    - capability auto-disable contracts,
+    - feature-off fast-path assertions,
+    - descriptor/handle validity invariants,
+    - toggle lifecycle/state-leakage checks,
+    - cache-path precedence contracts,
+    - TLUT/palette invalidation scaffolding coverage.

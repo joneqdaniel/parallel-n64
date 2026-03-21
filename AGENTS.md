@@ -2,9 +2,9 @@
 
 ## Start Here
 - [README.md](/home/auro/code/parallel-n64/README.md)
-- [Project State](/home/auro/code/parallel-n64/docs/agent-first/PROJECT_STATE.md)
-- [Phase Overview](/home/auro/code/parallel-n64/docs/agent-first/plans/PHASE_OVERVIEW.md)
-- [Workspace Paths](/home/auro/code/parallel-n64/docs/agent-first/WORKSPACE_PATHS.md)
+- [Project State](/home/auro/code/parallel-n64/docs/PROJECT_STATE.md)
+- [Phase Overview](/home/auro/code/parallel-n64/docs/plans/PHASE_OVERVIEW.md)
+- [Workspace Paths](/home/auro/code/parallel-n64/docs/WORKSPACE_PATHS.md)
 - [Project Notebook](/home/auro/code/parallel-n64/PROJECT_NOTES.md)
 
 ## Package Manager
@@ -33,12 +33,12 @@
 - Fixtures: [tools/fixtures](/home/auro/code/parallel-n64/tools/fixtures)
 - Scenarios: [tools/scenarios](/home/auro/code/parallel-n64/tools/scenarios)
 - Adapters: [tools/adapters](/home/auro/code/parallel-n64/tools/adapters)
-- Plans: [docs/agent-first/plans](/home/auro/code/parallel-n64/docs/agent-first/plans)
+- Plans: [docs/plans](/home/auro/code/parallel-n64/docs/plans)
 
 ## Working Rules
 - Prefer explicit classification: baseline issue, hi-res issue, scaling issue, or tooling/fixture issue
 - Treat `papermario-dx` as optional debug help, not final correctness authority
-- Keep machine-specific path assumptions aligned with [WORKSPACE_PATHS.md](/home/auro/code/parallel-n64/docs/agent-first/WORKSPACE_PATHS.md)
+- Keep machine-specific path assumptions aligned with [WORKSPACE_PATHS.md](/home/auro/code/parallel-n64/docs/WORKSPACE_PATHS.md)
 
 ## Commit Attribution
 AI commits MUST include:

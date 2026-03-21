@@ -16,4 +16,4 @@ If an adapter starts carrying major project logic, move that logic into:
 
 - the relevant implementation repo
 - a fixture manifest
-- or a planning document under [`docs/agent-first/`](/home/auro/code/parallel-n64/docs/agent-first)
+- or a planning document under [`docs/`](/home/auro/code/parallel-n64/docs)

@@ -26,9 +26,9 @@ The first strict Phase 1 fixtures are title screen and file select.
 ## Start Here
 
 - [AGENTS.md](/home/auro/code/parallel-n64/AGENTS.md)
-- [Project State](/home/auro/code/parallel-n64/docs/agent-first/PROJECT_STATE.md)
-- [Phase Overview](/home/auro/code/parallel-n64/docs/agent-first/plans/PHASE_OVERVIEW.md)
-- [Workspace Paths](/home/auro/code/parallel-n64/docs/agent-first/WORKSPACE_PATHS.md)
+- [Project State](/home/auro/code/parallel-n64/docs/PROJECT_STATE.md)
+- [Phase Overview](/home/auro/code/parallel-n64/docs/plans/PHASE_OVERVIEW.md)
+- [Workspace Paths](/home/auro/code/parallel-n64/docs/WORKSPACE_PATHS.md)
 - [Project Notebook](/home/auro/code/parallel-n64/PROJECT_NOTES.md)
 - [Docs Index](/home/auro/code/parallel-n64/docs/README.md)
 
@@ -46,7 +46,7 @@ The first strict Phase 1 fixtures are title screen and file select.
 - [RetroArch](/home/auro/code/RetroArch)
 - [papermario-dx](/home/auro/code/paper_mario/papermario-dx)
 
-Use [Workspace Paths](/home/auro/code/parallel-n64/docs/agent-first/WORKSPACE_PATHS.md) for the canonical local layout on this machine.
+Use [Workspace Paths](/home/auro/code/parallel-n64/docs/WORKSPACE_PATHS.md) for the canonical local layout on this machine.
 
 ## Key Repo Areas
 

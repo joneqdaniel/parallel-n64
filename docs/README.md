@@ -2,17 +2,16 @@
 
 ## Start Here
 
-- [Project State](/home/auro/code/parallel-n64/docs/agent-first/PROJECT_STATE.md)
-- [Phase Overview](/home/auro/code/parallel-n64/docs/agent-first/plans/PHASE_OVERVIEW.md)
-- [Workspace Paths](/home/auro/code/parallel-n64/docs/agent-first/WORKSPACE_PATHS.md)
+- [Project State](/home/auro/code/parallel-n64/docs/PROJECT_STATE.md)
+- [Phase Overview](/home/auro/code/parallel-n64/docs/plans/PHASE_OVERVIEW.md)
+- [Workspace Paths](/home/auro/code/parallel-n64/docs/WORKSPACE_PATHS.md)
 - [Project Notebook](/home/auro/code/parallel-n64/PROJECT_NOTES.md)
 
-## Agent-First Docs
+## Core Project Docs
 
-- [Agent Workspace Index](/home/auro/code/parallel-n64/docs/agent-first/README.md)
-- [Project State](/home/auro/code/parallel-n64/docs/agent-first/PROJECT_STATE.md)
-- [Workspace Paths](/home/auro/code/parallel-n64/docs/agent-first/WORKSPACE_PATHS.md)
-- [Plans](/home/auro/code/parallel-n64/docs/agent-first/plans/README.md)
+- [Project State](/home/auro/code/parallel-n64/docs/PROJECT_STATE.md)
+- [Workspace Paths](/home/auro/code/parallel-n64/docs/WORKSPACE_PATHS.md)
+- [Plans](/home/auro/code/parallel-n64/docs/plans/README.md)
 
 ## Execution And Testing
 

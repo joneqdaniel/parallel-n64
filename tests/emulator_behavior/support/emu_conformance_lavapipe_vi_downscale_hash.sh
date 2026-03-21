@@ -66,7 +66,6 @@ parallel-n64-parallel-rdp-upscaling = "4x"
 parallel-n64-parallel-rdp-downscaling = "1/2"
 parallel-n64-parallel-rdp-native-texture-lod = "enabled"
 parallel-n64-parallel-rdp-native-tex-rect = "enabled"
-parallel-n64-parallel-rdp-hirestex = "disabled"
 OPTS
 
 set +e

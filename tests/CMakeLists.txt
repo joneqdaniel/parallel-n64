@@ -1,2 +1,1 @@
-add_subdirectory(hires_textures)
 add_subdirectory(emulator_behavior)

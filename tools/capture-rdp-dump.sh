@@ -116,7 +116,6 @@ parallel-n64-angrylion-sync = "High"
 parallel-n64-angrylion-multithread = "1"
 parallel-n64-angrylion-vioverlay = "Filtered"
 parallel-n64-angrylion-overscan = "disabled"
-parallel-n64-parallel-rdp-hirestex = "disabled"
 EOF
 
 declare -a cmd

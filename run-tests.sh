@@ -24,7 +24,7 @@ Options:
   --clean               Remove build dir before configuring
   --list                List tests without running them
   --build-dir PATH      Override build dir (default: ./build/ctest)
-  --profile NAME        Test profile: all|emu-required|emu-optional|emu-conformance|emu-runtime-conformance|emu-dump|emu-tsan|hires-readiness
+  --profile NAME        Test profile: all|emu-required|emu-optional|emu-conformance|emu-runtime-conformance|emu-dump|emu-tsan
   -R REGEX              Pass test regex to ctest
   -h, --help            Show this help
 
@@ -34,7 +34,7 @@ Examples:
   ./run-tests.sh --profile emu-runtime-conformance
   ./run-tests.sh --profile emu-tsan
   ./run-tests.sh --list
-  ./run-tests.sh -R hires.texture_keying
+  ./run-tests.sh -R emu.unit.smoke
   ./run-tests.sh -- --repeat until-fail:10
 EOF
 }
@@ -156,9 +156,6 @@ case "$selected_profile" in
   emu-tsan)
     enable_tsan=1
     ctest_args+=(-R "^emu\\.unit\\.(command_ring_policy|worker_thread)$")
-    ;;
-  hires-readiness)
-    ctest_args+=(-R "^(hires\\.texture_|emu\\.unit\\.hires_)")
     ;;
   *)
     echo "Unknown --profile value: $selected_profile" >&2

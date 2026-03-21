@@ -27,8 +27,4 @@ Local helpers:
 * `./run-dump-tests.sh --provision-validator` - provision validator and run `emu.dump.*` against baseline dump fixtures
 
 Task trackers:
-* `docs/HIRES_TEXTURE_TASKS.md` - hi-res texture replacement roadmap
 * `docs/EMU_TESTING.md` - tiered emulator test commands and triage workflow
-
-Archive notes:
-* The former non-HIRES emulator test-roadmap plan (`EMULATOR_TEST_TASKS.md`) was closed and retired on 2026-03-05 after completing `T0`..`T10`.

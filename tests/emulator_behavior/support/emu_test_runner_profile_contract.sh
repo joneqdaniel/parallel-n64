@@ -20,7 +20,7 @@ require_pattern() {
 }
 
 # Help/usage should advertise all maintained profiles.
-require_pattern "--profile NAME        Test profile: all|emu-required|emu-optional|emu-conformance|emu-runtime-conformance|emu-dump|emu-tsan|hires-readiness" \
+require_pattern "--profile NAME        Test profile: all|emu-required|emu-optional|emu-conformance|emu-runtime-conformance|emu-dump|emu-tsan" \
   "usage text missing profile list"
 
 # CLI conflict behavior must remain explicit.
@@ -36,8 +36,6 @@ require_pattern "ctest_args+=(-R \"^emu\\\\.conformance\\\\.\")" \
   "emu-conformance regex mapping missing"
 require_pattern "ctest_args+=(-R \"^emu\\\\.dump\\\\.\")" \
   "emu-dump regex mapping missing"
-require_pattern "ctest_args+=(-R \"^(hires\\\\.texture_|emu\\\\.unit\\\\.hires_)\")" \
-  "hires-readiness regex mapping missing"
 
 # Runtime conformance profile should include all dedicated lavapipe runtime tests.
 require_pattern "ctest_args+=(-R \"^emu\\\\.conformance\\\\.(runtime_smoke_lavapipe|lavapipe_frame_hash|lavapipe_vi_filters_hash|lavapipe_vi_filters_mixed_hash|lavapipe_vi_downscale_hash|lavapipe_sm64_frame_hash)$\")" \

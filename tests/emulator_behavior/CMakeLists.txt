@@ -20,16 +20,6 @@ target_include_directories(emu_unit_seed_policy_test PRIVATE
 target_compile_features(emu_unit_seed_policy_test PRIVATE cxx_std_17)
 add_test(NAME emu.unit.seed_policy COMMAND emu_unit_seed_policy_test)
 
-add_executable(emu_unit_plugin_contract_test
-  emu_unit_plugin_contract_test.cpp
-)
-target_include_directories(emu_unit_plugin_contract_test PRIVATE
-  "${CMAKE_SOURCE_DIR}"
-  "${CMAKE_SOURCE_DIR}/mupen64plus-core/src/api"
-  "${CMAKE_SOURCE_DIR}/libretro-common/include"
-)
-target_compile_features(emu_unit_plugin_contract_test PRIVATE cxx_std_17)
-add_test(NAME emu.unit.plugin_contract COMMAND emu_unit_plugin_contract_test)
 
 add_executable(emu_unit_rdp_command_ingest_test
   emu_unit_rdp_command_ingest_test.cpp
@@ -117,16 +107,6 @@ target_include_directories(emu_unit_rdp_retro_image_mapping_test PRIVATE
 target_compile_features(emu_unit_rdp_retro_image_mapping_test PRIVATE cxx_std_17)
 add_test(NAME emu.unit.rdp_retro_image_mapping COMMAND emu_unit_rdp_retro_image_mapping_test)
 
-add_executable(emu_unit_parallel_option_wiring_test
-  emu_unit_parallel_option_wiring_test.cpp
-)
-target_include_directories(emu_unit_parallel_option_wiring_test PRIVATE
-  "${CMAKE_SOURCE_DIR}"
-  "${CMAKE_SOURCE_DIR}/mupen64plus-core/src/api"
-  "${CMAKE_SOURCE_DIR}/libretro-common/include"
-)
-target_compile_features(emu_unit_parallel_option_wiring_test PRIVATE cxx_std_17)
-add_test(NAME emu.unit.parallel_option_wiring COMMAND emu_unit_parallel_option_wiring_test)
 
 add_executable(emu_unit_z64_constants_test
   emu_unit_z64_constants_test.cpp
@@ -165,69 +145,6 @@ target_include_directories(emu_unit_rdp_memory_path_policy_test PRIVATE
 )
 target_compile_features(emu_unit_rdp_memory_path_policy_test PRIVATE cxx_std_17)
 add_test(NAME emu.unit.rdp_memory_path_policy COMMAND emu_unit_rdp_memory_path_policy_test)
-
-add_executable(emu_unit_hires_runtime_policy_test
-  emu_unit_hires_runtime_policy_test.cpp
-)
-target_include_directories(emu_unit_hires_runtime_policy_test PRIVATE
-  "${CMAKE_SOURCE_DIR}"
-)
-target_compile_features(emu_unit_hires_runtime_policy_test PRIVATE cxx_std_17)
-add_test(NAME emu.unit.hires_runtime_policy COMMAND emu_unit_hires_runtime_policy_test)
-
-add_executable(emu_unit_hires_state_policy_test
-  emu_unit_hires_state_policy_test.cpp
-)
-target_include_directories(emu_unit_hires_state_policy_test PRIVATE
-  "${CMAKE_SOURCE_DIR}"
-)
-target_compile_features(emu_unit_hires_state_policy_test PRIVATE cxx_std_17)
-add_test(NAME emu.unit.hires_state_policy COMMAND emu_unit_hires_state_policy_test)
-
-add_executable(emu_unit_hires_lookup_policy_test
-  emu_unit_hires_lookup_policy_test.cpp
-)
-target_include_directories(emu_unit_hires_lookup_policy_test PRIVATE
-  "${CMAKE_SOURCE_DIR}"
-)
-target_compile_features(emu_unit_hires_lookup_policy_test PRIVATE cxx_std_17)
-add_test(NAME emu.unit.hires_lookup_policy COMMAND emu_unit_hires_lookup_policy_test)
-
-add_executable(emu_unit_hires_ci_palette_policy_test
-  emu_unit_hires_ci_palette_policy_test.cpp
-)
-target_include_directories(emu_unit_hires_ci_palette_policy_test PRIVATE
-  "${CMAKE_SOURCE_DIR}"
-)
-target_compile_features(emu_unit_hires_ci_palette_policy_test PRIVATE cxx_std_17)
-add_test(NAME emu.unit.hires_ci_palette_policy COMMAND emu_unit_hires_ci_palette_policy_test)
-
-add_executable(emu_unit_hires_key_state_policy_test
-  emu_unit_hires_key_state_policy_test.cpp
-)
-target_include_directories(emu_unit_hires_key_state_policy_test PRIVATE
-  "${CMAKE_SOURCE_DIR}"
-)
-target_compile_features(emu_unit_hires_key_state_policy_test PRIVATE cxx_std_17)
-add_test(NAME emu.unit.hires_key_state_policy COMMAND emu_unit_hires_key_state_policy_test)
-
-add_executable(emu_unit_hires_capability_policy_test
-  emu_unit_hires_capability_policy_test.cpp
-)
-target_include_directories(emu_unit_hires_capability_policy_test PRIVATE
-  "${CMAKE_SOURCE_DIR}"
-)
-target_compile_features(emu_unit_hires_capability_policy_test PRIVATE cxx_std_17)
-add_test(NAME emu.unit.hires_capability_policy COMMAND emu_unit_hires_capability_policy_test)
-
-add_executable(emu_unit_hires_registry_policy_test
-  emu_unit_hires_registry_policy_test.cpp
-)
-target_include_directories(emu_unit_hires_registry_policy_test PRIVATE
-  "${CMAKE_SOURCE_DIR}"
-)
-target_compile_features(emu_unit_hires_registry_policy_test PRIVATE cxx_std_17)
-add_test(NAME emu.unit.hires_registry_policy COMMAND emu_unit_hires_registry_policy_test)
 
 add_executable(emu_unit_rdp_scanout_coherency_policy_test
   emu_unit_rdp_scanout_coherency_policy_test.cpp

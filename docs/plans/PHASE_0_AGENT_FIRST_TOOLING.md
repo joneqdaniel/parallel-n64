@@ -64,6 +64,8 @@
 - complete: disabled widgets and screenshot/save-state notifications in tracked runtime runs so screenshots can be compared byte-for-byte
 - complete: verified an authoritative savestate-backed title-screen fixture with a deterministic post-load settle rule: load paused, advance `3` frames, capture
 - complete: verified repeated authoritative title-screen runs now produce byte-identical screenshots at `4x`
+- complete: added explicit RetroArch stdin agent commands for per-port input override (`SET_INPUT_PORT`, `CLEAR_INPUT_PORT`, `GET_INPUT_PORT`)
+- complete: verified repeated deterministic controller-input probes from the authoritative title-screen state produce byte-identical post-input captures
 - pending: make the reported RetroArch `frame=` value trustworthy enough to use as a fixture-relative frame clock
 
 ## Out Of Scope

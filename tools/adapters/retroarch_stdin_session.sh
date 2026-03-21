@@ -400,6 +400,24 @@ for cmd in "${COMMANDS[@]}"; do
         exit 1
       fi
       ;;
+    SET_INPUT_PORT*)
+      if ! wait_for_log_pattern_after "$start_bytes" "SET_INPUT_PORT " 5; then
+        echo "[adapter] SET_INPUT_PORT acknowledgement missing." >&2
+        exit 1
+      fi
+      ;;
+    CLEAR_INPUT_PORT*)
+      if ! wait_for_log_pattern_after "$start_bytes" "CLEAR_INPUT_PORT " 5; then
+        echo "[adapter] CLEAR_INPUT_PORT acknowledgement missing." >&2
+        exit 1
+      fi
+      ;;
+    GET_INPUT_PORT*)
+      if ! wait_for_log_pattern_after "$start_bytes" "GET_INPUT_PORT " 5; then
+        echo "[adapter] GET_INPUT_PORT acknowledgement missing." >&2
+        exit 1
+      fi
+      ;;
     SAVE_STATE)
       if ! wait_for_log_pattern_after "$start_bytes" "[State] Saving state" 15; then
         echo "[adapter] SAVE_STATE acknowledgement missing." >&2

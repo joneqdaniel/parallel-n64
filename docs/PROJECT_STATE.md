@@ -19,6 +19,8 @@
 - The authoritative title-screen fixture is now: load savestate paused, settle exactly `3` frames, then capture
 - Tracked runtime scenarios now disable RetroArch widgets and screenshot/save-state notifications so repeated captures can be byte-identical
 - Repeated title-screen authoritative runs now produce byte-identical screenshots at `4x` internal scale after the 3-frame settle
+- RetroArch now has an explicit stdin agent input path for per-port joypad/analog overrides
+- Repeated input probes from the authoritative title-screen state now produce byte-identical post-input captures when holding `START` through a controlled frame advance
 - RetroArch `GET_STATUS` now reports a `frame=` field, but that counter is still not treated as the fixture authority because it is not yet stable enough to be the canonical post-load clock
 - `run-build.sh` is the authoritative local build entrypoint because it carries the ParaLLEl build flags and auto-cleans when flag fingerprints change
 

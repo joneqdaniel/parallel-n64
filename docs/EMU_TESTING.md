@@ -2,6 +2,15 @@
 
 This repo uses tiered, local-only emulator-behavior test gates to separate required checks from heavier optional checks.
 
+## Runtime Emulator Test Rules
+
+- run emulator-facing tests at `4x` internal scale
+- run emulator-facing tests one at a time
+- treat emulator-facing tests as display-occupying local runs
+- do not try to parallelize runtime emulator tests just because build steps are parallelized
+
+These rules matter because runtime emulator tests consume significant local resources and can interfere with each other visually.
+
 ## Local Commands
 
 - Required gate (PR-safe):
@@ -44,6 +53,8 @@ This repo uses tiered, local-only emulator-behavior test gates to separate requi
 
 ## Notes
 
+- `ctest` execution in `run-tests.sh` is serial unless extra parallel flags are added manually.
+- `run-tests.sh` parallelizes the build step, not the runtime test execution step.
 - `emu.dump.*` is skip-by-default without `rdp-validate-dump`.
 - Baseline fixture is committed at `tests/rdp_dumps/baseline_minimal_eof.rdp`.
 - Remote CI enforcement is intentionally disabled for now; run tiers locally.

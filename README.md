@@ -39,6 +39,7 @@ The first strict Phase 1 fixtures are title screen and file select.
 - fixture runs require evidence bundles
 - fallback and exclusion behavior must be explicit and logged
 - savestates are the authority once available; debug warps and scripted entry are acceptable earlier in the ladder
+- emulator-facing runtime tests should run at `4x` internal scale and one at a time
 
 ## Active Repos In Scope
 

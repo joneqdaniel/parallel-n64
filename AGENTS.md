@@ -25,6 +25,7 @@
 - `feature off` must stay baseline-safe
 - Evidence bundles are required for fixture runs
 - Fallbacks and exclusions must report explicit reasons
+- Emulator-facing runtime tests run at `4x` internal scale and one at a time
 
 ## Key Paths
 - Active renderer work: [mupen64plus-video-paraLLEl](/home/auro/code/parallel-n64/mupen64plus-video-paraLLEl)
@@ -39,6 +40,7 @@
 - Prefer explicit classification: baseline issue, hi-res issue, scaling issue, or tooling/fixture issue
 - Treat `papermario-dx` as optional debug help, not final correctness authority
 - Keep machine-specific path assumptions aligned with [WORKSPACE_PATHS.md](/home/auro/code/parallel-n64/docs/WORKSPACE_PATHS.md)
+- Do not parallelize emulator-facing runtime tests; they are heavy and occupy the display
 
 ## Commit Attribution
 AI commits MUST include:

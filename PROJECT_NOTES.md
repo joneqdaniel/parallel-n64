@@ -323,3 +323,314 @@ But it should be treated as:
 - aggressively protective of the disabled baseline path
 
 The prior year of work was not wasted. It produced cleaner code, better separation, and better knowledge of what does not work. That is exactly the material we should use to make a stronger plan now.
+
+## Research Sweep: Cross-Emulator Patterns and N64 Behavior
+
+This section captures findings from the local reference trees:
+
+- `/home/auro/code/emulator_references`
+- `/home/auro/code/n64_docs`
+
+The goal of this sweep was not to copy another emulator architecture blindly. The goal was to identify stable patterns that transfer well to Parallel N64, and to identify N64-specific behavior that makes some generic emulator patterns unsafe.
+
+### Cross-Emulator Patterns That Transfer Well
+
+Across DuckStation, PCSX2, PPSSPP, Flycast, Dolphin, and Azahar, the strongest shared pattern is this:
+
+- keep enhancement systems narrowly scoped
+- integrate them at one explicit renderer boundary
+- preserve baseline/native behavior when the feature is disabled
+
+That pattern shows up in different forms, but the architectural conclusion is consistent.
+
+#### 1. Texture Replacement Should Be Its Own Subsystem
+
+The strongest references here are:
+
+- `duckstation-upstream/src/core/gpu_hw_texture_cache.cpp`
+- `pcsx2-upstream/pcsx2/GS/Renderers/HW/GSTextureReplacements.cpp`
+- `ppsspp-upstream/GPU/Common/TextureReplacer.cpp`
+- `flycast-upstream/core/rend/CustomTexture.cpp`
+
+Shared lessons:
+
+- replacement discovery/loading should not be scattered across draw code
+- replacement metadata, indexing, decode, reload, and dump policy should live together
+- async disk/decode work should happen off the render thread
+- GPU upload/final binding should still be injected through the renderer thread / renderer-owned boundary
+
+This argues for a Parallel N64 design where hi-res replacement is a distinct subsystem with explicit responsibilities:
+
+- key generation / identity
+- replacement metadata/index lookup
+- CPU-side decode/cache
+- GPU residency/registry
+- policy for reload / dumping / budget / eviction
+
+#### 2. Texture Upscaling Must Be Separate From Internal Resolution Scaling
+
+The cleanest references here are:
+
+- `flycast-upstream/core/rend/TexCache.cpp`
+- `duckstation-upstream/src/core/gpu_hw_shadergen.cpp`
+- PCSX2 upscaling-fix model in the GS renderer stack
+
+Shared lesson:
+
+- texture upscaling is not the same problem as render/output/internal-resolution scaling
+
+This is directly relevant to Parallel N64. If we merge these concepts too early, we lose the ability to answer whether a bug comes from:
+
+- replacement texture identity
+- replacement sampling
+- texrect coordinate math
+- internal upscaling math
+- VI presentation behavior
+
+This reinforces the project direction already suspected locally:
+
+- hi-res replacement
+- texture upscaling
+- internal RDP upscaling
+- VI presentation scaling
+
+should be treated as distinct systems with explicit handoff points.
+
+#### 3. Capture, Dump, and Screenshot Paths Should Be Renderer-Owned Services
+
+The strongest references here are:
+
+- `dolphin-upstream/Source/Core/VideoCommon/FrameDumper.cpp`
+- `dolphin-upstream/Source/Core/VideoCommon/Present.cpp`
+- `azahar-upstream/src/video_core/renderer_base.h`
+- `azahar-upstream/src/video_core/renderer_opengl/frame_dumper_opengl.cpp`
+- `ppsspp-upstream/Core/Screenshot.cpp`
+- `pcsx2-upstream/pcsx2/GS/Renderers/Common/GSRenderer.cpp`
+
+Shared lessons:
+
+- UI code should request capture, not perform capture directly
+- presentation policy should be separated from capture mechanics
+- async readback/encode should be the default
+- capture requests should be scheduled and deterministic
+
+For Parallel N64, that suggests:
+
+- frame capture should hang off a renderer-owned interface
+- capture should understand whether it is grabbing:
+  - native RDP output
+  - upscaled RDP output
+  - VI-processed output
+  - dump/replay validation output
+- capture should be scriptable and safe for automation
+
+#### 4. Minimal Replayable Graphics Artifacts Are Critical
+
+The strongest references here are:
+
+- `pcsx2-upstream/pcsx2/GSDumpReplayer.cpp`
+- `dolphin-upstream/Source/Core/Core/FifoPlayer/FifoRecorder.cpp`
+- `duckstation-upstream/src/duckstation-regtest/regtest_host.cpp`
+- `parallel-rdp_README.md` in local docs
+
+Shared lesson:
+
+- renderer work becomes dramatically more tractable when bugs can be replayed from a minimal graphics artifact instead of full gameplay repro
+
+For Parallel N64, the direct analogue is not GS dump or GC/Wii FIFO capture. The analogue is:
+
+- RSP/RDP command-stream-centered replay
+- tightly scoped memory/TMEM/TLUT state capture
+- embedded preview screenshots for triage
+
+This is an argument for expanding the existing dump/replay story rather than treating it as optional tooling.
+
+#### 5. Enhancement Features Should Stay Explicitly Opt-In and Isolated
+
+The strongest references here are:
+
+- `dolphin-upstream/Source/Core/VideoCommon/GraphicsModSystem/Runtime/GraphicsModManager.cpp`
+- `duckstation-upstream/src/core/gpu_hw.cpp`
+- `pcsx2-upstream/pcsx2/VMManager.cpp`
+
+Shared lessons:
+
+- enhanced paths should be activated deliberately
+- replay/debug modes may need different guardrails than regular emulation
+- native/baseline paths should not be contaminated by enhancement-specific assumptions
+
+This matches one of the core non-negotiables for this project:
+
+- when the feature is disabled, the core should behave like the stable baseline path
+
+### Cross-Emulator Patterns That Do Not Transfer Cleanly
+
+Some useful patterns should only transfer at the architectural level, not at the implementation level.
+
+Examples:
+
+- PS1/PS2-specific texture identifiers, VRAM hashes, CLUT naming, half-pixel offsets, and palette-draw hacks do not transfer to N64 directly.
+- GameCube/Wii FIFO recording is not directly reusable. The transferable idea is minimal graphics repro capture, not the exact recorder format.
+- GL-mailbox and PBO frame-dumper implementations in Azahar transfer as async readback ideas, not as concrete implementation templates.
+- Hash-only replacement schemes are risky for N64 because raw texel bytes are not enough when TLUT/TMEM semantics matter.
+- Generic "modern bilinear" assumptions do not transfer because N64 texture filtering behavior is special.
+
+### N64 Behavior Findings That Matter Most
+
+The doc sweep sharpened several areas that are likely to dominate correctness work.
+
+#### 1. Texrects Are the Highest-Risk Primitive For Hi-Res Scaling
+
+The most important references are:
+
+- `n64brew_Reality_Display_Processor_Commands.html`
+- `official_manual/.../gSPTextureRectangle.htm`
+
+Important behavior:
+
+- texrect coordinates and texture coordinates use fixed-point formats with non-trivial rounding behavior
+- `COPY` / `FILL` and `1-cycle` / `2-cycle` do not agree on lower-right edge behavior
+- `COPY` mode has step-size requirements tied to fetch width
+
+Implication:
+
+- keeping texrects at native resolution is not just a hack; it is likely a correctness-preserving strategy for a large class of HUD/sprite/menu behavior
+
+This supports the current existing quirk in `rdp_tex_rect_policy.hpp`.
+
+#### 2. TMEM / Tile / TLUT State Is Part Of Texture Meaning
+
+The most important references are:
+
+- `n64brew_Reality_Display_Processor_Commands.html`
+- `official_manual/.../pro14/14-03.htm`
+- `official_manual/.../qa/graphics/texture.htm`
+
+Important behavior:
+
+- TMEM is only 4 KB and layout-sensitive
+- tile fields are not cosmetic metadata; they change how texture data is interpreted
+- CI/TLUT behavior changes the semantic identity of what is sampled
+- `LoadBlock`, `LoadTile`, and `LoadTLUT` all have fragile edge conditions
+
+Implication:
+
+- hi-res replacement identity for N64 cannot be a naive decoded-texture hash
+- replacement keys must account for TLUT/palette state where relevant
+- this validates the current direction of shadowing TLUT state and including palette CRC in lookup keys
+
+#### 3. N64 Filtering Is Not Generic Bilinear
+
+The most important references are:
+
+- `official_manual/.../pro14/14-01.htm`
+- `official_manual/.../gDPSetTextureFilter.htm`
+
+Important behavior:
+
+- `G_TF_BILERP` is the characteristic N64 3-point triangular filter
+- some exact averaging behavior is a special case rather than the default
+
+Implication:
+
+- enhanced replacement/upscale paths cannot assume modern GPU bilinear is visually equivalent
+- if we bind hi-res textures and sample them with ordinary bilinear while the original content expected N64 filtering behavior, edges, UI, and mip transitions will drift
+
+#### 4. LOD And Mip Behavior Is Tile-Relative
+
+The most important references are:
+
+- `official_manual/.../tutorial/graphics/9/9_3.htm`
+- `official_manual/.../tutorial/graphics/9/9_6.htm`
+- `official_manual/.../tutorial/graphics/9/9_7.htm`
+- `official_manual/.../gDPSetTextureLOD.htm`
+
+Important behavior:
+
+- LOD chooses relative tile pairs, not generic image mips in the modern sense
+- detail/sharpen behavior depends on neighboring tile layout
+- texrect behavior can differ from ordinary primitive assumptions
+
+Implication:
+
+- future hi-res replacement support should expect LOD-sensitive content to require more than a flat single-texture replacement model
+- grouping or expressing replacement assets relative to primitive-tile/mip relationships may become necessary
+
+#### 5. VI Is The Real Presentation Stage
+
+The most important references are:
+
+- `n64brew_Video_Interface.html`
+- local `video_interface.*` and `vi_*policy*` files in Parallel N64
+
+Important behavior:
+
+- VI applies final scaling and presentation behavior
+- VI is responsible for resample/AA/divot/dedither/gamma/interlace-domain effects
+- `ORIGIN`, `WIDTH`, `X_SCALE`, `Y_SCALE`, and field handling all matter directly
+- mid-frame VI changes matter
+
+Implication:
+
+- hi-res RDP work must not bypass VI semantics
+- keeping RDP enhancement separate from VI scanout/presentation is the right direction
+- any stable design must continue to treat VI as the final authority on presentation behavior
+
+### Strongest Direct Implications For Parallel N64
+
+At this point, the strongest actionable conclusions are:
+
+- Treat hi-res replacement as a dedicated subsystem, not a scattered renderer feature.
+- Treat texture upscaling, internal RDP upscaling, and VI presentation scaling as separate systems.
+- Keep texrect/native-resolution behavior as an explicit correctness mode, likely on by default for risky paths.
+- Continue including TLUT/palette state in replacement identity.
+- Do not assume modern bilinear filtering is acceptable for enhanced paths.
+- Treat renderer-owned async capture and minimal replay artifacts as first-class infrastructure, not optional tooling.
+- Prefer per-game/per-scene fix metadata over global hacks when upscale correctness diverges.
+- Build automation around deterministic capture, replay, savestates, and preview images.
+
+### Most Useful Reference Files To Revisit Later
+
+For texture replacement / upscaling architecture:
+
+- `/home/auro/code/emulator_references/duckstation-upstream/src/core/gpu_hw_texture_cache.cpp`
+- `/home/auro/code/emulator_references/pcsx2-upstream/pcsx2/GS/Renderers/HW/GSTextureReplacements.cpp`
+- `/home/auro/code/emulator_references/ppsspp-upstream/GPU/Common/TextureReplacer.cpp`
+- `/home/auro/code/emulator_references/flycast-upstream/core/rend/TexCache.cpp`
+- `/home/auro/code/emulator_references/flycast-upstream/core/rend/CustomTexture.cpp`
+
+For capture / dump / automation / replay:
+
+- `/home/auro/code/emulator_references/dolphin-upstream/Source/Core/VideoCommon/FrameDumper.cpp`
+- `/home/auro/code/emulator_references/dolphin-upstream/Source/Core/Core/FifoPlayer/FifoRecorder.cpp`
+- `/home/auro/code/emulator_references/duckstation-upstream/src/duckstation-regtest/regtest_host.cpp`
+- `/home/auro/code/emulator_references/pcsx2-upstream/pcsx2/GSDumpReplayer.cpp`
+- `/home/auro/code/emulator_references/ppsspp-upstream/headless/Headless.cpp`
+- `/home/auro/code/emulator_references/azahar-upstream/src/video_core/renderer_base.h`
+
+For N64 behavior:
+
+- `/home/auro/code/n64_docs/n64brew_Reality_Display_Processor_Commands.html`
+- `/home/auro/code/n64_docs/n64brew_Reality_Display_Processor_Pipeline.html`
+- `/home/auro/code/n64_docs/n64brew_Video_Interface.html`
+- `/home/auro/code/n64_docs/official_manual/N64OnlineManuals51/n64man/gsp/gSPTextureRectangle.htm`
+- `/home/auro/code/n64_docs/official_manual/N64OnlineManuals51/pro-man/pro14/14-01.htm`
+- `/home/auro/code/n64_docs/official_manual/N64OnlineManuals51/pro-man/pro14/14-02.htm`
+- `/home/auro/code/n64_docs/official_manual/N64OnlineManuals51/pro-man/pro14/14-03.htm`
+
+### New Planning Bias From This Research
+
+This research changes the planning bias in a few important ways.
+
+Before this sweep, a reasonable fear was that the project might need one giant, tightly coupled rendering redesign.
+
+After this sweep, the better bias is:
+
+- design a narrow replacement subsystem
+- preserve texrect/native correctness aggressively
+- make scaling behavior explicit rather than implicit
+- push capture/replay/testing infrastructure much earlier in the project
+- treat VI as a hard boundary
+- accept that some feature areas may need per-game/per-scene policy rather than one universal rule
+
+That is a much more manageable shape than a single monolithic "hi-res plus scaling" implementation.

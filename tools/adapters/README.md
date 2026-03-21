@@ -9,6 +9,10 @@ Expected adapter targets include:
 - local environment discovery
 - artifact collection and normalization
 
+Current tracked adapter seeds:
+
+- [`retroarch_stdin_session.sh`](/home/auro/code/parallel-n64/tools/adapters/retroarch_stdin_session.sh)
+
 Adapters should translate between systems.
 They should not become the main source of truth for renderer correctness or scene semantics.
 

@@ -8,6 +8,7 @@ FIXTURE_ID="paper-mario-title-screen"
 MODE="off"
 DRY_RUN=1
 BUNDLE_DIR=""
+RUNTIME_ENV="$SCRIPT_DIR/paper-mario-title-screen.runtime.env"
 
 usage() {
   cat <<'EOF'
@@ -135,7 +136,7 @@ cat > "$BUNDLE_DIR/README.md" <<EOF
 - Status: bundle initialized
 
 This bundle is a Phase 0 scaffold.
-Populate \`captures/\`, \`logs/\`, and \`traces/\` as runtime control and capture paths are wired in.
+Populate \`captures/\`, \`logs/\`, and \`traces/\` through the tracked scenario and adapter flow.
 EOF
 
 echo "[scenario] fixture: $FIXTURE_ID"
@@ -148,6 +149,22 @@ echo "[scenario] execution: serial"
 if (( DRY_RUN )); then
   echo "[scenario] dry-run complete; runtime launch is intentionally deferred."
 else
-  echo "[scenario] bundle prepared for runtime execution."
-  echo "[scenario] next step: wire RetroArch control/capture into this scenario."
+  # shellcheck disable=SC1090
+  source "$RUNTIME_ENV"
+  "$REPO_ROOT/tools/adapters/retroarch_stdin_session.sh" \
+    --bundle-dir "$BUNDLE_DIR" \
+    --mode "$MODE" \
+    --retroarch-bin "$RETROARCH_BIN" \
+    --base-config "$RETROARCH_BASE_CONFIG" \
+    --core "$CORE_PATH" \
+    --rom "$ROM_PATH" \
+    --startup-wait "$STARTUP_WAIT" \
+    --command "GET_STATUS" \
+    --command "PAUSE_TOGGLE" \
+    --command "GET_STATUS" \
+    --command "SAVE_STATE" \
+    --command "LOAD_STATE_SLOT 0" \
+    --command "GET_STATUS" \
+    --command "SCREENSHOT" \
+    --command "QUIT"
 fi

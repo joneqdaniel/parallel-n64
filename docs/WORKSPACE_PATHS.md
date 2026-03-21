@@ -14,6 +14,9 @@ If that changes later, this file should become the source of truth for local pat
 - `RetroArch`: `/home/auro/code/RetroArch`
   Current role: frontend/tooling patch target for agent-first control, capture, logging, and orchestration.
 
+- `RetroArch runtime binary`: `/home/auro/code/mupen/RetroArch-upstream/retroarch`
+  Current role: locally available RetroArch executable used by the first Phase 0 scenario path.
+
 - `papermario-dx`: `/home/auro/code/paper_mario/papermario-dx`
   Current role: semantic game-state reference, fixture research target, and possible game-side telemetry/instrumentation target.
 

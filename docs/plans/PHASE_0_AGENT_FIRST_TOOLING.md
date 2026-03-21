@@ -20,6 +20,7 @@
 - first Paper Mario fixture registry
 - evidence bundle structure
 - scenario runner skeleton
+- first real RetroArch control adapter using existing command seams
 - workspace path documentation
 - root onboarding docs for agents
 
@@ -41,6 +42,18 @@
 - evidence bundles are produced consistently
 - fixture identity is explicit and locked
 - the workflow is fast enough to be used repeatedly during renderer work
+
+## Current Progress
+
+- complete: RetroArch checkout reset to upstream
+- complete: first Paper Mario title-screen fixture manifest
+- complete: first bundle scaffold with ROM and hi-res pack hashes
+- complete: first RetroArch stdin control path using existing command seams
+- complete: first live title-screen runtime attempt with `GET_STATUS`, pause, and screenshot evidence
+- pending: graceful RetroArch shutdown without forced termination
+- pending: authoritative savestate-backed title-screen fixture
+- active blocker: `SAVE_STATE` currently segfaults in the live title-screen runtime path
+- pending: real save/load state loop inside the tracked scenario path after the save-state crash is understood
 
 ## Out Of Scope
 

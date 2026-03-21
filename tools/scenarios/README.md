@@ -21,3 +21,4 @@ Scenario runners should consume fixture manifests from [`tools/fixtures/`](/home
 Current tracked scenario seeds:
 
 - [`paper-mario-title-screen.sh`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-title-screen.sh)
+- [`paper-mario-title-screen.runtime.env`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-title-screen.runtime.env)

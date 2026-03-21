@@ -1,0 +1,30 @@
+id: example-fixture
+game: paper_mario
+description: Short human-readable description of the target scene or behavior.
+
+content:
+  rom_path: assets/example.zip
+  core: parallel_n64
+
+entry:
+  method: savestate
+  reference: replace-with-state-or-scene-id
+
+requirements:
+  assets:
+    - assets/example_asset.hts
+  environment: []
+
+capture:
+  screenshots: []
+  frames: []
+  logs: false
+  memory: false
+
+checks:
+  visual: []
+  telemetry: []
+  traces: []
+
+notes:
+  - Keep this file small and deterministic.

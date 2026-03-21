@@ -39,3 +39,7 @@ assets/
 
 # Local RDP dump corpus artifacts
 tests/rdp_dumps/local/*.rdp
+
+# Local generated workflow artifacts
+artifacts/*
+!artifacts/README.md

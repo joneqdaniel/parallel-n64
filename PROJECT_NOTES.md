@@ -634,3 +634,366 @@ After this sweep, the better bias is:
 - accept that some feature areas may need per-game/per-scene policy rather than one universal rule
 
 That is a much more manageable shape than a single monolithic "hi-res plus scaling" implementation.
+
+## Failed Attempt Analysis: `hires/current-stack-2026-03-18`
+
+A historical worktree was created at:
+
+- `/home/auro/code/parallel-n64-failed-attempt`
+
+using branch:
+
+- `hires/current-stack-2026-03-18`
+
+Current checkout in that worktree:
+
+- `b9386d4f` `Add stable HIRES occurrence matcher`
+
+This section captures the current analysis of what appears to have worked in that branch, what appears to have failed, and what should influence the next design.
+
+### High-Level Read
+
+The failed branch does not look like wasted effort or a random pile of experiments.
+It looks like a serious implementation attempt that partially converged twice:
+
+- first on a real HIRES replacement feature stack
+- later on a cleaner ownership/provenance redesign
+
+It appears to have stalled in the middle because Paper Mario exposed that the original runtime lookup/binding model had become too permissive, too heuristic, and too coupled to renderer internals.
+
+The branch history suggests this rough progression:
+
+1. Build a real HIRES replacement path.
+2. Add testing, automation, registry/binding/runtime logic, and Paper Mario capture flows.
+3. Discover remaining correctness failures that are not simple missing-feature bugs.
+4. Add probes, diagnostics, provenance reporting, and scene-specific experiments.
+5. Begin a redesign around ownership/provenance and lookup-vs-binding separation.
+6. Stop before that redesign becomes a smaller, proven, stable implementation.
+
+### What Worked
+
+#### 1. The Replacement Asset Boundary Was A Good Cut
+
+The strongest durable boundary from the failed attempt is the replacement provider itself.
+That boundary survived into the current repo.
+
+Files:
+
+- failed: `mupen64plus-video-paraLLEl/parallel-rdp/parallel-rdp/texture_replacement.hpp`
+- failed: `mupen64plus-video-paraLLEl/parallel-rdp/parallel-rdp/texture_replacement.cpp`
+- current: `mupen64plus-video-paraLLEl/parallel-rdp/parallel-rdp/texture_replacement.hpp`
+- current: `mupen64plus-video-paraLLEl/parallel-rdp/parallel-rdp/texture_replacement.cpp`
+
+Interpretation:
+
+- cache parsing
+- lookup
+- decode
+- replacement asset metadata
+
+belong in a standalone subsystem.
+
+This should be preserved.
+
+#### 2. The Failed Attempt Did Build Real Renderer Plumbing
+
+The failed branch was not just documentation and lookup experiments.
+It did wire hi-res lookup into the renderer upload lifecycle.
+
+Files:
+
+- failed: `mupen64plus-video-paraLLEl/parallel-rdp/parallel-rdp/rdp_renderer.hpp`
+- failed: `mupen64plus-video-paraLLEl/parallel-rdp/parallel-rdp/rdp_renderer.cpp`
+
+Interpretation:
+
+- provider injection existed
+- per-tile replacement state existed
+- lookup during texture upload existed
+- registry/residency logic existed
+
+So the effort did get beyond pure metadata plumbing.
+
+#### 3. The Branch Added Valuable Tooling And Diagnostics
+
+The failed branch had a lot of useful infrastructure, especially around:
+
+- HIRES-specific unit tests
+- dump/replay seams
+- provenance/debug reporting
+- automated state refresh and scripted repro flows
+
+Files:
+
+- `run-tests.sh`
+- `run-dump-tests.sh`
+- `tests/emulator_behavior/CMakeLists.txt`
+- `tests/hires_textures/CMakeLists.txt`
+- `docs/HIRES_BEHAVIOR.md`
+- `tools/hires_draw_debug_report.py`
+- `tools/hires_draw_provenance_report.py`
+- `tools/virtual_gamepad.py`
+
+Interpretation:
+
+- the branch invested heavily in observability
+- several of those ideas are worth preserving conceptually
+- the branch understood that renderer work needed stronger debugging surfaces
+
+#### 4. Some Smaller Helper Boundaries Were Durable
+
+Several helper-policy boundaries existed in the failed attempt and still exist in reduced form now.
+Those are likely the abstractions that actually paid for themselves.
+
+Examples:
+
+- lookup policy
+- registry policy
+- key state policy
+- CI palette handling
+- tile state / tile-oriented lookup state
+- VI scale policy
+
+This is a useful signal for what the next design should keep small and explicit.
+
+### What Partially Worked
+
+#### 1. GPU Residency And Registry Logic Was Useful, But Too Entangled
+
+The failed attempt had real residency and registry management, but it appears to have become too tightly coupled to the renderer internals and binding model.
+
+Files:
+
+- failed: `rdp_hires_binding_policy.hpp`
+- failed: `rdp_hires_bindless_view_policy.hpp`
+- failed: `rdp_renderer.hpp`
+- current: `rdp_hires_registry_policy.hpp`
+
+Interpretation:
+
+- the registry concept was sound
+- the wider binding/bindless/consumer machinery was not durable in its failed-branch form
+
+#### 2. The Scaling Path Was Real, But The Decomposition Was Mixed
+
+The scaling path was not fake.
+`VideoInterface` and upscaled-domain handling were doing real work in both trees.
+
+Files:
+
+- failed: `video_interface.cpp`
+- failed: `vi_scale_sampling_policy.hpp`
+- failed: `vi_scanout_flow_policy.hpp`
+- current: `video_interface.cpp`
+- current: `vi_scale_policy.hpp`
+
+Interpretation:
+
+- the broader scaling / VI area was correctly identified as a separate problem
+- some of the micro-policy decomposition in the failed branch does not appear to have held up
+
+### What Failed Or Appears Incomplete
+
+#### 1. The Architecture Became A Policy Explosion
+
+The failed branch introduced many small policy headers that appear to have existed mainly to support one complicated runtime path.
+Most of those did not survive into the current repo.
+
+Examples:
+
+- `rdp_hires_consumer_policy.hpp`
+- `rdp_hires_shader_policy.hpp`
+- `rdp_hires_tile_alias_policy.hpp`
+- `rdp_hires_binding_policy.hpp`
+- `rdp_hires_ownership_policy.hpp`
+- `vi_scale_sampling_policy.hpp`
+- `vi_scanout_flow_policy.hpp`
+
+Interpretation:
+
+- the design was becoming over-factored in the wrong place
+- the abstractions were not reducing complexity; they were distributing it
+- this made the branch look more complete than it really was
+
+#### 2. The Runtime Model Seems To Have Stopped At Lookup / Provenance / Binding Bookkeeping
+
+One of the strongest themes from the failed-branch analysis is that it appears to have accumulated:
+
+- lookup modes
+- alias counters
+- descriptor bookkeeping
+- fallback matrices
+- provenance/birth-family logic
+- draw/debug statistics
+
+faster than it established a small, stable rendering contract.
+
+Interpretation:
+
+- the feature was no longer “find replacement, bind replacement, render replacement correctly”
+- it became “keep trying increasingly clever ways to justify a replacement match and explain it afterward”
+
+This is a classic sign that runtime identity and rendering semantics were not strict enough.
+
+#### 3. Replacement Identity Became Too Permissive
+
+The strongest likely technical failure point is that the old stack did not keep replacement identity strict enough.
+
+Reported risk areas:
+
+- reinterpretation fallbacks by tile mask, stride, block shape, and CI fallback paths
+- hand-picked birth-family / pattern heuristics
+- alternate CRC candidates and palette-ambiguous fallback behavior
+
+Files called out by analysis:
+
+- failed: `rdp_renderer.cpp`
+- failed: `rdp_hires_lookup_policy.hpp`
+- failed: `rdp_hires_runtime_policy.hpp`
+- failed: `rdp_hires_ci_palette_policy.hpp`
+- failed: `rdp_hires_tlut_shadow_policy.hpp`
+
+Interpretation:
+
+- the branch appears to have shifted from strict identity toward “acceptable reinterpretation if it makes Paper Mario work”
+- that direction is fundamentally risky for N64, where TMEM/TLUT/tile semantics are part of texture meaning
+
+#### 4. TLUT / CI Handling Became Heuristic
+
+The failed-attempt analysis strongly suggests that CI/TLUT handling moved toward heuristic recovery rather than exact semantic identity.
+
+Interpretation:
+
+- multiple CRC candidate paths
+- alternate palette/layout interpretations
+- palette-ambiguous fallbacks
+
+may help some scenes match, but they also weaken confidence that the selected replacement is actually correct.
+
+Given what the N64 docs say, this is a major red flag.
+
+#### 5. Texrect Correctness Was Still At Risk When Replacement Was Active
+
+The failed-branch analysis suggests texrect handling was reduced to a few generalized flags and could stop being strictly native-resolution when replacement textures were active.
+
+Files called out by analysis:
+
+- failed: `rdp_tex_rect_policy.hpp`
+- failed: `rdp_renderer.cpp`
+- failed: `shaders/shading.h`
+
+Interpretation:
+
+- this aligns with the doc-backed concern that texrects are the highest-risk primitive for hi-res scaling
+- it reinforces the conclusion that texrect/native behavior needs to be preserved aggressively
+
+#### 6. HIRES Sampling Drifted Toward Modern GPU Assumptions
+
+The failed branch exposed sampling policy in terms like:
+
+- nearest
+- linear
+- trilinear
+
+and derived “original dimensions” in ways that appear more like modern texture abstraction than strict N64 semantics.
+
+Interpretation:
+
+- that is risky given N64 3-point filtering, tile-relative LOD behavior, and texrect-specific rules
+- this likely contributed to visual drift even when replacement lookup itself succeeded
+
+#### 7. VI And Upscale Logic Became Too Blurred
+
+The failed-attempt analysis also suggests that VI presentation behavior became too entangled with upscale policy.
+
+Files called out by analysis:
+
+- failed: `vi_scale_policy.hpp`
+- failed: `vi_scale_sampling_policy.hpp`
+- failed: `video_interface.cpp`
+
+Interpretation:
+
+- this matches the concern already raised by the doc sweep: VI must remain the final presentation authority
+- RDP enhancement and VI presentation should not be fused into one correctness model
+
+### Tooling Lessons From The Failed Attempt
+
+The failed attempt had strong tooling, but it was not sufficiently hermetic.
+
+#### What Was Good
+
+- real test taxonomy, including HIRES-specific lanes
+- useful dump/replay seam
+- good debug/provenance reporting
+- scripted scene capture and state refresh flows
+
+#### What Was Missing
+
+- too much of the loop was Paper Mario specific
+- too much of the automation depended on live frontend state, `/tmp`, `tmux`, `nc`, `/dev/uinput`, and local ROM/layout assumptions
+- too many tests locked script contracts instead of renderer truth
+- there was not an equivalent committed small HIRES replay corpus matching the strength of the generic RDP dump seam
+
+Interpretation:
+
+- the helpers were powerful
+- but the helpers became the foundation instead of sitting on top of a hermetic fixture layer
+
+That appears to have made stabilization harder.
+
+### Branch History Read
+
+The history suggests 198 commits over roughly 10 days after branching from `master` on March 5, 2026.
+
+Most important phases inferred from the branch:
+
+- March 5: core HIRES machinery and milestone-style implementation work
+- March 6-7: Paper Mario correctness and scaling/VI experiments
+- March 8-13: heavy diagnostics, compare tools, provenance tools, and scene-specific probes
+- March 14 onward: a cleaner ownership/provenance redesign begins, but does not finish strongly enough to become the new stable core
+
+This is consistent with a branch that did real work, but eventually got trapped between diagnosis and redesign.
+
+### Most Valuable Conceptual Survivors From The Failed Attempt
+
+The strongest concepts to preserve from that branch are:
+
+- the replacement provider boundary
+- strict small helper policies that survived into current repo form
+- registry/residency as a concept, but not the old full binding/consumer layer
+- debug/provenance tooling as offline analysis support
+- capture/replay/testing as first-class project infrastructure
+
+### Most Important Lessons For The Next Attempt
+
+- Do not resurrect the failed branch’s full policy layer as-is.
+- Keep `texture_replacement.*` as the asset/index/decode subsystem.
+- Keep only the smaller helper boundaries that survived naturally.
+- Make the renderer contract explicit and small: lookup resolves a concrete replacement state/handle; draw code consumes that resolved state.
+- Keep scaling architecture separate from hi-res replacement.
+- Treat provenance, aliasing, reinterpretation, and occurrence analysis as debug/offline tooling, not as first-class runtime architecture.
+- Add proof tests for actual rendered output, not just lookup success or script success.
+- Build a committed, minimal, hermetic HIRES replay corpus before relying on scene-specific orchestration again.
+
+### Current Bottom Line On The Failed Attempt
+
+The failed branch did not fail because nothing worked.
+It failed because too many things worked partially at once.
+
+The branch had:
+
+- real feature progress
+- real tooling progress
+- real insight into Paper Mario and HIRES behavior
+
+But the runtime architecture appears to have become too permissive and too coupled, while the testing/debugging stack became too scene-specific and too orchestration-heavy.
+
+That is useful information.
+It suggests the next attempt should be:
+
+- narrower
+- stricter about identity
+- more explicit about boundaries
+- more conservative about texrect and VI correctness
+- built on hermetic fixtures before scene choreography

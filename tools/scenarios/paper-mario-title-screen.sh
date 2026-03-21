@@ -42,6 +42,14 @@ sha256_file() {
   fi
 }
 
+json_bool() {
+  if [[ "$1" == "1" ]]; then
+    echo "true"
+  else
+    echo "false"
+  fi
+}
+
 while (($#)); do
   case "$1" in
     --mode)
@@ -84,6 +92,8 @@ fi
 ROM_PATH="$REPO_ROOT/assets/Paper Mario (USA).zip"
 PACK_PATH="$REPO_ROOT/assets/PAPER MARIO_HIRESTEXTURES.hts"
 RETROARCH_PATH="/home/auro/code/RetroArch"
+AUTHORITATIVE_STATE_PATH=""
+AUTHORITATIVE_STATE_PRESENT=0
 
 mkdir -p "$BUNDLE_DIR"/captures "$BUNDLE_DIR"/logs "$BUNDLE_DIR"/traces
 
@@ -106,6 +116,11 @@ cat > "$BUNDLE_DIR/bundle.json" <<EOF
     "hires_pack_sha256": "$(sha256_file "$PACK_PATH")",
     "retroarch_path": "$RETROARCH_PATH"
   },
+  "fixture_authority": {
+    "authoritative_state_path": "",
+    "authoritative_state_present": false,
+    "post_load_settle_frames": 0
+  },
   "status": {
     "phase": "phase-0",
     "scenario_state": "bundle_initialized",
@@ -121,6 +136,9 @@ MANIFEST_PATH=$MANIFEST
 ROM_PATH=$ROM_PATH
 HIRES_PACK_PATH=$PACK_PATH
 RETROARCH_PATH=$RETROARCH_PATH
+AUTHORITATIVE_STATE_PATH=
+AUTHORITATIVE_STATE_PRESENT=0
+POST_LOAD_SETTLE_FRAMES=0
 INTERNAL_SCALE=4x
 SERIAL_EXECUTION=1
 DISPLAY_REQUIRED=1
@@ -151,6 +169,42 @@ if (( DRY_RUN )); then
 else
   # shellcheck disable=SC1090
   source "$RUNTIME_ENV"
+
+  if [[ -n "${AUTHORITATIVE_STATE_PATH:-}" && -f "${AUTHORITATIVE_STATE_PATH:-}" ]]; then
+    AUTHORITATIVE_STATE_PRESENT=1
+    mkdir -p "$BUNDLE_DIR/states/ParaLLEl N64"
+    cp "$AUTHORITATIVE_STATE_PATH" "$BUNDLE_DIR/states/ParaLLEl N64/Paper Mario (USA).state"
+  fi
+
+  perl -0pi -e 's|"authoritative_state_path": ""|"authoritative_state_path": "'"${AUTHORITATIVE_STATE_PATH:-}"'"|g; s|"authoritative_state_present": false|"authoritative_state_present": '"$(json_bool "$AUTHORITATIVE_STATE_PRESENT")"'|g' "$BUNDLE_DIR/bundle.json"
+  perl -0pi -e 's|"post_load_settle_frames": 0|"post_load_settle_frames": '"${POST_LOAD_SETTLE_FRAMES:-0}"'|g' "$BUNDLE_DIR/bundle.json"
+  perl -0pi -e 's|AUTHORITATIVE_STATE_PATH=|AUTHORITATIVE_STATE_PATH='"${AUTHORITATIVE_STATE_PATH:-}"'|g; s|AUTHORITATIVE_STATE_PRESENT=0|AUTHORITATIVE_STATE_PRESENT='"$AUTHORITATIVE_STATE_PRESENT"'|g; s|POST_LOAD_SETTLE_FRAMES=0|POST_LOAD_SETTLE_FRAMES='"${POST_LOAD_SETTLE_FRAMES:-0}"'|g' "$BUNDLE_DIR/config.env"
+
+  declare -a runtime_commands
+  runtime_commands=(
+    --command "WAIT_LOG 120 ${STARTUP_READY_PATTERN:-EmuThread: M64CMD_EXECUTE.}"
+  )
+
+  if (( AUTHORITATIVE_STATE_PRESENT )); then
+    runtime_commands+=(
+      --command "LOAD_STATE_SLOT_PAUSED 0"
+      --command "STEP_FRAME ${POST_LOAD_SETTLE_FRAMES:-3}"
+      --command "WAIT_STATUS_FRAME PAUSED ${POST_LOAD_SETTLE_FRAMES:-3} 10"
+      --command "SCREENSHOT"
+      --command "WAIT_NEW_CAPTURE 10"
+      --command "QUIT"
+    )
+  else
+    runtime_commands+=(
+      --command "SET_PAUSE ON"
+      --command "WAIT_STATUS PAUSED 5"
+      --command "SAVE_STATE"
+      --command "SCREENSHOT"
+      --command "WAIT_NEW_CAPTURE 10"
+      --command "QUIT"
+    )
+  fi
+
   "$REPO_ROOT/tools/adapters/retroarch_stdin_session.sh" \
     --bundle-dir "$BUNDLE_DIR" \
     --mode "$MODE" \
@@ -159,14 +213,5 @@ else
     --core "$CORE_PATH" \
     --rom "$ROM_PATH" \
     --startup-wait "$STARTUP_WAIT" \
-    --command "GET_STATUS" \
-    --command "PAUSE_TOGGLE" \
-    --command "GET_STATUS" \
-    --command "SAVE_STATE" \
-    --command "WAIT 5" \
-    --command "LOAD_STATE_SLOT 0" \
-    --command "WAIT 5" \
-    --command "GET_STATUS" \
-    --command "SCREENSHOT" \
-    --command "QUIT"
+    "${runtime_commands[@]}"
 fi

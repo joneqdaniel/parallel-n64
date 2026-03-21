@@ -17,7 +17,12 @@ Options:
   --base-config PATH    Base RetroArch config path
   --startup-wait SEC    Seconds to wait before sending commands (default: 8)
   --command CMD         Command to send over stdin interface (repeatable)
-                        Local pseudo-command: WAIT <seconds>
+                        Local pseudo-commands:
+                        WAIT <seconds>
+                        WAIT_STATUS <state> <timeout_seconds>
+                        WAIT_STATUS_FRAME <state> <min_frame> <timeout_seconds>
+                        WAIT_LOG <timeout_seconds> <literal pattern>
+                        WAIT_NEW_CAPTURE <timeout_seconds>
   -h, --help            Show this help
 EOF
 }
@@ -26,9 +31,11 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "$SCRIPT_DIR/../.." && pwd)"
 
 fail_if_retroarch_running() {
-  if pgrep -x retroarch >/dev/null 2>&1; then
+  local matches
+  matches="$(ps -C retroarch -o pid=,stat=,cmd= 2>/dev/null | awk '$2 !~ /^Z/ { print }' || true)"
+  if [[ -n "$matches" ]]; then
     echo "Another RetroArch process is already running. Stop it before starting a tracked runtime scenario." >&2
-    pgrep -a -x retroarch >&2 || true
+    printf '%s\n' "$matches" >&2
     exit 1
   fi
 }
@@ -139,6 +146,10 @@ state_slot = "0"
 savestate_directory = "$BUNDLE_DIR/states"
 screenshot_directory = "$BUNDLE_DIR/captures"
 savestate_thumbnail_enable = "false"
+menu_enable_widgets = "false"
+notification_show_save_state = "false"
+notification_show_screenshot = "false"
+notification_show_screenshot_flash = "0"
 video_fullscreen = "true"
 video_windowed_fullscreen = "true"
 video_fullscreen_x = "0"
@@ -159,6 +170,127 @@ cleanup() {
   rm -f "$FIFO_PATH"
 }
 trap cleanup EXIT
+
+log_size_bytes() {
+  if [[ -f "$RA_LOG" ]]; then
+    wc -c < "$RA_LOG"
+  else
+    echo 0
+  fi
+}
+
+capture_file_count() {
+  find "$BUNDLE_DIR/captures" -maxdepth 1 -type f | wc -l | tr -d ' '
+}
+
+timeout_ceiling_seconds() {
+  awk -v timeout="$1" 'BEGIN {
+    if (timeout == int(timeout)) {
+      printf "%d\n", timeout
+    } else {
+      printf "%d\n", int(timeout) + 1
+    }
+  }'
+}
+
+wait_for_log_pattern_after() {
+  local start_bytes="$1"
+  local pattern="$2"
+  local timeout_seconds="$3"
+  local deadline
+  deadline=$(( $(date +%s) + $(timeout_ceiling_seconds "$timeout_seconds") ))
+
+  while (( $(date +%s) < deadline )); do
+    if [[ -f "$RA_LOG" ]] && tail -c +"$((start_bytes + 1))" "$RA_LOG" 2>/dev/null | rg -F -q -- "$pattern"; then
+      return 0
+    fi
+    sleep 0.2
+  done
+
+  return 1
+}
+
+get_last_status_line_after() {
+  local start_bytes="$1"
+  if [[ ! -f "$RA_LOG" ]]; then
+    return 1
+  fi
+
+  tail -c +"$((start_bytes + 1))" "$RA_LOG" 2>/dev/null | rg -o "GET_STATUS [^\r\n]*" | tail -n1
+}
+
+send_retroarch_command() {
+  local cmd="$1"
+  printf '%s\n' "$cmd" >> "$COMMAND_LOG"
+  echo "[adapter] command: $cmd"
+  printf '%s\n' "$cmd" >&3
+}
+
+handle_wait_status() {
+  local expected_state="$1"
+  local timeout_seconds="$2"
+  local deadline
+  deadline=$(( $(date +%s) + $(timeout_ceiling_seconds "$timeout_seconds") ))
+
+  while (( $(date +%s) < deadline )); do
+    local start_bytes
+    start_bytes="$(log_size_bytes)"
+    send_retroarch_command "GET_STATUS"
+    if wait_for_log_pattern_after "$start_bytes" "GET_STATUS $expected_state" 2; then
+      return 0
+    fi
+    sleep 0.2
+  done
+
+  return 1
+}
+
+handle_wait_status_frame() {
+  local expected_state="$1"
+  local min_frame="$2"
+  local timeout_seconds="$3"
+  local deadline
+  deadline=$(( $(date +%s) + $(timeout_ceiling_seconds "$timeout_seconds") ))
+
+  while (( $(date +%s) < deadline )); do
+    local start_bytes
+    local status_line
+    start_bytes="$(log_size_bytes)"
+    send_retroarch_command "GET_STATUS"
+    if wait_for_log_pattern_after "$start_bytes" "GET_STATUS " 2; then
+      status_line="$(get_last_status_line_after "$start_bytes" || true)"
+      if [[ "$status_line" =~ ^GET_STATUS[[:space:]]+([^[:space:]]+).*,frame=([0-9]+)$ ]]; then
+        local state="${BASH_REMATCH[1]}"
+        local frame="${BASH_REMATCH[2]}"
+        if [[ "$state" == "$expected_state" ]] && (( frame >= min_frame )); then
+          return 0
+        fi
+      fi
+    fi
+    sleep 0.2
+  done
+
+  return 1
+}
+
+handle_wait_new_capture() {
+  local timeout_seconds="$1"
+  local initial_count
+  local deadline
+  initial_count="$(capture_file_count)"
+  deadline=$(( $(date +%s) + $(timeout_ceiling_seconds "$timeout_seconds") ))
+
+  while (( $(date +%s) < deadline )); do
+    local current_count
+    current_count="$(capture_file_count)"
+    if (( current_count > initial_count )); then
+      return 0
+    fi
+    sleep 0.2
+  done
+
+  return 1
+}
 
 "$RETROARCH_BIN" \
   --verbose \
@@ -197,10 +329,90 @@ for cmd in "${COMMANDS[@]}"; do
     continue
   fi
 
-  printf '%s\n' "$cmd" >&3
-  printf '%s\n' "$cmd" >> "$COMMAND_LOG"
-  echo "[adapter] command: $cmd"
-  sleep 1
+  if [[ "$cmd" =~ ^WAIT_STATUS[[:space:]]+([^[:space:]]+)[[:space:]]+([0-9]+([.][0-9]+)?)$ ]]; then
+    expected_state="${BASH_REMATCH[1]}"
+    timeout_seconds="${BASH_REMATCH[2]}"
+    printf '%s\n' "$cmd" >> "$COMMAND_LOG"
+    echo "[adapter] wait status: $expected_state (${timeout_seconds}s)"
+    if ! handle_wait_status "$expected_state" "$timeout_seconds"; then
+      echo "[adapter] WAIT_STATUS failed: $expected_state" >&2
+      exit 1
+    fi
+    continue
+  fi
+
+  if [[ "$cmd" =~ ^WAIT_STATUS_FRAME[[:space:]]+([^[:space:]]+)[[:space:]]+([0-9]+)[[:space:]]+([0-9]+([.][0-9]+)?)$ ]]; then
+    expected_state="${BASH_REMATCH[1]}"
+    min_frame="${BASH_REMATCH[2]}"
+    timeout_seconds="${BASH_REMATCH[3]}"
+    printf '%s\n' "$cmd" >> "$COMMAND_LOG"
+    echo "[adapter] wait status/frame: $expected_state frame>=$min_frame (${timeout_seconds}s)"
+    if ! handle_wait_status_frame "$expected_state" "$min_frame" "$timeout_seconds"; then
+      echo "[adapter] WAIT_STATUS_FRAME failed: $expected_state frame>=$min_frame" >&2
+      exit 1
+    fi
+    continue
+  fi
+
+  if [[ "$cmd" =~ ^WAIT_LOG[[:space:]]+([0-9]+([.][0-9]+)?)[[:space:]]+(.+)$ ]]; then
+    timeout_seconds="${BASH_REMATCH[1]}"
+    pattern="${BASH_REMATCH[3]}"
+    start_bytes="$(log_size_bytes)"
+    printf '%s\n' "$cmd" >> "$COMMAND_LOG"
+    echo "[adapter] wait log: ${pattern} (${timeout_seconds}s)"
+    if ! wait_for_log_pattern_after "$start_bytes" "$pattern" "$timeout_seconds"; then
+      echo "[adapter] WAIT_LOG failed: $pattern" >&2
+      exit 1
+    fi
+    continue
+  fi
+
+  if [[ "$cmd" =~ ^WAIT_NEW_CAPTURE[[:space:]]+([0-9]+([.][0-9]+)?)$ ]]; then
+    timeout_seconds="${BASH_REMATCH[1]}"
+    printf '%s\n' "$cmd" >> "$COMMAND_LOG"
+    echo "[adapter] wait new capture (${timeout_seconds}s)"
+    if ! handle_wait_new_capture "$timeout_seconds"; then
+      echo "[adapter] WAIT_NEW_CAPTURE failed." >&2
+      exit 1
+    fi
+    continue
+  fi
+
+  start_bytes="$(log_size_bytes)"
+  send_retroarch_command "$cmd"
+
+  case "$cmd" in
+    GET_STATUS)
+      if ! wait_for_log_pattern_after "$start_bytes" "GET_STATUS " 5; then
+        echo "[adapter] GET_STATUS acknowledgement missing." >&2
+        exit 1
+      fi
+      ;;
+    SET_PAUSE*)
+      if ! wait_for_log_pattern_after "$start_bytes" "SET_PAUSE " 5; then
+        echo "[adapter] SET_PAUSE acknowledgement missing." >&2
+        exit 1
+      fi
+      ;;
+    STEP_FRAME*)
+      if ! wait_for_log_pattern_after "$start_bytes" "STEP_FRAME " 5; then
+        echo "[adapter] STEP_FRAME acknowledgement missing." >&2
+        exit 1
+      fi
+      ;;
+    SAVE_STATE)
+      if ! wait_for_log_pattern_after "$start_bytes" "[State] Saving state" 15; then
+        echo "[adapter] SAVE_STATE acknowledgement missing." >&2
+        exit 1
+      fi
+      ;;
+    LOAD_STATE_SLOT*|LOAD_STATE_SLOT_PAUSED*)
+      if ! wait_for_log_pattern_after "$start_bytes" "[State] Loading state" 15; then
+        echo "[adapter] LOAD_STATE_SLOT acknowledgement missing." >&2
+        exit 1
+      fi
+      ;;
+  esac
 done
 
 if [[ -f "$BUNDLE_DIR/bundle.json" ]]; then

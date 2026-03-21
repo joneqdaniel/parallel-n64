@@ -15,6 +15,11 @@
 - The repo-default title-screen scenario now produces a savestate, reloads it, and captures a screenshot with savestate thumbnails disabled and explicit waits after `SAVE_STATE` and `LOAD_STATE_SLOT 0`
 - The tracked quit path now exits cleanly with a single `QUIT` command because the adapter forces `confirm_quit = "false"` in its per-run appendconfig
 - The save-state serialization contract now uses a shared computed M64P size and bounded save writes, and the rebuilt core passes the tracked title-screen save/load runtime scenario
+- The authoritative title-screen path now uses explicit RetroArch agent commands and a log-gated startup handoff instead of timing-only waits
+- The authoritative title-screen fixture is now: load savestate paused, settle exactly `3` frames, then capture
+- Tracked runtime scenarios now disable RetroArch widgets and screenshot/save-state notifications so repeated captures can be byte-identical
+- Repeated title-screen authoritative runs now produce byte-identical screenshots at `4x` internal scale after the 3-frame settle
+- RetroArch `GET_STATUS` now reports a `frame=` field, but that counter is still not treated as the fixture authority because it is not yet stable enough to be the canonical post-load clock
 - `run-build.sh` is the authoritative local build entrypoint because it carries the ParaLLEl build flags and auto-cleans when flag fingerprints change
 
 ## Locked Planning Backbone

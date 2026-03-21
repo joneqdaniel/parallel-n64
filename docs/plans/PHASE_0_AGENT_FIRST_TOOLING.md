@@ -58,8 +58,13 @@
 - complete: verified graceful RetroArch shutdown on the tracked path by disabling frontend quit confirmation (`confirm_quit = "false"`) in the adapter appendconfig
 - complete: replaced the hardcoded libretro serialize size with a computed M64P size contract and bounded save writes, then verified the rebuilt core through the tracked title-screen save/load runtime scenario
 - complete: identified `run-build.sh` as the authoritative ParaLLEl-aware build path; raw `make` can mix stale artifacts across flag sets
-- pending: authoritative savestate-backed title-screen fixture
-- pending: replace fixed waits with a stronger completion/ack mechanism once the minimal control path is stable
+- complete: replaced timing-only startup assumptions with a log-gated readiness check keyed to `EmuThread: M64CMD_EXECUTE.`
+- complete: added explicit RetroArch stdin agent commands for `SET_PAUSE`, `STEP_FRAME`, and `LOAD_STATE_SLOT_PAUSED`
+- complete: fixed the RetroArch stdin action parser so longer action commands are not shadowed by shorter prefix matches
+- complete: disabled widgets and screenshot/save-state notifications in tracked runtime runs so screenshots can be compared byte-for-byte
+- complete: verified an authoritative savestate-backed title-screen fixture with a deterministic post-load settle rule: load paused, advance `3` frames, capture
+- complete: verified repeated authoritative title-screen runs now produce byte-identical screenshots at `4x`
+- pending: make the reported RetroArch `frame=` value trustworthy enough to use as a fixture-relative frame clock
 
 ## Out Of Scope
 

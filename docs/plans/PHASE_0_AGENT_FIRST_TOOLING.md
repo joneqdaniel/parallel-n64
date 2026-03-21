@@ -50,6 +50,7 @@
 - complete: first bundle scaffold with ROM and hi-res pack hashes
 - complete: first RetroArch stdin control path using existing command seams
 - complete: first live title-screen runtime attempt with `GET_STATUS`, pause, and screenshot evidence
+- complete: standardized tracked RetroArch runtime scenarios as fullscreen window launches with a singleton guard against concurrent `retroarch` processes
 - complete: identified the current save/load crash as a command-timing issue after `SAVE_STATE`, not a raw serialization failure
 - complete: added local adapter `WAIT <seconds>` support and applied explicit waits to the tracked title-screen save/load flow
 - complete: confirmed the main frontend-side crash trigger is RetroArch savestate thumbnail capture on the Vulkan HW-frame path; disabling thumbnails restores stable save/load behavior for the tracked flow

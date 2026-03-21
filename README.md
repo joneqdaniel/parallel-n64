@@ -41,6 +41,7 @@ The first tracked Phase 0 fixture and scenario are the Paper Mario title screen 
 - fallback and exclusion behavior must be explicit and logged
 - savestates are the authority once available; debug warps and scripted entry are acceptable earlier in the ladder
 - emulator-facing runtime tests should run at `4x` internal scale and one at a time
+- tracked RetroArch runtime scenarios should use fullscreen windows and should not start while another `retroarch` process is active
 
 ## Active Repos In Scope
 

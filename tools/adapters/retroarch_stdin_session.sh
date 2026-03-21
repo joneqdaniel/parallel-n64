@@ -25,6 +25,14 @@ EOF
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "$SCRIPT_DIR/../.." && pwd)"
 
+fail_if_retroarch_running() {
+  if pgrep -x retroarch >/dev/null 2>&1; then
+    echo "Another RetroArch process is already running. Stop it before starting a tracked runtime scenario." >&2
+    pgrep -a -x retroarch >&2 || true
+    exit 1
+  fi
+}
+
 BUNDLE_DIR=""
 ROM_PATH=""
 CORE_PATH=""
@@ -107,6 +115,8 @@ if [[ ! -f "$CORE_PATH" ]]; then
   exit 1
 fi
 
+fail_if_retroarch_running
+
 mkdir -p "$BUNDLE_DIR"/captures "$BUNDLE_DIR"/logs "$BUNDLE_DIR"/traces "$BUNDLE_DIR"/states
 
 APPEND_CONFIG="$BUNDLE_DIR/retroarch.append.cfg"
@@ -128,6 +138,10 @@ state_slot = "0"
 savestate_directory = "$BUNDLE_DIR/states"
 screenshot_directory = "$BUNDLE_DIR/captures"
 savestate_thumbnail_enable = "false"
+video_fullscreen = "true"
+video_windowed_fullscreen = "true"
+video_fullscreen_x = "0"
+video_fullscreen_y = "0"
 parallel-n64-gfxplugin = "parallel"
 parallel-n64-parallel-rdp-upscaling = "4x"
 parallel-n64-parallel-rdp-hirestex = "$HIRES_VALUE"

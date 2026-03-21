@@ -14,7 +14,8 @@
 - The tracked title-screen save/load loop is currently stabilized by a frontend-side mitigation: the adapter disables RetroArch savestate thumbnails on the Vulkan HW-frame path
 - The repo-default title-screen scenario now produces a savestate, reloads it, and captures a screenshot with savestate thumbnails disabled and explicit waits after `SAVE_STATE` and `LOAD_STATE_SLOT 0`
 - The tracked quit path now exits cleanly with a single `QUIT` command because the adapter forces `confirm_quit = "false"` in its per-run appendconfig
-- The save-state serialization contract is being hardened so `retro_serialize_size()` and the actual M64P writer share one source of truth and fail safely on undersized buffers
+- The save-state serialization contract now uses a shared computed M64P size and bounded save writes, and the rebuilt core passes the tracked title-screen save/load runtime scenario
+- `run-build.sh` is the authoritative local build entrypoint because it carries the ParaLLEl build flags and auto-cleans when flag fingerprints change
 
 ## Locked Planning Backbone
 

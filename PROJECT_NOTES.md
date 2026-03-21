@@ -997,3 +997,401 @@ It suggests the next attempt should be:
 - more explicit about boundaries
 - more conservative about texrect and VI correctness
 - built on hermetic fixtures before scene choreography
+
+## RetroArch, TAS, and Paper Mario Research For Agent-First Tooling
+
+### Current View
+
+The best path is not to make agents better at driving the RetroArch UI.
+
+The best path is:
+
+- RetroArch provides a small, machine-readable, merge-friendly control and capture surface
+- the core provides renderer- and emulation-specific debug exports
+- the game provides semantic scene/state labels
+- wrappers orchestrate workflows, but are not the correctness foundation
+
+This is closer to how serious TAS work actually succeeds:
+
+- deterministic replay
+- frame-based control
+- savestate branching
+- memory/state visibility
+- frame advance and checkpointing
+- explicit controller emulation instead of GUI automation
+
+### RetroArch Baseline Reality
+
+RetroArch already has more useful seams than expected.
+
+#### Strong Existing Seams
+
+- command interface over stdin, UDP, and local socket paths
+- replay / BSV recording and playback
+- savestate integration with replay state
+- frame advance and rewind support
+- screenshot and save/load task layers
+- existing core-memory read/write commands
+- internal test joypad/input drivers that already model scripted input by frame
+
+Interpretation:
+
+- we do not need to invent a control system from nothing
+- we need to make the existing seams machine-friendly, deterministic, and easier to consume
+
+### What Should Change In RetroArch
+
+The highest-value RetroArch changes are additive and upstream-friendly.
+
+#### 1. Add Machine-Readable Command Replies
+
+Priority commands:
+
+- `GET_STATUS_JSON`
+- `GET_SESSION`
+- `GET_PATHS`
+- `GET_CONTENT_INFO`
+
+Why:
+
+- agents should not parse human-oriented text output when structured data can be returned directly
+- this is low-risk and merge-friendly
+
+#### 2. Add Request IDs And Async Completion Replies
+
+Priority operations:
+
+- save state
+- load state
+- screenshot / frame capture
+
+Why:
+
+- current command semantics are immediate, while real completion occurs later in task layers
+- agents need to know when the action has actually completed
+
+#### 3. Add First-Class Core Option Commands
+
+Priority commands:
+
+- `GET_CORE_OPTIONS`
+- `GET_CORE_OPTION`
+- `SET_CORE_OPTION`
+- `RESET_CORE_OPTIONS`
+- `FLUSH_CORE_OPTIONS`
+
+Why:
+
+- core options are part of test determinism
+- agents need to verify and mutate feature flags without using menus
+
+#### 4. Add A Proper Local Agent Socket
+
+Preferred transport:
+
+- Unix domain socket or equivalent local machine transport
+
+Why:
+
+- this is a better fit than bolting more behavior onto UDP
+- local agent orchestration should be reliable, ordered, and easy to secure
+
+#### 5. Add Explicit Capture Commands
+
+Priority commands:
+
+- `CAPTURE_SCREENSHOT`
+- `CAPTURE_FRAME`
+- `GET_FRAME_INFO`
+
+Desired metadata:
+
+- source type
+- viewport dimensions
+- presentation dimensions
+- frame number
+- content/core identity
+
+Why:
+
+- agents struggle to “see”
+- better capture APIs are a direct force multiplier for debugging and testing
+
+#### 6. Expose Raw Savestate Import / Export
+
+Why:
+
+- save/load hotkey semantics are not the right abstraction for tooling
+- deterministic fixture transport should be scriptable as data movement, not fake UI
+
+#### 7. Add Memory Discovery, Not Just Memory Poking
+
+Priority command:
+
+- `GET_MEMORY_MAP`
+
+Why:
+
+- raw `READ_CORE_MEMORY` / `WRITE_CORE_MEMORY` is not enough if the agent cannot discover valid regions first
+- the frontend should expose the generic memory map; semantic meaning stays in the core/game
+
+#### 8. Add Log Streaming / Tail
+
+Priority commands:
+
+- `GET_LOG_TAIL`
+- `SUBSCRIBE_LOGS`
+
+Why:
+
+- scraping stdout is brittle
+- agents need a stable stream of runtime events
+
+#### 9. Add Exportable Debug Bundles
+
+Priority command:
+
+- `EXPORT_DEBUG_BUNDLE`
+
+Bundle contents should include:
+
+- session state
+- content/core identity
+- active core options
+- log tail
+- save paths
+- screenshot paths
+- memory map summary
+
+Why:
+
+- this creates reproducible handoff artifacts for agents and humans
+
+### What Should Not Go Into RetroArch
+
+- emulator-specific renderer semantics
+- game-specific knowledge
+- menu-driven automation as the primary control plane
+- changes to existing text command contracts when additive machine commands will do
+
+Interpretation:
+
+- RetroArch should transport and orchestrate
+- the core and the game should provide semantic meaning
+
+### Input Control: TAS Lessons Applied
+
+The strongest control model is internal controller emulation, not OS-level gamepad fakery and not menu automation.
+
+#### Best Model
+
+- keep orchestration outside RetroArch via command/IPC
+- inject authoritative controller state inside RetroArch at or near the input callback boundary
+- preserve BSV replay as the canonical deterministic replay/branching format
+
+Why:
+
+- TAS workflows depend on frame-accurate input authority
+- RetroArch already has BSV replay, checkpointing, frame advance, and test joypad scaffolding
+- this means the likely right move is an “agent joypad” or comparable internal input source
+
+#### Practical Split
+
+Outside RetroArch:
+
+- launch content
+- configure options
+- save/load state
+- request captures
+- query status
+- fetch logs
+- inspect memory
+
+Inside RetroArch:
+
+- apply frame-stamped controller input
+- optionally mirror that input into replay machinery
+
+Interpretation:
+
+- this gives us deterministic control without forcing the agent to “play the menu”
+
+### Merge-Friendly RetroArch Strategy
+
+RetroArch is currently behind upstream.
+
+Observed local state on March 21, 2026:
+
+- `/home/auro/code/RetroArch` branch: `master`
+- local `master` at `53c66ce970`
+- upstream `master` at `b0624a720a`
+- local branch behind upstream by 119 commits
+
+Interpretation:
+
+- we should avoid large invasive frontend rewrites
+- the right strategy is an additive tooling layer, likely near command handling
+- wrapper-side conveniences can ship faster while upstream-friendly tooling patches stay narrow
+
+### Paper Mario Is A Strong Debug Target
+
+Paper Mario is not just a convenient test game.
+It is one of the best possible debug targets because the decomp exposes semantic state directly.
+
+#### Why It Is Valuable
+
+- title, intro, file select, pause, map transitions, and battle paths are named and isolated
+- game state already exposes fields like `areaID`, `mapID`, `entryID`, `introPart`, `startupState`, player position, and other high-signal values
+- the DX fork already includes substantial debug tooling
+
+#### Existing Valuable Game-Side Tooling
+
+- debug menu
+- map select
+- battle select
+- quick save/load
+- live map / position displays
+- collision viewer
+- EVT debugger with pause/step behavior
+- profiling and crash/backtrace support
+
+Interpretation:
+
+- the game already gives us a semantic labeling layer that most emulator test targets do not
+- we should leverage that instead of treating Paper Mario as only a visual fixture
+
+### Game-Side Telemetry Worth Exposing
+
+If we add a compact game-side telemetry channel, the most useful payloads are:
+
+- `context`
+- `areaID`
+- `mapID`
+- `entryID`
+- resolved map name
+- `mainScriptID`
+- `loadType`
+- `introPart`
+- `startupState`
+- player `x/y/z/yaw`
+- save slot
+- story progress
+- partner
+- current battle/stage identity
+
+Important transition events:
+
+- `GotoMap*` called
+- map transition state begins
+- `load_map_by_IDs` begins
+- `load_map_by_IDs` completes
+- main script starts
+- fade-in completes
+
+Interpretation:
+
+- this would let frame captures, replay logs, and renderer traces be keyed to exact game meaning
+- it would reduce the amount of guessing agents have to do from image output alone
+
+### Best Early Paper Mario Fixtures
+
+The current best first-pass fixture ladder is:
+
+- title screen
+- file select main menu
+- `hos_05 ENTRY_3`
+- `osr_00 ENTRY_3`
+- pause stats/items
+
+#### Why These Matter
+
+Title screen:
+
+- zero-input baseline
+- useful for logo scaling and texrect/scissor behavior
+
+File select:
+
+- menu/HUD/window stress test
+- low gameplay noise
+
+`hos_05 ENTRY_3`:
+
+- likely one of the best intro/scaling/hi-res targets
+- deterministic storybook-like sequence with custom 2D behavior
+
+`osr_00 ENTRY_3`:
+
+- strong message/image system fixture
+
+Pause stats/items:
+
+- dense texrect/HUD/icon/number workload once stable saves are available
+
+#### Additional Strong Fixtures
+
+- `hos_04 ENTRY_4`
+- `kkj_00 ENTRY_5`
+- `kkj_13 ENTRY_2/3`
+- `osr_03 ENTRY_2`
+- `hos_10 ENTRY_5`
+
+Interpretation:
+
+- this is enough to build a real fixture matrix
+- we do not need to depend on ad hoc free-play exploration first
+
+### Renderer-Relevant Paper Mario Paths
+
+Useful renderer-facing UI and 2D paths called out by research:
+
+- message drawing
+- draw box/window systems
+- HUD element rendering
+- inventory/status paths
+- file menu rendering helpers
+- pause rendering helpers
+- screen render utility paths
+
+Interpretation:
+
+- these are promising fixture families for texrect-heavy correctness
+- they give us a path to organize tests by feature type, not just by scene
+
+### Proposed Boundary Model
+
+The clean architecture for agent-first debugging appears to be:
+
+- RetroArch:
+  structured control, capture, log, memory-map, replay orchestration
+- parallel video core:
+  renderer-specific traces, replacement/scaling instrumentation, image/debug exports
+- Paper Mario:
+  semantic scene/state labeling and deterministic fixture entry
+- wrappers:
+  scenario runners, state preparation, report collation
+
+This is important.
+It avoids putting too much meaning into the frontend while also avoiding scene-specific shell orchestration as the foundation.
+
+### Immediate Planning Implications
+
+Before a full implementation plan, the strongest near-term planning items are:
+
+- define the minimum RetroArch patch set needed for agent-first operation
+- decide whether the first control prototype is command-only or command plus internal agent joypad
+- define the first Paper Mario fixture matrix and its acceptance checks
+- define the first game-side telemetry payload
+- define what renderer/core-side capture and trace outputs should exist in phase 1
+
+### Current Bottom Line
+
+The project now has a clearer non-UI debugging direction:
+
+- machine-readable frontend control
+- deterministic internal input
+- semantic game-state labels
+- fixture-driven captures
+- renderer-specific traces where they belong
+
+That is a materially better foundation than relying on UI automation or scene choreography alone.

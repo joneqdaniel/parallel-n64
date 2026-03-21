@@ -13,6 +13,7 @@ It exists to keep agent workflow design separate from:
 
 - [`PROJECT_NOTES.md`](/home/auro/code/parallel-n64/PROJECT_NOTES.md): living research notebook and running synthesis
 - [`docs/agent-first/README.md`](/home/auro/code/parallel-n64/docs/agent-first/README.md): structure and document map
+- [`docs/agent-first/WORKSPACE_PATHS.md`](/home/auro/code/parallel-n64/docs/agent-first/WORKSPACE_PATHS.md): machine-specific external repo and dependency paths
 - [`tools/scenarios/`](/home/auro/code/parallel-n64/tools/scenarios): deterministic runners and orchestration
 - [`tools/fixtures/`](/home/auro/code/parallel-n64/tools/fixtures): fixture manifests and scenario metadata
 - [`tools/adapters/`](/home/auro/code/parallel-n64/tools/adapters): wrapper glue for external repos and tools

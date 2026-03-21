@@ -163,7 +163,9 @@ else
     --command "PAUSE_TOGGLE" \
     --command "GET_STATUS" \
     --command "SAVE_STATE" \
+    --command "WAIT 5" \
     --command "LOAD_STATE_SLOT 0" \
+    --command "WAIT 5" \
     --command "GET_STATUS" \
     --command "SCREENSHOT" \
     --command "QUIT"

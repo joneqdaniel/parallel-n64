@@ -11,6 +11,8 @@
 - Phase 0 execution is active
 - Planning docs are in place and now back the implementation start
 - The first tracked fixture/scenario seed is the Paper Mario title screen scaffold
+- The tracked title-screen save/load loop is currently stabilized by a frontend-side mitigation: the adapter disables RetroArch savestate thumbnails on the Vulkan HW-frame path
+- The repo-default title-screen scenario now produces a savestate, reloads it, and captures a screenshot with savestate thumbnails disabled and explicit waits after `SAVE_STATE` and `LOAD_STATE_SLOT 0`
 
 ## Locked Planning Backbone
 

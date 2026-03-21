@@ -17,6 +17,7 @@ Options:
   --base-config PATH    Base RetroArch config path
   --startup-wait SEC    Seconds to wait before sending commands (default: 8)
   --command CMD         Command to send over stdin interface (repeatable)
+                        Local pseudo-command: WAIT <seconds>
   -h, --help            Show this help
 EOF
 }
@@ -126,6 +127,7 @@ network_cmd_enable = "false"
 state_slot = "0"
 savestate_directory = "$BUNDLE_DIR/states"
 screenshot_directory = "$BUNDLE_DIR/captures"
+savestate_thumbnail_enable = "false"
 parallel-n64-gfxplugin = "parallel"
 parallel-n64-parallel-rdp-upscaling = "4x"
 parallel-n64-parallel-rdp-hirestex = "$HIRES_VALUE"
@@ -172,6 +174,14 @@ sleep "$STARTUP_WAIT"
 
 : > "$COMMAND_LOG"
 for cmd in "${COMMANDS[@]}"; do
+  if [[ "$cmd" =~ ^WAIT[[:space:]]+(.+)$ ]]; then
+    wait_seconds="${BASH_REMATCH[1]}"
+    printf '%s\n' "$cmd" >> "$COMMAND_LOG"
+    echo "[adapter] wait: ${wait_seconds}s"
+    sleep "$wait_seconds"
+    continue
+  fi
+
   printf '%s\n' "$cmd" >&3
   printf '%s\n' "$cmd" >> "$COMMAND_LOG"
   echo "[adapter] command: $cmd"

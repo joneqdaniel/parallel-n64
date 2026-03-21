@@ -50,10 +50,14 @@
 - complete: first bundle scaffold with ROM and hi-res pack hashes
 - complete: first RetroArch stdin control path using existing command seams
 - complete: first live title-screen runtime attempt with `GET_STATUS`, pause, and screenshot evidence
+- complete: identified the current save/load crash as a command-timing issue after `SAVE_STATE`, not a raw serialization failure
+- complete: added local adapter `WAIT <seconds>` support and applied explicit waits to the tracked title-screen save/load flow
+- complete: confirmed the main frontend-side crash trigger is RetroArch savestate thumbnail capture on the Vulkan HW-frame path; disabling thumbnails restores stable save/load behavior for the tracked flow
+- complete: verified the tracked title-screen scenario now saves, loads, and captures evidence successfully on the repo-default path with savestate thumbnails disabled and explicit waits after save/load
 - pending: graceful RetroArch shutdown without forced termination
 - pending: authoritative savestate-backed title-screen fixture
-- active blocker: `SAVE_STATE` currently segfaults in the live title-screen runtime path
-- pending: real save/load state loop inside the tracked scenario path after the save-state crash is understood
+- pending: replace fixed waits with a stronger completion/ack mechanism once the minimal control path is stable
+- pending: audit the fixed-size libretro serialize buffer and `savestates_save_m64p()` size handling as a separate memory-safety follow-up
 
 ## Out Of Scope
 

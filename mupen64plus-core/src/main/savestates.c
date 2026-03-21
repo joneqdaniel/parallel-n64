@@ -24,6 +24,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 
 #define M64P_CORE_PROTOTYPES 1
 #include "api/m64p_types.h"
@@ -68,6 +69,49 @@ static const int savestate_latest_version = 0x00010000;  /* 1.0 */
 
 #define PUTDATA(buff, type, value) \
     do { type x = value; PUTARRAY(&x, buff, type, 1); } while(0)
+
+typedef struct savestate_writer
+{
+   unsigned char *data;
+   size_t offset;
+   size_t capacity;
+} savestate_writer;
+
+static int savestate_writer_put_array(savestate_writer *writer,
+      const void *src, size_t type_size, size_t count)
+{
+   size_t bytes;
+
+   if (count != 0 && type_size > SIZE_MAX / count)
+      return 0;
+
+   bytes = type_size * count;
+
+   if (writer->offset > writer->capacity || bytes > writer->capacity - writer->offset)
+      return 0;
+
+   if (writer->data != NULL && bytes != 0)
+   {
+      unsigned char *dst = writer->data + writer->offset;
+      memcpy(dst, src, bytes);
+      to_little_endian_buffer(dst, type_size, count);
+   }
+
+   writer->offset += bytes;
+   return 1;
+}
+
+#define WRITEARRAY(writer, src, type, count) \
+   do { \
+      if (!savestate_writer_put_array(writer, src, sizeof(type), count)) \
+         return 0; \
+   } while (0)
+
+#define WRITEDATA(writer, type, value) \
+   do { \
+      type x = value; \
+      WRITEARRAY(writer, &x, type, 1); \
+   } while (0)
 
 int savestates_load_m64p(const unsigned char *data, size_t size)
 {
@@ -294,235 +338,258 @@ int savestates_load_m64p(const unsigned char *data, size_t size)
    return 1;
 }
 
-int savestates_save_m64p(unsigned char *data, size_t size)
+static int savestates_write_m64p(savestate_writer *writer)
 {
    unsigned char outbuf[4];
    int i, queuelength;
    char queue[1024];
    uint32_t* cp0_regs = r4300_cp0_regs();
-   unsigned char *curr = (unsigned char*)data;
-
-   if (!curr)
-      return 0;
 
    queuelength = save_eventqueue_infos(queue);
 
    // Write the save state data to memory
-   PUTARRAY(savestate_magic, curr, unsigned char, 8);
+   WRITEARRAY(writer, savestate_magic, unsigned char, 8);
 
    outbuf[0] = (savestate_latest_version >> 24) & 0xff;
    outbuf[1] = (savestate_latest_version >> 16) & 0xff;
    outbuf[2] = (savestate_latest_version >>  8) & 0xff;
    outbuf[3] = (savestate_latest_version >>  0) & 0xff;
-   PUTARRAY(outbuf, curr, unsigned char, 4);
+   WRITEARRAY(writer, outbuf, unsigned char, 4);
 
-   PUTARRAY(ROM_SETTINGS.MD5, curr, char, 32);
+   WRITEARRAY(writer, ROM_SETTINGS.MD5, char, 32);
 
-   PUTDATA(curr, uint32_t, g_dev.ri.rdram.regs[RDRAM_CONFIG_REG]);
-   PUTDATA(curr, uint32_t, g_dev.ri.rdram.regs[RDRAM_DEVICE_ID_REG]);
-   PUTDATA(curr, uint32_t, g_dev.ri.rdram.regs[RDRAM_DELAY_REG]);
-   PUTDATA(curr, uint32_t, g_dev.ri.rdram.regs[RDRAM_MODE_REG]);
-   PUTDATA(curr, uint32_t, g_dev.ri.rdram.regs[RDRAM_REF_INTERVAL_REG]);
-   PUTDATA(curr, uint32_t, g_dev.ri.rdram.regs[RDRAM_REF_ROW_REG]);
-   PUTDATA(curr, uint32_t, g_dev.ri.rdram.regs[RDRAM_RAS_INTERVAL_REG]);
-   PUTDATA(curr, uint32_t, g_dev.ri.rdram.regs[RDRAM_MIN_INTERVAL_REG]);
-   PUTDATA(curr, uint32_t, g_dev.ri.rdram.regs[RDRAM_ADDR_SELECT_REG]);
-   PUTDATA(curr, uint32_t, g_dev.ri.rdram.regs[RDRAM_DEVICE_MANUF_REG]);
+   WRITEDATA(writer, uint32_t, g_dev.ri.rdram.regs[RDRAM_CONFIG_REG]);
+   WRITEDATA(writer, uint32_t, g_dev.ri.rdram.regs[RDRAM_DEVICE_ID_REG]);
+   WRITEDATA(writer, uint32_t, g_dev.ri.rdram.regs[RDRAM_DELAY_REG]);
+   WRITEDATA(writer, uint32_t, g_dev.ri.rdram.regs[RDRAM_MODE_REG]);
+   WRITEDATA(writer, uint32_t, g_dev.ri.rdram.regs[RDRAM_REF_INTERVAL_REG]);
+   WRITEDATA(writer, uint32_t, g_dev.ri.rdram.regs[RDRAM_REF_ROW_REG]);
+   WRITEDATA(writer, uint32_t, g_dev.ri.rdram.regs[RDRAM_RAS_INTERVAL_REG]);
+   WRITEDATA(writer, uint32_t, g_dev.ri.rdram.regs[RDRAM_MIN_INTERVAL_REG]);
+   WRITEDATA(writer, uint32_t, g_dev.ri.rdram.regs[RDRAM_ADDR_SELECT_REG]);
+   WRITEDATA(writer, uint32_t, g_dev.ri.rdram.regs[RDRAM_DEVICE_MANUF_REG]);
 
-   PUTDATA(curr, uint32_t, 0);
-   PUTDATA(curr, uint32_t, g_dev.r4300.mi.regs[MI_INIT_MODE_REG]);
-   PUTDATA(curr, uint8_t, g_dev.r4300.mi.regs[MI_INIT_MODE_REG] & 0x7F);
-   PUTDATA(curr, uint8_t, (g_dev.r4300.mi.regs[MI_INIT_MODE_REG] & 0x80) != 0);
-   PUTDATA(curr, uint8_t, (g_dev.r4300.mi.regs[MI_INIT_MODE_REG] & 0x100) != 0);
-   PUTDATA(curr, uint8_t, (g_dev.r4300.mi.regs[MI_INIT_MODE_REG] & 0x200) != 0);
-   PUTDATA(curr, uint32_t, g_dev.r4300.mi.regs[MI_VERSION_REG]);
-   PUTDATA(curr, uint32_t, g_dev.r4300.mi.regs[MI_INTR_REG]);
-   PUTDATA(curr, uint32_t, g_dev.r4300.mi.regs[MI_INTR_MASK_REG]);
-   PUTDATA(curr, uint32_t, 0); /* Padding from old implementation */
-   PUTDATA(curr, uint8_t, (g_dev.r4300.mi.regs[MI_INTR_MASK_REG] & 0x1) != 0);
-   PUTDATA(curr, uint8_t, (g_dev.r4300.mi.regs[MI_INTR_MASK_REG] & 0x2) != 0);
-   PUTDATA(curr, uint8_t, (g_dev.r4300.mi.regs[MI_INTR_MASK_REG] & 0x4) != 0);
-   PUTDATA(curr, uint8_t, (g_dev.r4300.mi.regs[MI_INTR_MASK_REG] & 0x8) != 0);
-   PUTDATA(curr, uint8_t, (g_dev.r4300.mi.regs[MI_INTR_MASK_REG] & 0x10) != 0);
-   PUTDATA(curr, uint8_t, (g_dev.r4300.mi.regs[MI_INTR_MASK_REG] & 0x20) != 0);
-   PUTDATA(curr, uint16_t, 0); // Padding from old implementation
+   WRITEDATA(writer, uint32_t, 0);
+   WRITEDATA(writer, uint32_t, g_dev.r4300.mi.regs[MI_INIT_MODE_REG]);
+   WRITEDATA(writer, uint8_t, g_dev.r4300.mi.regs[MI_INIT_MODE_REG] & 0x7F);
+   WRITEDATA(writer, uint8_t, (g_dev.r4300.mi.regs[MI_INIT_MODE_REG] & 0x80) != 0);
+   WRITEDATA(writer, uint8_t, (g_dev.r4300.mi.regs[MI_INIT_MODE_REG] & 0x100) != 0);
+   WRITEDATA(writer, uint8_t, (g_dev.r4300.mi.regs[MI_INIT_MODE_REG] & 0x200) != 0);
+   WRITEDATA(writer, uint32_t, g_dev.r4300.mi.regs[MI_VERSION_REG]);
+   WRITEDATA(writer, uint32_t, g_dev.r4300.mi.regs[MI_INTR_REG]);
+   WRITEDATA(writer, uint32_t, g_dev.r4300.mi.regs[MI_INTR_MASK_REG]);
+   WRITEDATA(writer, uint32_t, 0); /* Padding from old implementation */
+   WRITEDATA(writer, uint8_t, (g_dev.r4300.mi.regs[MI_INTR_MASK_REG] & 0x1) != 0);
+   WRITEDATA(writer, uint8_t, (g_dev.r4300.mi.regs[MI_INTR_MASK_REG] & 0x2) != 0);
+   WRITEDATA(writer, uint8_t, (g_dev.r4300.mi.regs[MI_INTR_MASK_REG] & 0x4) != 0);
+   WRITEDATA(writer, uint8_t, (g_dev.r4300.mi.regs[MI_INTR_MASK_REG] & 0x8) != 0);
+   WRITEDATA(writer, uint8_t, (g_dev.r4300.mi.regs[MI_INTR_MASK_REG] & 0x10) != 0);
+   WRITEDATA(writer, uint8_t, (g_dev.r4300.mi.regs[MI_INTR_MASK_REG] & 0x20) != 0);
+   WRITEDATA(writer, uint16_t, 0); // Padding from old implementation
 
-   PUTDATA(curr, uint32_t, g_dev.pi.regs[PI_DRAM_ADDR_REG]);
-   PUTDATA(curr, uint32_t, g_dev.pi.regs[PI_CART_ADDR_REG]);
-   PUTDATA(curr, uint32_t, g_dev.pi.regs[PI_RD_LEN_REG]);
-   PUTDATA(curr, uint32_t, g_dev.pi.regs[PI_WR_LEN_REG]);
-   PUTDATA(curr, uint32_t, g_dev.pi.regs[PI_STATUS_REG]);
-   PUTDATA(curr, uint32_t, g_dev.pi.regs[PI_BSD_DOM1_LAT_REG]);
-   PUTDATA(curr, uint32_t, g_dev.pi.regs[PI_BSD_DOM1_PWD_REG]);
-   PUTDATA(curr, uint32_t, g_dev.pi.regs[PI_BSD_DOM1_PGS_REG]);
-   PUTDATA(curr, uint32_t, g_dev.pi.regs[PI_BSD_DOM1_RLS_REG]);
-   PUTDATA(curr, uint32_t, g_dev.pi.regs[PI_BSD_DOM1_LAT_REG]);
-   PUTDATA(curr, uint32_t, g_dev.pi.regs[PI_BSD_DOM1_PWD_REG]);
-   PUTDATA(curr, uint32_t, g_dev.pi.regs[PI_BSD_DOM1_PGS_REG]);
-   PUTDATA(curr, uint32_t, g_dev.pi.regs[PI_BSD_DOM1_RLS_REG]);
+   WRITEDATA(writer, uint32_t, g_dev.pi.regs[PI_DRAM_ADDR_REG]);
+   WRITEDATA(writer, uint32_t, g_dev.pi.regs[PI_CART_ADDR_REG]);
+   WRITEDATA(writer, uint32_t, g_dev.pi.regs[PI_RD_LEN_REG]);
+   WRITEDATA(writer, uint32_t, g_dev.pi.regs[PI_WR_LEN_REG]);
+   WRITEDATA(writer, uint32_t, g_dev.pi.regs[PI_STATUS_REG]);
+   WRITEDATA(writer, uint32_t, g_dev.pi.regs[PI_BSD_DOM1_LAT_REG]);
+   WRITEDATA(writer, uint32_t, g_dev.pi.regs[PI_BSD_DOM1_PWD_REG]);
+   WRITEDATA(writer, uint32_t, g_dev.pi.regs[PI_BSD_DOM1_PGS_REG]);
+   WRITEDATA(writer, uint32_t, g_dev.pi.regs[PI_BSD_DOM1_RLS_REG]);
+   WRITEDATA(writer, uint32_t, g_dev.pi.regs[PI_BSD_DOM1_LAT_REG]);
+   WRITEDATA(writer, uint32_t, g_dev.pi.regs[PI_BSD_DOM1_PWD_REG]);
+   WRITEDATA(writer, uint32_t, g_dev.pi.regs[PI_BSD_DOM1_PGS_REG]);
+   WRITEDATA(writer, uint32_t, g_dev.pi.regs[PI_BSD_DOM1_RLS_REG]);
 
-   PUTDATA(curr, uint32_t, g_dev.sp.regs[SP_MEM_ADDR_REG]);
-   PUTDATA(curr, uint32_t, g_dev.sp.regs[SP_DRAM_ADDR_REG]);
-   PUTDATA(curr, uint32_t, g_dev.sp.regs[SP_RD_LEN_REG]);
-   PUTDATA(curr, uint32_t, g_dev.sp.regs[SP_WR_LEN_REG]);
-   PUTDATA(curr, uint32_t, 0); /* Padding from old implementation */
-   PUTDATA(curr, uint32_t, g_dev.sp.regs[SP_STATUS_REG]);
-   PUTDATA(curr, uint8_t, (g_dev.sp.regs[SP_STATUS_REG] & 0x1) != 0);
-   PUTDATA(curr, uint8_t, (g_dev.sp.regs[SP_STATUS_REG] & 0x2) != 0);
-   PUTDATA(curr, uint8_t, (g_dev.sp.regs[SP_STATUS_REG] & 0x4) != 0);
-   PUTDATA(curr, uint8_t, (g_dev.sp.regs[SP_STATUS_REG] & 0x8) != 0);
-   PUTDATA(curr, uint8_t, (g_dev.sp.regs[SP_STATUS_REG] & 0x10) != 0);
-   PUTDATA(curr, uint8_t, (g_dev.sp.regs[SP_STATUS_REG] & 0x20) != 0);
-   PUTDATA(curr, uint8_t, (g_dev.sp.regs[SP_STATUS_REG] & 0x40) != 0);
-   PUTDATA(curr, uint8_t, (g_dev.sp.regs[SP_STATUS_REG] & 0x80) != 0);
-   PUTDATA(curr, uint8_t, (g_dev.sp.regs[SP_STATUS_REG] & 0x100) != 0);
-   PUTDATA(curr, uint8_t, (g_dev.sp.regs[SP_STATUS_REG] & 0x200) != 0);
-   PUTDATA(curr, uint8_t, (g_dev.sp.regs[SP_STATUS_REG] & 0x400) != 0);
-   PUTDATA(curr, uint8_t, (g_dev.sp.regs[SP_STATUS_REG] & 0x800) != 0);
-   PUTDATA(curr, uint8_t, (g_dev.sp.regs[SP_STATUS_REG] & 0x1000) != 0);
-   PUTDATA(curr, uint8_t, (g_dev.sp.regs[SP_STATUS_REG] & 0x2000) != 0);
-   PUTDATA(curr, uint8_t, (g_dev.sp.regs[SP_STATUS_REG] & 0x4000) != 0);
-   PUTDATA(curr, uint8_t, 0);
-   PUTDATA(curr, uint32_t, g_dev.sp.regs[SP_DMA_FULL_REG]);
-   PUTDATA(curr, uint32_t, g_dev.sp.regs[SP_DMA_BUSY_REG]);
-   PUTDATA(curr, uint32_t, g_dev.sp.regs[SP_SEMAPHORE_REG]);
+   WRITEDATA(writer, uint32_t, g_dev.sp.regs[SP_MEM_ADDR_REG]);
+   WRITEDATA(writer, uint32_t, g_dev.sp.regs[SP_DRAM_ADDR_REG]);
+   WRITEDATA(writer, uint32_t, g_dev.sp.regs[SP_RD_LEN_REG]);
+   WRITEDATA(writer, uint32_t, g_dev.sp.regs[SP_WR_LEN_REG]);
+   WRITEDATA(writer, uint32_t, 0); /* Padding from old implementation */
+   WRITEDATA(writer, uint32_t, g_dev.sp.regs[SP_STATUS_REG]);
+   WRITEDATA(writer, uint8_t, (g_dev.sp.regs[SP_STATUS_REG] & 0x1) != 0);
+   WRITEDATA(writer, uint8_t, (g_dev.sp.regs[SP_STATUS_REG] & 0x2) != 0);
+   WRITEDATA(writer, uint8_t, (g_dev.sp.regs[SP_STATUS_REG] & 0x4) != 0);
+   WRITEDATA(writer, uint8_t, (g_dev.sp.regs[SP_STATUS_REG] & 0x8) != 0);
+   WRITEDATA(writer, uint8_t, (g_dev.sp.regs[SP_STATUS_REG] & 0x10) != 0);
+   WRITEDATA(writer, uint8_t, (g_dev.sp.regs[SP_STATUS_REG] & 0x20) != 0);
+   WRITEDATA(writer, uint8_t, (g_dev.sp.regs[SP_STATUS_REG] & 0x40) != 0);
+   WRITEDATA(writer, uint8_t, (g_dev.sp.regs[SP_STATUS_REG] & 0x80) != 0);
+   WRITEDATA(writer, uint8_t, (g_dev.sp.regs[SP_STATUS_REG] & 0x100) != 0);
+   WRITEDATA(writer, uint8_t, (g_dev.sp.regs[SP_STATUS_REG] & 0x200) != 0);
+   WRITEDATA(writer, uint8_t, (g_dev.sp.regs[SP_STATUS_REG] & 0x400) != 0);
+   WRITEDATA(writer, uint8_t, (g_dev.sp.regs[SP_STATUS_REG] & 0x800) != 0);
+   WRITEDATA(writer, uint8_t, (g_dev.sp.regs[SP_STATUS_REG] & 0x1000) != 0);
+   WRITEDATA(writer, uint8_t, (g_dev.sp.regs[SP_STATUS_REG] & 0x2000) != 0);
+   WRITEDATA(writer, uint8_t, (g_dev.sp.regs[SP_STATUS_REG] & 0x4000) != 0);
+   WRITEDATA(writer, uint8_t, 0);
+   WRITEDATA(writer, uint32_t, g_dev.sp.regs[SP_DMA_FULL_REG]);
+   WRITEDATA(writer, uint32_t, g_dev.sp.regs[SP_DMA_BUSY_REG]);
+   WRITEDATA(writer, uint32_t, g_dev.sp.regs[SP_SEMAPHORE_REG]);
 
-   PUTDATA(curr, uint32_t, g_dev.sp.regs2[SP_PC_REG]);
-   PUTDATA(curr, uint32_t, g_dev.sp.regs2[SP_IBIST_REG]);
+   WRITEDATA(writer, uint32_t, g_dev.sp.regs2[SP_PC_REG]);
+   WRITEDATA(writer, uint32_t, g_dev.sp.regs2[SP_IBIST_REG]);
 
-   PUTDATA(curr, uint32_t, g_dev.si.regs[SI_DRAM_ADDR_REG]);
-   PUTDATA(curr, uint32_t, g_dev.si.regs[SI_PIF_ADDR_RD64B_REG]);
-   PUTDATA(curr, uint32_t, g_dev.si.regs[SI_PIF_ADDR_WR64B_REG]);
-   PUTDATA(curr, uint32_t, g_dev.si.regs[SI_STATUS_REG]);
+   WRITEDATA(writer, uint32_t, g_dev.si.regs[SI_DRAM_ADDR_REG]);
+   WRITEDATA(writer, uint32_t, g_dev.si.regs[SI_PIF_ADDR_RD64B_REG]);
+   WRITEDATA(writer, uint32_t, g_dev.si.regs[SI_PIF_ADDR_WR64B_REG]);
+   WRITEDATA(writer, uint32_t, g_dev.si.regs[SI_STATUS_REG]);
 
-   PUTDATA(curr, uint32_t, g_dev.vi.regs[VI_STATUS_REG]);
-   PUTDATA(curr, uint32_t, g_dev.vi.regs[VI_ORIGIN_REG]);
-   PUTDATA(curr, uint32_t, g_dev.vi.regs[VI_WIDTH_REG]);
-   PUTDATA(curr, uint32_t, g_dev.vi.regs[VI_V_INTR_REG]);
-   PUTDATA(curr, uint32_t, g_dev.vi.regs[VI_CURRENT_REG]);
-   PUTDATA(curr, uint32_t, g_dev.vi.regs[VI_BURST_REG]);
-   PUTDATA(curr, uint32_t, g_dev.vi.regs[VI_V_SYNC_REG]);
-   PUTDATA(curr, uint32_t, g_dev.vi.regs[VI_H_SYNC_REG]);
-   PUTDATA(curr, uint32_t, g_dev.vi.regs[VI_LEAP_REG]);
-   PUTDATA(curr, uint32_t, g_dev.vi.regs[VI_H_START_REG]);
-   PUTDATA(curr, uint32_t, g_dev.vi.regs[VI_V_START_REG]);
-   PUTDATA(curr, uint32_t, g_dev.vi.regs[VI_V_BURST_REG]);
-   PUTDATA(curr, uint32_t, g_dev.vi.regs[VI_X_SCALE_REG]);
-   PUTDATA(curr, uint32_t, g_dev.vi.regs[VI_Y_SCALE_REG]);
-   PUTDATA(curr, unsigned int, g_dev.vi.delay);
+   WRITEDATA(writer, uint32_t, g_dev.vi.regs[VI_STATUS_REG]);
+   WRITEDATA(writer, uint32_t, g_dev.vi.regs[VI_ORIGIN_REG]);
+   WRITEDATA(writer, uint32_t, g_dev.vi.regs[VI_WIDTH_REG]);
+   WRITEDATA(writer, uint32_t, g_dev.vi.regs[VI_V_INTR_REG]);
+   WRITEDATA(writer, uint32_t, g_dev.vi.regs[VI_CURRENT_REG]);
+   WRITEDATA(writer, uint32_t, g_dev.vi.regs[VI_BURST_REG]);
+   WRITEDATA(writer, uint32_t, g_dev.vi.regs[VI_V_SYNC_REG]);
+   WRITEDATA(writer, uint32_t, g_dev.vi.regs[VI_H_SYNC_REG]);
+   WRITEDATA(writer, uint32_t, g_dev.vi.regs[VI_LEAP_REG]);
+   WRITEDATA(writer, uint32_t, g_dev.vi.regs[VI_H_START_REG]);
+   WRITEDATA(writer, uint32_t, g_dev.vi.regs[VI_V_START_REG]);
+   WRITEDATA(writer, uint32_t, g_dev.vi.regs[VI_V_BURST_REG]);
+   WRITEDATA(writer, uint32_t, g_dev.vi.regs[VI_X_SCALE_REG]);
+   WRITEDATA(writer, uint32_t, g_dev.vi.regs[VI_Y_SCALE_REG]);
+   WRITEDATA(writer, unsigned int, g_dev.vi.delay);
 
-   PUTDATA(curr, uint32_t, g_dev.ri.regs[RI_MODE_REG]);
-   PUTDATA(curr, uint32_t, g_dev.ri.regs[RI_CONFIG_REG]);
-   PUTDATA(curr, uint32_t, g_dev.ri.regs[RI_CURRENT_LOAD_REG]);
-   PUTDATA(curr, uint32_t, g_dev.ri.regs[RI_SELECT_REG]);
-   PUTDATA(curr, uint32_t, g_dev.ri.regs[RI_REFRESH_REG]);
-   PUTDATA(curr, uint32_t, g_dev.ri.regs[RI_LATENCY_REG]);
-   PUTDATA(curr, uint32_t, g_dev.ri.regs[RI_ERROR_REG]);
-   PUTDATA(curr, uint32_t, g_dev.ri.regs[RI_WERROR_REG]);
+   WRITEDATA(writer, uint32_t, g_dev.ri.regs[RI_MODE_REG]);
+   WRITEDATA(writer, uint32_t, g_dev.ri.regs[RI_CONFIG_REG]);
+   WRITEDATA(writer, uint32_t, g_dev.ri.regs[RI_CURRENT_LOAD_REG]);
+   WRITEDATA(writer, uint32_t, g_dev.ri.regs[RI_SELECT_REG]);
+   WRITEDATA(writer, uint32_t, g_dev.ri.regs[RI_REFRESH_REG]);
+   WRITEDATA(writer, uint32_t, g_dev.ri.regs[RI_LATENCY_REG]);
+   WRITEDATA(writer, uint32_t, g_dev.ri.regs[RI_ERROR_REG]);
+   WRITEDATA(writer, uint32_t, g_dev.ri.regs[RI_WERROR_REG]);
 
-   PUTDATA(curr, uint32_t, g_dev.ai.regs[AI_DRAM_ADDR_REG]);
-   PUTDATA(curr, uint32_t, g_dev.ai.regs[AI_LEN_REG]);
-   PUTDATA(curr, uint32_t, g_dev.ai.regs[AI_CONTROL_REG]);
-   PUTDATA(curr, uint32_t, g_dev.ai.regs[AI_STATUS_REG]);
-   PUTDATA(curr, uint32_t, g_dev.ai.regs[AI_DACRATE_REG]);
-   PUTDATA(curr, uint32_t, g_dev.ai.regs[AI_BITRATE_REG]);
-   PUTDATA(curr, unsigned int, g_dev.ai.fifo[1].duration);
-   PUTDATA(curr, uint32_t, g_dev.ai.fifo[1].length);
-   PUTDATA(curr, unsigned int, g_dev.ai.fifo[0].duration);
-   PUTDATA(curr, uint32_t, g_dev.ai.fifo[0].length);
-   PUTDATA(curr, uint32_t, g_dev.ai.last_read);
+   WRITEDATA(writer, uint32_t, g_dev.ai.regs[AI_DRAM_ADDR_REG]);
+   WRITEDATA(writer, uint32_t, g_dev.ai.regs[AI_LEN_REG]);
+   WRITEDATA(writer, uint32_t, g_dev.ai.regs[AI_CONTROL_REG]);
+   WRITEDATA(writer, uint32_t, g_dev.ai.regs[AI_STATUS_REG]);
+   WRITEDATA(writer, uint32_t, g_dev.ai.regs[AI_DACRATE_REG]);
+   WRITEDATA(writer, uint32_t, g_dev.ai.regs[AI_BITRATE_REG]);
+   WRITEDATA(writer, unsigned int, g_dev.ai.fifo[1].duration);
+   WRITEDATA(writer, uint32_t, g_dev.ai.fifo[1].length);
+   WRITEDATA(writer, unsigned int, g_dev.ai.fifo[0].duration);
+   WRITEDATA(writer, uint32_t, g_dev.ai.fifo[0].length);
+   WRITEDATA(writer, uint32_t, g_dev.ai.last_read);
 
-   PUTDATA(curr, uint32_t, g_dev.dp.dpc_regs[DPC_START_REG]);
-   PUTDATA(curr, uint32_t, g_dev.dp.dpc_regs[DPC_END_REG]);
-   PUTDATA(curr, uint32_t, g_dev.dp.dpc_regs[DPC_CURRENT_REG]);
-   PUTDATA(curr, uint32_t, 0); /* Padding from oold implementation */
-   PUTDATA(curr, uint32_t, g_dev.dp.dpc_regs[DPC_STATUS_REG]);
-   PUTDATA(curr, uint8_t, (g_dev.dp.dpc_regs[DPC_STATUS_REG] & 0x1) != 0);
-   PUTDATA(curr, uint8_t, (g_dev.dp.dpc_regs[DPC_STATUS_REG] & 0x2) != 0);
-   PUTDATA(curr, uint8_t, (g_dev.dp.dpc_regs[DPC_STATUS_REG] & 0x4) != 0);
-   PUTDATA(curr, uint8_t, (g_dev.dp.dpc_regs[DPC_STATUS_REG] & 0x8) != 0);
-   PUTDATA(curr, uint8_t, (g_dev.dp.dpc_regs[DPC_STATUS_REG] & 0x10) != 0);
-   PUTDATA(curr, uint8_t, (g_dev.dp.dpc_regs[DPC_STATUS_REG] & 0x20) != 0);
-   PUTDATA(curr, uint8_t, (g_dev.dp.dpc_regs[DPC_STATUS_REG] & 0x40) != 0);
-   PUTDATA(curr, uint8_t, (g_dev.dp.dpc_regs[DPC_STATUS_REG] & 0x80) != 0);
-   PUTDATA(curr, uint8_t, (g_dev.dp.dpc_regs[DPC_STATUS_REG] & 0x100) != 0);
-   PUTDATA(curr, uint8_t, (g_dev.dp.dpc_regs[DPC_STATUS_REG] & 0x200) != 0);
-   PUTDATA(curr, uint8_t, (g_dev.dp.dpc_regs[DPC_STATUS_REG] & 0x400) != 0);
-   PUTDATA(curr, uint8_t, 0);
-   PUTDATA(curr, uint32_t, g_dev.dp.dpc_regs[DPC_CLOCK_REG]);
-   PUTDATA(curr, uint32_t, g_dev.dp.dpc_regs[DPC_BUFBUSY_REG]);
-   PUTDATA(curr, uint32_t, g_dev.dp.dpc_regs[DPC_PIPEBUSY_REG]);
-   PUTDATA(curr, uint32_t, g_dev.dp.dpc_regs[DPC_TMEM_REG]);
+   WRITEDATA(writer, uint32_t, g_dev.dp.dpc_regs[DPC_START_REG]);
+   WRITEDATA(writer, uint32_t, g_dev.dp.dpc_regs[DPC_END_REG]);
+   WRITEDATA(writer, uint32_t, g_dev.dp.dpc_regs[DPC_CURRENT_REG]);
+   WRITEDATA(writer, uint32_t, 0); /* Padding from oold implementation */
+   WRITEDATA(writer, uint32_t, g_dev.dp.dpc_regs[DPC_STATUS_REG]);
+   WRITEDATA(writer, uint8_t, (g_dev.dp.dpc_regs[DPC_STATUS_REG] & 0x1) != 0);
+   WRITEDATA(writer, uint8_t, (g_dev.dp.dpc_regs[DPC_STATUS_REG] & 0x2) != 0);
+   WRITEDATA(writer, uint8_t, (g_dev.dp.dpc_regs[DPC_STATUS_REG] & 0x4) != 0);
+   WRITEDATA(writer, uint8_t, (g_dev.dp.dpc_regs[DPC_STATUS_REG] & 0x8) != 0);
+   WRITEDATA(writer, uint8_t, (g_dev.dp.dpc_regs[DPC_STATUS_REG] & 0x10) != 0);
+   WRITEDATA(writer, uint8_t, (g_dev.dp.dpc_regs[DPC_STATUS_REG] & 0x20) != 0);
+   WRITEDATA(writer, uint8_t, (g_dev.dp.dpc_regs[DPC_STATUS_REG] & 0x40) != 0);
+   WRITEDATA(writer, uint8_t, (g_dev.dp.dpc_regs[DPC_STATUS_REG] & 0x80) != 0);
+   WRITEDATA(writer, uint8_t, (g_dev.dp.dpc_regs[DPC_STATUS_REG] & 0x100) != 0);
+   WRITEDATA(writer, uint8_t, (g_dev.dp.dpc_regs[DPC_STATUS_REG] & 0x200) != 0);
+   WRITEDATA(writer, uint8_t, (g_dev.dp.dpc_regs[DPC_STATUS_REG] & 0x400) != 0);
+   WRITEDATA(writer, uint8_t, 0);
+   WRITEDATA(writer, uint32_t, g_dev.dp.dpc_regs[DPC_CLOCK_REG]);
+   WRITEDATA(writer, uint32_t, g_dev.dp.dpc_regs[DPC_BUFBUSY_REG]);
+   WRITEDATA(writer, uint32_t, g_dev.dp.dpc_regs[DPC_PIPEBUSY_REG]);
+   WRITEDATA(writer, uint32_t, g_dev.dp.dpc_regs[DPC_TMEM_REG]);
 
-   PUTDATA(curr, uint32_t, g_dev.dp.dps_regs[DPS_TBIST_REG]);
-   PUTDATA(curr, uint32_t, g_dev.dp.dps_regs[DPS_TEST_MODE_REG]);
-   PUTDATA(curr, uint32_t, g_dev.dp.dps_regs[DPS_BUFTEST_ADDR_REG]);
-   PUTDATA(curr, uint32_t, g_dev.dp.dps_regs[DPS_BUFTEST_DATA_REG]);
+   WRITEDATA(writer, uint32_t, g_dev.dp.dps_regs[DPS_TBIST_REG]);
+   WRITEDATA(writer, uint32_t, g_dev.dp.dps_regs[DPS_TEST_MODE_REG]);
+   WRITEDATA(writer, uint32_t, g_dev.dp.dps_regs[DPS_BUFTEST_ADDR_REG]);
+   WRITEDATA(writer, uint32_t, g_dev.dp.dps_regs[DPS_BUFTEST_DATA_REG]);
 
-   PUTARRAY(g_dev.ri.rdram.dram, curr, uint32_t, RDRAM_MAX_SIZE/4);
-   PUTARRAY(g_dev.sp.mem, curr, uint32_t, SP_MEM_SIZE/4);
-   PUTARRAY(g_dev.si.pif.ram, curr, uint8_t, PIF_RAM_SIZE);
+   WRITEARRAY(writer, g_dev.ri.rdram.dram, uint32_t, RDRAM_MAX_SIZE/4);
+   WRITEARRAY(writer, g_dev.sp.mem, uint32_t, SP_MEM_SIZE/4);
+   WRITEARRAY(writer, g_dev.si.pif.ram, uint8_t, PIF_RAM_SIZE);
 
-   PUTDATA(curr, int, g_dev.pi.use_flashram);
-   PUTDATA(curr, int, g_dev.pi.flashram.mode);
-   PUTDATA(curr, unsigned long long, g_dev.pi.flashram.status);
-   PUTDATA(curr, unsigned int, g_dev.pi.flashram.erase_offset);
-   PUTDATA(curr, unsigned int, g_dev.pi.flashram.write_pointer);
+   WRITEDATA(writer, int, g_dev.pi.use_flashram);
+   WRITEDATA(writer, int, g_dev.pi.flashram.mode);
+   WRITEDATA(writer, unsigned long long, g_dev.pi.flashram.status);
+   WRITEDATA(writer, unsigned int, g_dev.pi.flashram.erase_offset);
+   WRITEDATA(writer, unsigned int, g_dev.pi.flashram.write_pointer);
 
-   PUTARRAY(tlb_LUT_r, curr, unsigned int, 0x100000);
-   PUTARRAY(tlb_LUT_w, curr, unsigned int, 0x100000);
+   WRITEARRAY(writer, tlb_LUT_r, unsigned int, 0x100000);
+   WRITEARRAY(writer, tlb_LUT_w, unsigned int, 0x100000);
 
-   PUTDATA(curr, unsigned int, *r4300_llbit());
-   PUTARRAY(r4300_regs(), curr, int64_t, 32);
-   PUTARRAY(cp0_regs, curr, uint32_t, 32);
-   PUTDATA(curr, int64_t, *r4300_mult_lo());
-   PUTDATA(curr, int64_t, *r4300_mult_hi());
+   WRITEDATA(writer, unsigned int, *r4300_llbit());
+   WRITEARRAY(writer, r4300_regs(), int64_t, 32);
+   WRITEARRAY(writer, cp0_regs, uint32_t, 32);
+   WRITEDATA(writer, int64_t, *r4300_mult_lo());
+   WRITEDATA(writer, int64_t, *r4300_mult_hi());
 
    if ((cp0_regs[CP0_STATUS_REG] & UINT32_C(0x04000000)) == 0) // FR bit == 0 means 32-bit (MIPS I) FGR mode
       shuffle_fpr_data(0, UINT32_C(0x04000000));  // shuffle data into 64-bit register format for storage
-   PUTARRAY(r4300_cp1_regs(), curr, int64_t, 32);
+   WRITEARRAY(writer, r4300_cp1_regs(), int64_t, 32);
    if ((cp0_regs[CP0_STATUS_REG] & UINT32_C(0x04000000)) == 0)
       shuffle_fpr_data(UINT32_C(0x04000000), 0);  // put it back in 32-bit mode
 
-   PUTDATA(curr, uint32_t, *r4300_cp1_fcr0());
-   PUTDATA(curr, uint32_t, *r4300_cp1_fcr31());
+   WRITEDATA(writer, uint32_t, *r4300_cp1_fcr0());
+   WRITEDATA(writer, uint32_t, *r4300_cp1_fcr31());
 
    for (i = 0; i < 32; i++)
    {
-      PUTDATA(curr, short, tlb_e[i].mask);
-      PUTDATA(curr, short, 0);
-      PUTDATA(curr, unsigned int, tlb_e[i].vpn2);
-      PUTDATA(curr, char, tlb_e[i].g);
-      PUTDATA(curr, unsigned char, tlb_e[i].asid);
-      PUTDATA(curr, short, 0);
-      PUTDATA(curr, unsigned int, tlb_e[i].pfn_even);
-      PUTDATA(curr, char, tlb_e[i].c_even);
-      PUTDATA(curr, char, tlb_e[i].d_even);
-      PUTDATA(curr, char, tlb_e[i].v_even);
-      PUTDATA(curr, char, 0);
-      PUTDATA(curr, unsigned int, tlb_e[i].pfn_odd);
-      PUTDATA(curr, char, tlb_e[i].c_odd);
-      PUTDATA(curr, char, tlb_e[i].d_odd);
-      PUTDATA(curr, char, tlb_e[i].v_odd);
-      PUTDATA(curr, char, tlb_e[i].r);
+      WRITEDATA(writer, short, tlb_e[i].mask);
+      WRITEDATA(writer, short, 0);
+      WRITEDATA(writer, unsigned int, tlb_e[i].vpn2);
+      WRITEDATA(writer, char, tlb_e[i].g);
+      WRITEDATA(writer, unsigned char, tlb_e[i].asid);
+      WRITEDATA(writer, short, 0);
+      WRITEDATA(writer, unsigned int, tlb_e[i].pfn_even);
+      WRITEDATA(writer, char, tlb_e[i].c_even);
+      WRITEDATA(writer, char, tlb_e[i].d_even);
+      WRITEDATA(writer, char, tlb_e[i].v_even);
+      WRITEDATA(writer, char, 0);
+      WRITEDATA(writer, unsigned int, tlb_e[i].pfn_odd);
+      WRITEDATA(writer, char, tlb_e[i].c_odd);
+      WRITEDATA(writer, char, tlb_e[i].d_odd);
+      WRITEDATA(writer, char, tlb_e[i].v_odd);
+      WRITEDATA(writer, char, tlb_e[i].r);
 
-      PUTDATA(curr, unsigned int, tlb_e[i].start_even);
-      PUTDATA(curr, unsigned int, tlb_e[i].end_even);
-      PUTDATA(curr, unsigned int, tlb_e[i].phys_even);
-      PUTDATA(curr, unsigned int, tlb_e[i].start_odd);
-      PUTDATA(curr, unsigned int, tlb_e[i].end_odd);
-      PUTDATA(curr, unsigned int, tlb_e[i].phys_odd);
+      WRITEDATA(writer, unsigned int, tlb_e[i].start_even);
+      WRITEDATA(writer, unsigned int, tlb_e[i].end_even);
+      WRITEDATA(writer, unsigned int, tlb_e[i].phys_even);
+      WRITEDATA(writer, unsigned int, tlb_e[i].start_odd);
+      WRITEDATA(writer, unsigned int, tlb_e[i].end_odd);
+      WRITEDATA(writer, unsigned int, tlb_e[i].phys_odd);
    }
-   PUTDATA(curr, uint32_t, *r4300_pc());
+   WRITEDATA(writer, uint32_t, *r4300_pc());
 
-   PUTDATA(curr, unsigned int, *r4300_next_interrupt());
-   PUTDATA(curr, unsigned int, g_dev.vi.next_vi);
-   PUTDATA(curr, unsigned int, g_dev.vi.field);
+   WRITEDATA(writer, unsigned int, *r4300_next_interrupt());
+   WRITEDATA(writer, unsigned int, g_dev.vi.next_vi);
+   WRITEDATA(writer, unsigned int, g_dev.vi.field);
 
    to_little_endian_buffer(queue, 4, queuelength/4);
-   PUTARRAY(queue, curr, char, queuelength);
+   WRITEARRAY(writer, queue, char, queuelength);
 
-   /* Deliver callback to indicate completion 
+   return 1;
+}
+
+size_t savestates_get_m64p_size(void)
+{
+   savestate_writer writer = { NULL, 0, SIZE_MAX };
+
+   if (!savestates_write_m64p(&writer))
+      return 0;
+
+   return writer.offset;
+}
+
+int savestates_save_m64p(unsigned char *data, size_t size)
+{
+   savestate_writer writer;
+
+   if (!data)
+      return 0;
+
+   writer.data = data;
+   writer.offset = 0;
+   writer.capacity = size;
+
+   if (!savestates_write_m64p(&writer))
+      return 0;
+
+   /* Deliver callback to indicate completion
     * of state saving operation */
    StateChanged(M64CORE_STATE_SAVECOMPLETE, 1);
 

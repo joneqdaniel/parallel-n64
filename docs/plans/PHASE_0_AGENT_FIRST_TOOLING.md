@@ -55,10 +55,10 @@
 - complete: added local adapter `WAIT <seconds>` support and applied explicit waits to the tracked title-screen save/load flow
 - complete: confirmed the main frontend-side crash trigger is RetroArch savestate thumbnail capture on the Vulkan HW-frame path; disabling thumbnails restores stable save/load behavior for the tracked flow
 - complete: verified the tracked title-screen scenario now saves, loads, and captures evidence successfully on the repo-default path with savestate thumbnails disabled and explicit waits after save/load
-- pending: graceful RetroArch shutdown without forced termination
+- complete: verified graceful RetroArch shutdown on the tracked path by disabling frontend quit confirmation (`confirm_quit = "false"`) in the adapter appendconfig
 - pending: authoritative savestate-backed title-screen fixture
 - pending: replace fixed waits with a stronger completion/ack mechanism once the minimal control path is stable
-- pending: audit the fixed-size libretro serialize buffer and `savestates_save_m64p()` size handling as a separate memory-safety follow-up
+- in progress: replace the hardcoded libretro serialize size with a computed M64P size contract and bounded save writes; touched objects compile, full integrated verification still pending
 
 ## Out Of Scope
 

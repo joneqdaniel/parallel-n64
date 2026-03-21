@@ -27,3 +27,4 @@ Current Paper Mario runtime note:
 
 - save/load command sequences use explicit local waits between state operations because immediate follow-up commands are not yet stable
 - the tracked title-screen scenario depends on the adapter disabling savestate thumbnails, which removes the current save-state crash seen on the Vulkan HW-frame path
+- the tracked title-screen scenario depends on the adapter disabling RetroArch quit confirmation so a single `QUIT` command exits cleanly

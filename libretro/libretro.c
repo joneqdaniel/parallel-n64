@@ -2081,12 +2081,18 @@ size_t retro_get_memory_size(unsigned type)
 
 size_t retro_serialize_size (void)
 {
-    return 16788288 + 1024; /* < 16MB and some change... ouch */
+    return savestates_get_m64p_size();
 }
 
 bool retro_serialize(void *data, size_t size)
 {
+    size_t required_size;
+
     if (initializing)
+       return false;
+
+    required_size = savestates_get_m64p_size();
+    if (required_size == 0 || size < required_size)
        return false;
 
     if (savestates_save_m64p(data, size))

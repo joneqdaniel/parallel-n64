@@ -13,6 +13,8 @@
 - The first tracked fixture/scenario seed is the Paper Mario title screen scaffold
 - The tracked title-screen save/load loop is currently stabilized by a frontend-side mitigation: the adapter disables RetroArch savestate thumbnails on the Vulkan HW-frame path
 - The repo-default title-screen scenario now produces a savestate, reloads it, and captures a screenshot with savestate thumbnails disabled and explicit waits after `SAVE_STATE` and `LOAD_STATE_SLOT 0`
+- The tracked quit path now exits cleanly with a single `QUIT` command because the adapter forces `confirm_quit = "false"` in its per-run appendconfig
+- The save-state serialization contract is being hardened so `retro_serialize_size()` and the actual M64P writer share one source of truth and fail safely on undersized buffers
 
 ## Locked Planning Backbone
 

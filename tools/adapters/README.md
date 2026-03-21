@@ -19,6 +19,7 @@ Current RetroArch adapter notes:
 - runtime launches are standardized as fullscreen borderless windows for consistent local capture framing
 - commands are sent serially over the stdin command interface
 - `WAIT <seconds>` is a local adapter pseudo-command and is not forwarded to RetroArch
+- the adapter disables RetroArch quit confirmation in its per-run appendconfig so a single tracked `QUIT` command exits deterministically
 - the adapter disables savestate thumbnails in its per-run appendconfig because that frontend path currently destabilizes ParaLLEl-RDP save-state runs
 - Paper Mario save/load flows currently require explicit waits after `SAVE_STATE` and `LOAD_STATE_SLOT 0` while we still rely on timing rather than explicit completion signals
 

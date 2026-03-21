@@ -1,30 +1,69 @@
-[![Build Status](https://travis-ci.org/libretro/parallel-n64.svg?branch=master)](https://travis-ci.org/libretro/parallel-n64)
-[![Build status](https://ci.appveyor.com/api/projects/status/iqe836smfugoy8ey/branch/master?svg=true)](https://ci.appveyor.com/project/bparker06/parallel-n64/branch/master)
+# parallel-n64 Agent Workspace
 
-# mupen64plus-libretro
+## Mission
 
-To enable a dynarec CPU core you must pass the WITH_DYNAREC value to make:
-* make WITH_DYNAREC=x86
-* make WITH_DYNAREC=x86_64
-* make WITH_DYNAREC=arm
-* make WITH_DYNAREC=aarch64
+This repo is the planning and implementation home for a stable hi-res texture replacement and scaling program for the ParaLLEl video core.
 
-New make options:
-* USE_CXD4_NEW - use the most recent version of CXD4 that was verified on Android
-* USE_SSE2NEON - enable SSE2 vectorized routines on ARMv7+ via hacked SSE2NEON library
+The project is being run as an agent-first workflow:
 
-To build Android hardfp library with the new CXD4 RSP + NEON + Parallel RDP do:
-* ndk-build -j8 USE_SSE2NEON=1 APP_ABI=armeabi-v7a-hard
+- the docs should let a new agent understand the mission quickly
+- the plans should make phase, scope, and exit criteria explicit
+- the tooling should make debugging reproducible without UI guesswork
 
-To build Android arm64 library with the new CXD4 RSP + Parallel RDP + dynarec do:
-* ndk-build APP_ABI=arm64-v8a
+## Current Status
 
-Local helpers:
-* `./run-build.sh` - build core with fork defaults (`HAVE_PARALLEL=1 HAVE_PARALLEL_RSP=1`)
-* `./run-tests.sh` - configure/build/run local CTest suite
-* `./run-tests.sh --profile emu-required` - required emulator-behavior gate (`emu.unit.*`)
-* `./run-tests.sh --profile emu-runtime-conformance` - runtime lavapipe conformance tier
-* `./run-dump-tests.sh --provision-validator` - provision validator and run `emu.dump.*` against baseline dump fixtures
+The project is in formal planning and documentation hardening ahead of implementation.
 
-Task trackers:
-* `docs/EMU_TESTING.md` - tiered emulator test commands and triage workflow
+The agreed backbone is:
+
+1. Phase 0: agent-first tooling, fixtures, evidence bundles, deterministic control
+2. Phase 1: hi-res replacement without corruption
+3. Phase 2: scaling and sharpness work
+
+Current validation scope is Paper Mario only.
+The first strict Phase 1 fixtures are title screen and file select.
+
+## Start Here
+
+- [AGENTS.md](/home/auro/code/parallel-n64/AGENTS.md)
+- [Project State](/home/auro/code/parallel-n64/docs/agent-first/PROJECT_STATE.md)
+- [Phase Overview](/home/auro/code/parallel-n64/docs/agent-first/plans/PHASE_OVERVIEW.md)
+- [Workspace Paths](/home/auro/code/parallel-n64/docs/agent-first/WORKSPACE_PATHS.md)
+- [Project Notebook](/home/auro/code/parallel-n64/PROJECT_NOTES.md)
+- [Docs Index](/home/auro/code/parallel-n64/docs/README.md)
+
+## Key Working Rules
+
+- `feature off` must preserve baseline behavior unless a change clearly brings the renderer closer to N64 parity
+- `feature on` prioritizes correctness and diagnosability over apparent early coverage
+- fixture runs require evidence bundles
+- fallback and exclusion behavior must be explicit and logged
+- savestates are the authority once available; debug warps and scripted entry are acceptable earlier in the ladder
+
+## Active Repos In Scope
+
+- [parallel-n64](/home/auro/code/parallel-n64)
+- [RetroArch](/home/auro/code/RetroArch)
+- [papermario-dx](/home/auro/code/paper_mario/papermario-dx)
+
+Use [Workspace Paths](/home/auro/code/parallel-n64/docs/agent-first/WORKSPACE_PATHS.md) for the canonical local layout on this machine.
+
+## Key Repo Areas
+
+- [mupen64plus-video-paraLLEl](/home/auro/code/parallel-n64/mupen64plus-video-paraLLEl): active video-core implementation target
+- [libretro/libretro.c](/home/auro/code/parallel-n64/libretro/libretro.c): frontend/core option seam in this repo
+- [tests/emulator_behavior](/home/auro/code/parallel-n64/tests/emulator_behavior): current emulator behavior test surface
+- [tools/fixtures](/home/auro/code/parallel-n64/tools/fixtures): versioned fixture metadata
+- [tools/scenarios](/home/auro/code/parallel-n64/tools/scenarios): deterministic scenario runners
+- [tools/adapters](/home/auro/code/parallel-n64/tools/adapters): cross-repo wrapper glue
+- [artifacts](/home/auro/code/parallel-n64/artifacts): generated workflow output
+
+## Local Commands
+
+- `./run-build.sh`
+- `./run-tests.sh`
+- `./run-tests.sh --profile emu-required`
+- `./run-tests.sh --profile emu-runtime-conformance`
+- `./run-dump-tests.sh --provision-validator`
+
+See [EMU_TESTING.md](/home/auro/code/parallel-n64/docs/EMU_TESTING.md) for the current test tiers.

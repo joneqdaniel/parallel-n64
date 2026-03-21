@@ -1,42 +1,34 @@
 # Agent-First Workspace
 
-This directory is the home for cross-project planning and interface design.
+## Purpose
 
-It exists to keep agent workflow design separate from:
+- make project state, plans, decisions, and machine assumptions obvious to newly spawned agents
+- keep cross-project workflow design separate from renderer implementation details and local run output
 
-- renderer/core implementation
-- one-off shell orchestration
-- local test assets
-- frontend-specific patches
+## Read Order
 
-## Current Structure
+1. [Project State](/home/auro/code/parallel-n64/docs/agent-first/PROJECT_STATE.md)
+2. [Phase Overview](/home/auro/code/parallel-n64/docs/agent-first/plans/PHASE_OVERVIEW.md)
+3. [Workspace Paths](/home/auro/code/parallel-n64/docs/agent-first/WORKSPACE_PATHS.md)
+4. [Project Notebook](/home/auro/code/parallel-n64/PROJECT_NOTES.md)
 
-- [`PROJECT_NOTES.md`](/home/auro/code/parallel-n64/PROJECT_NOTES.md): living research notebook and running synthesis
-- [`docs/agent-first/README.md`](/home/auro/code/parallel-n64/docs/agent-first/README.md): structure and document map
-- [`docs/agent-first/WORKSPACE_PATHS.md`](/home/auro/code/parallel-n64/docs/agent-first/WORKSPACE_PATHS.md): machine-specific external repo and dependency paths
-- [`tools/scenarios/`](/home/auro/code/parallel-n64/tools/scenarios): deterministic runners and orchestration
-- [`tools/fixtures/`](/home/auro/code/parallel-n64/tools/fixtures): fixture manifests and scenario metadata
-- [`tools/adapters/`](/home/auro/code/parallel-n64/tools/adapters): wrapper glue for external repos and tools
-- [`artifacts/`](/home/auro/code/parallel-n64/artifacts): generated captures, logs, reports, and debug bundles
+## Core Docs
 
-## Intended Document Split
+- [Project State](/home/auro/code/parallel-n64/docs/agent-first/PROJECT_STATE.md): mission, status, locked decisions, corruption definition
+- [Workspace Paths](/home/auro/code/parallel-n64/docs/agent-first/WORKSPACE_PATHS.md): canonical local repo and dependency paths
+- [Plans](/home/auro/code/parallel-n64/docs/agent-first/plans/README.md): phase docs and supporting contracts
+- [Project Notebook](/home/auro/code/parallel-n64/PROJECT_NOTES.md): detailed running synthesis and research log
 
-`PROJECT_NOTES.md` stays as the running notebook for now.
+## Workflow Directories
 
-As planning hardens, material should move into focused docs here:
+- [tools/scenarios](/home/auro/code/parallel-n64/tools/scenarios): deterministic runners and orchestration
+- [tools/fixtures](/home/auro/code/parallel-n64/tools/fixtures): fixture manifests and scenario metadata
+- [tools/adapters](/home/auro/code/parallel-n64/tools/adapters): cross-repo wrapper glue
+- [artifacts](/home/auro/code/parallel-n64/artifacts): generated captures, logs, reports, and debug bundles
 
-- architecture and boundaries
-- RetroArch tooling contract
-- Paper Mario fixture matrix
-- renderer instrumentation plan
-- phased implementation plans
+## Boundary Rules
 
-## Boundary Rule
-
-Keep cross-project workflow design here.
-
-Do not put:
-
-- core-specific renderer semantics in RetroArch docs
-- game-specific scene knowledge in generic tooling adapters
-- ephemeral run output into versioned planning docs
+- keep cross-project workflow design here
+- keep renderer-specific semantics in implementation and implementation-facing docs
+- keep game-specific semantics out of generic adapters unless explicitly acting as debug-only instrumentation
+- keep generated output out of versioned planning docs

@@ -34,5 +34,8 @@ Release/
 *.htc
 *.hts
 
+# Local testing and research assets
+assets/
+
 # Local RDP dump corpus artifacts
 tests/rdp_dumps/local/*.rdp

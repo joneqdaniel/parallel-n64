@@ -8,9 +8,9 @@
 
 ## Current Status
 
-- Planning and documentation are active
-- Formal implementation has not started yet
-- The next execution phase is Phase 0
+- Phase 0 execution is active
+- Planning docs are in place and now back the implementation start
+- The first tracked fixture/scenario seed is the Paper Mario title screen scaffold
 
 ## Locked Planning Backbone
 

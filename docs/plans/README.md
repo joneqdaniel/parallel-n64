@@ -14,5 +14,5 @@
 
 ## Status
 
-- The repo is in pre-implementation planning
-- Phase 0 is the next execution target
+- Phase 0 execution is active
+- The Paper Mario title screen scaffold is the first tracked fixture/scenario seed

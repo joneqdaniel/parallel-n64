@@ -12,7 +12,7 @@ The project is being run as an agent-first workflow:
 
 ## Current Status
 
-The project is in formal planning and documentation hardening ahead of implementation.
+The project is now in Phase 0 execution.
 
 The agreed backbone is:
 
@@ -22,6 +22,7 @@ The agreed backbone is:
 
 Current validation scope is Paper Mario only.
 The first strict Phase 1 fixtures are title screen and file select.
+The first tracked Phase 0 fixture and scenario are the Paper Mario title screen scaffold.
 
 ## Start Here
 

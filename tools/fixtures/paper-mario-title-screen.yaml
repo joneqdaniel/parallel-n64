@@ -1,0 +1,56 @@
+id: paper-mario-title-screen
+game: paper_mario
+description: >
+  Baseline Paper Mario title screen fixture. This is the first strict Phase 1
+  target for proving hi-res replacement without corruption.
+
+content:
+  rom_path: assets/Paper Mario (USA).zip
+  core: parallel_n64
+  hires_pack_path: assets/PAPER MARIO_HIRESTEXTURES.hts
+
+entry:
+  method: controller_path
+  reference: title_screen
+  authority: controller_path_until_savestate_exists
+  target_state: title_screen_idle
+
+requirements:
+  assets:
+    - assets/Paper Mario (USA).zip
+    - assets/PAPER MARIO_HIRESTEXTURES.hts
+  environment:
+    - RetroArch must be available at the canonical local path in docs/WORKSPACE_PATHS.md
+
+runtime:
+  internal_scale: 4x
+  execution_mode: serial
+  display_required: true
+
+capture:
+  screenshots:
+    - title_screen
+  frames:
+    - title_screen
+  logs: true
+  memory: false
+  traces:
+    - config_snapshot
+    - fallback_reporting
+    - replacement_hit_miss_summary
+
+checks:
+  visual:
+    - title logo renders without corruption
+    - no extra dots, dithering-like breakup, or visible texture corruption
+    - baseline-off mode remains visually safe
+  telemetry:
+    - bundle includes ROM hash
+    - bundle includes hi-res pack hash when present
+    - bundle includes config snapshot
+  traces:
+    - bundle records fallback reasons when replacement is not applied
+
+notes:
+  - Authoritative savestate is still pending.
+  - This fixture should move to savestate-backed authority as soon as the first stable title-screen state exists.

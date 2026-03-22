@@ -252,6 +252,7 @@ send_retroarch_command() {
 handle_wait_status() {
   local expected_state="$1"
   local timeout_seconds="$2"
+  local expected_state_upper="${expected_state^^}"
   local deadline
   deadline=$(( $(date +%s) + $(timeout_ceiling_seconds "$timeout_seconds") ))
 
@@ -259,7 +260,7 @@ handle_wait_status() {
     local start_bytes
     start_bytes="$(log_size_bytes)"
     send_retroarch_command "GET_STATUS"
-    if wait_for_log_pattern_after "$start_bytes" "GET_STATUS $expected_state" 2; then
+    if wait_for_log_pattern_after "$start_bytes" "GET_STATUS $expected_state_upper" 2; then
       return 0
     fi
     sleep 0.2
@@ -272,6 +273,7 @@ handle_wait_status_frame() {
   local expected_state="$1"
   local min_frame="$2"
   local timeout_seconds="$3"
+  local expected_state_upper="${expected_state^^}"
   local deadline
   deadline=$(( $(date +%s) + $(timeout_ceiling_seconds "$timeout_seconds") ))
 
@@ -285,7 +287,7 @@ handle_wait_status_frame() {
       if [[ "$status_line" =~ ^GET_STATUS[[:space:]]+([^[:space:]]+).*,frame=([0-9]+)$ ]]; then
         local state="${BASH_REMATCH[1]}"
         local frame="${BASH_REMATCH[2]}"
-        if [[ "$state" == "$expected_state" ]] && (( frame >= min_frame )); then
+        if [[ "${state^^}" == "$expected_state_upper" ]] && (( frame >= min_frame )); then
           return 0
         fi
       fi

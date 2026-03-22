@@ -22,6 +22,7 @@
 - RetroArch now has an explicit stdin agent input path for per-port joypad/analog overrides
 - Repeated input probes from the authoritative title-screen state now produce byte-identical post-input captures when holding `START` through a controlled frame advance
 - RetroArch `GET_STATUS frame=` is now trustworthy as a fixture-relative frame clock for the tracked Paper Mario scenarios
+- The tracked adapter now normalizes `GET_STATUS` state matching, so scenario waits remain stable even when RetroArch logs `PAUSED` in uppercase
 - RetroArch `STEP_FRAME` is now trustworthy for long transition-heavy probes as well; the old `int8_t` cap on frame-step requests was removed after it truncated a `300`-frame save-backed gameplay probe at `127` frames
 - The tracked file-select scenario now has an authoritative savestate-backed steady-state path and still preserves the title-screen bootstrap controller path for reminting
 - Repeated file-select authoritative runs now produce byte-identical screenshots at `4x` after the 3-frame settle
@@ -35,9 +36,12 @@
 - The tracked adapter can now snapshot core memory directly into bundle traces with `SNAPSHOT_CORE_MEMORY`
 - The local RetroArch build now falls back to `RETRO_MEMORY_SYSTEM_RAM` for `READ_CORE_MEMORY` when a core does not publish a libretro memory map
 - The tracked title-screen and file-select fixtures now decode an empirical vanilla Paper Mario US `gGameStatus` slice from `0x800740aa` into `traces/paper-mario-game-status.json`
+- The Paper Mario semantic JSON now records a SHA-256 for that raw window plus an explicit empirical phase guess for the proven title-screen and file-select authorities
 - The corrected startup semantic values are stable for both tracked fixtures: `areaID=0 (AREA_KMR)`, `mapID=0`, `entryID=0`, `introPart=1`, `startupState=0`
 - A deeper savefile-backed probe now verifies deterministic long-step control from the file-select authority and settles reproducibly at `areaID=0 (AREA_KMR)`, `mapID=3`, `entryID=5`
-- That means the first save-backed gameplay transition is now semantically distinguishable from the startup/file-select fixtures, but it does not yet reach the planned `hos_05 ENTRY_3` target
+- Paper Mario decomp research now shows `LOAD_FROM_FILE_SELECT` is handled specially in `kmr_02`, and KMR map IDs are area-local indices rather than direct map suffixes
+- That means the first save-backed gameplay transition is now semantically distinguishable from the startup/file-select fixtures, but its current `area/map/entry` tuple should still be treated as a transition candidate rather than canonical scene identity, and it does not yet reach the planned `hos_05 ENTRY_3` target
+- The obvious shifted-symbol probes for deeper mode/menu state have been ruled out so far: the likely `CurGameModeID` window near `0x80195750` is zero in the tracked states, and a broad `0x80180000` region scan did not produce a valid title/file-select/world mode candidate
 - Tracked runtime scenarios now isolate save RAM inside each bundle, and savefile identity is explicit in bundle metadata instead of silently coming from `~/.config/retroarch/saves`
 - There is now an intentional helper to stage a local Paper Mario `.srm` into gitignored assets for future deeper fixtures
 - `run-build.sh` is the authoritative local build entrypoint because it carries the ParaLLEl build flags and auto-cleans when flag fingerprints change

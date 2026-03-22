@@ -75,6 +75,7 @@ scenario_decode_paper_mario_semantic_state() {
 
   python - "$bundle_dir" "$output_path" <<'PY'
 import json
+import hashlib
 import sys
 from pathlib import Path
 
@@ -115,6 +116,12 @@ AREA_NAMES = {
     25: "AREA_MGM",
     26: "AREA_GV",
     27: "AREA_TST",
+}
+
+EMPIRICAL_PHASE_BY_WINDOW_SHA256 = {
+    "db67c1ef1d1916e044bf53aded99d66adf4e776fd7438012bd7b44d618fb98eb": "title_screen_authority",
+    "220e633751b7992388351bce48f3f9f79aa17f95bf7655f1dc0bc2cd52a70cf4": "file_select_authority",
+    "d5ca8402cf1962e121653214e8f7050c769e89eb5f37b421794a3df0185e3ea9": "post_file_select_transition_candidate",
 }
 trace_path = bundle_dir / "traces" / "paper-mario-gamestatus.core-memory.txt"
 expected_base = 0x800740AA
@@ -167,6 +174,7 @@ if len(trace["data"]) < expected_size:
     )
 
 gamestatus = trace["data"]
+window_sha256 = hashlib.sha256(gamestatus).hexdigest()
 
 result = {
     "sources": {
@@ -174,10 +182,12 @@ result = {
             "path": trace["path"],
             "base_address": f"0x{trace['base_address']:08x}",
             "window_size_bytes": len(trace["data"]),
+            "window_sha256": window_sha256,
             "description": "Empirical vanilla Paper Mario US gGameStatus slice starting at +0x86.",
         }
     },
     "paper_mario_us": {
+        "empirical_phase_guess": EMPIRICAL_PHASE_BY_WINDOW_SHA256.get(window_sha256, "unknown"),
         "game_status": {
             "area_id": s16le(gamestatus, 0x00),
             "area_name": AREA_NAMES.get(s16le(gamestatus, 0x00), "UNKNOWN"),

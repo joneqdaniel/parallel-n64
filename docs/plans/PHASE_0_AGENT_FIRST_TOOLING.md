@@ -71,6 +71,7 @@
 - complete: fixed RetroArch command timing so agent commands are polled at the runloop level instead of landing too late inside `retro_run()`
 - complete: fixed the `STEP_FRAME` budget so it only decrements when a real core frame executed
 - complete: made RetroArch `GET_STATUS frame=` trustworthy as a fixture-relative frame clock for the tracked Paper Mario scenarios
+- complete: normalized adapter `GET_STATUS` state matching so tracked waits remain correct even when RetroArch logs uppercase state names such as `PAUSED`
 - complete: removed the RetroArch `STEP_FRAME` request cap caused by `run_frames_and_pause` using `int8_t`; long transition probes can now execute and verify requests larger than `127` frames exactly
 - complete: promoted the validated `START`-hold controller path into a tracked Paper Mario file-select scenario and verified repeated scenario runs produce byte-identical captures distinct from the title-screen baseline
 - complete: minted an authoritative file-select savestate from the deterministic bootstrap path and switched the steady-state file-select fixture back to `load -> settle 3 -> capture`
@@ -83,7 +84,10 @@
 - complete: added bundle-level semantic memory snapshots for tracked Paper Mario fixtures and fixed local RetroArch `READ_CORE_MEMORY` fallback for cores without libretro memory maps
 - complete: isolated save RAM inside tracked runtime bundles and added an intentional Paper Mario savefile staging helper for future deeper fixtures
 - complete: corrected the tracked Paper Mario semantic decode to use an empirical vanilla `gGameStatus` slice at `0x800740aa` with little-endian field decoding, restoring coherent startup traces for title screen and file select
+- complete: added a stable SHA-256 identity for the raw Paper Mario semantic window plus explicit empirical phase guesses for the proven title-screen and file-select authority states
 - complete: verified the first deeper save-backed transition with the corrected semantic slice; it reproducibly settles at `AREA_KMR map=3 entry=5`, which proves non-startup state transition even though it is not the planned `hos_05 ENTRY_3` target yet
+- complete: confirmed from decomp that `LOAD_FROM_FILE_SELECT` is handled specially in `kmr_02`, so the current post-file-select `area/map/entry` tuple should be treated as transition evidence, not final scene identity
+- complete: ruled out the first obvious shifted-symbol mode-state candidates; the likely `CurGameModeID` window near `0x80195750` is zero in the tracked states, and a broad `0x80180000` scan did not produce a valid title/file-select/world mode pattern
 - in progress: broaden the Paper Mario semantic trace beyond the current vanilla `gGameStatus` slice so deeper savefile-backed gameplay probes can name high-level mode/menu state and reach the planned `hos_05 ENTRY_3` authority path
 
 ## Out Of Scope

@@ -2,6 +2,8 @@
 
 This directory is for deterministic end-to-end workflows.
 
+The shared runtime contract is documented in [MODEL.md](/home/auro/code/parallel-n64/tools/scenarios/MODEL.md).
+
 Use it for:
 
 - launching RetroArch/core/content with known settings

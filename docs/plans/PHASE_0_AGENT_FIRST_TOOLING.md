@@ -75,6 +75,7 @@
 - complete: minted an authoritative file-select savestate from the deterministic bootstrap path and switched the steady-state file-select fixture back to `load -> settle 3 -> capture`
 - complete: scenario bundles now record requested/used authority mode plus active state hashes for tracked Paper Mario savestate fixtures
 - complete: added a dedicated file-select remint helper so authoritative state replacement is intentional and verified instead of ad hoc
+- complete: documented the shared scenario model and added a common scenario shell library so new fixtures inherit the same authority/bundle contract
 
 ## Out Of Scope
 

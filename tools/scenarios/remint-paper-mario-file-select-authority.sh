@@ -3,6 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "$SCRIPT_DIR/../.." && pwd)"
+source "$SCRIPT_DIR/lib/common.sh"
 RUNTIME_ENV="$SCRIPT_DIR/paper-mario-file-select.runtime.env"
 
 SAVE_OFFSET_FRAMES="2"
@@ -25,15 +26,6 @@ Notes:
   - It uses the verified bootstrap path: title-screen state -> START x 60 -> settle 2 -> save.
   - It then verifies the result with the canonical steady-state path: load -> settle 3 -> capture.
 EOF
-}
-
-sha256_file() {
-  local path="$1"
-  if command -v sha256sum >/dev/null 2>&1; then
-    sha256sum "$path" | awk '{print $1}'
-  else
-    shasum -a 256 "$path" | awk '{print $1}'
-  fi
 }
 
 while (($#)); do
@@ -142,8 +134,8 @@ if [[ -z "$VERIFY_CAPTURE" ]]; then
   exit 1
 fi
 
-VERIFY_SHA256="$(sha256_file "$VERIFY_CAPTURE")"
-OUTPUT_SHA256="$(sha256_file "$OUTPUT_PATH")"
+VERIFY_SHA256="$(scenario_sha256_file "$VERIFY_CAPTURE")"
+OUTPUT_SHA256="$(scenario_sha256_file "$OUTPUT_PATH")"
 
 echo "[remint] authoritative state sha256: $OUTPUT_SHA256"
 echo "[remint] verify capture sha256: $VERIFY_SHA256"

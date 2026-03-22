@@ -14,6 +14,7 @@ Large binary assets stay outside git.
 Reference them by stable local paths or environment variables instead of committing them here.
 
 Use [`fixture-template.yaml`](/home/auro/code/parallel-n64/tools/fixtures/fixture-template.yaml) as the starting point for new fixture definitions.
+Follow the shared scenario runtime model in [tools/scenarios/MODEL.md](/home/auro/code/parallel-n64/tools/scenarios/MODEL.md) when deciding whether a fixture is steady-state authoritative or bootstrap-driven.
 
 Current tracked fixture seeds:
 

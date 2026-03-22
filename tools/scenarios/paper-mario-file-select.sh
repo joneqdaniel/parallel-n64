@@ -3,6 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "$SCRIPT_DIR/../.." && pwd)"
+source "$SCRIPT_DIR/lib/common.sh"
 MANIFEST="$REPO_ROOT/tools/fixtures/paper-mario-file-select.yaml"
 FIXTURE_ID="paper-mario-file-select"
 MODE="off"
@@ -24,28 +25,6 @@ Options:
   --run               Reserve bundle and continue toward runtime execution
   -h, --help          Show this help
 EOF
-}
-
-sha256_file() {
-  local path="$1"
-  if [[ ! -f "$path" ]]; then
-    echo "missing"
-    return 0
-  fi
-
-  if command -v sha256sum >/dev/null 2>&1; then
-    sha256sum "$path" | awk '{print $1}'
-  else
-    shasum -a 256 "$path" | awk '{print $1}'
-  fi
-}
-
-json_bool() {
-  if [[ "$1" == "1" ]]; then
-    echo "true"
-  else
-    echo "false"
-  fi
 }
 
 while (($#)); do
@@ -91,8 +70,7 @@ while (($#)); do
 done
 
 if [[ -z "$BUNDLE_DIR" ]]; then
-  timestamp="$(date +"%Y%m%d-%H%M%S")"
-  BUNDLE_DIR="$REPO_ROOT/artifacts/$FIXTURE_ID/$MODE/$timestamp"
+  BUNDLE_DIR="$(scenario_default_bundle_dir "$REPO_ROOT" "$FIXTURE_ID" "$MODE")"
 fi
 
 ROM_PATH="$REPO_ROOT/assets/Paper Mario (USA).zip"
@@ -108,7 +86,7 @@ AUTHORITY_MODE_USED="none"
 ACTIVE_STATE_PATH=""
 ACTIVE_STATE_SHA256="missing"
 
-mkdir -p "$BUNDLE_DIR"/captures "$BUNDLE_DIR"/logs "$BUNDLE_DIR"/traces
+scenario_prepare_bundle_dirs "$BUNDLE_DIR"
 
 cat > "$BUNDLE_DIR/bundle.json" <<EOF
 {
@@ -124,9 +102,9 @@ cat > "$BUNDLE_DIR/bundle.json" <<EOF
   },
   "inputs": {
     "rom_path": "$ROM_PATH",
-    "rom_sha256": "$(sha256_file "$ROM_PATH")",
+    "rom_sha256": "$(scenario_sha256_file "$ROM_PATH")",
     "hires_pack_path": "$PACK_PATH",
-    "hires_pack_sha256": "$(sha256_file "$PACK_PATH")",
+    "hires_pack_sha256": "$(scenario_sha256_file "$PACK_PATH")",
     "retroarch_path": "$RETROARCH_PATH"
   },
   "fixture_authority": {
@@ -194,12 +172,7 @@ This bundle is a Phase 0 file-select fixture.
 Populate \`captures/\`, \`logs/\`, and \`traces/\` through the tracked scenario and adapter flow.
 EOF
 
-echo "[scenario] fixture: $FIXTURE_ID"
-echo "[scenario] mode: $MODE"
-echo "[scenario] bundle: $BUNDLE_DIR"
-echo "[scenario] manifest: $MANIFEST"
-echo "[scenario] internal scale: 4x"
-echo "[scenario] execution: serial"
+scenario_print_header "$FIXTURE_ID" "$MODE" "$BUNDLE_DIR" "$MANIFEST"
 
 if (( DRY_RUN )); then
   echo "[scenario] dry-run complete; runtime launch is intentionally deferred."
@@ -209,11 +182,11 @@ else
 
   if [[ -n "${AUTHORITATIVE_STATE_PATH:-}" && -f "${AUTHORITATIVE_STATE_PATH:-}" ]]; then
     AUTHORITATIVE_STATE_PRESENT=1
-    AUTHORITATIVE_STATE_SHA256="$(sha256_file "$AUTHORITATIVE_STATE_PATH")"
+    AUTHORITATIVE_STATE_SHA256="$(scenario_sha256_file "$AUTHORITATIVE_STATE_PATH")"
   fi
   if [[ -n "${BOOTSTRAP_STATE_PATH:-}" && -f "${BOOTSTRAP_STATE_PATH:-}" ]]; then
     BOOTSTRAP_STATE_PRESENT=1
-    BOOTSTRAP_STATE_SHA256="$(sha256_file "$BOOTSTRAP_STATE_PATH")"
+    BOOTSTRAP_STATE_SHA256="$(scenario_sha256_file "$BOOTSTRAP_STATE_PATH")"
   fi
 
   case "$AUTHORITY_MODE" in
@@ -254,8 +227,8 @@ else
   mkdir -p "$BUNDLE_DIR/states/ParaLLEl N64"
   cp "$ACTIVE_STATE_PATH" "$BUNDLE_DIR/states/ParaLLEl N64/Paper Mario (USA).state"
 
-  perl -0pi -e 's|"authority_mode_used": "none"|"authority_mode_used": "'"${AUTHORITY_MODE_USED:-none}"'"|g; s|"authoritative_state_path": ""|"authoritative_state_path": "'"${AUTHORITATIVE_STATE_PATH:-}"'"|g; s|"authoritative_state_present": false|"authoritative_state_present": '"$(json_bool "$AUTHORITATIVE_STATE_PRESENT")"'|g; s|"authoritative_state_sha256": "missing"|"authoritative_state_sha256": "'"${AUTHORITATIVE_STATE_SHA256:-missing}"'"|g; s|"bootstrap_state_path": ""|"bootstrap_state_path": "'"${BOOTSTRAP_STATE_PATH:-}"'"|g; s|"bootstrap_state_present": false|"bootstrap_state_present": '"$(json_bool "$BOOTSTRAP_STATE_PRESENT")"'|g; s|"bootstrap_state_sha256": "missing"|"bootstrap_state_sha256": "'"${BOOTSTRAP_STATE_SHA256:-missing}"'"|g; s|"active_state_path": ""|"active_state_path": "'"${ACTIVE_STATE_PATH:-}"'"|g; s|"active_state_sha256": "missing"|"active_state_sha256": "'"${ACTIVE_STATE_SHA256:-missing}"'"|g; s|"post_load_settle_frames": 0|"post_load_settle_frames": '"${POST_LOAD_SETTLE_FRAMES:-0}"'|g; s|"start_mask": ""|"start_mask": "'"${FILE_SELECT_START_MASK:-}"'"|g; s|"start_hold_frames": 0|"start_hold_frames": '"${FILE_SELECT_START_HOLD_FRAMES:-0}"'|g; s|"post_input_settle_frames": 0|"post_input_settle_frames": '"${POST_INPUT_SETTLE_FRAMES:-0}"'|g' "$BUNDLE_DIR/bundle.json"
-  perl -0pi -e 's|AUTHORITY_MODE_USED=none|AUTHORITY_MODE_USED='"${AUTHORITY_MODE_USED:-none}"'|g; s|AUTHORITATIVE_STATE_PATH=|AUTHORITATIVE_STATE_PATH='"${AUTHORITATIVE_STATE_PATH:-}"'|g; s|AUTHORITATIVE_STATE_PRESENT=0|AUTHORITATIVE_STATE_PRESENT='"$AUTHORITATIVE_STATE_PRESENT"'|g; s|AUTHORITATIVE_STATE_SHA256=missing|AUTHORITATIVE_STATE_SHA256='"${AUTHORITATIVE_STATE_SHA256:-missing}"'|g; s|BOOTSTRAP_STATE_PATH=|BOOTSTRAP_STATE_PATH='"${BOOTSTRAP_STATE_PATH:-}"'|g; s|BOOTSTRAP_STATE_PRESENT=0|BOOTSTRAP_STATE_PRESENT='"$BOOTSTRAP_STATE_PRESENT"'|g; s|BOOTSTRAP_STATE_SHA256=missing|BOOTSTRAP_STATE_SHA256='"${BOOTSTRAP_STATE_SHA256:-missing}"'|g; s|ACTIVE_STATE_PATH=|ACTIVE_STATE_PATH='"${ACTIVE_STATE_PATH:-}"'|g; s|ACTIVE_STATE_SHA256=missing|ACTIVE_STATE_SHA256='"${ACTIVE_STATE_SHA256:-missing}"'|g; s|POST_LOAD_SETTLE_FRAMES=0|POST_LOAD_SETTLE_FRAMES='"${POST_LOAD_SETTLE_FRAMES:-0}"'|g; s|FILE_SELECT_START_MASK=|FILE_SELECT_START_MASK='"${FILE_SELECT_START_MASK:-}"'|g; s|FILE_SELECT_START_HOLD_FRAMES=0|FILE_SELECT_START_HOLD_FRAMES='"${FILE_SELECT_START_HOLD_FRAMES:-0}"'|g; s|POST_INPUT_SETTLE_FRAMES=0|POST_INPUT_SETTLE_FRAMES='"${POST_INPUT_SETTLE_FRAMES:-0}"'|g' "$BUNDLE_DIR/config.env"
+  scenario_patch_file "$BUNDLE_DIR/bundle.json" 's|"authority_mode_used": "none"|"authority_mode_used": "'"${AUTHORITY_MODE_USED:-none}"'"|g; s|"authoritative_state_path": ""|"authoritative_state_path": "'"${AUTHORITATIVE_STATE_PATH:-}"'"|g; s|"authoritative_state_present": false|"authoritative_state_present": '"$(scenario_json_bool "$AUTHORITATIVE_STATE_PRESENT")"'|g; s|"authoritative_state_sha256": "missing"|"authoritative_state_sha256": "'"${AUTHORITATIVE_STATE_SHA256:-missing}"'"|g; s|"bootstrap_state_path": ""|"bootstrap_state_path": "'"${BOOTSTRAP_STATE_PATH:-}"'"|g; s|"bootstrap_state_present": false|"bootstrap_state_present": '"$(scenario_json_bool "$BOOTSTRAP_STATE_PRESENT")"'|g; s|"bootstrap_state_sha256": "missing"|"bootstrap_state_sha256": "'"${BOOTSTRAP_STATE_SHA256:-missing}"'"|g; s|"active_state_path": ""|"active_state_path": "'"${ACTIVE_STATE_PATH:-}"'"|g; s|"active_state_sha256": "missing"|"active_state_sha256": "'"${ACTIVE_STATE_SHA256:-missing}"'"|g; s|"post_load_settle_frames": 0|"post_load_settle_frames": '"${POST_LOAD_SETTLE_FRAMES:-0}"'|g; s|"start_mask": ""|"start_mask": "'"${FILE_SELECT_START_MASK:-}"'"|g; s|"start_hold_frames": 0|"start_hold_frames": '"${FILE_SELECT_START_HOLD_FRAMES:-0}"'|g; s|"post_input_settle_frames": 0|"post_input_settle_frames": '"${POST_INPUT_SETTLE_FRAMES:-0}"'|g'
+  scenario_patch_file "$BUNDLE_DIR/config.env" 's|AUTHORITY_MODE_USED=none|AUTHORITY_MODE_USED='"${AUTHORITY_MODE_USED:-none}"'|g; s|AUTHORITATIVE_STATE_PATH=|AUTHORITATIVE_STATE_PATH='"${AUTHORITATIVE_STATE_PATH:-}"'|g; s|AUTHORITATIVE_STATE_PRESENT=0|AUTHORITATIVE_STATE_PRESENT='"$AUTHORITATIVE_STATE_PRESENT"'|g; s|AUTHORITATIVE_STATE_SHA256=missing|AUTHORITATIVE_STATE_SHA256='"${AUTHORITATIVE_STATE_SHA256:-missing}"'|g; s|BOOTSTRAP_STATE_PATH=|BOOTSTRAP_STATE_PATH='"${BOOTSTRAP_STATE_PATH:-}"'|g; s|BOOTSTRAP_STATE_PRESENT=0|BOOTSTRAP_STATE_PRESENT='"$BOOTSTRAP_STATE_PRESENT"'|g; s|BOOTSTRAP_STATE_SHA256=missing|BOOTSTRAP_STATE_SHA256='"${BOOTSTRAP_STATE_SHA256:-missing}"'|g; s|ACTIVE_STATE_PATH=|ACTIVE_STATE_PATH='"${ACTIVE_STATE_PATH:-}"'|g; s|ACTIVE_STATE_SHA256=missing|ACTIVE_STATE_SHA256='"${ACTIVE_STATE_SHA256:-missing}"'|g; s|POST_LOAD_SETTLE_FRAMES=0|POST_LOAD_SETTLE_FRAMES='"${POST_LOAD_SETTLE_FRAMES:-0}"'|g; s|FILE_SELECT_START_MASK=|FILE_SELECT_START_MASK='"${FILE_SELECT_START_MASK:-}"'|g; s|FILE_SELECT_START_HOLD_FRAMES=0|FILE_SELECT_START_HOLD_FRAMES='"${FILE_SELECT_START_HOLD_FRAMES:-0}"'|g; s|POST_INPUT_SETTLE_FRAMES=0|POST_INPUT_SETTLE_FRAMES='"${POST_INPUT_SETTLE_FRAMES:-0}"'|g'
 
   if [[ "$AUTHORITY_MODE_USED" == "authoritative" ]]; then
     "$REPO_ROOT/tools/adapters/retroarch_stdin_session.sh" \

@@ -26,6 +26,8 @@
 - Repeated file-select authoritative runs now produce byte-identical screenshots at `4x` after the 3-frame settle
 - The canonical Paper Mario fixture workflow is now `load state -> settle 3 frames -> screenshot`; controller scripting is the bootstrap path for minting new authoritative states
 - The current authoritative file-select state was minted from the deterministic bootstrap path at save offset `2`
+- Tracked Paper Mario scenario bundles now record requested/used authority mode and active state hashes
+- There is now a dedicated file-select remint helper for intentionally rebuilding the authoritative state from the bootstrap path
 - `run-build.sh` is the authoritative local build entrypoint because it carries the ParaLLEl build flags and auto-cleans when flag fingerprints change
 
 ## Locked Planning Backbone

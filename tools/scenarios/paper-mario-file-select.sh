@@ -6,6 +6,7 @@ REPO_ROOT="$(cd -- "$SCRIPT_DIR/../.." && pwd)"
 MANIFEST="$REPO_ROOT/tools/fixtures/paper-mario-file-select.yaml"
 FIXTURE_ID="paper-mario-file-select"
 MODE="off"
+AUTHORITY_MODE="auto"
 DRY_RUN=1
 BUNDLE_DIR=""
 RUNTIME_ENV="$SCRIPT_DIR/paper-mario-file-select.runtime.env"
@@ -17,6 +18,8 @@ Usage:
 
 Options:
   --mode off|on       Evidence bundle mode label (default: off)
+  --authority-mode auto|authoritative|bootstrap
+                      State selection mode (default: auto)
   --bundle-dir PATH   Output bundle directory
   --run               Reserve bundle and continue toward runtime execution
   -h, --help          Show this help
@@ -55,6 +58,14 @@ while (($#)); do
         exit 2
       fi
       ;;
+    --authority-mode)
+      shift
+      AUTHORITY_MODE="${1:-}"
+      if [[ "$AUTHORITY_MODE" != "auto" && "$AUTHORITY_MODE" != "authoritative" && "$AUTHORITY_MODE" != "bootstrap" ]]; then
+        echo "--authority-mode must be 'auto', 'authoritative', or 'bootstrap'." >&2
+        exit 2
+      fi
+      ;;
     --bundle-dir)
       shift
       BUNDLE_DIR="${1:-}"
@@ -89,8 +100,13 @@ PACK_PATH="$REPO_ROOT/assets/PAPER MARIO_HIRESTEXTURES.hts"
 RETROARCH_PATH="/home/auro/code/RetroArch"
 AUTHORITATIVE_STATE_PATH=""
 AUTHORITATIVE_STATE_PRESENT=0
+AUTHORITATIVE_STATE_SHA256="missing"
 BOOTSTRAP_STATE_PATH=""
 BOOTSTRAP_STATE_PRESENT=0
+BOOTSTRAP_STATE_SHA256="missing"
+AUTHORITY_MODE_USED="none"
+ACTIVE_STATE_PATH=""
+ACTIVE_STATE_SHA256="missing"
 
 mkdir -p "$BUNDLE_DIR"/captures "$BUNDLE_DIR"/logs "$BUNDLE_DIR"/traces
 
@@ -114,10 +130,16 @@ cat > "$BUNDLE_DIR/bundle.json" <<EOF
     "retroarch_path": "$RETROARCH_PATH"
   },
   "fixture_authority": {
+    "authority_mode_requested": "$AUTHORITY_MODE",
+    "authority_mode_used": "none",
     "authoritative_state_path": "",
     "authoritative_state_present": false,
+    "authoritative_state_sha256": "missing",
     "bootstrap_state_path": "",
     "bootstrap_state_present": false,
+    "bootstrap_state_sha256": "missing",
+    "active_state_path": "",
+    "active_state_sha256": "missing",
     "post_load_settle_frames": 0
   },
   "controller_script": {
@@ -140,10 +162,16 @@ MANIFEST_PATH=$MANIFEST
 ROM_PATH=$ROM_PATH
 HIRES_PACK_PATH=$PACK_PATH
 RETROARCH_PATH=$RETROARCH_PATH
+AUTHORITY_MODE_REQUESTED=$AUTHORITY_MODE
+AUTHORITY_MODE_USED=none
 AUTHORITATIVE_STATE_PATH=
 AUTHORITATIVE_STATE_PRESENT=0
+AUTHORITATIVE_STATE_SHA256=missing
 BOOTSTRAP_STATE_PATH=
 BOOTSTRAP_STATE_PRESENT=0
+BOOTSTRAP_STATE_SHA256=missing
+ACTIVE_STATE_PATH=
+ACTIVE_STATE_SHA256=missing
 POST_LOAD_SETTLE_FRAMES=0
 FILE_SELECT_START_MASK=
 FILE_SELECT_START_HOLD_FRAMES=0
@@ -181,17 +209,55 @@ else
 
   if [[ -n "${AUTHORITATIVE_STATE_PATH:-}" && -f "${AUTHORITATIVE_STATE_PATH:-}" ]]; then
     AUTHORITATIVE_STATE_PRESENT=1
-    mkdir -p "$BUNDLE_DIR/states/ParaLLEl N64"
-    cp "$AUTHORITATIVE_STATE_PATH" "$BUNDLE_DIR/states/ParaLLEl N64/Paper Mario (USA).state"
+    AUTHORITATIVE_STATE_SHA256="$(sha256_file "$AUTHORITATIVE_STATE_PATH")"
   fi
   if [[ -n "${BOOTSTRAP_STATE_PATH:-}" && -f "${BOOTSTRAP_STATE_PATH:-}" ]]; then
     BOOTSTRAP_STATE_PRESENT=1
+    BOOTSTRAP_STATE_SHA256="$(sha256_file "$BOOTSTRAP_STATE_PATH")"
   fi
 
-  perl -0pi -e 's|"authoritative_state_path": ""|"authoritative_state_path": "'"${AUTHORITATIVE_STATE_PATH:-}"'"|g; s|"authoritative_state_present": false|"authoritative_state_present": '"$(json_bool "$AUTHORITATIVE_STATE_PRESENT")"'|g; s|"bootstrap_state_path": ""|"bootstrap_state_path": "'"${BOOTSTRAP_STATE_PATH:-}"'"|g; s|"bootstrap_state_present": false|"bootstrap_state_present": '"$(json_bool "$BOOTSTRAP_STATE_PRESENT")"'|g; s|"post_load_settle_frames": 0|"post_load_settle_frames": '"${POST_LOAD_SETTLE_FRAMES:-0}"'|g; s|"start_mask": ""|"start_mask": "'"${FILE_SELECT_START_MASK:-}"'"|g; s|"start_hold_frames": 0|"start_hold_frames": '"${FILE_SELECT_START_HOLD_FRAMES:-0}"'|g; s|"post_input_settle_frames": 0|"post_input_settle_frames": '"${POST_INPUT_SETTLE_FRAMES:-0}"'|g' "$BUNDLE_DIR/bundle.json"
-  perl -0pi -e 's|AUTHORITATIVE_STATE_PATH=|AUTHORITATIVE_STATE_PATH='"${AUTHORITATIVE_STATE_PATH:-}"'|g; s|AUTHORITATIVE_STATE_PRESENT=0|AUTHORITATIVE_STATE_PRESENT='"$AUTHORITATIVE_STATE_PRESENT"'|g; s|BOOTSTRAP_STATE_PATH=|BOOTSTRAP_STATE_PATH='"${BOOTSTRAP_STATE_PATH:-}"'|g; s|BOOTSTRAP_STATE_PRESENT=0|BOOTSTRAP_STATE_PRESENT='"$BOOTSTRAP_STATE_PRESENT"'|g; s|POST_LOAD_SETTLE_FRAMES=0|POST_LOAD_SETTLE_FRAMES='"${POST_LOAD_SETTLE_FRAMES:-0}"'|g; s|FILE_SELECT_START_MASK=|FILE_SELECT_START_MASK='"${FILE_SELECT_START_MASK:-}"'|g; s|FILE_SELECT_START_HOLD_FRAMES=0|FILE_SELECT_START_HOLD_FRAMES='"${FILE_SELECT_START_HOLD_FRAMES:-0}"'|g; s|POST_INPUT_SETTLE_FRAMES=0|POST_INPUT_SETTLE_FRAMES='"${POST_INPUT_SETTLE_FRAMES:-0}"'|g' "$BUNDLE_DIR/config.env"
+  case "$AUTHORITY_MODE" in
+    authoritative)
+      if (( ! AUTHORITATIVE_STATE_PRESENT )); then
+        echo "[scenario] authoritative Paper Mario file-select state is required." >&2
+        exit 1
+      fi
+      AUTHORITY_MODE_USED="authoritative"
+      ACTIVE_STATE_PATH="$AUTHORITATIVE_STATE_PATH"
+      ACTIVE_STATE_SHA256="$AUTHORITATIVE_STATE_SHA256"
+      ;;
+    bootstrap)
+      if (( ! BOOTSTRAP_STATE_PRESENT )); then
+        echo "[scenario] bootstrap Paper Mario title-screen state is required." >&2
+        exit 1
+      fi
+      AUTHORITY_MODE_USED="bootstrap"
+      ACTIVE_STATE_PATH="$BOOTSTRAP_STATE_PATH"
+      ACTIVE_STATE_SHA256="$BOOTSTRAP_STATE_SHA256"
+      ;;
+    auto)
+      if (( AUTHORITATIVE_STATE_PRESENT )); then
+        AUTHORITY_MODE_USED="authoritative"
+        ACTIVE_STATE_PATH="$AUTHORITATIVE_STATE_PATH"
+        ACTIVE_STATE_SHA256="$AUTHORITATIVE_STATE_SHA256"
+      elif (( BOOTSTRAP_STATE_PRESENT )); then
+        AUTHORITY_MODE_USED="bootstrap"
+        ACTIVE_STATE_PATH="$BOOTSTRAP_STATE_PATH"
+        ACTIVE_STATE_SHA256="$BOOTSTRAP_STATE_SHA256"
+      else
+        echo "[scenario] authoritative or bootstrap Paper Mario state is required for the file-select fixture." >&2
+        exit 1
+      fi
+      ;;
+  esac
 
-  if (( AUTHORITATIVE_STATE_PRESENT )); then
+  mkdir -p "$BUNDLE_DIR/states/ParaLLEl N64"
+  cp "$ACTIVE_STATE_PATH" "$BUNDLE_DIR/states/ParaLLEl N64/Paper Mario (USA).state"
+
+  perl -0pi -e 's|"authority_mode_used": "none"|"authority_mode_used": "'"${AUTHORITY_MODE_USED:-none}"'"|g; s|"authoritative_state_path": ""|"authoritative_state_path": "'"${AUTHORITATIVE_STATE_PATH:-}"'"|g; s|"authoritative_state_present": false|"authoritative_state_present": '"$(json_bool "$AUTHORITATIVE_STATE_PRESENT")"'|g; s|"authoritative_state_sha256": "missing"|"authoritative_state_sha256": "'"${AUTHORITATIVE_STATE_SHA256:-missing}"'"|g; s|"bootstrap_state_path": ""|"bootstrap_state_path": "'"${BOOTSTRAP_STATE_PATH:-}"'"|g; s|"bootstrap_state_present": false|"bootstrap_state_present": '"$(json_bool "$BOOTSTRAP_STATE_PRESENT")"'|g; s|"bootstrap_state_sha256": "missing"|"bootstrap_state_sha256": "'"${BOOTSTRAP_STATE_SHA256:-missing}"'"|g; s|"active_state_path": ""|"active_state_path": "'"${ACTIVE_STATE_PATH:-}"'"|g; s|"active_state_sha256": "missing"|"active_state_sha256": "'"${ACTIVE_STATE_SHA256:-missing}"'"|g; s|"post_load_settle_frames": 0|"post_load_settle_frames": '"${POST_LOAD_SETTLE_FRAMES:-0}"'|g; s|"start_mask": ""|"start_mask": "'"${FILE_SELECT_START_MASK:-}"'"|g; s|"start_hold_frames": 0|"start_hold_frames": '"${FILE_SELECT_START_HOLD_FRAMES:-0}"'|g; s|"post_input_settle_frames": 0|"post_input_settle_frames": '"${POST_INPUT_SETTLE_FRAMES:-0}"'|g' "$BUNDLE_DIR/bundle.json"
+  perl -0pi -e 's|AUTHORITY_MODE_USED=none|AUTHORITY_MODE_USED='"${AUTHORITY_MODE_USED:-none}"'|g; s|AUTHORITATIVE_STATE_PATH=|AUTHORITATIVE_STATE_PATH='"${AUTHORITATIVE_STATE_PATH:-}"'|g; s|AUTHORITATIVE_STATE_PRESENT=0|AUTHORITATIVE_STATE_PRESENT='"$AUTHORITATIVE_STATE_PRESENT"'|g; s|AUTHORITATIVE_STATE_SHA256=missing|AUTHORITATIVE_STATE_SHA256='"${AUTHORITATIVE_STATE_SHA256:-missing}"'|g; s|BOOTSTRAP_STATE_PATH=|BOOTSTRAP_STATE_PATH='"${BOOTSTRAP_STATE_PATH:-}"'|g; s|BOOTSTRAP_STATE_PRESENT=0|BOOTSTRAP_STATE_PRESENT='"$BOOTSTRAP_STATE_PRESENT"'|g; s|BOOTSTRAP_STATE_SHA256=missing|BOOTSTRAP_STATE_SHA256='"${BOOTSTRAP_STATE_SHA256:-missing}"'|g; s|ACTIVE_STATE_PATH=|ACTIVE_STATE_PATH='"${ACTIVE_STATE_PATH:-}"'|g; s|ACTIVE_STATE_SHA256=missing|ACTIVE_STATE_SHA256='"${ACTIVE_STATE_SHA256:-missing}"'|g; s|POST_LOAD_SETTLE_FRAMES=0|POST_LOAD_SETTLE_FRAMES='"${POST_LOAD_SETTLE_FRAMES:-0}"'|g; s|FILE_SELECT_START_MASK=|FILE_SELECT_START_MASK='"${FILE_SELECT_START_MASK:-}"'|g; s|FILE_SELECT_START_HOLD_FRAMES=0|FILE_SELECT_START_HOLD_FRAMES='"${FILE_SELECT_START_HOLD_FRAMES:-0}"'|g; s|POST_INPUT_SETTLE_FRAMES=0|POST_INPUT_SETTLE_FRAMES='"${POST_INPUT_SETTLE_FRAMES:-0}"'|g' "$BUNDLE_DIR/config.env"
+
+  if [[ "$AUTHORITY_MODE_USED" == "authoritative" ]]; then
     "$REPO_ROOT/tools/adapters/retroarch_stdin_session.sh" \
       --bundle-dir "$BUNDLE_DIR" \
       --mode "$MODE" \
@@ -208,14 +274,6 @@ else
       --command "WAIT_NEW_CAPTURE 10" \
       --command "QUIT"
   else
-    if (( ! BOOTSTRAP_STATE_PRESENT )); then
-      echo "[scenario] authoritative or bootstrap Paper Mario state is required for the file-select fixture." >&2
-      exit 1
-    fi
-
-    mkdir -p "$BUNDLE_DIR/states/ParaLLEl N64"
-    cp "$BOOTSTRAP_STATE_PATH" "$BUNDLE_DIR/states/ParaLLEl N64/Paper Mario (USA).state"
-
     post_load_target=$(( POST_LOAD_SETTLE_FRAMES ))
     post_input_target=$(( POST_LOAD_SETTLE_FRAMES + FILE_SELECT_START_HOLD_FRAMES ))
     final_target=$(( post_input_target + POST_INPUT_SETTLE_FRAMES ))

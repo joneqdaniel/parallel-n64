@@ -48,6 +48,7 @@ checks:
     - bundle includes ROM hash
     - bundle includes hi-res pack hash when present
     - bundle includes config snapshot
+    - bundle includes the active authority mode and active state hash
   traces:
     - bundle records fallback reasons when replacement is not applied
 

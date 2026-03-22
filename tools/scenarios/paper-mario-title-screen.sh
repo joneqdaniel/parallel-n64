@@ -6,6 +6,7 @@ REPO_ROOT="$(cd -- "$SCRIPT_DIR/../.." && pwd)"
 MANIFEST="$REPO_ROOT/tools/fixtures/paper-mario-title-screen.yaml"
 FIXTURE_ID="paper-mario-title-screen"
 MODE="off"
+AUTHORITY_MODE="auto"
 DRY_RUN=1
 BUNDLE_DIR=""
 RUNTIME_ENV="$SCRIPT_DIR/paper-mario-title-screen.runtime.env"
@@ -17,6 +18,8 @@ Usage:
 
 Options:
   --mode off|on       Evidence bundle mode label (default: off)
+  --authority-mode auto|authoritative
+                      State selection mode (default: auto)
   --bundle-dir PATH   Output bundle directory
   --run               Reserve bundle and continue toward runtime execution
   -h, --help          Show this help
@@ -60,6 +63,14 @@ while (($#)); do
         exit 2
       fi
       ;;
+    --authority-mode)
+      shift
+      AUTHORITY_MODE="${1:-}"
+      if [[ "$AUTHORITY_MODE" != "auto" && "$AUTHORITY_MODE" != "authoritative" ]]; then
+        echo "--authority-mode must be 'auto' or 'authoritative'." >&2
+        exit 2
+      fi
+      ;;
     --bundle-dir)
       shift
       BUNDLE_DIR="${1:-}"
@@ -94,6 +105,8 @@ PACK_PATH="$REPO_ROOT/assets/PAPER MARIO_HIRESTEXTURES.hts"
 RETROARCH_PATH="/home/auro/code/RetroArch"
 AUTHORITATIVE_STATE_PATH=""
 AUTHORITATIVE_STATE_PRESENT=0
+AUTHORITATIVE_STATE_SHA256="missing"
+AUTHORITY_MODE_USED="none"
 
 mkdir -p "$BUNDLE_DIR"/captures "$BUNDLE_DIR"/logs "$BUNDLE_DIR"/traces
 
@@ -117,8 +130,13 @@ cat > "$BUNDLE_DIR/bundle.json" <<EOF
     "retroarch_path": "$RETROARCH_PATH"
   },
   "fixture_authority": {
+    "authority_mode_requested": "$AUTHORITY_MODE",
+    "authority_mode_used": "none",
     "authoritative_state_path": "",
     "authoritative_state_present": false,
+    "authoritative_state_sha256": "missing",
+    "active_state_path": "",
+    "active_state_sha256": "missing",
     "post_load_settle_frames": 0
   },
   "status": {
@@ -136,8 +154,13 @@ MANIFEST_PATH=$MANIFEST
 ROM_PATH=$ROM_PATH
 HIRES_PACK_PATH=$PACK_PATH
 RETROARCH_PATH=$RETROARCH_PATH
+AUTHORITY_MODE_REQUESTED=$AUTHORITY_MODE
+AUTHORITY_MODE_USED=none
 AUTHORITATIVE_STATE_PATH=
 AUTHORITATIVE_STATE_PRESENT=0
+AUTHORITATIVE_STATE_SHA256=missing
+ACTIVE_STATE_PATH=
+ACTIVE_STATE_SHA256=missing
 POST_LOAD_SETTLE_FRAMES=0
 INTERNAL_SCALE=4x
 SERIAL_EXECUTION=1
@@ -172,13 +195,19 @@ else
 
   if [[ -n "${AUTHORITATIVE_STATE_PATH:-}" && -f "${AUTHORITATIVE_STATE_PATH:-}" ]]; then
     AUTHORITATIVE_STATE_PRESENT=1
+    AUTHORITATIVE_STATE_SHA256="$(sha256_file "$AUTHORITATIVE_STATE_PATH")"
     mkdir -p "$BUNDLE_DIR/states/ParaLLEl N64"
     cp "$AUTHORITATIVE_STATE_PATH" "$BUNDLE_DIR/states/ParaLLEl N64/Paper Mario (USA).state"
+    AUTHORITY_MODE_USED="authoritative"
   fi
 
-  perl -0pi -e 's|"authoritative_state_path": ""|"authoritative_state_path": "'"${AUTHORITATIVE_STATE_PATH:-}"'"|g; s|"authoritative_state_present": false|"authoritative_state_present": '"$(json_bool "$AUTHORITATIVE_STATE_PRESENT")"'|g' "$BUNDLE_DIR/bundle.json"
-  perl -0pi -e 's|"post_load_settle_frames": 0|"post_load_settle_frames": '"${POST_LOAD_SETTLE_FRAMES:-0}"'|g' "$BUNDLE_DIR/bundle.json"
-  perl -0pi -e 's|AUTHORITATIVE_STATE_PATH=|AUTHORITATIVE_STATE_PATH='"${AUTHORITATIVE_STATE_PATH:-}"'|g; s|AUTHORITATIVE_STATE_PRESENT=0|AUTHORITATIVE_STATE_PRESENT='"$AUTHORITATIVE_STATE_PRESENT"'|g; s|POST_LOAD_SETTLE_FRAMES=0|POST_LOAD_SETTLE_FRAMES='"${POST_LOAD_SETTLE_FRAMES:-0}"'|g' "$BUNDLE_DIR/config.env"
+  if [[ "$AUTHORITY_MODE" == "authoritative" && "$AUTHORITATIVE_STATE_PRESENT" != "1" ]]; then
+    echo "[scenario] authoritative title-screen state is required." >&2
+    exit 1
+  fi
+
+  perl -0pi -e 's|"authority_mode_used": "none"|"authority_mode_used": "'"${AUTHORITY_MODE_USED:-none}"'"|g; s|"authoritative_state_path": ""|"authoritative_state_path": "'"${AUTHORITATIVE_STATE_PATH:-}"'"|g; s|"authoritative_state_present": false|"authoritative_state_present": '"$(json_bool "$AUTHORITATIVE_STATE_PRESENT")"'|g; s|"authoritative_state_sha256": "missing"|"authoritative_state_sha256": "'"${AUTHORITATIVE_STATE_SHA256:-missing}"'"|g; s|"active_state_path": ""|"active_state_path": "'"${AUTHORITATIVE_STATE_PATH:-}"'"|g; s|"active_state_sha256": "missing"|"active_state_sha256": "'"${AUTHORITATIVE_STATE_SHA256:-missing}"'"|g; s|"post_load_settle_frames": 0|"post_load_settle_frames": '"${POST_LOAD_SETTLE_FRAMES:-0}"'|g' "$BUNDLE_DIR/bundle.json"
+  perl -0pi -e 's|AUTHORITY_MODE_USED=none|AUTHORITY_MODE_USED='"${AUTHORITY_MODE_USED:-none}"'|g; s|AUTHORITATIVE_STATE_PATH=|AUTHORITATIVE_STATE_PATH='"${AUTHORITATIVE_STATE_PATH:-}"'|g; s|AUTHORITATIVE_STATE_PRESENT=0|AUTHORITATIVE_STATE_PRESENT='"$AUTHORITATIVE_STATE_PRESENT"'|g; s|AUTHORITATIVE_STATE_SHA256=missing|AUTHORITATIVE_STATE_SHA256='"${AUTHORITATIVE_STATE_SHA256:-missing}"'|g; s|ACTIVE_STATE_PATH=|ACTIVE_STATE_PATH='"${AUTHORITATIVE_STATE_PATH:-}"'|g; s|ACTIVE_STATE_SHA256=missing|ACTIVE_STATE_SHA256='"${AUTHORITATIVE_STATE_SHA256:-missing}"'|g; s|POST_LOAD_SETTLE_FRAMES=0|POST_LOAD_SETTLE_FRAMES='"${POST_LOAD_SETTLE_FRAMES:-0}"'|g' "$BUNDLE_DIR/config.env"
 
   declare -a runtime_commands
   runtime_commands=(

@@ -24,6 +24,7 @@ Current tracked scenario seeds:
 - [`paper-mario-title-screen.runtime.env`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-title-screen.runtime.env)
 - [`paper-mario-file-select.sh`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-file-select.sh)
 - [`paper-mario-file-select.runtime.env`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-file-select.runtime.env)
+- [`remint-paper-mario-file-select-authority.sh`](/home/auro/code/parallel-n64/tools/scenarios/remint-paper-mario-file-select-authority.sh)
 
 Current Paper Mario runtime note:
 
@@ -33,3 +34,4 @@ Current Paper Mario runtime note:
 - the tracked title-screen and file-select scenarios now use a trustworthy fixture-relative `frame=` clock
 - the canonical steady-state Paper Mario workflow is `load savestate -> settle 3 frames -> capture`
 - controller scripts remain in the repo as bootstrap paths for minting or replacing authoritative savestates
+- the file-select remint helper intentionally rebuilds the authoritative state from the bootstrap path and verifies it against the canonical capture hash

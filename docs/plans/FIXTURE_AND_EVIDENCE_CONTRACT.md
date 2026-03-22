@@ -24,6 +24,7 @@ Each fixture is defined by:
 - feature/config snapshot
 - ROM hash
 - savestate hash when present
+- active authority mode and active state hash
 - hi-res pack hash when present
 - log output relevant to the run
 - replacement hit/miss or fallback reporting when present

@@ -73,6 +73,8 @@
 - complete: made RetroArch `GET_STATUS frame=` trustworthy as a fixture-relative frame clock for the tracked Paper Mario scenarios
 - complete: promoted the validated `START`-hold controller path into a tracked Paper Mario file-select scenario and verified repeated scenario runs produce byte-identical captures distinct from the title-screen baseline
 - complete: minted an authoritative file-select savestate from the deterministic bootstrap path and switched the steady-state file-select fixture back to `load -> settle 3 -> capture`
+- complete: scenario bundles now record requested/used authority mode plus active state hashes for tracked Paper Mario savestate fixtures
+- complete: added a dedicated file-select remint helper so authoritative state replacement is intentional and verified instead of ad hoc
 
 ## Out Of Scope
 

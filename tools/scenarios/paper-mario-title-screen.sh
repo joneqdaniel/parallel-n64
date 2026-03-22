@@ -93,6 +93,9 @@ PAPER_MARIO_SEMANTIC_JSON_REL="traces/paper-mario-game-status.json"
 SAVEFILE_PATH=""
 SAVEFILE_PRESENT=0
 SAVEFILE_SHA256="missing"
+EXPECTED_SCREENSHOT_SHA256=""
+EXPECTED_INIT_SYMBOL=""
+EXPECTED_STEP_SYMBOL=""
 
 scenario_prepare_bundle_dirs "$BUNDLE_DIR"
 
@@ -188,6 +191,11 @@ else
   # shellcheck disable=SC1090
   source "$RUNTIME_ENV"
 
+  VERIFY_SCREENSHOT_SHA256=""
+  if [[ "$MODE" == "off" ]]; then
+    VERIFY_SCREENSHOT_SHA256="${EXPECTED_SCREENSHOT_SHA256:-}"
+  fi
+
   if [[ -n "${AUTHORITATIVE_STATE_PATH:-}" && -f "${AUTHORITATIVE_STATE_PATH:-}" ]]; then
     AUTHORITATIVE_STATE_PRESENT=1
     AUTHORITATIVE_STATE_SHA256="$(scenario_sha256_file "$AUTHORITATIVE_STATE_PATH")"
@@ -211,12 +219,11 @@ else
   scenario_patch_file "$BUNDLE_DIR/config.env" 's|SAVEFILE_PATH=|SAVEFILE_PATH='"${SAVEFILE_PATH:-}"'|g; s|SAVEFILE_PRESENT=0|SAVEFILE_PRESENT='"$SAVEFILE_PRESENT"'|g; s|SAVEFILE_SHA256=missing|SAVEFILE_SHA256='"${SAVEFILE_SHA256:-missing}"'|g; s|AUTHORITY_MODE_USED=none|AUTHORITY_MODE_USED='"${AUTHORITY_MODE_USED:-none}"'|g; s|BOOTSTRAP_PARENT_FIXTURE_ID=|BOOTSTRAP_PARENT_FIXTURE_ID='"${BOOTSTRAP_PARENT_FIXTURE_ID:-}"'|g; s|REMINT_SCRIPT=|REMINT_SCRIPT='"${REMINT_SCRIPT:-}"'|g; s|AUTHORITATIVE_STATE_PATH=|AUTHORITATIVE_STATE_PATH='"${AUTHORITATIVE_STATE_PATH:-}"'|g; s|AUTHORITATIVE_STATE_PRESENT=0|AUTHORITATIVE_STATE_PRESENT='"$AUTHORITATIVE_STATE_PRESENT"'|g; s|AUTHORITATIVE_STATE_SHA256=missing|AUTHORITATIVE_STATE_SHA256='"${AUTHORITATIVE_STATE_SHA256:-missing}"'|g; s|ACTIVE_STATE_PATH=|ACTIVE_STATE_PATH='"${AUTHORITATIVE_STATE_PATH:-}"'|g; s|ACTIVE_STATE_SHA256=missing|ACTIVE_STATE_SHA256='"${AUTHORITATIVE_STATE_SHA256:-missing}"'|g; s|POST_LOAD_SETTLE_FRAMES=0|POST_LOAD_SETTLE_FRAMES='"${POST_LOAD_SETTLE_FRAMES:-0}"'|g'
 
   declare -a runtime_commands
-  runtime_commands=(
-    --command "WAIT_LOG 120 ${STARTUP_READY_PATTERN:-EmuThread: M64CMD_EXECUTE.}"
-  )
+  runtime_commands=()
 
   if (( AUTHORITATIVE_STATE_PRESENT )); then
     runtime_commands+=(
+      --command "WAIT_COMMAND_READY 120"
       --command "LOAD_STATE_SLOT_PAUSED 0"
       --command "STEP_FRAME ${POST_LOAD_SETTLE_FRAMES:-3}"
       --command "WAIT_STATUS_FRAME PAUSED ${POST_LOAD_SETTLE_FRAMES:-3} 10"
@@ -229,6 +236,7 @@ else
     )
   else
     runtime_commands+=(
+      --command "WAIT_LOG 120 ${STARTUP_READY_PATTERN:-EmuThread: M64CMD_EXECUTE.}"
       --command "SET_PAUSE ON"
       --command "WAIT_STATUS PAUSED 5"
       --command "SAVE_STATE"
@@ -238,6 +246,9 @@ else
     )
   fi
 
+  PARALLEL_N64_GFX_PLUGIN_OVERRIDE="parallel" \
+  PARALLEL_RDP_HIRES_CACHE_PATH="$PACK_PATH" \
+  PARALLEL_RDP_HIRES_DEBUG="$([[ "$MODE" == "on" ]] && echo 1 || echo 0)" \
   "$REPO_ROOT/tools/adapters/retroarch_stdin_session.sh" \
     --bundle-dir "$BUNDLE_DIR" \
     --mode "$MODE" \
@@ -253,4 +264,16 @@ else
       "$BUNDLE_DIR" \
       "$BUNDLE_DIR/$PAPER_MARIO_SEMANTIC_JSON_REL"
   fi
+
+  scenario_extract_hires_log_evidence \
+    "$BUNDLE_DIR" \
+    "$BUNDLE_DIR/traces/hires-evidence.json"
+
+  scenario_verify_paper_mario_fixture \
+    "$BUNDLE_DIR" \
+    "$BUNDLE_DIR/traces/fixture-verification.json" \
+    "$FIXTURE_ID" \
+    "$VERIFY_SCREENSHOT_SHA256" \
+    "${EXPECTED_INIT_SYMBOL:-}" \
+    "${EXPECTED_STEP_SYMBOL:-}"
 fi

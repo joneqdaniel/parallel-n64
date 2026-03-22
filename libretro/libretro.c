@@ -224,6 +224,54 @@ unsigned libretro_get_gfx_plugin(void)
    return gfx_plugin;
 }
 
+static bool core_settings_get_env_gfx_plugin_override(enum gfx_plugin_type *override_plugin)
+{
+   const char *env = getenv("PARALLEL_N64_GFX_PLUGIN_OVERRIDE");
+
+   if (!env || !*env || !override_plugin)
+      return false;
+
+#if defined(HAVE_OPENGL) || defined(HAVE_OPENGLES)
+#if defined(HAVE_GLN64) || defined(HAVE_GLIDEN64)
+   if (!strcmp(env, "gln64"))
+   {
+      *override_plugin = GFX_GLN64;
+      return true;
+   }
+#endif
+#ifdef HAVE_RICE
+   if (!strcmp(env, "rice"))
+   {
+      *override_plugin = GFX_RICE;
+      return true;
+   }
+#endif
+#ifdef HAVE_GLIDE64
+   if (!strcmp(env, "glide64"))
+   {
+      *override_plugin = GFX_GLIDE64;
+      return true;
+   }
+#endif
+#endif
+#ifdef HAVE_THR_AL
+   if (!strcmp(env, "angrylion"))
+   {
+      *override_plugin = GFX_ANGRYLION;
+      return true;
+   }
+#endif
+#ifdef HAVE_PARALLEL
+   if (!strcmp(env, "parallel"))
+   {
+      *override_plugin = GFX_PARALLEL;
+      return true;
+   }
+#endif
+
+   return false;
+}
+
 static void core_settings_autoselect_rsp_plugin(void);
 
 static void core_settings_set_defaults(void)
@@ -231,10 +279,17 @@ static void core_settings_set_defaults(void)
    /* Load GFX plugin core option */
    struct retro_variable gfx_var = { "parallel-n64-gfxplugin", 0 };
    struct retro_variable rsp_var = { "parallel-n64-rspplugin", 0 };
+   enum gfx_plugin_type env_gfx_plugin = gfx_plugin;
    environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &gfx_var);
    environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &rsp_var);
 
-   if (gfx_var.value)
+   if (core_settings_get_env_gfx_plugin_override(&env_gfx_plugin))
+   {
+      gfx_plugin = env_gfx_plugin;
+      if (log_cb)
+         log_cb(RETRO_LOG_INFO, "parallel-n64: overriding GFX plugin via PARALLEL_N64_GFX_PLUGIN_OVERRIDE=%s.\n", getenv("PARALLEL_N64_GFX_PLUGIN_OVERRIDE"));
+   }
+   else if (gfx_var.value)
    {
       if (gfx_var.value && !strcmp(gfx_var.value, "auto"))
          core_settings_autoselect_gfx_plugin();
@@ -1330,7 +1385,15 @@ void update_variables(bool startup)
 
       environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var);
 
-      if (var.value)
+      {
+         enum gfx_plugin_type env_gfx_plugin = gfx_plugin;
+         if (core_settings_get_env_gfx_plugin_override(&env_gfx_plugin))
+         {
+            gfx_plugin = env_gfx_plugin;
+            if (log_cb)
+               log_cb(RETRO_LOG_INFO, "parallel-n64: overriding GFX plugin via PARALLEL_N64_GFX_PLUGIN_OVERRIDE=%s.\n", getenv("PARALLEL_N64_GFX_PLUGIN_OVERRIDE"));
+         }
+         else if (var.value)
       {
 #if defined(HAVE_GLN64) || defined(HAVE_GLIDEN64) || defined(HAVE_RICE) || defined(HAVE_GLIDE64) || defined(HAVE_THR_AL) || defined(HAVE_PARALLEL)
          if (!strcmp(var.value, "auto"))
@@ -1355,9 +1418,10 @@ void update_variables(bool startup)
             gfx_plugin = GFX_PARALLEL;
 #endif
 #endif
+         }
+         else
+            core_settings_autoselect_gfx_plugin();
       }
-      else
-         core_settings_autoselect_gfx_plugin();
    }
 
    

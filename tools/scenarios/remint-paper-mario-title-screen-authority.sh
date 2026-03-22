@@ -6,7 +6,7 @@ REPO_ROOT="$(cd -- "$SCRIPT_DIR/../.." && pwd)"
 source "$SCRIPT_DIR/lib/common.sh"
 RUNTIME_ENV="$SCRIPT_DIR/paper-mario-title-screen.runtime.env"
 
-EXPECTED_SCREENSHOT_SHA256="611f3db618b6f38b978e4b17ba0255661f3281cc36e630a4f6891fe0aafaf285"
+EXPECTED_SCREENSHOT_SHA256="42e501afb2548a5067bc034578c5bcebf0bf2a40f612bbcc94972af716ad6ff2"
 OUTPUT_PATH="$REPO_ROOT/assets/states/paper-mario-title-screen/ParaLLEl N64/Paper Mario (USA).state"
 BUNDLE_ROOT=""
 
@@ -73,6 +73,7 @@ echo "[remint] bootstrap bundle: $BOOTSTRAP_BUNDLE"
 echo "[remint] verify bundle: $VERIFY_BUNDLE"
 echo "[remint] output path: $OUTPUT_PATH"
 
+PARALLEL_N64_GFX_PLUGIN_OVERRIDE="parallel" \
 "$REPO_ROOT/tools/adapters/retroarch_stdin_session.sh" \
   --bundle-dir "$BOOTSTRAP_BUNDLE" \
   --mode off \
@@ -97,6 +98,7 @@ cp "$BOOTSTRAP_BUNDLE/states/ParaLLEl N64/Paper Mario (USA).state" "$OUTPUT_PATH
 mkdir -p "$VERIFY_BUNDLE/states/ParaLLEl N64"
 cp "$OUTPUT_PATH" "$VERIFY_BUNDLE/states/ParaLLEl N64/Paper Mario (USA).state"
 
+PARALLEL_N64_GFX_PLUGIN_OVERRIDE="parallel" \
 "$REPO_ROOT/tools/adapters/retroarch_stdin_session.sh" \
   --bundle-dir "$VERIFY_BUNDLE" \
   --mode off \
@@ -105,7 +107,7 @@ cp "$OUTPUT_PATH" "$VERIFY_BUNDLE/states/ParaLLEl N64/Paper Mario (USA).state"
   --core "$CORE_PATH" \
   --rom "$ROM_PATH" \
   --startup-wait "$STARTUP_WAIT" \
-  --command "WAIT_LOG 120 ${STARTUP_READY_PATTERN:-EmuThread: M64CMD_EXECUTE.}" \
+  --command "WAIT_COMMAND_READY 120" \
   --command "LOAD_STATE_SLOT_PAUSED 0" \
   --command "STEP_FRAME ${POST_LOAD_SETTLE_FRAMES}" \
   --command "WAIT_STATUS_FRAME PAUSED ${POST_LOAD_SETTLE_FRAMES} 10" \

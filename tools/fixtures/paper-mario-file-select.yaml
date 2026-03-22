@@ -67,7 +67,7 @@ checks:
 
 notes:
   - The canonical file-select path is now `load savestate -> settle 3 frames -> screenshot`.
-  - The verified remint path is `title-screen savestate -> settle 3 frames -> START pulse -> advance to frame 343 -> save`.
-  - The current canonical file-select capture hash is `ee62392552352b8e585eac0f2dbbd22872c20e9f05506ec1350d8b0f3c16fe0a`.
+  - The verified remint path is `title-screen savestate -> settle 3 frames -> hold START for 60 frames -> advance to frame 303 -> save`.
+  - The current canonical file-select capture hash is `6fa8688b382fa1e6f0323f054861a85f593d2d47ca737bb78448e3f268ca63e3`.
   - Use `tools/scenarios/remint-paper-mario-file-select-authority.sh` to remint this authority intentionally.
   - The tracked runtime path now also snapshots and decodes an empirical vanilla Paper Mario US `gGameStatus` slice into `traces/paper-mario-game-status.json`.

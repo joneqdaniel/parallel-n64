@@ -101,8 +101,16 @@
 - complete: identified the real title-screen and file-select bootstrap routes from live wall-clock runs; title is now `boot -> wait 20s -> START once -> wait 5s`, and file select is now `load title state -> settle 3 -> START once -> wait 5s`
 - complete: added a RetroArch stdin `WAIT_SAVE_STATE` command and adapter acknowledgement path so tracked workflows can wait for async save tasks instead of sleeping blindly
 - complete: identified a real task-ordering constraint in RetroArch save flows; authority minting now saves before screenshots to avoid blocking-task contention in the task queue
-- complete: reminted and verified a true title-screen authority state that loads back into `state_init_title_screen` / `state_step_title_screen` and captures to `611f3db618b6f38b978e4b17ba0255661f3281cc36e630a4f6891fe0aafaf285`
-- complete: reminted and verified a true file-select authority state that loads back into `state_init_file_select` / `state_step_file_select` and captures to `ee62392552352b8e585eac0f2dbbd22872c20e9f05506ec1350d8b0f3c16fe0a`
+- complete: corrected a bad baseline assumption: the earlier Paper Mario title/file authorities were taken on the wrong GL-born path, not the intended ParaLLEl/Vulkan path
+- complete: added a deterministic ParaLLEl override path for tracked Paper Mario scenarios using `PARALLEL_N64_GFX_PLUGIN_OVERRIDE=parallel` plus bundle-local RetroArch core options
+- complete: added a command-channel readiness primitive, `PING`, and the adapter-side `WAIT_COMMAND_READY` gate, because the earlier log/status gates were too early on the real ParaLLEl path
+- complete: reminted and verified a true ParaLLEl title-screen authority state that loads back into `state_init_title_screen` / `state_step_title_screen` and captures to `42e501afb2548a5067bc034578c5bcebf0bf2a40f612bbcc94972af716ad6ff2`
+- complete: reminted and verified a true ParaLLEl file-select authority state that loads back into `state_init_file_select` / `state_step_file_select` and captures to `6fa8688b382fa1e6f0323f054861a85f593d2d47ca737bb78448e3f268ca63e3`
+- complete: corrected the deterministic file-select remint route on the real ParaLLEl path to `load title -> settle 3 -> hold START for 60 frames -> advance to frame 303 -> save`
+- complete: reran the tracked title-screen and file-select scenarios end-to-end from their scenario entrypoints and re-verified the corrected ParaLLEl `off` authorities
+- complete: promoted hi-res capability evidence into machine-readable bundle traces by logging descriptor-indexing feature bits, the resolved cache path, and the disable reason seen on the current machine
+- complete: fixed hi-res cache-path precedence so `PARALLEL_RDP_HIRES_CACHE_PATH` overrides the core's default system-directory path in tracked runtime runs
+- complete: verified paired `on` runs for title screen and file select; both preserve the baseline frame/semantics today because the hi-res provider remains disabled at startup with descriptor-indexing capability bits all reading `0`
 - in progress: broaden the Paper Mario semantic trace beyond the current vanilla `gGameStatus` slice and current `CurGameMode`/transition windows so deeper probes can name high-level startup/menu/intro/world state cleanly and reach the planned `hos_05 ENTRY_3` authority path
 
 ## Out Of Scope

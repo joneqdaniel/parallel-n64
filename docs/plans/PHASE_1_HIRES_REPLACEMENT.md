@@ -27,6 +27,13 @@
 - expected replacements either apply correctly or fail with explicit reason reporting
 - `feature off` bundles for the same fixtures stay visually safe and trace/config clean
 
+## Current Entry Blocker
+
+- paired `on` runs for the corrected ParaLLEl title-screen and file-select authorities are now reproducible and machine-readable
+- the pack-path override is wired correctly and now resolves to the local Paper Mario `.hts` asset during runtime
+- hi-res still does not initialize on this machine because the current Vulkan descriptor-indexing capability gate resolves all required feature bits to unavailable, so the provider remains `off`
+- current Phase 1 implementation work should start by resolving or redesigning that capability gate before debugging replacement correctness further
+
 ## Not Yet Claimed Categories
 
 - texrect edge cases beyond explicitly validated fixtures

@@ -69,6 +69,241 @@ scenario_stage_optional_savefile() {
   cp "$savefile_path" "$bundle_dir/savefiles/ParaLLEl N64/${rom_basename}.srm"
 }
 
+scenario_find_single_capture() {
+  local bundle_dir="$1"
+  find "$bundle_dir/captures" -maxdepth 1 -type f | sort
+}
+
+scenario_extract_hires_log_evidence() {
+  local bundle_dir="$1"
+  local output_path="$2"
+
+  python - "$bundle_dir" "$output_path" <<'PY'
+import json
+import re
+import sys
+from pathlib import Path
+
+bundle_dir = Path(sys.argv[1])
+output_path = Path(sys.argv[2])
+log_path = bundle_dir / "logs" / "retroarch.log"
+
+result = {
+    "available": False,
+    "log_path": str(log_path),
+    "cache_loaded": False,
+    "cache_entries": None,
+    "cache_path": None,
+    "cache_load_failed": False,
+    "missing_cache_path": False,
+    "disabled_reason": None,
+    "capabilities": None,
+    "summary": None,
+    "debug_line_counts": {
+        "hit": 0,
+        "miss": 0,
+        "tlut_update": 0,
+    },
+    "sample_events": [],
+}
+
+if not log_path.is_file():
+    output_path.write_text(json.dumps(result, indent=2) + "\n")
+    raise SystemExit(0)
+
+cache_loaded_re = re.compile(r"Hi-res replacement cache loaded: (\d+) entries from (.+)")
+capability_re = re.compile(
+    r"Hi-res capability check: descriptor_indexing=(\d+) runtime_descriptor_array=(\d+) sampled_image_array_non_uniform_indexing=(\d+) descriptor_binding_variable_descriptor_count=(\d+) descriptor_binding_partially_bound=(\d+) descriptor_binding_update_after_bind=(\d+) maxDescriptorSetUpdateAfterBindSampledImages=(\d+) cache_path=(.+)\."
+)
+disabled_re = re.compile(r"Hi-res textures requested, but disabled: (.+) \(maxDescriptorSetUpdateAfterBindSampledImages=(\d+), required>=(\d+)\)\.")
+summary_re = re.compile(
+    r"Hi-res keying summary: lookups=(\d+) hits=(\d+) misses=(\d+) provider=(on|off)\."
+)
+hit_miss_re = re.compile(r"Hi-res keying (hit|miss): (.+)")
+tlut_re = re.compile(r"Hi-res keying TLUT update: (.+)")
+
+for line in log_path.read_text(errors="replace").splitlines():
+    if "Hi-res replacement enabled, but cache path is empty." in line:
+        result["available"] = True
+        result["missing_cache_path"] = True
+        continue
+
+    m = capability_re.search(line)
+    if m:
+        result["available"] = True
+        cache_path = m.group(8).strip()
+        result["capabilities"] = {
+            "descriptor_indexing": bool(int(m.group(1))),
+            "runtime_descriptor_array": bool(int(m.group(2))),
+            "sampled_image_array_non_uniform_indexing": bool(int(m.group(3))),
+            "descriptor_binding_variable_descriptor_count": bool(int(m.group(4))),
+            "descriptor_binding_partially_bound": bool(int(m.group(5))),
+            "descriptor_binding_update_after_bind": bool(int(m.group(6))),
+            "max_descriptor_set_update_after_bind_sampled_images": int(m.group(7)),
+            "cache_path": None if cache_path == "<empty>" else cache_path,
+        }
+        if result["capabilities"]["cache_path"] is not None:
+            result["cache_path"] = result["capabilities"]["cache_path"]
+        continue
+
+    m = disabled_re.search(line)
+    if m:
+        result["available"] = True
+        result["disabled_reason"] = {
+            "reason": m.group(1).strip(),
+            "max_descriptor_set_update_after_bind_sampled_images": int(m.group(2)),
+            "required_minimum": int(m.group(3)),
+        }
+        continue
+
+    if "Hi-res replacement cache load failed for path:" in line:
+        result["available"] = True
+        result["cache_load_failed"] = True
+        result["cache_path"] = line.rsplit(":", 1)[-1].strip()
+        continue
+
+    m = cache_loaded_re.search(line)
+    if m:
+        result["available"] = True
+        result["cache_loaded"] = True
+        result["cache_entries"] = int(m.group(1))
+        result["cache_path"] = m.group(2).strip()
+        continue
+
+    m = summary_re.search(line)
+    if m:
+        result["available"] = True
+        result["summary"] = {
+            "lookups": int(m.group(1)),
+            "hits": int(m.group(2)),
+            "misses": int(m.group(3)),
+            "provider": m.group(4),
+        }
+        continue
+
+    m = hit_miss_re.search(line)
+    if m:
+        result["available"] = True
+        kind = m.group(1)
+        result["debug_line_counts"][kind] += 1
+        if len(result["sample_events"]) < 20:
+            result["sample_events"].append({
+                "kind": kind,
+                "detail": m.group(2).strip(),
+            })
+        continue
+
+    m = tlut_re.search(line)
+    if m:
+        result["available"] = True
+        result["debug_line_counts"]["tlut_update"] += 1
+        if len(result["sample_events"]) < 20:
+            result["sample_events"].append({
+                "kind": "tlut_update",
+                "detail": m.group(1).strip(),
+            })
+
+output_path.write_text(json.dumps(result, indent=2) + "\n")
+PY
+}
+
+scenario_verify_paper_mario_fixture() {
+  local bundle_dir="$1"
+  local output_path="$2"
+  local fixture_id="$3"
+  local expected_screenshot_sha256="$4"
+  local expected_init_symbol="$5"
+  local expected_step_symbol="$6"
+
+  python - "$bundle_dir" "$output_path" "$fixture_id" "$expected_screenshot_sha256" "$expected_init_symbol" "$expected_step_symbol" <<'PY'
+import json
+import hashlib
+import sys
+from pathlib import Path
+
+bundle_dir = Path(sys.argv[1])
+output_path = Path(sys.argv[2])
+fixture_id = sys.argv[3]
+expected_screenshot_sha256 = sys.argv[4]
+expected_init_symbol = sys.argv[5]
+expected_step_symbol = sys.argv[6]
+
+captures = sorted((bundle_dir / "captures").glob("*"))
+semantic_path = bundle_dir / "traces" / "paper-mario-game-status.json"
+hires_path = bundle_dir / "traces" / "hires-evidence.json"
+
+result = {
+    "fixture_id": fixture_id,
+    "passed": True,
+    "checks": {
+        "single_capture": False,
+        "screenshot_sha256": None,
+        "screenshot_sha256_match": None,
+        "semantic_trace_present": semantic_path.is_file(),
+        "cur_game_mode_match": None,
+        "hires_evidence_present": hires_path.is_file(),
+    },
+    "expected": {
+        "screenshot_sha256": expected_screenshot_sha256 or None,
+        "init_symbol": expected_init_symbol or None,
+        "step_symbol": expected_step_symbol or None,
+    },
+    "actual": {
+        "capture_path": None,
+        "init_symbol": None,
+        "step_symbol": None,
+    },
+    "failures": [],
+}
+
+if len(captures) != 1:
+    result["passed"] = False
+    result["failures"].append(f"Expected exactly 1 capture, found {len(captures)}.")
+else:
+    capture_path = captures[0]
+    result["checks"]["single_capture"] = True
+    result["actual"]["capture_path"] = str(capture_path)
+    sha256 = hashlib.sha256(capture_path.read_bytes()).hexdigest()
+    result["checks"]["screenshot_sha256"] = sha256
+    if expected_screenshot_sha256:
+        result["checks"]["screenshot_sha256_match"] = (sha256 == expected_screenshot_sha256)
+        if sha256 != expected_screenshot_sha256:
+            result["passed"] = False
+            result["failures"].append(
+                f"Capture hash mismatch: expected {expected_screenshot_sha256}, got {sha256}."
+            )
+
+if semantic_path.is_file():
+    semantic = json.loads(semantic_path.read_text())
+    cur_game_mode = semantic.get("paper_mario_us", {}).get("cur_game_mode", {})
+    init_symbol = cur_game_mode.get("init_symbol")
+    step_symbol = cur_game_mode.get("step_symbol")
+    result["actual"]["init_symbol"] = init_symbol
+    result["actual"]["step_symbol"] = step_symbol
+    if expected_init_symbol or expected_step_symbol:
+        matched = (
+            (not expected_init_symbol or init_symbol == expected_init_symbol)
+            and
+            (not expected_step_symbol or step_symbol == expected_step_symbol)
+        )
+        result["checks"]["cur_game_mode_match"] = matched
+        if not matched:
+            result["passed"] = False
+            result["failures"].append(
+                "CurGameMode mismatch: "
+                f"expected ({expected_init_symbol}, {expected_step_symbol}), "
+                f"got ({init_symbol}, {step_symbol})."
+            )
+else:
+    result["passed"] = False
+    result["failures"].append("Missing Paper Mario semantic trace JSON.")
+
+output_path.write_text(json.dumps(result, indent=2) + "\n")
+if not result["passed"]:
+    raise SystemExit(1)
+PY
+}
+
 scenario_decode_paper_mario_semantic_state() {
   local bundle_dir="$1"
   local output_path="$2"

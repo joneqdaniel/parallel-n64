@@ -39,15 +39,19 @@ Current Paper Mario runtime note:
 - the tracked title-screen scenario depends on the adapter disabling RetroArch quit confirmation so a single `QUIT` command exits cleanly
 - the tracked title-screen and file-select scenarios now use a trustworthy fixture-relative `frame=` clock
 - the tracked adapter now normalizes `GET_STATUS` state matching, so scenario waits do not depend on whether RetroArch logs `paused` or `PAUSED`
+- tracked Paper Mario scenarios now also use `WAIT_COMMAND_READY`, which proves the RetroArch command channel is alive before load/save commands are issued on the ParaLLEl path
+- tracked Paper Mario scenarios now force the intended ParaLLEl/Vulkan path with `PARALLEL_N64_GFX_PLUGIN_OVERRIDE=parallel` and bundle-local core options
 - the tracked adapter now supports `WAIT_CORE_MEMORY_HEX`, which lets local scenario flows wait on exact RAM signatures for deterministic probes
 - the canonical steady-state Paper Mario workflow is `load savestate -> settle 3 frames -> capture`
+- paired `on` runs now also emit machine-readable hi-res capability evidence, including the resolved cache path, the coarse disable reason, and the descriptor-indexing feature bits seen at runtime
 - the tracked Paper Mario semantic trace currently uses an empirical vanilla `gGameStatus` slice at `0x800740aa`; it now records a raw window SHA-256, empirical phase guess for proven authority states, and decomp-backed `map_name_candidate` values for KMR/HOS/OSR area-local map indices, but it is not yet a full scene-name/mode decoder
 - tracked title-screen and file-select runs now also snapshot symbol-backed vanilla `CurGameMode` and map-transition globals, so each authority bundle records callback-phase evidence in addition to the `gGameStatus` window
-- the corrected Paper Mario title-screen authority now reports `state_init_title_screen` / `state_step_title_screen` and captures to `611f3db618b6f38b978e4b17ba0255661f3281cc36e630a4f6891fe0aafaf285`
-- the corrected Paper Mario file-select authority now reports `state_init_file_select` / `state_step_file_select` and captures to `ee62392552352b8e585eac0f2dbbd22872c20e9f05506ec1350d8b0f3c16fe0a`
+- the corrected Paper Mario title-screen authority now reports `state_init_title_screen` / `state_step_title_screen` and captures to `42e501afb2548a5067bc034578c5bcebf0bf2a40f612bbcc94972af716ad6ff2`
+- the corrected Paper Mario file-select authority now reports `state_init_file_select` / `state_step_file_select` and captures to `6fa8688b382fa1e6f0323f054861a85f593d2d47ca737bb78448e3f268ca63e3`
 - the verified title remint path is `boot -> wait 20s -> START once -> wait 5s -> save`
-- the verified file-select remint path is `load title state -> settle 3 -> START pulse -> advance to frame 343 -> save`
+- the verified file-select remint path is `load title state -> settle 3 -> hold START for 60 frames -> advance to frame 303 -> save`
 - `SAVE_STATE` is asynchronous in RetroArch; tracked authority minting now requires `WAIT_SAVE_STATE`, and save steps should happen before screenshot tasks to avoid task-queue contention
+- the current `on`-mode result on this machine is stable but inert: the pack path resolves correctly, yet hi-res stays disabled at startup because the descriptor-indexing capability gate reports all required bits as unavailable
 - raw `gGameStatus` button-array snapshots are not currently a trustworthy input-delivery metric; they stay zero even in later title-screen authority probes where `START` clearly changes behavior
 - Paper Mario decomp research shows `LOAD_FROM_FILE_SELECT` is handled specially in `kmr_02`, so deeper startup-to-world probes should not treat the first `area/map/entry` tuple as canonical scene identity without more evidence
 - tracked runtime scenarios now isolate save RAM inside each bundle via `savefile_directory`, even when no explicit `.srm` is staged

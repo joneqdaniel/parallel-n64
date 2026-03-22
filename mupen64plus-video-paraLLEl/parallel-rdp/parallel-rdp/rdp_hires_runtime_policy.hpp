@@ -17,9 +17,11 @@ enum class HiresConfigureOutcome
 
 inline std::string resolve_hires_cache_path(const std::string &configured_path, const char *env_path)
 {
+	if (env_path && *env_path)
+		return env_path;
 	if (!configured_path.empty())
 		return configured_path;
-	return env_path ? env_path : "";
+	return "";
 }
 
 inline bool should_attempt_hires_cache_load(bool enable, const char *cache_path)

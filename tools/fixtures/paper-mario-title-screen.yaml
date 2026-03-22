@@ -65,5 +65,5 @@ checks:
 notes:
   - The canonical title-screen path is now `load savestate -> settle 3 frames -> screenshot`.
   - The verified remint path is `boot -> wait 20s -> START once -> wait 5s -> save`.
-  - The current canonical title-screen capture hash is `611f3db618b6f38b978e4b17ba0255661f3281cc36e630a4f6891fe0aafaf285`.
+  - The current canonical title-screen capture hash is `42e501afb2548a5067bc034578c5bcebf0bf2a40f612bbcc94972af716ad6ff2`.
   - The tracked runtime path now also snapshots and decodes an empirical vanilla Paper Mario US `gGameStatus` slice into `traces/paper-mario-game-status.json`.

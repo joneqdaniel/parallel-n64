@@ -6,7 +6,7 @@ REPO_ROOT="$(cd -- "$SCRIPT_DIR/../.." && pwd)"
 source "$SCRIPT_DIR/lib/common.sh"
 RUNTIME_ENV="$SCRIPT_DIR/paper-mario-file-select.runtime.env"
 
-EXPECTED_SCREENSHOT_SHA256="ee62392552352b8e585eac0f2dbbd22872c20e9f05506ec1350d8b0f3c16fe0a"
+EXPECTED_SCREENSHOT_SHA256="6fa8688b382fa1e6f0323f054861a85f593d2d47ca737bb78448e3f268ca63e3"
 OUTPUT_PATH="$REPO_ROOT/assets/states/paper-mario-file-select/ParaLLEl N64/Paper Mario (USA).state"
 BUNDLE_ROOT=""
 
@@ -22,7 +22,7 @@ Options:
 
 Notes:
   - This script intentionally remints the authoritative Paper Mario file-select state.
-  - It uses the verified bootstrap path: title-screen state -> settle 3 -> START pulse -> advance to frame 343 -> save.
+  - It uses the verified bootstrap path: title-screen state -> settle 3 -> hold START for 60 frames -> advance to frame 303 -> save.
   - It then verifies the result with the canonical steady-state path: load -> settle 3 -> capture.
 EOF
 }
@@ -82,9 +82,10 @@ echo "[remint] bootstrap bundle: $BOOTSTRAP_BUNDLE"
 echo "[remint] verify bundle: $VERIFY_BUNDLE"
 echo "[remint] output path: $OUTPUT_PATH"
 
-INPUT_PULSE_TARGET=$(( POST_LOAD_SETTLE_FRAMES + FILE_SELECT_START_PULSE_FRAMES ))
-REMAINING_FRAMES=$(( FILE_SELECT_TARGET_FRAME - INPUT_PULSE_TARGET ))
+INPUT_HOLD_TARGET=$(( POST_LOAD_SETTLE_FRAMES + FILE_SELECT_START_HOLD_FRAMES ))
+REMAINING_FRAMES=$(( FILE_SELECT_TARGET_FRAME - INPUT_HOLD_TARGET ))
 
+PARALLEL_N64_GFX_PLUGIN_OVERRIDE="parallel" \
 "$REPO_ROOT/tools/adapters/retroarch_stdin_session.sh" \
   --bundle-dir "$BOOTSTRAP_BUNDLE" \
   --mode off \
@@ -93,13 +94,13 @@ REMAINING_FRAMES=$(( FILE_SELECT_TARGET_FRAME - INPUT_PULSE_TARGET ))
   --core "$CORE_PATH" \
   --rom "$ROM_PATH" \
   --startup-wait "$STARTUP_WAIT" \
-  --command "WAIT_LOG 120 ${STARTUP_READY_PATTERN:-EmuThread: M64CMD_EXECUTE.}" \
+  --command "WAIT_COMMAND_READY 120" \
   --command "LOAD_STATE_SLOT_PAUSED 0" \
   --command "STEP_FRAME ${POST_LOAD_SETTLE_FRAMES}" \
   --command "WAIT_STATUS_FRAME PAUSED ${POST_LOAD_SETTLE_FRAMES} 10" \
   --command "SET_INPUT_PORT 0 ${FILE_SELECT_START_MASK}" \
-  --command "STEP_FRAME ${FILE_SELECT_START_PULSE_FRAMES}" \
-  --command "WAIT_STATUS_FRAME PAUSED ${INPUT_PULSE_TARGET} 10" \
+  --command "STEP_FRAME ${FILE_SELECT_START_HOLD_FRAMES}" \
+  --command "WAIT_STATUS_FRAME PAUSED ${INPUT_HOLD_TARGET} 10" \
   --command "CLEAR_INPUT_PORT 0" \
   --command "STEP_FRAME ${REMAINING_FRAMES}" \
   --command "WAIT_STATUS_FRAME PAUSED ${FILE_SELECT_TARGET_FRAME} 10" \
@@ -113,6 +114,7 @@ cp "$BOOTSTRAP_STATE_COPY" "$OUTPUT_PATH"
 mkdir -p "$VERIFY_BUNDLE/states/ParaLLEl N64"
 cp "$OUTPUT_PATH" "$VERIFY_BUNDLE/states/ParaLLEl N64/Paper Mario (USA).state"
 
+PARALLEL_N64_GFX_PLUGIN_OVERRIDE="parallel" \
 "$REPO_ROOT/tools/adapters/retroarch_stdin_session.sh" \
   --bundle-dir "$VERIFY_BUNDLE" \
   --mode off \
@@ -121,7 +123,7 @@ cp "$OUTPUT_PATH" "$VERIFY_BUNDLE/states/ParaLLEl N64/Paper Mario (USA).state"
   --core "$CORE_PATH" \
   --rom "$ROM_PATH" \
   --startup-wait "$STARTUP_WAIT" \
-  --command "WAIT_LOG 120 ${STARTUP_READY_PATTERN:-EmuThread: M64CMD_EXECUTE.}" \
+  --command "WAIT_COMMAND_READY 120" \
   --command "LOAD_STATE_SLOT_PAUSED 0" \
   --command "STEP_FRAME ${POST_LOAD_SETTLE_FRAMES}" \
   --command "WAIT_STATUS_FRAME PAUSED ${POST_LOAD_SETTLE_FRAMES} 10" \

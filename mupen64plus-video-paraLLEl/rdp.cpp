@@ -231,6 +231,20 @@ bool init()
 
 	hires_cache_path = detail::resolve_hires_cache_path(hires_cache_path, getenv("PARALLEL_RDP_HIRES_CACHE_PATH"));
 
+	if (hires_textures)
+	{
+		log_cb(RETRO_LOG_INFO,
+		       "Hi-res capability check: descriptor_indexing=%u runtime_descriptor_array=%u sampled_image_array_non_uniform_indexing=%u descriptor_binding_variable_descriptor_count=%u descriptor_binding_partially_bound=%u descriptor_binding_update_after_bind=%u maxDescriptorSetUpdateAfterBindSampledImages=%u cache_path=%s.\n",
+		       hires_support.descriptor_indexing ? 1u : 0u,
+		       hires_support.runtime_descriptor_array ? 1u : 0u,
+		       hires_support.sampled_image_array_non_uniform_indexing ? 1u : 0u,
+		       hires_support.descriptor_binding_variable_descriptor_count ? 1u : 0u,
+		       hires_support.descriptor_binding_partially_bound ? 1u : 0u,
+		       hires_support.descriptor_binding_update_after_bind ? 1u : 0u,
+		       max_hires_update_after_bind_sampled_images,
+		       hires_cache_path.empty() ? "<empty>" : hires_cache_path.c_str());
+	}
+
 	if (hires_textures && !hires_capabilities_ok)
 	{
 		log_cb(RETRO_LOG_WARN,

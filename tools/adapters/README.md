@@ -20,14 +20,18 @@ Current RetroArch adapter notes:
 - runtime launches are standardized as fullscreen borderless windows for consistent local capture framing
 - commands are sent serially over the stdin command interface
 - `WAIT <seconds>` is a local adapter pseudo-command and is not forwarded to RetroArch
+- `WAIT_COMMAND_READY <timeout_seconds>` is a local adapter pseudo-command that waits for a `PING OK` reply from RetroArch before tracked command sequences proceed
 - `WAIT_STATUS_FRAME <state> <min_frame> <timeout_seconds>` is a local adapter pseudo-command for frame-aware waits based on `GET_STATUS`
 - `WAIT_CORE_MEMORY_HEX <address> <number_of_bytes> <expected_hex> <timeout_seconds>` is a local adapter pseudo-command for exact RAM-signature waits
 - `SNAPSHOT_CORE_MEMORY <label> <address> <number_of_bytes>` is a local adapter pseudo-command that captures a `READ_CORE_MEMORY` reply into a bundle trace file
 - the adapter disables RetroArch quit confirmation in its per-run appendconfig so a single tracked `QUIT` command exits deterministically
 - the adapter disables savestate thumbnails in its per-run appendconfig because that frontend path currently destabilizes ParaLLEl-RDP save-state runs
 - the adapter disables RetroArch widgets and screenshot/save-state notifications in tracked runs so capture bytes remain stable
+- the adapter writes bundle-local core options and points RetroArch at them so tracked runs can force a deterministic local core configuration
+- tracked Paper Mario runs currently force `video_driver = "vulkan"` and `PARALLEL_N64_GFX_PLUGIN_OVERRIDE=parallel` to keep the baseline on the intended ParaLLEl path
 - the current RetroArch stdin agent command surface includes explicit pause, frame-step, savestate-load-paused, save-task wait, and input-port control commands
-- tracked Paper Mario flows now use a log-gated startup handoff instead of blind startup sleeps
+- the current RetroArch stdin command surface also includes `PING`, which is used only as a readiness probe for the adapter
+- tracked Paper Mario flows now use a log-gated startup handoff plus `WAIT_COMMAND_READY` instead of blind startup sleeps
 - when a core does not publish a libretro memory map, the local RetroArch build now falls back to `RETRO_MEMORY_SYSTEM_RAM` for `READ_CORE_MEMORY`
 - `SAVE_STATE` is asynchronous in RetroArch; tracked flows now use `WAIT_SAVE_STATE`, and save tasks should be sequenced before screenshot tasks when minting authoritative states
 

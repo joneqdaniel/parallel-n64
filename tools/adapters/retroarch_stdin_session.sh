@@ -19,6 +19,7 @@ Options:
   --command CMD         Command to send over stdin interface (repeatable)
                         Local pseudo-commands:
                         WAIT <seconds>
+                        WAIT_COMMAND_READY <timeout_seconds>
                         WAIT_STATUS <state> <timeout_seconds>
                         WAIT_STATUS_FRAME <state> <min_frame> <timeout_seconds>
                         WAIT_LOG <timeout_seconds> <literal pattern>
@@ -141,6 +142,7 @@ fail_if_retroarch_running
 mkdir -p "$BUNDLE_DIR"/captures "$BUNDLE_DIR"/logs "$BUNDLE_DIR"/traces "$BUNDLE_DIR"/states "$BUNDLE_DIR"/savefiles
 
 APPEND_CONFIG="$BUNDLE_DIR/retroarch.append.cfg"
+CORE_OPTIONS_FILE="$BUNDLE_DIR/core-options.opt"
 FIFO_PATH="$BUNDLE_DIR/retroarch.stdin"
 COMMAND_LOG="$BUNDLE_DIR/logs/retroarch.commands.log"
 SESSION_ENV="$BUNDLE_DIR/retroarch.session.env"
@@ -152,6 +154,9 @@ if [[ "$MODE" == "on" ]]; then
 fi
 
 cat > "$APPEND_CONFIG" <<EOF
+core_options_path = "$CORE_OPTIONS_FILE"
+global_core_options = "true"
+game_specific_options = "false"
 config_save_on_exit = "false"
 stdin_cmd_enable = "true"
 network_cmd_enable = "false"
@@ -165,10 +170,14 @@ menu_enable_widgets = "false"
 notification_show_save_state = "false"
 notification_show_screenshot = "false"
 notification_show_screenshot_flash = "0"
+video_driver = "vulkan"
 video_fullscreen = "true"
 video_windowed_fullscreen = "true"
 video_fullscreen_x = "0"
 video_fullscreen_y = "0"
+EOF
+
+cat > "$CORE_OPTIONS_FILE" <<EOF
 parallel-n64-gfxplugin = "parallel"
 parallel-n64-parallel-rdp-upscaling = "4x"
 parallel-n64-parallel-rdp-hirestex = "$HIRES_VALUE"
@@ -262,6 +271,24 @@ handle_wait_status() {
     start_bytes="$(log_size_bytes)"
     send_retroarch_command "GET_STATUS"
     if wait_for_log_pattern_after "$start_bytes" "GET_STATUS $expected_state_upper" 2; then
+      return 0
+    fi
+    sleep 0.2
+  done
+
+  return 1
+}
+
+handle_wait_command_ready() {
+  local timeout_seconds="$1"
+  local deadline
+  deadline=$(( $(date +%s) + $(timeout_ceiling_seconds "$timeout_seconds") ))
+
+  while (( $(date +%s) < deadline )); do
+    local start_bytes
+    start_bytes="$(log_size_bytes)"
+    send_retroarch_command "PING"
+    if wait_for_log_pattern_after "$start_bytes" "PING OK" 2; then
       return 0
     fi
     sleep 0.2
@@ -378,6 +405,7 @@ RETROARCH_PID=$RA_PID
 RETROARCH_BIN=$RETROARCH_BIN
 BASE_CONFIG=$BASE_CONFIG
 APPEND_CONFIG=$APPEND_CONFIG
+CORE_OPTIONS_FILE=$CORE_OPTIONS_FILE
 STDIN_FIFO=$FIFO_PATH
 ROM_PATH=$ROM_PATH
 CORE_PATH=$CORE_PATH
@@ -388,6 +416,7 @@ EOF
 echo "[adapter] retroarch pid: $RA_PID"
 echo "[adapter] log: $RA_LOG"
 echo "[adapter] appendconfig: $APPEND_CONFIG"
+echo "[adapter] core options: $CORE_OPTIONS_FILE"
 echo "[adapter] startup wait: ${STARTUP_WAIT}s"
 sleep "$STARTUP_WAIT"
 
@@ -398,6 +427,17 @@ for cmd in "${COMMANDS[@]}"; do
     printf '%s\n' "$cmd" >> "$COMMAND_LOG"
     echo "[adapter] wait: ${wait_seconds}s"
     sleep "$wait_seconds"
+    continue
+  fi
+
+  if [[ "$cmd" =~ ^WAIT_COMMAND_READY[[:space:]]+([0-9]+([.][0-9]+)?)$ ]]; then
+    timeout_seconds="${BASH_REMATCH[1]}"
+    printf '%s\n' "$cmd" >> "$COMMAND_LOG"
+    echo "[adapter] wait command-ready (${timeout_seconds}s)"
+    if ! handle_wait_command_ready "$timeout_seconds"; then
+      echo "[adapter] WAIT_COMMAND_READY failed." >&2
+      exit 1
+    fi
     continue
   fi
 
@@ -496,6 +536,12 @@ for cmd in "${COMMANDS[@]}"; do
     GET_STATUS)
       if ! wait_for_log_pattern_after "$start_bytes" "GET_STATUS " 5; then
         echo "[adapter] GET_STATUS acknowledgement missing." >&2
+        exit 1
+      fi
+      ;;
+    PING)
+      if ! wait_for_log_pattern_after "$start_bytes" "PING OK" 5; then
+        echo "[adapter] PING acknowledgement missing." >&2
         exit 1
       fi
       ;;

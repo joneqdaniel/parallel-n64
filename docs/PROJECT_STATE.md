@@ -27,7 +27,14 @@
 - The tracked file-select scenario now has an authoritative savestate-backed steady-state path and still preserves the title-screen bootstrap controller path for reminting
 - Repeated file-select authoritative runs now produce byte-identical screenshots at `4x` after the 3-frame settle
 - The canonical Paper Mario fixture workflow is now `load state -> settle 3 frames -> screenshot`; controller scripting is the bootstrap path for minting new authoritative states
-- The current authoritative file-select state is minted from the deterministic title-screen bootstrap path using a one-frame `START` pulse and a frame-targeted save at `frame=343`
+- The tracked Paper Mario scenarios now force the ParaLLEl renderer path explicitly with `PARALLEL_N64_GFX_PLUGIN_OVERRIDE=parallel` and bundle-local RetroArch core options, so fixture baselines are no longer accidentally taken on a GL path
+- The tracked Paper Mario scenarios now use `WAIT_COMMAND_READY` for real command-channel readiness on the ParaLLEl path instead of relying on earlier log-only startup gates
+- The local RetroArch stdin command surface now includes `PING`, and the adapter uses it to prove the command channel is ready before issuing tracked savestate commands
+- The current authoritative file-select state is minted from the deterministic title-screen bootstrap path using a held `START` input for `60` frames and a frame-targeted save at `frame=303`
+- Paired `off` and `on` scenario runs are now verified directly from the tracked scenario entrypoints on the corrected ParaLLEl path
+- The current `on`-mode hi-res blocker is now explicit and machine-readable in bundle traces: hi-res is requested and the pack path is wired, but provider startup is disabled on this machine because all required descriptor-indexing feature bits currently resolve to `0`
+- The tracked hi-res pack-path override bug is now fixed: `PARALLEL_RDP_HIRES_CACHE_PATH` takes precedence over the core's default system-directory path during runtime resolution
+- Current `on`-mode bundles show the intended pack path (`assets/PAPER MARIO_HIRESTEXTURES.hts`) while the provider remains `off`, with `lookups=0 hits=0 misses=0`
 - Tracked Paper Mario scenario bundles now record requested/used authority mode and active state hashes
 - There is now a dedicated file-select remint helper for intentionally rebuilding the authoritative state from the bootstrap path
 - Paper Mario fixture lineage is now explicit in a machine-readable authority graph at `tools/fixtures/paper-mario-authority-graph.yaml`
@@ -40,8 +47,10 @@
 - The tracked title-screen and file-select fixtures now also snapshot symbol-backed vanilla globals for `CurGameMode` (`0x80151700`) and map-transition state (`0x800A0944`) on every authoritative run
 - The corrected authoritative title-screen state now reports clean `CurGameMode` title callbacks: `state_init_title_screen` / `state_step_title_screen`
 - The corrected authoritative file-select state now reports clean `CurGameMode` file-select callbacks: `state_init_file_select` / `state_step_file_select`
-- The canonical steady-state title-screen capture hash is now `611f3db618b6f38b978e4b17ba0255661f3281cc36e630a4f6891fe0aafaf285`
-- The canonical steady-state file-select capture hash is now `ee62392552352b8e585eac0f2dbbd22872c20e9f05506ec1350d8b0f3c16fe0a`
+- The canonical steady-state title-screen capture hash is now `42e501afb2548a5067bc034578c5bcebf0bf2a40f612bbcc94972af716ad6ff2`
+- The canonical steady-state file-select capture hash is now `6fa8688b382fa1e6f0323f054861a85f593d2d47ca737bb78448e3f268ca63e3`
+- The latest verified `on`-mode title-screen run preserves the same frame hash, semantics, and steady-state capture while reporting hi-res `provider=off`
+- The latest verified `on`-mode file-select run also preserves the same frame hash, semantics, and steady-state capture while reporting hi-res `provider=off`
 - The tracked adapter now supports a memory-based wait primitive, `WAIT_CORE_MEMORY_HEX`, so scenarios and probes can block on exact vanilla RAM signatures instead of sleep-only timing
 - The semantic JSON now also emits a decomp-backed `map_name_candidate` for KMR, HOS, and OSR area-local map indices
 - The corrected startup semantic values are stable for both tracked fixtures: `areaID=0 (AREA_KMR)`, `mapID=0`, `entryID=0`, `introPart=1`, `startupState=0`
@@ -52,7 +61,7 @@
 - That means the first save-backed gameplay transition is now semantically distinguishable from the startup/file-select fixtures, but its current `area/map/entry` tuple should still be treated as transition evidence rather than canonical scene identity, and it does not yet reach the planned `hos_05 ENTRY_3` target
 - A direct symbol-backed probe of that deeper transition shows `CurGameMode` callback pointers switch from the authority-state `logos` pair to the `intro` pair while `map_transition` remains idle, which strongly suggests the current `START` path is progressing through intro-state logic rather than a clean file-select-to-world handoff
 - A deterministic cold-boot trace still shows the vanilla callback path can move through `startup -> logos -> intro` under stepped automation, but the correct wall-clock title path is now proven: `boot -> wait 20s -> START once -> wait 5s`
-- The correct wall-clock file-select path is also proven: `load title state -> settle 3 -> START once -> wait 5s`, and authoritative reminting now stabilizes that target as a deterministic paused bootstrap path: `START pulse -> advance to frame 343 -> save`
+- The correct wall-clock file-select path is also proven: `load title state -> settle 3 -> hold START about 1s -> release -> wait 4s`, and authoritative reminting now stabilizes that target as a deterministic paused bootstrap path: `hold START for 60 frames -> advance to frame 303 -> save`
 - Direct snapshots of the raw `gGameStatus` button arrays are not yet a trustworthy input-delivery metric: they remain zero both in early boot probes and in later title-screen authority probes where `START` clearly affects behavior
 - The obvious shifted-symbol probes for deeper mode/menu state have been ruled out so far: the likely `CurGameModeID` window near `0x80195750` is zero in the tracked states, and a broad `0x80180000` region scan did not produce a valid title/file-select/world mode candidate
 - Tracked runtime scenarios now isolate save RAM inside each bundle, and savefile identity is explicit in bundle metadata instead of silently coming from `~/.config/retroarch/saves`

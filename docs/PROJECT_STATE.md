@@ -32,9 +32,10 @@
 - The local RetroArch stdin command surface now includes `PING`, and the adapter uses it to prove the command channel is ready before issuing tracked savestate commands
 - The current authoritative file-select state is minted from the deterministic title-screen bootstrap path using a held `START` input for `60` frames and a frame-targeted save at `frame=303`
 - Paired `off` and `on` scenario runs are now verified directly from the tracked scenario entrypoints on the corrected ParaLLEl path
-- The current `on`-mode hi-res blocker is now explicit and machine-readable in bundle traces: hi-res is requested and the pack path is wired, but provider startup is disabled on this machine because all required descriptor-indexing feature bits currently resolve to `0`
+- The Vulkan descriptor-indexing gate on this machine is now fixed for tracked runs: the context recovers the required feature bits through a Vulkan 1.2 feature-query fallback, and hi-res startup no longer disables itself on capability grounds
 - The tracked hi-res pack-path override bug is now fixed: `PARALLEL_RDP_HIRES_CACHE_PATH` takes precedence over the core's default system-directory path during runtime resolution
-- Current `on`-mode bundles show the intended pack path (`assets/PAPER MARIO_HIRESTEXTURES.hts`) while the provider remains `off`, with `lookups=0 hits=0 misses=0`
+- The hi-res replacement loader now accepts a direct `.hts` pack path as well as a cache directory, so the tracked Paper Mario pack loads without requiring scenario-side path hacks
+- Current `on`-mode title and file-select bundles now show a loaded hi-res provider with real keying activity instead of a disabled/no-op path
 - Tracked Paper Mario scenario bundles now record requested/used authority mode and active state hashes
 - There is now a dedicated file-select remint helper for intentionally rebuilding the authoritative state from the bootstrap path
 - Paper Mario fixture lineage is now explicit in a machine-readable authority graph at `tools/fixtures/paper-mario-authority-graph.yaml`
@@ -49,8 +50,11 @@
 - The corrected authoritative file-select state now reports clean `CurGameMode` file-select callbacks: `state_init_file_select` / `state_step_file_select`
 - The canonical steady-state title-screen capture hash is now `42e501afb2548a5067bc034578c5bcebf0bf2a40f612bbcc94972af716ad6ff2`
 - The canonical steady-state file-select capture hash is now `6fa8688b382fa1e6f0323f054861a85f593d2d47ca737bb78448e3f268ca63e3`
-- The latest verified `on`-mode title-screen run preserves the same frame hash, semantics, and steady-state capture while reporting hi-res `provider=off`
-- The latest verified `on`-mode file-select run also preserves the same frame hash, semantics, and steady-state capture while reporting hi-res `provider=off`
+- The latest verified `on`-mode title-screen run preserves the same frame hash and steady-state semantics while loading the hi-res pack successfully and reporting `lookups=196 hits=178 misses=18 provider=on`
+- The latest verified `on`-mode file-select run also preserves the same frame hash and steady-state semantics while loading the hi-res pack successfully and reporting `lookups=165 hits=82 misses=83 provider=on`
+- That means the current Phase 1 blocker has moved forward: lookup and provider activation are working on tracked fixtures, but the visible frame hash still matches `off`, so the next task is to trace where replacement lookup results stop affecting final rendering
+- Current code inspection now narrows that rendering blocker sharply: in this branch `ReplacementMeta` is looked up in `rdp_renderer.cpp`, but the result is only written into lightweight per-tile key state and never reaches an image upload/bind path
+- The failed-attempt worktree contains the missing shape conceptually: a separate registry/upload/binding flow that consumes `decode_rgba8()`, assigns a descriptor index, and applies replacement binding into tile state before draw time
 - The tracked adapter now supports a memory-based wait primitive, `WAIT_CORE_MEMORY_HEX`, so scenarios and probes can block on exact vanilla RAM signatures instead of sleep-only timing
 - The semantic JSON now also emits a decomp-backed `map_name_candidate` for KMR, HOS, and OSR area-local map indices
 - The corrected startup semantic values are stable for both tracked fixtures: `areaID=0 (AREA_KMR)`, `mapID=0`, `entryID=0`, `introPart=1`, `startupState=0`

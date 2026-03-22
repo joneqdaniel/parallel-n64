@@ -51,7 +51,8 @@ Current Paper Mario runtime note:
 - the verified title remint path is `boot -> wait 20s -> START once -> wait 5s -> save`
 - the verified file-select remint path is `load title state -> settle 3 -> hold START for 60 frames -> advance to frame 303 -> save`
 - `SAVE_STATE` is asynchronous in RetroArch; tracked authority minting now requires `WAIT_SAVE_STATE`, and save steps should happen before screenshot tasks to avoid task-queue contention
-- the current `on`-mode result on this machine is stable but inert: the pack path resolves correctly, yet hi-res stays disabled at startup because the descriptor-indexing capability gate reports all required bits as unavailable
+- the current `on`-mode result on this machine now reaches a real active provider path: the pack loads, the provider turns `on`, and bundles record real hit/miss telemetry
+- the current visible-output blocker is later in the pipeline: even with the provider `on`, tracked title/file-select frame hashes still match `off`
 - raw `gGameStatus` button-array snapshots are not currently a trustworthy input-delivery metric; they stay zero even in later title-screen authority probes where `START` clearly changes behavior
 - Paper Mario decomp research shows `LOAD_FROM_FILE_SELECT` is handled specially in `kmr_02`, so deeper startup-to-world probes should not treat the first `area/map/entry` tuple as canonical scene identity without more evidence
 - tracked runtime scenarios now isolate save RAM inside each bundle via `savefile_directory`, even when no explicit `.srm` is staged

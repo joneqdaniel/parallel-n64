@@ -967,6 +967,39 @@ bool Context::create_device(VkPhysicalDevice gpu_, VkSurfaceKHR surface, const c
 	else
 		vkGetPhysicalDeviceFeatures(gpu, &features.features);
 
+	auto descriptor_indexing_features_empty = [](const VkPhysicalDeviceDescriptorIndexingFeaturesEXT &f) {
+		return !f.runtimeDescriptorArray &&
+		       !f.shaderSampledImageArrayNonUniformIndexing &&
+		       !f.descriptorBindingVariableDescriptorCount &&
+		       !f.descriptorBindingPartiallyBound &&
+		       !f.descriptorBindingSampledImageUpdateAfterBind;
+	};
+
+	if (gpu_props.apiVersion >= VK_API_VERSION_1_2 &&
+	    ext.supports_vulkan_11_device &&
+	    ext.supports_vulkan_11_instance &&
+	    descriptor_indexing_features_empty(ext.descriptor_indexing_features))
+	{
+		VkPhysicalDeviceVulkan12Features vulkan12_features = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES };
+		VkPhysicalDeviceFeatures2 vulkan12_query = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2 };
+		vulkan12_query.pNext = &vulkan12_features;
+		vkGetPhysicalDeviceFeatures2(gpu, &vulkan12_query);
+
+		ext.descriptor_indexing_features.shaderSampledImageArrayNonUniformIndexing =
+				vulkan12_features.shaderSampledImageArrayNonUniformIndexing;
+		ext.descriptor_indexing_features.descriptorBindingSampledImageUpdateAfterBind =
+				vulkan12_features.descriptorBindingSampledImageUpdateAfterBind;
+		ext.descriptor_indexing_features.descriptorBindingPartiallyBound =
+				vulkan12_features.descriptorBindingPartiallyBound;
+		ext.descriptor_indexing_features.descriptorBindingVariableDescriptorCount =
+				vulkan12_features.descriptorBindingVariableDescriptorCount;
+		ext.descriptor_indexing_features.runtimeDescriptorArray =
+				vulkan12_features.runtimeDescriptorArray;
+
+		if (!descriptor_indexing_features_empty(ext.descriptor_indexing_features))
+			LOGI("Recovered descriptor indexing feature bits through Vulkan 1.2 feature query fallback.\n");
+	}
+
 	// Enable device features we might care about.
 	{
 		VkPhysicalDeviceFeatures enabled_features = *required_features;

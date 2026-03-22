@@ -128,24 +128,32 @@ bool ReplacementProvider::load_cache_dir(const std::string &path)
 	clear();
 	cache_dir_ = path;
 
-	DIR *dir = opendir(path.c_str());
-	if (!dir)
-		return false;
-
 	std::vector<std::string> files;
-	for (;;)
+	DIR *dir = opendir(path.c_str());
+	if (dir)
 	{
-		dirent *ent = readdir(dir);
-		if (!ent)
-			break;
-		if (ent->d_name[0] == '.')
-			continue;
-		const std::string name = ent->d_name;
-		if (!has_suffix(name, ".hts") && !has_suffix(name, ".htc"))
-			continue;
-		files.push_back(path + "/" + name);
+		for (;;)
+		{
+			dirent *ent = readdir(dir);
+			if (!ent)
+				break;
+			if (ent->d_name[0] == '.')
+				continue;
+			const std::string name = ent->d_name;
+			if (!has_suffix(name, ".hts") && !has_suffix(name, ".htc"))
+				continue;
+			files.push_back(path + "/" + name);
+		}
+		closedir(dir);
 	}
-	closedir(dir);
+	else if (has_suffix(path, ".hts") || has_suffix(path, ".htc"))
+	{
+		files.push_back(path);
+	}
+	else
+	{
+		return false;
+	}
 
 	std::sort(files.begin(), files.end());
 	for (const auto &file : files)
@@ -609,4 +617,3 @@ bool ReplacementProvider::load_htc(const std::string &path)
 	return true;
 }
 }
-

@@ -30,9 +30,10 @@
 ## Current Entry Blocker
 
 - paired `on` runs for the corrected ParaLLEl title-screen and file-select authorities are now reproducible and machine-readable
-- the pack-path override is wired correctly and now resolves to the local Paper Mario `.hts` asset during runtime
-- hi-res still does not initialize on this machine because the current Vulkan descriptor-indexing capability gate resolves all required feature bits to unavailable, so the provider remains `off`
-- current Phase 1 implementation work should start by resolving or redesigning that capability gate before debugging replacement correctness further
+- the Vulkan descriptor-indexing gate and direct-pack load path are now working in tracked runs
+- the hi-res provider now loads the Paper Mario pack and produces real hit/miss telemetry on both strict targets
+- the current Phase 1 blocker is no longer provider startup; it is that final frame hashes still match `off`, so replacement lookup results are not yet producing a visible rendering delta on the tracked fixtures
+- current code evidence says the dead stop is between lookup and render binding: this branch records hit metadata but does not yet feed `decode_rgba8()` / descriptor assignment into the active renderer path
 
 ## Not Yet Claimed Categories
 

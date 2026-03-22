@@ -108,9 +108,11 @@
 - complete: reminted and verified a true ParaLLEl file-select authority state that loads back into `state_init_file_select` / `state_step_file_select` and captures to `6fa8688b382fa1e6f0323f054861a85f593d2d47ca737bb78448e3f268ca63e3`
 - complete: corrected the deterministic file-select remint route on the real ParaLLEl path to `load title -> settle 3 -> hold START for 60 frames -> advance to frame 303 -> save`
 - complete: reran the tracked title-screen and file-select scenarios end-to-end from their scenario entrypoints and re-verified the corrected ParaLLEl `off` authorities
-- complete: promoted hi-res capability evidence into machine-readable bundle traces by logging descriptor-indexing feature bits, the resolved cache path, and the disable reason seen on the current machine
+- complete: promoted hi-res capability evidence into machine-readable bundle traces by logging descriptor-indexing feature bits, the resolved cache path, the disable reason, and cache-load state
 - complete: fixed hi-res cache-path precedence so `PARALLEL_RDP_HIRES_CACHE_PATH` overrides the core's default system-directory path in tracked runtime runs
-- complete: verified paired `on` runs for title screen and file select; both preserve the baseline frame/semantics today because the hi-res provider remains disabled at startup with descriptor-indexing capability bits all reading `0`
+- complete: fixed the tracked Vulkan descriptor-indexing query path on this machine by recovering the needed feature bits through a Vulkan 1.2 query fallback
+- complete: fixed hi-res pack loading for tracked runs by allowing the replacement loader to consume a direct `.hts` pack path
+- complete: verified paired `on` runs for title screen and file select with the provider actually `on`, real cache loads, and real hit/miss telemetry in bundle traces
 - in progress: broaden the Paper Mario semantic trace beyond the current vanilla `gGameStatus` slice and current `CurGameMode`/transition windows so deeper probes can name high-level startup/menu/intro/world state cleanly and reach the planned `hos_05 ENTRY_3` authority path
 
 ## Out Of Scope

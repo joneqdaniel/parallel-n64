@@ -271,6 +271,8 @@ else
       --command "STEP_FRAME ${POST_LOAD_SETTLE_FRAMES}" \
       --command "WAIT_STATUS_FRAME PAUSED ${POST_LOAD_SETTLE_FRAMES} 10" \
       --command "SNAPSHOT_CORE_MEMORY paper-mario-gamestatus 800740aa 230" \
+      --command "SNAPSHOT_CORE_MEMORY paper-mario-curgamemode 80151700 20" \
+      --command "SNAPSHOT_CORE_MEMORY paper-mario-transition 800a0944 8" \
       --command "SCREENSHOT" \
       --command "WAIT_NEW_CAPTURE 10" \
       --command "QUIT"
@@ -298,6 +300,8 @@ else
       --command "STEP_FRAME ${POST_INPUT_SETTLE_FRAMES}" \
       --command "WAIT_STATUS_FRAME PAUSED ${final_target} 10" \
       --command "SNAPSHOT_CORE_MEMORY paper-mario-gamestatus 800740aa 230" \
+      --command "SNAPSHOT_CORE_MEMORY paper-mario-curgamemode 80151700 20" \
+      --command "SNAPSHOT_CORE_MEMORY paper-mario-transition 800a0944 8" \
       --command "SCREENSHOT" \
       --command "WAIT_NEW_CAPTURE 10" \
       --command "QUIT"

@@ -41,6 +41,8 @@ Current Paper Mario runtime note:
 - the tracked adapter now normalizes `GET_STATUS` state matching, so scenario waits do not depend on whether RetroArch logs `paused` or `PAUSED`
 - the canonical steady-state Paper Mario workflow is `load savestate -> settle 3 frames -> capture`
 - the tracked Paper Mario semantic trace currently uses an empirical vanilla `gGameStatus` slice at `0x800740aa`; it now records a raw window SHA-256, empirical phase guess for proven authority states, and decomp-backed `map_name_candidate` values for KMR/HOS/OSR area-local map indices, but it is not yet a full scene-name/mode decoder
+- tracked title-screen and file-select runs now also snapshot symbol-backed vanilla `CurGameMode` and map-transition globals, so each authority bundle records callback-phase evidence in addition to the `gGameStatus` window
+- current evidence says the tracked title-screen and file-select authorities are still startup-style semantic states: both report `state_init_logos` / `state_step_logos` callbacks and idle map-transition globals even though their screenshots are stable and distinct
 - Paper Mario decomp research shows `LOAD_FROM_FILE_SELECT` is handled specially in `kmr_02`, so deeper startup-to-world probes should not treat the first `area/map/entry` tuple as canonical scene identity without more evidence
 - tracked runtime scenarios now isolate save RAM inside each bundle via `savefile_directory`, even when no explicit `.srm` is staged
 - a local Paper Mario `.srm` can be intentionally copied into gitignored assets with `stage-paper-mario-savefile.sh` for future deeper fixtures

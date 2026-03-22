@@ -163,9 +163,40 @@ EMPIRICAL_PHASE_BY_WINDOW_SHA256 = {
     "220e633751b7992388351bce48f3f9f79aa17f95bf7655f1dc0bc2cd52a70cf4": "file_select_authority",
     "d5ca8402cf1962e121653214e8f7050c769e89eb5f37b421794a3df0185e3ea9": "post_file_select_transition_candidate",
 }
+CUR_GAME_MODE_PHASE_BY_POINTERS = {
+    (0x80033E70, 0x800340A4): "logos_callbacks",
+    (0x80035058, 0x800354EC): "file_select_callbacks",
+    (0x80035660, 0x80035B40): "exit_file_select_callbacks",
+    (0x80035E24, 0x80035EEC): "enter_world_callbacks",
+    (0x80035D30, 0x80035D54): "world_callbacks",
+    (0x80036650, 0x80036854): "intro_callbacks",
+    (0x80036DF0, 0x800370B4): "title_screen_callbacks",
+}
+CUR_GAME_MODE_POINTER_NAMES = {
+    0x80033E70: "state_init_logos",
+    0x800340A4: "state_step_logos",
+    0x80035058: "state_init_file_select",
+    0x800354EC: "state_step_file_select",
+    0x80035660: "state_init_exit_file_select",
+    0x80035B40: "state_step_exit_file_select",
+    0x80035D30: "state_init_world",
+    0x80035D54: "state_step_world",
+    0x80035E24: "state_init_enter_world",
+    0x80035EEC: "state_step_enter_world",
+    0x80036650: "state_init_intro",
+    0x80036854: "state_step_intro",
+    0x80036DF0: "state_init_title_screen",
+    0x800370B4: "state_step_title_screen",
+}
 trace_path = bundle_dir / "traces" / "paper-mario-gamestatus.core-memory.txt"
 expected_base = 0x800740AA
 expected_size = 0xE6
+cur_game_mode_trace_path = bundle_dir / "traces" / "paper-mario-curgamemode.core-memory.txt"
+cur_game_mode_expected_base = 0x80151700
+cur_game_mode_expected_size = 0x14
+transition_trace_path = bundle_dir / "traces" / "paper-mario-transition.core-memory.txt"
+transition_expected_base = 0x800A0944
+transition_expected_size = 0x08
 
 def load_trace(path: Path):
     if not path.is_file():
@@ -222,6 +253,32 @@ map_name_candidate = None
 if 0 <= map_id < len(map_name_candidates):
     map_name_candidate = map_name_candidates[map_id]
 
+cur_game_mode_trace = load_trace(cur_game_mode_trace_path)
+if cur_game_mode_trace is not None:
+    if cur_game_mode_trace["base_address"] != cur_game_mode_expected_base:
+        raise SystemExit(
+            f"Unexpected base address for {cur_game_mode_trace_path.name}: "
+            f"0x{cur_game_mode_trace['base_address']:08x} != 0x{cur_game_mode_expected_base:08x}"
+        )
+    if len(cur_game_mode_trace["data"]) < cur_game_mode_expected_size:
+        raise SystemExit(
+            f"Snapshot too short for {cur_game_mode_trace_path.name}: "
+            f"{len(cur_game_mode_trace['data'])} < {cur_game_mode_expected_size}"
+        )
+
+transition_trace = load_trace(transition_trace_path)
+if transition_trace is not None:
+    if transition_trace["base_address"] != transition_expected_base:
+        raise SystemExit(
+            f"Unexpected base address for {transition_trace_path.name}: "
+            f"0x{transition_trace['base_address']:08x} != 0x{transition_expected_base:08x}"
+        )
+    if len(transition_trace["data"]) < transition_expected_size:
+        raise SystemExit(
+            f"Snapshot too short for {transition_trace_path.name}: "
+            f"{len(transition_trace['data'])} < {transition_expected_size}"
+        )
+
 result = {
     "sources": {
         "gamestatus_window": {
@@ -255,6 +312,43 @@ result = {
         }
     },
 }
+
+if cur_game_mode_trace is not None:
+    cur_game_mode = cur_game_mode_trace["data"]
+    init_ptr = u32le(cur_game_mode, 0x04)
+    step_ptr = u32le(cur_game_mode, 0x08)
+    result["sources"]["cur_game_mode"] = {
+        "path": cur_game_mode_trace["path"],
+        "base_address": f"0x{cur_game_mode_trace['base_address']:08x}",
+        "window_size_bytes": len(cur_game_mode_trace["data"]),
+        "window_sha256": hashlib.sha256(cur_game_mode).hexdigest(),
+        "description": "Vanilla Paper Mario US CurGameMode struct from symbol_addrs.txt.",
+    }
+    result["paper_mario_us"]["cur_game_mode"] = {
+        "flags": u16le(cur_game_mode, 0x00),
+        "init_ptr": f"0x{init_ptr:08x}",
+        "init_symbol": CUR_GAME_MODE_POINTER_NAMES.get(init_ptr),
+        "step_ptr": f"0x{step_ptr:08x}",
+        "step_symbol": CUR_GAME_MODE_POINTER_NAMES.get(step_ptr),
+        "render_back_ui_ptr": f"0x{u32le(cur_game_mode, 0x0C):08x}",
+        "render_front_ui_ptr": f"0x{u32le(cur_game_mode, 0x10):08x}",
+        "phase_guess": CUR_GAME_MODE_PHASE_BY_POINTERS.get((init_ptr, step_ptr), "unknown"),
+    }
+
+if transition_trace is not None:
+    transition = transition_trace["data"]
+    result["sources"]["map_transition_state"] = {
+        "path": transition_trace["path"],
+        "base_address": f"0x{transition_trace['base_address']:08x}",
+        "window_size_bytes": len(transition_trace["data"]),
+        "window_sha256": hashlib.sha256(transition).hexdigest(),
+        "description": "Vanilla Paper Mario US map-transition globals from symbol_addrs.txt.",
+    }
+    result["paper_mario_us"]["map_transition"] = {
+        "state": s16le(transition, 0x00),
+        "state_time": s16le(transition, 0x02),
+        "loaded_from_file_select": s16le(transition, 0x04),
+    }
 
 output_path.write_text(json.dumps(result, indent=2) + "\n")
 PY

@@ -10,6 +10,7 @@ This repo uses tiered, local-only emulator-behavior test gates to separate requi
 - standardize emulator-facing runtime scenarios as fullscreen windows for consistent screenshots
 - do not start a tracked runtime scenario if another `retroarch` process is already running
 - tracked RetroArch adapter launches are expected to enforce a runtime lock so concurrent scenario starts fail fast
+- tracked runtime scenarios should not depend on global `~/.config/retroarch/saves`; save RAM belongs inside the bundle or an explicitly staged local asset
 - do not try to parallelize runtime emulator tests just because build steps are parallelized
 
 These rules matter because runtime emulator tests consume significant local resources and can interfere with each other visually.

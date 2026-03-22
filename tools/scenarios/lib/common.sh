@@ -56,6 +56,19 @@ scenario_patch_file() {
   perl -0pi -e "$expr" "$path"
 }
 
+scenario_stage_optional_savefile() {
+  local savefile_path="$1"
+  local bundle_dir="$2"
+  local rom_basename="$3"
+
+  if [[ -z "$savefile_path" || ! -f "$savefile_path" ]]; then
+    return 1
+  fi
+
+  mkdir -p "$bundle_dir/savefiles/ParaLLEl N64"
+  cp "$savefile_path" "$bundle_dir/savefiles/ParaLLEl N64/${rom_basename}.srm"
+}
+
 scenario_decode_paper_mario_game_status_snapshot() {
   local snapshot_path="$1"
   local output_path="$2"

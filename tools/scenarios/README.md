@@ -30,6 +30,7 @@ Current tracked scenario seeds:
 - [`paper-mario-hos-05-entry-3.runtime.env`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-hos-05-entry-3.runtime.env)
 - [`remint-paper-mario-file-select-authority.sh`](/home/auro/code/parallel-n64/tools/scenarios/remint-paper-mario-file-select-authority.sh)
 - [`remint-paper-mario-hos-05-entry-3-authority.sh`](/home/auro/code/parallel-n64/tools/scenarios/remint-paper-mario-hos-05-entry-3-authority.sh)
+- [`stage-paper-mario-savefile.sh`](/home/auro/code/parallel-n64/tools/scenarios/stage-paper-mario-savefile.sh)
 
 Current Paper Mario runtime note:
 
@@ -38,6 +39,8 @@ Current Paper Mario runtime note:
 - the tracked title-screen scenario depends on the adapter disabling RetroArch quit confirmation so a single `QUIT` command exits cleanly
 - the tracked title-screen and file-select scenarios now use a trustworthy fixture-relative `frame=` clock
 - the canonical steady-state Paper Mario workflow is `load savestate -> settle 3 frames -> capture`
+- tracked runtime scenarios now isolate save RAM inside each bundle via `savefile_directory`, even when no explicit `.srm` is staged
+- a local Paper Mario `.srm` can be intentionally copied into gitignored assets with `stage-paper-mario-savefile.sh` for future deeper fixtures
 - controller scripts remain in the repo as bootstrap paths for minting or replacing authoritative savestates
 - the file-select remint helper intentionally rebuilds the authoritative state from the bootstrap path and verifies it against the canonical capture hash
 - planned ladder steps should still get scenario and remint-script stubs so future work extends the model instead of bypassing it

@@ -36,6 +36,7 @@ Every tracked scenario bundle should record:
 - active state path and hash
 - ROM hash
 - pack hash when present
+- savefile hash when present
 - the post-load settle frame count
 - semantic scene traces when stable addresses are known and the frontend can read memory safely
 
@@ -57,3 +58,4 @@ Every tracked scenario bundle should record:
 - use [run-build.sh](/home/auro/code/parallel-n64/run-build.sh) for the core build path
 - use the local [RetroArch build](/home/auro/code/RetroArch/retroarch) for tracked runtime scenarios
 - emulator-facing scenario runs are serial; the adapter should enforce this with both a process check and a runtime lock
+- tracked runtime scenarios should isolate `savefile_directory` inside each evidence bundle so global local save RAM does not become hidden test input

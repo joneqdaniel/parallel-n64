@@ -91,6 +91,9 @@ AUTHORITATIVE_STATE_SHA256="missing"
 AUTHORITY_MODE_USED="none"
 GAME_STATUS_TRACE_REL="traces/paper-mario-game-status.core-memory.txt"
 GAME_STATUS_JSON_REL="traces/paper-mario-game-status.json"
+SAVEFILE_PATH=""
+SAVEFILE_PRESENT=0
+SAVEFILE_SHA256="missing"
 
 scenario_prepare_bundle_dirs "$BUNDLE_DIR"
 
@@ -111,7 +114,10 @@ cat > "$BUNDLE_DIR/bundle.json" <<EOF
     "rom_sha256": "$(scenario_sha256_file "$ROM_PATH")",
     "hires_pack_path": "$PACK_PATH",
     "hires_pack_sha256": "$(scenario_sha256_file "$PACK_PATH")",
-    "retroarch_path": "$RETROARCH_PATH"
+    "retroarch_path": "$RETROARCH_PATH",
+    "savefile_path": "",
+    "savefile_present": false,
+    "savefile_sha256": "missing"
   },
   "fixture_authority": {
     "authority_mode_requested": "$AUTHORITY_MODE",
@@ -142,6 +148,9 @@ MANIFEST_PATH=$MANIFEST
 ROM_PATH=$ROM_PATH
 HIRES_PACK_PATH=$PACK_PATH
 RETROARCH_PATH=$RETROARCH_PATH
+SAVEFILE_PATH=
+SAVEFILE_PRESENT=0
+SAVEFILE_SHA256=missing
 AUTHORITY_MODE_REQUESTED=$AUTHORITY_MODE
 AUTHORITY_MODE_USED=none
 AUTHORITY_GRAPH_PATH=$AUTHORITY_GRAPH_PATH
@@ -188,13 +197,19 @@ else
     AUTHORITY_MODE_USED="authoritative"
   fi
 
+  if [[ -n "${SAVEFILE_PATH:-}" && -f "${SAVEFILE_PATH:-}" ]]; then
+    SAVEFILE_PRESENT=1
+    SAVEFILE_SHA256="$(scenario_sha256_file "$SAVEFILE_PATH")"
+    scenario_stage_optional_savefile "$SAVEFILE_PATH" "$BUNDLE_DIR" "Paper Mario (USA)"
+  fi
+
   if [[ "$AUTHORITY_MODE" == "authoritative" && "$AUTHORITATIVE_STATE_PRESENT" != "1" ]]; then
     echo "[scenario] authoritative title-screen state is required." >&2
     exit 1
   fi
 
-  scenario_patch_file "$BUNDLE_DIR/bundle.json" 's|"authority_mode_used": "none"|"authority_mode_used": "'"${AUTHORITY_MODE_USED:-none}"'"|g; s|"bootstrap_parent_fixture_id": ""|"bootstrap_parent_fixture_id": "'"${BOOTSTRAP_PARENT_FIXTURE_ID:-}"'"|g; s|"remint_script": ""|"remint_script": "'"${REMINT_SCRIPT:-}"'"|g; s|"authoritative_state_path": ""|"authoritative_state_path": "'"${AUTHORITATIVE_STATE_PATH:-}"'"|g; s|"authoritative_state_present": false|"authoritative_state_present": '"$(scenario_json_bool "$AUTHORITATIVE_STATE_PRESENT")"'|g; s|"authoritative_state_sha256": "missing"|"authoritative_state_sha256": "'"${AUTHORITATIVE_STATE_SHA256:-missing}"'"|g; s|"active_state_path": ""|"active_state_path": "'"${AUTHORITATIVE_STATE_PATH:-}"'"|g; s|"active_state_sha256": "missing"|"active_state_sha256": "'"${AUTHORITATIVE_STATE_SHA256:-missing}"'"|g; s|"post_load_settle_frames": 0|"post_load_settle_frames": '"${POST_LOAD_SETTLE_FRAMES:-0}"'|g'
-  scenario_patch_file "$BUNDLE_DIR/config.env" 's|AUTHORITY_MODE_USED=none|AUTHORITY_MODE_USED='"${AUTHORITY_MODE_USED:-none}"'|g; s|BOOTSTRAP_PARENT_FIXTURE_ID=|BOOTSTRAP_PARENT_FIXTURE_ID='"${BOOTSTRAP_PARENT_FIXTURE_ID:-}"'|g; s|REMINT_SCRIPT=|REMINT_SCRIPT='"${REMINT_SCRIPT:-}"'|g; s|AUTHORITATIVE_STATE_PATH=|AUTHORITATIVE_STATE_PATH='"${AUTHORITATIVE_STATE_PATH:-}"'|g; s|AUTHORITATIVE_STATE_PRESENT=0|AUTHORITATIVE_STATE_PRESENT='"$AUTHORITATIVE_STATE_PRESENT"'|g; s|AUTHORITATIVE_STATE_SHA256=missing|AUTHORITATIVE_STATE_SHA256='"${AUTHORITATIVE_STATE_SHA256:-missing}"'|g; s|ACTIVE_STATE_PATH=|ACTIVE_STATE_PATH='"${AUTHORITATIVE_STATE_PATH:-}"'|g; s|ACTIVE_STATE_SHA256=missing|ACTIVE_STATE_SHA256='"${AUTHORITATIVE_STATE_SHA256:-missing}"'|g; s|POST_LOAD_SETTLE_FRAMES=0|POST_LOAD_SETTLE_FRAMES='"${POST_LOAD_SETTLE_FRAMES:-0}"'|g'
+  scenario_patch_file "$BUNDLE_DIR/bundle.json" 's|"savefile_path": ""|"savefile_path": "'"${SAVEFILE_PATH:-}"'"|g; s|"savefile_present": false|"savefile_present": '"$(scenario_json_bool "$SAVEFILE_PRESENT")"'|g; s|"savefile_sha256": "missing"|"savefile_sha256": "'"${SAVEFILE_SHA256:-missing}"'"|g; s|"authority_mode_used": "none"|"authority_mode_used": "'"${AUTHORITY_MODE_USED:-none}"'"|g; s|"bootstrap_parent_fixture_id": ""|"bootstrap_parent_fixture_id": "'"${BOOTSTRAP_PARENT_FIXTURE_ID:-}"'"|g; s|"remint_script": ""|"remint_script": "'"${REMINT_SCRIPT:-}"'"|g; s|"authoritative_state_path": ""|"authoritative_state_path": "'"${AUTHORITATIVE_STATE_PATH:-}"'"|g; s|"authoritative_state_present": false|"authoritative_state_present": '"$(scenario_json_bool "$AUTHORITATIVE_STATE_PRESENT")"'|g; s|"authoritative_state_sha256": "missing"|"authoritative_state_sha256": "'"${AUTHORITATIVE_STATE_SHA256:-missing}"'"|g; s|"active_state_path": ""|"active_state_path": "'"${AUTHORITATIVE_STATE_PATH:-}"'"|g; s|"active_state_sha256": "missing"|"active_state_sha256": "'"${AUTHORITATIVE_STATE_SHA256:-missing}"'"|g; s|"post_load_settle_frames": 0|"post_load_settle_frames": '"${POST_LOAD_SETTLE_FRAMES:-0}"'|g'
+  scenario_patch_file "$BUNDLE_DIR/config.env" 's|SAVEFILE_PATH=|SAVEFILE_PATH='"${SAVEFILE_PATH:-}"'|g; s|SAVEFILE_PRESENT=0|SAVEFILE_PRESENT='"$SAVEFILE_PRESENT"'|g; s|SAVEFILE_SHA256=missing|SAVEFILE_SHA256='"${SAVEFILE_SHA256:-missing}"'|g; s|AUTHORITY_MODE_USED=none|AUTHORITY_MODE_USED='"${AUTHORITY_MODE_USED:-none}"'|g; s|BOOTSTRAP_PARENT_FIXTURE_ID=|BOOTSTRAP_PARENT_FIXTURE_ID='"${BOOTSTRAP_PARENT_FIXTURE_ID:-}"'|g; s|REMINT_SCRIPT=|REMINT_SCRIPT='"${REMINT_SCRIPT:-}"'|g; s|AUTHORITATIVE_STATE_PATH=|AUTHORITATIVE_STATE_PATH='"${AUTHORITATIVE_STATE_PATH:-}"'|g; s|AUTHORITATIVE_STATE_PRESENT=0|AUTHORITATIVE_STATE_PRESENT='"$AUTHORITATIVE_STATE_PRESENT"'|g; s|AUTHORITATIVE_STATE_SHA256=missing|AUTHORITATIVE_STATE_SHA256='"${AUTHORITATIVE_STATE_SHA256:-missing}"'|g; s|ACTIVE_STATE_PATH=|ACTIVE_STATE_PATH='"${AUTHORITATIVE_STATE_PATH:-}"'|g; s|ACTIVE_STATE_SHA256=missing|ACTIVE_STATE_SHA256='"${AUTHORITATIVE_STATE_SHA256:-missing}"'|g; s|POST_LOAD_SETTLE_FRAMES=0|POST_LOAD_SETTLE_FRAMES='"${POST_LOAD_SETTLE_FRAMES:-0}"'|g'
 
   declare -a runtime_commands
   runtime_commands=(

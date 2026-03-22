@@ -8,6 +8,7 @@ description: >
 content:
   rom_path: assets/Paper Mario (USA).zip
   core: parallel_n64
+  savefile_path: ""
   hires_pack_path: assets/PAPER MARIO_HIRESTEXTURES.hts
 
 entry:
@@ -56,6 +57,7 @@ checks:
     - baseline-off mode remains visually safe
   telemetry:
     - bundle includes ROM hash
+    - bundle includes savefile hash when present
     - bundle includes hi-res pack hash when present
     - bundle includes config snapshot
     - bundle includes the active authority mode and active state hash

@@ -137,7 +137,7 @@ fi
 acquire_runtime_lock
 fail_if_retroarch_running
 
-mkdir -p "$BUNDLE_DIR"/captures "$BUNDLE_DIR"/logs "$BUNDLE_DIR"/traces "$BUNDLE_DIR"/states
+mkdir -p "$BUNDLE_DIR"/captures "$BUNDLE_DIR"/logs "$BUNDLE_DIR"/traces "$BUNDLE_DIR"/states "$BUNDLE_DIR"/savefiles
 
 APPEND_CONFIG="$BUNDLE_DIR/retroarch.append.cfg"
 FIFO_PATH="$BUNDLE_DIR/retroarch.stdin"
@@ -157,6 +157,7 @@ network_cmd_enable = "false"
 confirm_quit = "false"
 state_slot = "0"
 savestate_directory = "$BUNDLE_DIR/states"
+savefile_directory = "$BUNDLE_DIR/savefiles"
 screenshot_directory = "$BUNDLE_DIR/captures"
 savestate_thumbnail_enable = "false"
 menu_enable_widgets = "false"

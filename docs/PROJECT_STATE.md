@@ -35,6 +35,8 @@
 - The local RetroArch build now falls back to `RETRO_MEMORY_SYSTEM_RAM` for `READ_CORE_MEMORY` when a core does not publish a libretro memory map
 - The tracked title-screen and file-select fixtures now decode a Paper Mario US `gGameStatus` semantic trace from vanilla runs
 - The current decoded semantic values for both tracked startup fixtures are `areaID=0`, `mapID=0`, `entryID=0`, `introPart=1`, `startupState=0`
+- Tracked runtime scenarios now isolate save RAM inside each bundle, and savefile identity is explicit in bundle metadata instead of silently coming from `~/.config/retroarch/saves`
+- There is now an intentional helper to stage a local Paper Mario `.srm` into gitignored assets for future deeper fixtures
 - `run-build.sh` is the authoritative local build entrypoint because it carries the ParaLLEl build flags and auto-cleans when flag fingerprints change
 
 ## Locked Planning Backbone

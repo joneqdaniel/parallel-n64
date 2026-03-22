@@ -6,6 +6,7 @@ description: Short human-readable description of the target scene or behavior.
 content:
   rom_path: assets/example.zip
   core: parallel_n64
+  savefile_path: ""
 
 entry:
   method: savestate

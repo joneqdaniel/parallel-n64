@@ -70,4 +70,4 @@ notes:
   - The bootstrap path remains `title-screen savestate -> START held for 60 frames -> settle 2 frames -> save file-select savestate`.
   - The current authoritative file-select state was minted from bootstrap save offset `2`.
   - Use `tools/scenarios/remint-paper-mario-file-select-authority.sh` to remint this authority intentionally.
-  - The tracked runtime path now also snapshots and decodes the Paper Mario US `gGameStatus` window into `traces/paper-mario-game-status.json`.
+  - The tracked runtime path now also snapshots and decodes an empirical vanilla Paper Mario US `gGameStatus` slice into `traces/paper-mario-game-status.json`.

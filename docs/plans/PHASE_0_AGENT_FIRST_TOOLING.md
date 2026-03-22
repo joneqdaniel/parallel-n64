@@ -82,7 +82,9 @@
 - complete: extended the fixture model to distinguish active vs planned ladder steps and scaffolded `hos_05 ENTRY_3` as the next explicit Paper Mario target
 - complete: added bundle-level semantic memory snapshots for tracked Paper Mario fixtures and fixed local RetroArch `READ_CORE_MEMORY` fallback for cores without libretro memory maps
 - complete: isolated save RAM inside tracked runtime bundles and added an intentional Paper Mario savefile staging helper for future deeper fixtures
-- in progress: broaden the Paper Mario semantic trace beyond the current startup/file-select `gGameStatus` window so deeper savefile-backed gameplay probes can prove scene identity instead of only proving deterministic screen change
+- complete: corrected the tracked Paper Mario semantic decode to use an empirical vanilla `gGameStatus` slice at `0x800740aa` with little-endian field decoding, restoring coherent startup traces for title screen and file select
+- complete: verified the first deeper save-backed transition with the corrected semantic slice; it reproducibly settles at `AREA_KMR map=3 entry=5`, which proves non-startup state transition even though it is not the planned `hos_05 ENTRY_3` target yet
+- in progress: broaden the Paper Mario semantic trace beyond the current vanilla `gGameStatus` slice so deeper savefile-backed gameplay probes can name high-level mode/menu state and reach the planned `hos_05 ENTRY_3` authority path
 
 ## Out Of Scope
 

@@ -34,9 +34,10 @@
 - The tracked RetroArch adapter now enforces serial runtime launches with a lock in addition to the existing process check
 - The tracked adapter can now snapshot core memory directly into bundle traces with `SNAPSHOT_CORE_MEMORY`
 - The local RetroArch build now falls back to `RETRO_MEMORY_SYSTEM_RAM` for `READ_CORE_MEMORY` when a core does not publish a libretro memory map
-- The tracked title-screen and file-select fixtures now decode a Paper Mario US `gGameStatus` semantic trace from vanilla runs
-- The current decoded semantic values for both tracked startup fixtures are `areaID=0`, `mapID=0`, `entryID=0`, `introPart=1`, `startupState=0`
-- A deeper savefile-backed probe now verifies deterministic long-step control from the file-select authority, but the current `gGameStatus` trace window stops being trustworthy once that probe leaves the startup/file-select region
+- The tracked title-screen and file-select fixtures now decode an empirical vanilla Paper Mario US `gGameStatus` slice from `0x800740aa` into `traces/paper-mario-game-status.json`
+- The corrected startup semantic values are stable for both tracked fixtures: `areaID=0 (AREA_KMR)`, `mapID=0`, `entryID=0`, `introPart=1`, `startupState=0`
+- A deeper savefile-backed probe now verifies deterministic long-step control from the file-select authority and settles reproducibly at `areaID=0 (AREA_KMR)`, `mapID=3`, `entryID=5`
+- That means the first save-backed gameplay transition is now semantically distinguishable from the startup/file-select fixtures, but it does not yet reach the planned `hos_05 ENTRY_3` target
 - Tracked runtime scenarios now isolate save RAM inside each bundle, and savefile identity is explicit in bundle metadata instead of silently coming from `~/.config/retroarch/saves`
 - There is now an intentional helper to stage a local Paper Mario `.srm` into gitignored assets for future deeper fixtures
 - `run-build.sh` is the authoritative local build entrypoint because it carries the ParaLLEl build flags and auto-cleans when flag fingerprints change

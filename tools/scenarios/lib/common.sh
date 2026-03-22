@@ -69,50 +69,136 @@ scenario_stage_optional_savefile() {
   cp "$savefile_path" "$bundle_dir/savefiles/ParaLLEl N64/${rom_basename}.srm"
 }
 
-scenario_decode_paper_mario_game_status_snapshot() {
-  local snapshot_path="$1"
+scenario_decode_paper_mario_semantic_state() {
+  local bundle_dir="$1"
   local output_path="$2"
-  local -a fields=()
-  local area_id=0
-  local map_id=0
-  local entry_id=0
-  local intro_part=0
-  local startup_state=0
 
-  if [[ ! -f "$snapshot_path" ]]; then
-    echo "Paper Mario snapshot not found: $snapshot_path" >&2
-    return 1
-  fi
+  python - "$bundle_dir" "$output_path" <<'PY'
+import json
+import sys
+from pathlib import Path
 
-  read -r -a fields < "$snapshot_path" || true
-  if [[ "${fields[0]:-}" != "READ_CORE_MEMORY" ]]; then
-    echo "Unexpected Paper Mario snapshot format: $snapshot_path" >&2
-    return 1
-  fi
+bundle_dir = Path(sys.argv[1])
+output_path = Path(sys.argv[2])
 
-  if (( ${#fields[@]} < 42 )); then
-    echo "Paper Mario snapshot too short: $snapshot_path" >&2
-    return 1
-  fi
-
-  area_id=$(( (16#${fields[2]} << 8) | 16#${fields[3]} ))
-  map_id=$(( (16#${fields[8]} << 8) | 16#${fields[9]} ))
-  entry_id=$(( (16#${fields[10]} << 8) | 16#${fields[11]} ))
-  intro_part=$(( 16#${fields[36]} ))
-  startup_state=$(( 16#${fields[40]} ))
-
-  cat > "$output_path" <<EOF
-{
-  "source_trace": "$snapshot_path",
-  "base_address": "0x${fields[1]}",
-  "window_size_bytes": 40,
-  "paper_mario_us_gamestatus": {
-    "area_id": $area_id,
-    "map_id": $map_id,
-    "entry_id": $entry_id,
-    "intro_part": $intro_part,
-    "startup_state": $startup_state
-  }
+LOAD_TYPE_NAMES = {
+    0: "LOAD_FROM_MAP",
+    1: "LOAD_FROM_FILE_SELECT",
 }
-EOF
+
+AREA_NAMES = {
+    0: "AREA_KMR",
+    1: "AREA_MAC",
+    2: "AREA_TIK",
+    3: "AREA_KGR",
+    4: "AREA_KKJ",
+    5: "AREA_HOS",
+    6: "AREA_NOK",
+    7: "AREA_TRD",
+    8: "AREA_IWA",
+    9: "AREA_DRO",
+    10: "AREA_SBK",
+    11: "AREA_ISK",
+    12: "AREA_MIM",
+    13: "AREA_OBK",
+    14: "AREA_ARN",
+    15: "AREA_DGB",
+    16: "AREA_OMO",
+    17: "AREA_JAN",
+    18: "AREA_KZN",
+    19: "AREA_FLO",
+    20: "AREA_SAM",
+    21: "AREA_PRA",
+    22: "AREA_KPA",
+    23: "AREA_OSR",
+    24: "AREA_END",
+    25: "AREA_MGM",
+    26: "AREA_GV",
+    27: "AREA_TST",
+}
+trace_path = bundle_dir / "traces" / "paper-mario-gamestatus.core-memory.txt"
+expected_base = 0x800740AA
+expected_size = 0xE6
+
+def load_trace(path: Path):
+    if not path.is_file():
+        return None
+    fields = path.read_text().split()
+    if not fields or fields[0] != "READ_CORE_MEMORY":
+        raise SystemExit(f"Unexpected Paper Mario snapshot format: {path}")
+    base_address = int(fields[1], 16)
+    data = bytes(int(x, 16) for x in fields[2:])
+    return {"path": str(path), "base_address": base_address, "data": data}
+
+def u8(buf, off):
+    return buf[off]
+
+def s8(buf, off):
+    value = buf[off]
+    return value - 256 if value >= 128 else value
+
+def u16le(buf, off):
+    return buf[off] | (buf[off + 1] << 8)
+
+def s16le(buf, off):
+    value = u16le(buf, off)
+    return value - 65536 if value >= 32768 else value
+
+def u32le(buf, off):
+    return (
+        buf[off]
+        | (buf[off + 1] << 8)
+        | (buf[off + 2] << 16)
+        | (buf[off + 3] << 24)
+    )
+
+trace = load_trace(trace_path)
+if trace is None:
+    raise SystemExit("Paper Mario gamestatus snapshot not found in bundle traces.")
+if trace["base_address"] != expected_base:
+    raise SystemExit(
+        f"Unexpected base address for {trace_path.name}: "
+        f"0x{trace['base_address']:08x} != 0x{expected_base:08x}"
+    )
+if len(trace["data"]) < expected_size:
+    raise SystemExit(
+        f"Snapshot too short for {trace_path.name}: "
+        f"{len(trace['data'])} < {expected_size}"
+    )
+
+gamestatus = trace["data"]
+
+result = {
+    "sources": {
+        "gamestatus_window": {
+            "path": trace["path"],
+            "base_address": f"0x{trace['base_address']:08x}",
+            "window_size_bytes": len(trace["data"]),
+            "description": "Empirical vanilla Paper Mario US gGameStatus slice starting at +0x86.",
+        }
+    },
+    "paper_mario_us": {
+        "game_status": {
+            "area_id": s16le(gamestatus, 0x00),
+            "area_name": AREA_NAMES.get(s16le(gamestatus, 0x00), "UNKNOWN"),
+            "prev_area": s16le(gamestatus, 0x02),
+            "prev_area_name": AREA_NAMES.get(s16le(gamestatus, 0x02), "UNKNOWN"),
+            "did_area_change": s16le(gamestatus, 0x04),
+            "map_id": s16le(gamestatus, 0x06),
+            "entry_id": s16le(gamestatus, 0x08),
+            "intro_part": s8(gamestatus, 0x22),
+            "startup_state": s8(gamestatus, 0x26),
+            "title_screen_timer": s8(gamestatus, 0x29),
+            "title_screen_dismiss_time": s8(gamestatus, 0x2A),
+            "frame_counter": u16le(gamestatus, 0xAE),
+            "save_slot": u8(gamestatus, 0xE0),
+            "load_type": u8(gamestatus, 0xE1),
+            "load_type_name": LOAD_TYPE_NAMES.get(u8(gamestatus, 0xE1), "UNKNOWN"),
+            "save_count": u32le(gamestatus, 0xE2),
+        }
+    },
+}
+
+output_path.write_text(json.dumps(result, indent=2) + "\n")
+PY
 }

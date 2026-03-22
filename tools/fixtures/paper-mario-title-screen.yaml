@@ -65,4 +65,4 @@ checks:
 notes:
   - The canonical title-screen path is now `load savestate -> settle 3 frames -> screenshot`.
   - Controller scripting remains relevant only when minting or replacing authoritative savestates.
-  - The tracked runtime path now also snapshots and decodes the Paper Mario US `gGameStatus` window into `traces/paper-mario-game-status.json`.
+  - The tracked runtime path now also snapshots and decodes an empirical vanilla Paper Mario US `gGameStatus` slice into `traces/paper-mario-game-status.json`.

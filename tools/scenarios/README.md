@@ -39,6 +39,7 @@ Current Paper Mario runtime note:
 - the tracked title-screen scenario depends on the adapter disabling RetroArch quit confirmation so a single `QUIT` command exits cleanly
 - the tracked title-screen and file-select scenarios now use a trustworthy fixture-relative `frame=` clock
 - the canonical steady-state Paper Mario workflow is `load savestate -> settle 3 frames -> capture`
+- the tracked Paper Mario semantic trace currently uses an empirical vanilla `gGameStatus` slice at `0x800740aa`; it is stable for startup fixtures and the first save-backed gameplay transition, but it is not yet a full scene-name/mode decoder
 - tracked runtime scenarios now isolate save RAM inside each bundle via `savefile_directory`, even when no explicit `.srm` is staged
 - a local Paper Mario `.srm` can be intentionally copied into gitignored assets with `stage-paper-mario-savefile.sh` for future deeper fixtures
 - controller scripts remain in the repo as bootstrap paths for minting or replacing authoritative savestates

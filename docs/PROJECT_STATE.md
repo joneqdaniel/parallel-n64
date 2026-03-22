@@ -21,9 +21,11 @@
 - Repeated title-screen authoritative runs now produce byte-identical screenshots at `4x` internal scale after the 3-frame settle
 - RetroArch now has an explicit stdin agent input path for per-port joypad/analog overrides
 - Repeated input probes from the authoritative title-screen state now produce byte-identical post-input captures when holding `START` through a controlled frame advance
-- The tracked file-select scenario now uses the validated `START`-hold scripted path from the authoritative title-screen savestate and produces byte-identical repeated captures distinct from the title-screen baseline
-- RetroArch `GET_STATUS` now reports a `frame=` field, but that counter is still not treated as the fixture authority because it is not yet stable enough to be the canonical post-load clock
-- Phase 0 remains explicitly blocked on making `frame=` trustworthy enough to serve as the fixture-relative frame clock
+- RetroArch `GET_STATUS frame=` is now trustworthy as a fixture-relative frame clock for the tracked Paper Mario scenarios
+- The tracked file-select scenario now has an authoritative savestate-backed steady-state path and still preserves the title-screen bootstrap controller path for reminting
+- Repeated file-select authoritative runs now produce byte-identical screenshots at `4x` after the 3-frame settle
+- The canonical Paper Mario fixture workflow is now `load state -> settle 3 frames -> screenshot`; controller scripting is the bootstrap path for minting new authoritative states
+- The current authoritative file-select state was minted from the deterministic bootstrap path at save offset `2`
 - `run-build.sh` is the authoritative local build entrypoint because it carries the ParaLLEl build flags and auto-cleans when flag fingerprints change
 
 ## Locked Planning Backbone

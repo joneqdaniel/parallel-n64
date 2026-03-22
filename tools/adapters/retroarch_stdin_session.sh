@@ -48,6 +48,7 @@ RETROARCH_BIN="${RETROARCH_BIN:-/home/auro/code/RetroArch/retroarch}"
 BASE_CONFIG="${BASE_CONFIG:-/home/auro/code/RetroArch/retroarch.cfg}"
 STARTUP_WAIT="${STARTUP_WAIT:-8}"
 EXIT_WAIT="${EXIT_WAIT:-10}"
+PENDING_CAPTURE_BASELINE=""
 declare -a COMMANDS=()
 
 while (($#)); do
@@ -277,18 +278,24 @@ handle_wait_new_capture() {
   local timeout_seconds="$1"
   local initial_count
   local deadline
-  initial_count="$(capture_file_count)"
+  if [[ -n "$PENDING_CAPTURE_BASELINE" ]]; then
+    initial_count="$PENDING_CAPTURE_BASELINE"
+  else
+    initial_count="$(capture_file_count)"
+  fi
   deadline=$(( $(date +%s) + $(timeout_ceiling_seconds "$timeout_seconds") ))
 
   while (( $(date +%s) < deadline )); do
     local current_count
     current_count="$(capture_file_count)"
     if (( current_count > initial_count )); then
+      PENDING_CAPTURE_BASELINE=""
       return 0
     fi
     sleep 0.2
   done
 
+  PENDING_CAPTURE_BASELINE=""
   return 1
 }
 
@@ -379,6 +386,9 @@ for cmd in "${COMMANDS[@]}"; do
   fi
 
   start_bytes="$(log_size_bytes)"
+  if [[ "$cmd" == "SCREENSHOT" ]]; then
+    PENDING_CAPTURE_BASELINE="$(capture_file_count)"
+  fi
   send_retroarch_command "$cmd"
 
   case "$cmd" in

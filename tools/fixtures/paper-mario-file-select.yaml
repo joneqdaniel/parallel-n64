@@ -1,8 +1,9 @@
 id: paper-mario-file-select
 game: paper_mario
 description: >
-  Deterministic Paper Mario file select fixture reached from the authoritative
-  title-screen savestate through scripted controller input.
+  Deterministic Paper Mario file select fixture with an authoritative
+  file-select savestate for steady-state capture and a title-screen bootstrap
+  path for reminting that state when needed.
 
 content:
   rom_path: assets/Paper Mario (USA).zip
@@ -10,9 +11,9 @@ content:
   hires_pack_path: assets/PAPER MARIO_HIRESTEXTURES.hts
 
 entry:
-  method: savestate_plus_controller_path
-  reference: title_screen_to_file_select
-  authority: authoritative_title_screen_savestate_plus_scripted_input
+  method: savestate
+  reference: file_select_idle
+  authority: authoritative_file_select_savestate
   target_state: file_select_idle
 
 requirements:
@@ -54,6 +55,6 @@ checks:
     - bundle records fallback reasons when replacement is not applied
 
 notes:
-  - This fixture currently depends on the authoritative title-screen savestate.
-  - The current scripted controller path candidate is `START` held for 60 frames, then released for 5 settle frames.
-  - Phase 0 still requires a trustworthy fixture-relative frame clock before this path counts toward Phase 0 exit.
+  - The canonical file-select path is now `load savestate -> settle 3 frames -> screenshot`.
+  - The bootstrap path remains `title-screen savestate -> START held for 60 frames -> settle 2 frames -> save file-select savestate`.
+  - The current authoritative file-select state was minted from bootstrap save offset `2`.

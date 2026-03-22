@@ -10,9 +10,9 @@ content:
   hires_pack_path: assets/PAPER MARIO_HIRESTEXTURES.hts
 
 entry:
-  method: controller_path
+  method: savestate
   reference: title_screen
-  authority: controller_path_until_savestate_exists
+  authority: authoritative_title_screen_savestate
   target_state: title_screen_idle
 
 requirements:
@@ -52,5 +52,5 @@ checks:
     - bundle records fallback reasons when replacement is not applied
 
 notes:
-  - Authoritative savestate is still pending.
-  - This fixture should move to savestate-backed authority as soon as the first stable title-screen state exists.
+  - The canonical title-screen path is now `load savestate -> settle 3 frames -> screenshot`.
+  - Controller scripting remains relevant only when minting or replacing authoritative savestates.

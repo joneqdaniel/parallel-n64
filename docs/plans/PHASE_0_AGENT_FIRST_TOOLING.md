@@ -43,6 +43,7 @@
 - fixture identity is explicit and locked
 - the workflow is fast enough to be used repeatedly during renderer work
 - the reported RetroArch `frame=` value is trustworthy enough to use as a fixture-relative frame clock
+- steady-state fixtures use authoritative savestates with the canonical path `load -> settle 3 -> capture`
 
 ## Current Progress
 
@@ -67,8 +68,11 @@
 - complete: verified repeated authoritative title-screen runs now produce byte-identical screenshots at `4x`
 - complete: added explicit RetroArch stdin agent commands for per-port input override (`SET_INPUT_PORT`, `CLEAR_INPUT_PORT`, `GET_INPUT_PORT`)
 - complete: verified repeated deterministic controller-input probes from the authoritative title-screen state produce byte-identical post-input captures
+- complete: fixed RetroArch command timing so agent commands are polled at the runloop level instead of landing too late inside `retro_run()`
+- complete: fixed the `STEP_FRAME` budget so it only decrements when a real core frame executed
+- complete: made RetroArch `GET_STATUS frame=` trustworthy as a fixture-relative frame clock for the tracked Paper Mario scenarios
 - complete: promoted the validated `START`-hold controller path into a tracked Paper Mario file-select scenario and verified repeated scenario runs produce byte-identical captures distinct from the title-screen baseline
-- pending: make the reported RetroArch `frame=` value trustworthy enough to use as a fixture-relative frame clock; Phase 0 does not exit until this is solved
+- complete: minted an authoritative file-select savestate from the deterministic bootstrap path and switched the steady-state file-select fixture back to `load -> settle 3 -> capture`
 
 ## Out Of Scope
 

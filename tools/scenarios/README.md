@@ -30,4 +30,6 @@ Current Paper Mario runtime note:
 - save/load command sequences now use log-gated startup readiness and explicit command acknowledgements instead of blind timing where possible
 - the tracked title-screen scenario depends on the adapter disabling savestate thumbnails, which removes the current save-state crash seen on the Vulkan HW-frame path
 - the tracked title-screen scenario depends on the adapter disabling RetroArch quit confirmation so a single `QUIT` command exits cleanly
-- the tracked file-select scenario is still a Phase 0 scripted-controller path and does not count toward Phase 0 exit until the fixture-relative frame clock problem is solved
+- the tracked title-screen and file-select scenarios now use a trustworthy fixture-relative `frame=` clock
+- the canonical steady-state Paper Mario workflow is `load savestate -> settle 3 frames -> capture`
+- controller scripts remain in the repo as bootstrap paths for minting or replacing authoritative savestates

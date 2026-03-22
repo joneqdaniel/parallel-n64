@@ -89,6 +89,8 @@ PACK_PATH="$REPO_ROOT/assets/PAPER MARIO_HIRESTEXTURES.hts"
 RETROARCH_PATH="/home/auro/code/RetroArch"
 AUTHORITATIVE_STATE_PATH=""
 AUTHORITATIVE_STATE_PRESENT=0
+BOOTSTRAP_STATE_PATH=""
+BOOTSTRAP_STATE_PRESENT=0
 
 mkdir -p "$BUNDLE_DIR"/captures "$BUNDLE_DIR"/logs "$BUNDLE_DIR"/traces
 
@@ -114,6 +116,8 @@ cat > "$BUNDLE_DIR/bundle.json" <<EOF
   "fixture_authority": {
     "authoritative_state_path": "",
     "authoritative_state_present": false,
+    "bootstrap_state_path": "",
+    "bootstrap_state_present": false,
     "post_load_settle_frames": 0
   },
   "controller_script": {
@@ -138,6 +142,8 @@ HIRES_PACK_PATH=$PACK_PATH
 RETROARCH_PATH=$RETROARCH_PATH
 AUTHORITATIVE_STATE_PATH=
 AUTHORITATIVE_STATE_PRESENT=0
+BOOTSTRAP_STATE_PATH=
+BOOTSTRAP_STATE_PRESENT=0
 POST_LOAD_SETTLE_FRAMES=0
 FILE_SELECT_START_MASK=
 FILE_SELECT_START_HOLD_FRAMES=0
@@ -156,7 +162,7 @@ cat > "$BUNDLE_DIR/README.md" <<EOF
 - Execution rule: one emulator-facing run at a time
 - Status: bundle initialized
 
-This bundle is a Phase 0 scripted-controller fixture.
+This bundle is a Phase 0 file-select fixture.
 Populate \`captures/\`, \`logs/\`, and \`traces/\` through the tracked scenario and adapter flow.
 EOF
 
@@ -178,38 +184,62 @@ else
     mkdir -p "$BUNDLE_DIR/states/ParaLLEl N64"
     cp "$AUTHORITATIVE_STATE_PATH" "$BUNDLE_DIR/states/ParaLLEl N64/Paper Mario (USA).state"
   fi
-
-  perl -0pi -e 's|"authoritative_state_path": ""|"authoritative_state_path": "'"${AUTHORITATIVE_STATE_PATH:-}"'"|g; s|"authoritative_state_present": false|"authoritative_state_present": '"$(json_bool "$AUTHORITATIVE_STATE_PRESENT")"'|g; s|"post_load_settle_frames": 0|"post_load_settle_frames": '"${POST_LOAD_SETTLE_FRAMES:-0}"'|g; s|"start_mask": ""|"start_mask": "'"${FILE_SELECT_START_MASK:-}"'"|g; s|"start_hold_frames": 0|"start_hold_frames": '"${FILE_SELECT_START_HOLD_FRAMES:-0}"'|g; s|"post_input_settle_frames": 0|"post_input_settle_frames": '"${POST_INPUT_SETTLE_FRAMES:-0}"'|g' "$BUNDLE_DIR/bundle.json"
-  perl -0pi -e 's|AUTHORITATIVE_STATE_PATH=|AUTHORITATIVE_STATE_PATH='"${AUTHORITATIVE_STATE_PATH:-}"'|g; s|AUTHORITATIVE_STATE_PRESENT=0|AUTHORITATIVE_STATE_PRESENT='"$AUTHORITATIVE_STATE_PRESENT"'|g; s|POST_LOAD_SETTLE_FRAMES=0|POST_LOAD_SETTLE_FRAMES='"${POST_LOAD_SETTLE_FRAMES:-0}"'|g; s|FILE_SELECT_START_MASK=|FILE_SELECT_START_MASK='"${FILE_SELECT_START_MASK:-}"'|g; s|FILE_SELECT_START_HOLD_FRAMES=0|FILE_SELECT_START_HOLD_FRAMES='"${FILE_SELECT_START_HOLD_FRAMES:-0}"'|g; s|POST_INPUT_SETTLE_FRAMES=0|POST_INPUT_SETTLE_FRAMES='"${POST_INPUT_SETTLE_FRAMES:-0}"'|g' "$BUNDLE_DIR/config.env"
-
-  if (( ! AUTHORITATIVE_STATE_PRESENT )); then
-    echo "[scenario] authoritative title-screen state is required for the file-select fixture." >&2
-    exit 1
+  if [[ -n "${BOOTSTRAP_STATE_PATH:-}" && -f "${BOOTSTRAP_STATE_PATH:-}" ]]; then
+    BOOTSTRAP_STATE_PRESENT=1
   fi
 
-  post_load_target=$(( POST_LOAD_SETTLE_FRAMES ))
-  post_input_target=$(( POST_LOAD_SETTLE_FRAMES + FILE_SELECT_START_HOLD_FRAMES ))
-  final_target=$(( post_input_target + POST_INPUT_SETTLE_FRAMES ))
+  perl -0pi -e 's|"authoritative_state_path": ""|"authoritative_state_path": "'"${AUTHORITATIVE_STATE_PATH:-}"'"|g; s|"authoritative_state_present": false|"authoritative_state_present": '"$(json_bool "$AUTHORITATIVE_STATE_PRESENT")"'|g; s|"bootstrap_state_path": ""|"bootstrap_state_path": "'"${BOOTSTRAP_STATE_PATH:-}"'"|g; s|"bootstrap_state_present": false|"bootstrap_state_present": '"$(json_bool "$BOOTSTRAP_STATE_PRESENT")"'|g; s|"post_load_settle_frames": 0|"post_load_settle_frames": '"${POST_LOAD_SETTLE_FRAMES:-0}"'|g; s|"start_mask": ""|"start_mask": "'"${FILE_SELECT_START_MASK:-}"'"|g; s|"start_hold_frames": 0|"start_hold_frames": '"${FILE_SELECT_START_HOLD_FRAMES:-0}"'|g; s|"post_input_settle_frames": 0|"post_input_settle_frames": '"${POST_INPUT_SETTLE_FRAMES:-0}"'|g' "$BUNDLE_DIR/bundle.json"
+  perl -0pi -e 's|AUTHORITATIVE_STATE_PATH=|AUTHORITATIVE_STATE_PATH='"${AUTHORITATIVE_STATE_PATH:-}"'|g; s|AUTHORITATIVE_STATE_PRESENT=0|AUTHORITATIVE_STATE_PRESENT='"$AUTHORITATIVE_STATE_PRESENT"'|g; s|BOOTSTRAP_STATE_PATH=|BOOTSTRAP_STATE_PATH='"${BOOTSTRAP_STATE_PATH:-}"'|g; s|BOOTSTRAP_STATE_PRESENT=0|BOOTSTRAP_STATE_PRESENT='"$BOOTSTRAP_STATE_PRESENT"'|g; s|POST_LOAD_SETTLE_FRAMES=0|POST_LOAD_SETTLE_FRAMES='"${POST_LOAD_SETTLE_FRAMES:-0}"'|g; s|FILE_SELECT_START_MASK=|FILE_SELECT_START_MASK='"${FILE_SELECT_START_MASK:-}"'|g; s|FILE_SELECT_START_HOLD_FRAMES=0|FILE_SELECT_START_HOLD_FRAMES='"${FILE_SELECT_START_HOLD_FRAMES:-0}"'|g; s|POST_INPUT_SETTLE_FRAMES=0|POST_INPUT_SETTLE_FRAMES='"${POST_INPUT_SETTLE_FRAMES:-0}"'|g' "$BUNDLE_DIR/config.env"
 
-  "$REPO_ROOT/tools/adapters/retroarch_stdin_session.sh" \
-    --bundle-dir "$BUNDLE_DIR" \
-    --mode "$MODE" \
-    --retroarch-bin "$RETROARCH_BIN" \
-    --base-config "$RETROARCH_BASE_CONFIG" \
-    --core "$CORE_PATH" \
-    --rom "$ROM_PATH" \
-    --startup-wait "$STARTUP_WAIT" \
-    --command "WAIT_LOG 120 ${STARTUP_READY_PATTERN:-EmuThread: M64CMD_EXECUTE.}" \
-    --command "LOAD_STATE_SLOT_PAUSED 0" \
-    --command "STEP_FRAME ${POST_LOAD_SETTLE_FRAMES}" \
-    --command "WAIT_STATUS_FRAME PAUSED ${post_load_target} 10" \
-    --command "SET_INPUT_PORT 0 ${FILE_SELECT_START_MASK}" \
-    --command "STEP_FRAME ${FILE_SELECT_START_HOLD_FRAMES}" \
-    --command "WAIT_STATUS_FRAME PAUSED ${post_input_target} 10" \
-    --command "CLEAR_INPUT_PORT 0" \
-    --command "STEP_FRAME ${POST_INPUT_SETTLE_FRAMES}" \
-    --command "WAIT_STATUS_FRAME PAUSED ${final_target} 10" \
-    --command "SCREENSHOT" \
-    --command "WAIT_NEW_CAPTURE 10" \
-    --command "QUIT"
+  if (( AUTHORITATIVE_STATE_PRESENT )); then
+    "$REPO_ROOT/tools/adapters/retroarch_stdin_session.sh" \
+      --bundle-dir "$BUNDLE_DIR" \
+      --mode "$MODE" \
+      --retroarch-bin "$RETROARCH_BIN" \
+      --base-config "$RETROARCH_BASE_CONFIG" \
+      --core "$CORE_PATH" \
+      --rom "$ROM_PATH" \
+      --startup-wait "$STARTUP_WAIT" \
+      --command "WAIT_LOG 120 ${STARTUP_READY_PATTERN:-EmuThread: M64CMD_EXECUTE.}" \
+      --command "LOAD_STATE_SLOT_PAUSED 0" \
+      --command "STEP_FRAME ${POST_LOAD_SETTLE_FRAMES}" \
+      --command "WAIT_STATUS_FRAME PAUSED ${POST_LOAD_SETTLE_FRAMES} 10" \
+      --command "SCREENSHOT" \
+      --command "WAIT_NEW_CAPTURE 10" \
+      --command "QUIT"
+  else
+    if (( ! BOOTSTRAP_STATE_PRESENT )); then
+      echo "[scenario] authoritative or bootstrap Paper Mario state is required for the file-select fixture." >&2
+      exit 1
+    fi
+
+    mkdir -p "$BUNDLE_DIR/states/ParaLLEl N64"
+    cp "$BOOTSTRAP_STATE_PATH" "$BUNDLE_DIR/states/ParaLLEl N64/Paper Mario (USA).state"
+
+    post_load_target=$(( POST_LOAD_SETTLE_FRAMES ))
+    post_input_target=$(( POST_LOAD_SETTLE_FRAMES + FILE_SELECT_START_HOLD_FRAMES ))
+    final_target=$(( post_input_target + POST_INPUT_SETTLE_FRAMES ))
+
+    "$REPO_ROOT/tools/adapters/retroarch_stdin_session.sh" \
+      --bundle-dir "$BUNDLE_DIR" \
+      --mode "$MODE" \
+      --retroarch-bin "$RETROARCH_BIN" \
+      --base-config "$RETROARCH_BASE_CONFIG" \
+      --core "$CORE_PATH" \
+      --rom "$ROM_PATH" \
+      --startup-wait "$STARTUP_WAIT" \
+      --command "WAIT_LOG 120 ${STARTUP_READY_PATTERN:-EmuThread: M64CMD_EXECUTE.}" \
+      --command "LOAD_STATE_SLOT_PAUSED 0" \
+      --command "STEP_FRAME ${POST_LOAD_SETTLE_FRAMES}" \
+      --command "WAIT_STATUS_FRAME PAUSED ${post_load_target} 10" \
+      --command "SET_INPUT_PORT 0 ${FILE_SELECT_START_MASK}" \
+      --command "STEP_FRAME ${FILE_SELECT_START_HOLD_FRAMES}" \
+      --command "WAIT_STATUS_FRAME PAUSED ${post_input_target} 10" \
+      --command "CLEAR_INPUT_PORT 0" \
+      --command "STEP_FRAME ${POST_INPUT_SETTLE_FRAMES}" \
+      --command "WAIT_STATUS_FRAME PAUSED ${final_target} 10" \
+      --command "SCREENSHOT" \
+      --command "WAIT_NEW_CAPTURE 10" \
+      --command "QUIT"
+  fi
 fi

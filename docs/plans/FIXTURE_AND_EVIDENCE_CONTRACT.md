@@ -14,7 +14,8 @@ Each fixture is defined by:
 
 - early ladder work may use debug warps or scripted entry
 - authoritative fixtures should become savestate-backed as soon as possible
-- preferred long-term flow is chained savestates plus controller input
+- the steady-state fixture path is authoritative savestate -> settle 3 frames -> capture
+- controller input is the bootstrap path for minting or replacing authoritative savestates
 
 ## Required Evidence Bundle Contents
 

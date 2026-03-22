@@ -1,5 +1,6 @@
 id: example-fixture
 game: paper_mario
+status: active
 description: Short human-readable description of the target scene or behavior.
 
 content:

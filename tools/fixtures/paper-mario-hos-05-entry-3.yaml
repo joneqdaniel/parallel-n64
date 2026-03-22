@@ -1,0 +1,70 @@
+id: paper-mario-hos-05-entry-3
+game: paper_mario
+status: planned
+description: >
+  Planned Paper Mario `hos_05 ENTRY_3` fixture. This is the next modeled ladder
+  target after file select and is expected to become a strong intro/scaling and
+  hi-res validation scene once its authoritative state is minted.
+
+content:
+  rom_path: assets/Paper Mario (USA).zip
+  core: parallel_n64
+  hires_pack_path: assets/PAPER MARIO_HIRESTEXTURES.hts
+
+entry:
+  method: savestate
+  reference: hos_05_entry_3
+  authority: planned_hos_05_entry_3_savestate
+  target_state: hos_05_entry_3_idle
+
+authority:
+  graph_path: tools/fixtures/paper-mario-authority-graph.yaml
+  node_id: hos_05_entry_3_idle
+  preferred_mode: bootstrap
+  bootstrap_parent_fixture_id: paper-mario-file-select
+  remint_script: tools/scenarios/remint-paper-mario-hos-05-entry-3-authority.sh
+
+requirements:
+  assets:
+    - assets/Paper Mario (USA).zip
+    - assets/PAPER MARIO_HIRESTEXTURES.hts
+  environment:
+    - RetroArch must be available at the canonical local path in docs/WORKSPACE_PATHS.md
+    - A deterministic route from file select to `hos_05 ENTRY_3` must be defined before this fixture becomes runnable
+
+runtime:
+  internal_scale: 4x
+  execution_mode: serial
+  display_required: true
+
+capture:
+  screenshots:
+    - hos_05_entry_3
+  frames:
+    - hos_05_entry_3
+  logs: true
+  memory: false
+  traces:
+    - config_snapshot
+    - controller_script
+    - fallback_reporting
+    - replacement_hit_miss_summary
+
+checks:
+  visual:
+    - intro/storybook scene renders without corruption once authority exists
+    - no extra dots, dithering-like breakup, or visible texture corruption
+    - baseline-off mode remains visually safe
+  telemetry:
+    - bundle includes ROM hash
+    - bundle includes hi-res pack hash when present
+    - bundle includes config snapshot
+    - bundle includes authority graph identity and active state hash once authority exists
+  traces:
+    - bundle records fallback reasons when replacement is not applied
+
+notes:
+  - This fixture is intentionally modeled before it is runnable.
+  - The expected steady-state contract is still `load savestate -> settle 3 frames -> screenshot`.
+  - The bootstrap parent is the authoritative file-select fixture until a better upstream authority is proven.
+  - Add a dedicated remint helper before minting or replacing the authoritative `hos_05 ENTRY_3` state.

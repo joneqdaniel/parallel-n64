@@ -16,6 +16,14 @@ This directory uses one runtime model for tracked emulator fixtures.
 - `auto`
   Prefer the canonical savestate when present, otherwise fall back to the bootstrap path.
 
+## Fixture Status
+
+- `active`
+  The fixture has a runnable steady-state path and should produce evidence bundles.
+- `planned`
+  The fixture is intentionally part of the ladder, but its bootstrap route or authoritative state is not ready yet.
+  Planned fixtures should still exist in the authority graph so lineage decisions are explicit before implementation starts.
+
 ## Bundle Contract
 
 Every tracked scenario bundle should record:
@@ -36,6 +44,7 @@ Every tracked scenario bundle should record:
 - the canonical capture point for savestate-backed Paper Mario fixtures is `frame=3` after load
 - when bootstrap logic is used, the bundle should still preserve the steady-state state/hash information needed to remint or verify the later authority
 - tracked fixtures should point at a machine-readable authority graph so lineage is not hidden in free-form notes
+- planned ladder steps should still have explicit graph nodes, fixture manifests, and remint-script placeholders
 
 ## Reminting
 

@@ -10,6 +10,7 @@ nodes:
     fixture_id: paper-mario-title-screen
     state_path: assets/states/paper-mario-title-screen/ParaLLEl N64/Paper Mario (USA).state
     kind: authoritative
+    status: active
     steady_state_capture:
       settle_frames: 3
       capture_id: title_screen
@@ -20,6 +21,7 @@ nodes:
     fixture_id: paper-mario-file-select
     state_path: assets/states/paper-mario-file-select/ParaLLEl N64/Paper Mario (USA).state
     kind: authoritative
+    status: active
     steady_state_capture:
       settle_frames: 3
       capture_id: file_select
@@ -36,3 +38,24 @@ nodes:
         post_input_settle_frames: 2
         save_offset_frames: 2
       remint_script: tools/scenarios/remint-paper-mario-file-select-authority.sh
+
+  - id: hos_05_entry_3_idle
+    fixture_id: paper-mario-hos-05-entry-3
+    state_path: assets/states/paper-mario-hos-05-entry-3/ParaLLEl N64/Paper Mario (USA).state
+    kind: authoritative
+    status: planned
+    scene_identity:
+      map: hos_05
+      entry: ENTRY_3
+    steady_state_capture:
+      settle_frames: 3
+      capture_id: hos_05_entry_3
+    lineage:
+      source: bootstrap
+      parent_node_id: file_select_idle
+      bootstrap_sequence:
+        status: pending
+        notes:
+          - Deterministic route from file select to hos_05 ENTRY_3 is not implemented yet.
+          - Mint an authoritative steady-state savestate before treating this fixture as runnable.
+      remint_script: tools/scenarios/remint-paper-mario-hos-05-entry-3-authority.sh

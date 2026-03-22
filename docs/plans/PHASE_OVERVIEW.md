@@ -22,11 +22,11 @@
 
 ## First Fixture Ladder
 
-1. title screen
-2. file select main menu
-3. `hos_05 ENTRY_3`
-4. `osr_00 ENTRY_3`
-5. pause stats/items
+1. active: title screen
+2. active: file select main menu
+3. planned: `hos_05 ENTRY_3`
+4. planned: `osr_00 ENTRY_3`
+5. planned: pause stats/items
 
 ## Global Rules
 

@@ -26,7 +26,10 @@ Current tracked scenario seeds:
 - [`paper-mario-title-screen.runtime.env`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-title-screen.runtime.env)
 - [`paper-mario-file-select.sh`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-file-select.sh)
 - [`paper-mario-file-select.runtime.env`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-file-select.runtime.env)
+- [`paper-mario-hos-05-entry-3.sh`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-hos-05-entry-3.sh)
+- [`paper-mario-hos-05-entry-3.runtime.env`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-hos-05-entry-3.runtime.env)
 - [`remint-paper-mario-file-select-authority.sh`](/home/auro/code/parallel-n64/tools/scenarios/remint-paper-mario-file-select-authority.sh)
+- [`remint-paper-mario-hos-05-entry-3-authority.sh`](/home/auro/code/parallel-n64/tools/scenarios/remint-paper-mario-hos-05-entry-3-authority.sh)
 
 Current Paper Mario runtime note:
 
@@ -37,3 +40,4 @@ Current Paper Mario runtime note:
 - the canonical steady-state Paper Mario workflow is `load savestate -> settle 3 frames -> capture`
 - controller scripts remain in the repo as bootstrap paths for minting or replacing authoritative savestates
 - the file-select remint helper intentionally rebuilds the authoritative state from the bootstrap path and verifies it against the canonical capture hash
+- planned ladder steps should still get scenario and remint-script stubs so future work extends the model instead of bypassing it

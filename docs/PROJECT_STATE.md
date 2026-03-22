@@ -29,6 +29,7 @@
 - Tracked Paper Mario scenario bundles now record requested/used authority mode and active state hashes
 - There is now a dedicated file-select remint helper for intentionally rebuilding the authoritative state from the bootstrap path
 - Paper Mario fixture lineage is now explicit in a machine-readable authority graph at `tools/fixtures/paper-mario-authority-graph.yaml`
+- The next ladder target, `hos_05 ENTRY_3`, is now modeled explicitly as a planned fixture even though its bootstrap route and authoritative state are not minted yet
 - The tracked RetroArch adapter now enforces serial runtime launches with a lock in addition to the existing process check
 - `run-build.sh` is the authoritative local build entrypoint because it carries the ParaLLEl build flags and auto-cleans when flag fingerprints change
 
@@ -44,6 +45,14 @@
 - First strict Phase 1 fixtures:
   - title screen
   - file select
+
+## Paper Mario Fixture Ladder Status
+
+- active: title screen
+- active: file select main menu
+- planned: `hos_05 ENTRY_3`
+- planned: `osr_00 ENTRY_3`
+- planned: pause stats/items
 
 ## Locked Decisions
 

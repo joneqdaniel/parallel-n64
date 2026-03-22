@@ -78,6 +78,7 @@
 - complete: documented the shared scenario model and added a common scenario shell library so new fixtures inherit the same authority/bundle contract
 - complete: encoded the current Paper Mario savestate lineage in a machine-readable authority graph and pointed tracked fixtures at it
 - complete: closed a tracked adapter race by adding a runtime launch lock so emulator-facing scenarios cannot overlap
+- complete: extended the fixture model to distinguish active vs planned ladder steps and scaffolded `hos_05 ENTRY_3` as the next explicit Paper Mario target
 
 ## Out Of Scope
 

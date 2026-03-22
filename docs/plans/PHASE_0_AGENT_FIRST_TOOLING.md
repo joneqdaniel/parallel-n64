@@ -71,6 +71,7 @@
 - complete: fixed RetroArch command timing so agent commands are polled at the runloop level instead of landing too late inside `retro_run()`
 - complete: fixed the `STEP_FRAME` budget so it only decrements when a real core frame executed
 - complete: made RetroArch `GET_STATUS frame=` trustworthy as a fixture-relative frame clock for the tracked Paper Mario scenarios
+- complete: removed the RetroArch `STEP_FRAME` request cap caused by `run_frames_and_pause` using `int8_t`; long transition probes can now execute and verify requests larger than `127` frames exactly
 - complete: promoted the validated `START`-hold controller path into a tracked Paper Mario file-select scenario and verified repeated scenario runs produce byte-identical captures distinct from the title-screen baseline
 - complete: minted an authoritative file-select savestate from the deterministic bootstrap path and switched the steady-state file-select fixture back to `load -> settle 3 -> capture`
 - complete: scenario bundles now record requested/used authority mode plus active state hashes for tracked Paper Mario savestate fixtures
@@ -81,6 +82,7 @@
 - complete: extended the fixture model to distinguish active vs planned ladder steps and scaffolded `hos_05 ENTRY_3` as the next explicit Paper Mario target
 - complete: added bundle-level semantic memory snapshots for tracked Paper Mario fixtures and fixed local RetroArch `READ_CORE_MEMORY` fallback for cores without libretro memory maps
 - complete: isolated save RAM inside tracked runtime bundles and added an intentional Paper Mario savefile staging helper for future deeper fixtures
+- in progress: broaden the Paper Mario semantic trace beyond the current startup/file-select `gGameStatus` window so deeper savefile-backed gameplay probes can prove scene identity instead of only proving deterministic screen change
 
 ## Out Of Scope
 

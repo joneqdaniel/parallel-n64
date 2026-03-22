@@ -22,6 +22,7 @@
 - RetroArch now has an explicit stdin agent input path for per-port joypad/analog overrides
 - Repeated input probes from the authoritative title-screen state now produce byte-identical post-input captures when holding `START` through a controlled frame advance
 - RetroArch `GET_STATUS frame=` is now trustworthy as a fixture-relative frame clock for the tracked Paper Mario scenarios
+- RetroArch `STEP_FRAME` is now trustworthy for long transition-heavy probes as well; the old `int8_t` cap on frame-step requests was removed after it truncated a `300`-frame save-backed gameplay probe at `127` frames
 - The tracked file-select scenario now has an authoritative savestate-backed steady-state path and still preserves the title-screen bootstrap controller path for reminting
 - Repeated file-select authoritative runs now produce byte-identical screenshots at `4x` after the 3-frame settle
 - The canonical Paper Mario fixture workflow is now `load state -> settle 3 frames -> screenshot`; controller scripting is the bootstrap path for minting new authoritative states
@@ -35,6 +36,7 @@
 - The local RetroArch build now falls back to `RETRO_MEMORY_SYSTEM_RAM` for `READ_CORE_MEMORY` when a core does not publish a libretro memory map
 - The tracked title-screen and file-select fixtures now decode a Paper Mario US `gGameStatus` semantic trace from vanilla runs
 - The current decoded semantic values for both tracked startup fixtures are `areaID=0`, `mapID=0`, `entryID=0`, `introPart=1`, `startupState=0`
+- A deeper savefile-backed probe now verifies deterministic long-step control from the file-select authority, but the current `gGameStatus` trace window stops being trustworthy once that probe leaves the startup/file-select region
 - Tracked runtime scenarios now isolate save RAM inside each bundle, and savefile identity is explicit in bundle metadata instead of silently coming from `~/.config/retroarch/saves`
 - There is now an intentional helper to stage a local Paper Mario `.srm` into gitignored assets for future deeper fixtures
 - `run-build.sh` is the authoritative local build entrypoint because it carries the ParaLLEl build flags and auto-cleans when flag fingerprints change

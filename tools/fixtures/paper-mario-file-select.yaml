@@ -1,0 +1,59 @@
+id: paper-mario-file-select
+game: paper_mario
+description: >
+  Deterministic Paper Mario file select fixture reached from the authoritative
+  title-screen savestate through scripted controller input.
+
+content:
+  rom_path: assets/Paper Mario (USA).zip
+  core: parallel_n64
+  hires_pack_path: assets/PAPER MARIO_HIRESTEXTURES.hts
+
+entry:
+  method: savestate_plus_controller_path
+  reference: title_screen_to_file_select
+  authority: authoritative_title_screen_savestate_plus_scripted_input
+  target_state: file_select_idle
+
+requirements:
+  assets:
+    - assets/Paper Mario (USA).zip
+    - assets/PAPER MARIO_HIRESTEXTURES.hts
+  environment:
+    - RetroArch must be available at the canonical local path in docs/WORKSPACE_PATHS.md
+
+runtime:
+  internal_scale: 4x
+  execution_mode: serial
+  display_required: true
+
+capture:
+  screenshots:
+    - file_select
+  frames:
+    - file_select
+  logs: true
+  memory: false
+  traces:
+    - config_snapshot
+    - controller_script
+    - fallback_reporting
+    - replacement_hit_miss_summary
+
+checks:
+  visual:
+    - file select screen renders without corruption
+    - no extra dots, dithering-like breakup, or visible texture corruption
+    - baseline-off mode remains visually safe
+  telemetry:
+    - bundle includes ROM hash
+    - bundle includes hi-res pack hash when present
+    - bundle includes config snapshot
+    - bundle includes the scripted input path used to reach file select
+  traces:
+    - bundle records fallback reasons when replacement is not applied
+
+notes:
+  - This fixture currently depends on the authoritative title-screen savestate.
+  - The current scripted controller path candidate is `START` held for 60 frames, then released for 5 settle frames.
+  - Phase 0 still requires a trustworthy fixture-relative frame clock before this path counts toward Phase 0 exit.

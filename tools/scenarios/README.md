@@ -22,9 +22,12 @@ Current tracked scenario seeds:
 
 - [`paper-mario-title-screen.sh`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-title-screen.sh)
 - [`paper-mario-title-screen.runtime.env`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-title-screen.runtime.env)
+- [`paper-mario-file-select.sh`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-file-select.sh)
+- [`paper-mario-file-select.runtime.env`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-file-select.runtime.env)
 
 Current Paper Mario runtime note:
 
-- save/load command sequences use explicit local waits between state operations because immediate follow-up commands are not yet stable
+- save/load command sequences now use log-gated startup readiness and explicit command acknowledgements instead of blind timing where possible
 - the tracked title-screen scenario depends on the adapter disabling savestate thumbnails, which removes the current save-state crash seen on the Vulkan HW-frame path
 - the tracked title-screen scenario depends on the adapter disabling RetroArch quit confirmation so a single `QUIT` command exits cleanly
+- the tracked file-select scenario is still a Phase 0 scripted-controller path and does not count toward Phase 0 exit until the fixture-relative frame clock problem is solved

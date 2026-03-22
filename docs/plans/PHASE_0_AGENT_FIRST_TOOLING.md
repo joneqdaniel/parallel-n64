@@ -42,6 +42,7 @@
 - evidence bundles are produced consistently
 - fixture identity is explicit and locked
 - the workflow is fast enough to be used repeatedly during renderer work
+- the reported RetroArch `frame=` value is trustworthy enough to use as a fixture-relative frame clock
 
 ## Current Progress
 
@@ -66,7 +67,8 @@
 - complete: verified repeated authoritative title-screen runs now produce byte-identical screenshots at `4x`
 - complete: added explicit RetroArch stdin agent commands for per-port input override (`SET_INPUT_PORT`, `CLEAR_INPUT_PORT`, `GET_INPUT_PORT`)
 - complete: verified repeated deterministic controller-input probes from the authoritative title-screen state produce byte-identical post-input captures
-- pending: make the reported RetroArch `frame=` value trustworthy enough to use as a fixture-relative frame clock
+- complete: promoted the validated `START`-hold controller path into a tracked Paper Mario file-select scenario and verified repeated scenario runs produce byte-identical captures distinct from the title-screen baseline
+- pending: make the reported RetroArch `frame=` value trustworthy enough to use as a fixture-relative frame clock; Phase 0 does not exit until this is solved
 
 ## Out Of Scope
 

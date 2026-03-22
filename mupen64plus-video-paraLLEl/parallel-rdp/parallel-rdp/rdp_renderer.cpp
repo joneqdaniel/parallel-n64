@@ -25,6 +25,7 @@
 #include "rdp_hires_ci_palette_policy.hpp"
 #include "rdp_hires_key_state_policy.hpp"
 #include "rdp_hires_lookup_policy.hpp"
+#include "rdp_hires_runtime_policy.hpp"
 #include "rdp_hires_state_policy.hpp"
 #include "texture_replacement.hpp"
 #include "texture_keying.hpp"
@@ -59,6 +60,39 @@ static const char *load_mode_to_string(UploadMode mode)
 	default:
 		return "unknown";
 	}
+}
+
+static void zero_transparent_replacement_rgb(std::vector<uint8_t> &rgba8)
+{
+	for (size_t i = 0; i + 3 < rgba8.size(); i += 4)
+	{
+		if (rgba8[i + 3] == 0)
+		{
+			rgba8[i + 0] = 0;
+			rgba8[i + 1] = 0;
+			rgba8[i + 2] = 0;
+		}
+	}
+}
+
+static bool should_alias_hires_tile_binding(const TileMeta &source_meta, const TileMeta &target_meta)
+{
+	return source_meta.offset == target_meta.offset &&
+	       source_meta.stride == target_meta.stride &&
+	       source_meta.fmt == target_meta.fmt &&
+	       source_meta.size == target_meta.size &&
+	       source_meta.palette == target_meta.palette;
+}
+
+static bool should_alias_hires_load_binding(const TileMeta &source_meta, const TileMeta &target_meta)
+{
+	return source_meta.offset == target_meta.offset;
+}
+
+static bool should_apply_hires_propagated_binding(const TileMeta &source_meta, const TileMeta &target_meta)
+{
+	return should_alias_hires_tile_binding(source_meta, target_meta) ||
+	       should_alias_hires_load_binding(source_meta, target_meta);
 }
 }
 
@@ -248,6 +282,13 @@ bool Renderer::init_caps()
 			features.subgroup_properties.supportedStages,
 			can_support_minimum_subgroup_size(32),
 			subgroup_size);
+	caps.hires_replacement_shader = features.supports_descriptor_indexing;
+
+	if (caps.hires_replacement_shader && !init_hires_resources(1))
+	{
+		LOGW("Failed to initialize hi-res bindless resources. Hi-res shader path will stay disabled.\n");
+		caps.hires_replacement_shader = false;
+	}
 
 	return true;
 }
@@ -267,6 +308,8 @@ int Renderer::resolve_shader_define(const char *name, const char *define) const
 		else
 			return 0;
 	}
+	else if (strcmp(define, "HIRES_REPLACEMENT") == 0)
+		return int(caps.hires_replacement_shader);
 	else
 		return 0;
 }
@@ -664,9 +707,23 @@ void Renderer::set_tmem(Vulkan::Buffer *buffer)
 
 void Renderer::set_replacement_provider(const ReplacementProvider *provider)
 {
+	if (need_flush())
+		flush_queues();
+
+	if (detail::hires_provider_changed(replacement_provider, provider))
+		hires_resources = {};
+
 	replacement_provider = provider;
 	detail::reset_hires_tracking_state(
 			replacement_tiles, tlut_shadow_valid, hires_lookup_total, hires_lookup_hits, hires_lookup_misses);
+
+	if (caps.hires_replacement_shader)
+	{
+		unsigned requested_capacity = 1;
+		if (provider)
+			requested_capacity = unsigned(provider->entry_count()) + 1u;
+		init_hires_resources(std::max(requested_capacity, 1u));
+	}
 }
 
 void Renderer::set_hires_debug(bool enable)
@@ -1698,10 +1755,14 @@ void Renderer::submit_rasterization(Vulkan::CommandBuffer &cmd, Vulkan::Buffer &
 	cmd.set_program("rdp://rasterizer.comp", {
 		{ "DEBUG_ENABLE", debug_channel ? 1 : 0 },
 		{ "SMALL_TYPES", caps.supports_small_integer_arithmetic ? 1 : 0 },
+		{ "HIRES_REPLACEMENT", caps.hires_replacement_shader ? 1 : 0 },
 	});
 #else
 	cmd.set_program(shader_bank->rasterizer);
 #endif
+
+	if (caps.hires_replacement_shader && hires_resources.bindless_pool)
+		cmd.set_bindless(3, hires_resources.bindless_pool->get_descriptor_set());
 
 	cmd.set_specialization_constant(0, ImplementationConstants::TileWidth);
 	cmd.set_specialization_constant(1, ImplementationConstants::TileHeight);
@@ -2855,6 +2916,122 @@ void Renderer::set_tile_size(uint32_t tile, uint32_t slo, uint32_t shi, uint32_t
 	tiles[tile].size.thi = thi;
 }
 
+bool Renderer::init_hires_resources(unsigned requested_capacity)
+{
+	if (!device || requested_capacity == 0 || !device->get_device_features().supports_descriptor_indexing)
+		return false;
+
+	if (hires_resources.bindless_pool && hires_resources.capacity >= requested_capacity)
+		return true;
+
+	hires_resources = {};
+	hires_resources.capacity = requested_capacity;
+	hires_resources.next_descriptor = 1;
+
+	auto pool = device->create_bindless_descriptor_pool(Vulkan::BindlessResourceType::ImageFP, 1, requested_capacity);
+	if (!pool || !pool->allocate_descriptors(requested_capacity))
+		return false;
+
+	const uint8_t white_pixel[] = { 255, 255, 255, 255 };
+	Vulkan::ImageInitialData initial = {};
+	initial.data = white_pixel;
+	initial.row_length = 1;
+	initial.image_height = 1;
+
+	auto fallback = device->create_image(
+			Vulkan::ImageCreateInfo::immutable_2d_image(1, 1, VK_FORMAT_R8G8B8A8_UNORM, false),
+			&initial);
+	if (!fallback)
+		return false;
+
+	pool->set_texture(0, fallback->get_view());
+	hires_resources.fallback_image = std::move(fallback);
+	hires_resources.bindless_pool = std::move(pool);
+	return true;
+}
+
+bool Renderer::resolve_hires_replacement_descriptor(uint64_t checksum64, uint16_t formatsize, ReplacementMeta &meta)
+{
+	meta.vk_image_index = detail::hires_invalid_descriptor_index();
+
+	if (!replacement_provider || !caps.hires_replacement_shader)
+		return false;
+
+	HiresKey key = {};
+	key.checksum64 = checksum64;
+	key.formatsize = formatsize;
+	auto itr = hires_resources.resident_images.find(key);
+	if (itr != hires_resources.resident_images.end())
+	{
+		meta.vk_image_index = itr->second.descriptor_index;
+		meta.repl_w = itr->second.repl_w;
+		meta.repl_h = itr->second.repl_h;
+		return true;
+	}
+
+	if (!hires_resources.bindless_pool || hires_resources.next_descriptor >= hires_resources.capacity)
+		return false;
+
+	ReplacementImage replacement = {};
+	if (!replacement_provider->decode_rgba8(checksum64, formatsize, &replacement))
+		return false;
+	if (replacement.rgba8.empty() || replacement.meta.repl_w == 0 || replacement.meta.repl_h == 0)
+		return false;
+
+	zero_transparent_replacement_rgb(replacement.rgba8);
+
+	Vulkan::ImageInitialData initial = {};
+	initial.data = replacement.rgba8.data();
+	initial.row_length = replacement.meta.repl_w;
+	initial.image_height = replacement.meta.repl_h;
+
+	auto image = device->create_image(
+			Vulkan::ImageCreateInfo::immutable_2d_image(
+					replacement.meta.repl_w,
+					replacement.meta.repl_h,
+					VK_FORMAT_R8G8B8A8_UNORM,
+					false),
+			&initial);
+	if (!image)
+		return false;
+
+	const uint32_t descriptor_index = hires_resources.next_descriptor++;
+	hires_resources.bindless_pool->set_texture(descriptor_index, image->get_view());
+
+	HiresResidentImage resident = {};
+	resident.image = std::move(image);
+	resident.descriptor_index = descriptor_index;
+	resident.repl_w = static_cast<uint16_t>(replacement.meta.repl_w);
+	resident.repl_h = static_cast<uint16_t>(replacement.meta.repl_h);
+	hires_resources.resident_images.emplace(key, std::move(resident));
+
+	meta.vk_image_index = descriptor_index;
+	meta.repl_w = replacement.meta.repl_w;
+	meta.repl_h = replacement.meta.repl_h;
+	return true;
+}
+
+void Renderer::clear_hires_tile_binding(unsigned tile)
+{
+	tiles[tile].replacement = {};
+}
+
+void Renderer::apply_hires_tile_binding(unsigned tile, const ReplacementTileState &state)
+{
+	if (!state.hit || !detail::hires_descriptor_index_valid(state.vk_image_index) ||
+	    state.orig_w == 0 || state.orig_h == 0 || state.repl_w == 0 || state.repl_h == 0)
+	{
+		clear_hires_tile_binding(tile);
+		return;
+	}
+
+	tiles[tile].replacement.repl_orig_w = state.orig_w;
+	tiles[tile].replacement.repl_orig_h = state.orig_h;
+	tiles[tile].replacement.repl_w = state.repl_w;
+	tiles[tile].replacement.repl_h = state.repl_h;
+	tiles[tile].replacement.repl_desc_index = state.vk_image_index;
+}
+
 void Renderer::notify_idle_command_thread()
 {
 	maintain_queues_idle();
@@ -3092,6 +3269,14 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 	}
 
 	UploadInfo upload = {};
+	for (unsigned i = 0; i < Limits::MaxNumTiles; i++)
+	{
+		if (should_alias_hires_load_binding(tiles[tile & (Limits::MaxNumTiles - 1)].meta, tiles[i].meta))
+		{
+			replacement_tiles[i] = {};
+			clear_hires_tile_binding(i);
+		}
+	}
 	upload.tmem_stride_words = meta.stride >> 1;
 
 	uint32_t upload_x = 0;
@@ -3350,7 +3535,14 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 			const uint64_t checksum64 = detail::compose_hires_checksum64(texture_crc, palette_crc);
 			const uint16_t formatsize = formatsize_key(meta.fmt, meta.size);
 			ReplacementMeta repl_meta = {};
-			const bool hit = replacement_provider->lookup(checksum64, formatsize, &repl_meta);
+			bool hit = replacement_provider->lookup(checksum64, formatsize, &repl_meta);
+			if (hit)
+			{
+				repl_meta.orig_w = key_width_pixels;
+				repl_meta.orig_h = key_height_pixels;
+				if (!resolve_hires_replacement_descriptor(checksum64, formatsize, repl_meta))
+					hit = false;
+			}
 
 			auto &repl_state = replacement_tiles[tile & (Limits::MaxNumTiles - 1)];
 			detail::write_hires_lookup_tile_state(
@@ -3360,6 +3552,21 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 					formatsize,
 					key_width_pixels,
 					key_height_pixels);
+			repl_state.repl_w = static_cast<uint16_t>(repl_meta.repl_w);
+			repl_state.repl_h = static_cast<uint16_t>(repl_meta.repl_h);
+			repl_state.vk_image_index = repl_meta.vk_image_index;
+			apply_hires_tile_binding(tile & (Limits::MaxNumTiles - 1), repl_state);
+			for (unsigned alias_tile = 0; alias_tile < Limits::MaxNumTiles; alias_tile++)
+			{
+				if (alias_tile == (tile & (Limits::MaxNumTiles - 1)))
+					continue;
+				if (!should_apply_hires_propagated_binding(
+						    tiles[tile & (Limits::MaxNumTiles - 1)].meta,
+						    tiles[alias_tile].meta))
+					continue;
+				replacement_tiles[alias_tile] = repl_state;
+				apply_hires_tile_binding(alias_tile, replacement_tiles[alias_tile]);
+			}
 
 			detail::record_hires_lookup_result(hit, hires_lookup_total, hires_lookup_hits, hires_lookup_misses);
 

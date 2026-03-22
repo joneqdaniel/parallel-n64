@@ -32,8 +32,11 @@
 - paired `on` runs for the corrected ParaLLEl title-screen and file-select authorities are now reproducible and machine-readable
 - the Vulkan descriptor-indexing gate and direct-pack load path are now working in tracked runs
 - the hi-res provider now loads the Paper Mario pack and produces real hit/miss telemetry on both strict targets
-- the current Phase 1 blocker is no longer provider startup; it is that final frame hashes still match `off`, so replacement lookup results are not yet producing a visible rendering delta on the tracked fixtures
-- current code evidence says the dead stop is between lookup and render binding: this branch records hit metadata but does not yet feed `decode_rgba8()` / descriptor assignment into the active renderer path
+- the replacement path is now visibly active on both strict targets, and `on` / `off` no longer match at the raw-pixel level
+- the current Phase 1 blocker is no longer wiring; it is correctness: decide whether the visible deltas are the expected hi-res result or corruption, then tighten texel mapping / alias behavior until the strict fixtures are clean
+- current strict-fixture evidence:
+  - title screen: `lookups=196 hits=178 misses=18 provider=on`, `AE=3412580`, `RMSE=0.267821`
+  - file select: `lookups=165 hits=82 misses=83 provider=on`, `AE=1289800`, `RMSE=0.0928543`
 
 ## Not Yet Claimed Categories
 

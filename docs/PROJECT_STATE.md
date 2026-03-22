@@ -50,11 +50,13 @@
 - The corrected authoritative file-select state now reports clean `CurGameMode` file-select callbacks: `state_init_file_select` / `state_step_file_select`
 - The canonical steady-state title-screen capture hash is now `42e501afb2548a5067bc034578c5bcebf0bf2a40f612bbcc94972af716ad6ff2`
 - The canonical steady-state file-select capture hash is now `6fa8688b382fa1e6f0323f054861a85f593d2d47ca737bb78448e3f268ca63e3`
-- The latest verified `on`-mode title-screen run preserves the same frame hash and steady-state semantics while loading the hi-res pack successfully and reporting `lookups=196 hits=178 misses=18 provider=on`
-- The latest verified `on`-mode file-select run also preserves the same frame hash and steady-state semantics while loading the hi-res pack successfully and reporting `lookups=165 hits=82 misses=83 provider=on`
-- That means the current Phase 1 blocker has moved forward: lookup and provider activation are working on tracked fixtures, but the visible frame hash still matches `off`, so the next task is to trace where replacement lookup results stop affecting final rendering
-- Current code inspection now narrows that rendering blocker sharply: in this branch `ReplacementMeta` is looked up in `rdp_renderer.cpp`, but the result is only written into lightweight per-tile key state and never reaches an image upload/bind path
-- The failed-attempt worktree contains the missing shape conceptually: a separate registry/upload/binding flow that consumes `decode_rgba8()`, assigns a descriptor index, and applies replacement binding into tile state before draw time
+- The embedded shader header now has a matching legacy-generation path again: the tracked shader pack was regenerated with an older `slangmosh` contract compatible with this branch, after the newer generator proved incompatible with the local Granite runtime API
+- The current branch now has a minimal active replacement path for tracked fixtures: lookup results are decoded, uploaded as sampled images, assigned descriptor indices, and threaded into tile/shader state for the rasterizer path
+- The latest verified `on`-mode title-screen run preserves steady-state semantics while loading the hi-res pack successfully and reporting `lookups=196 hits=178 misses=18 provider=on`
+- The latest verified `on`-mode file-select run also preserves steady-state semantics while loading the hi-res pack successfully and reporting `lookups=165 hits=82 misses=83 provider=on`
+- `on` and `off` are no longer pixel-identical on the strict fixtures: the current title-screen `on` hash is `ba91ffce0cc7b6053568c0a7774bf0ae80825c95d95fce89ba4a9f79c62b9d16`, and the current file-select `on` hash is `8a90f7874bd797a186ff85d488033dc332b2a75f5bec91ad33ca8246e6be7730`
+- Raw-pixel comparison now confirms real visible divergence on both fixtures while semantic state stays locked: title-screen `AE=3412580`, `RMSE=0.267821`; file-select `AE=1289800`, `RMSE=0.0928543`
+- The current Phase 1 blocker has therefore moved again: replacement wiring is now visibly live, and the next task is to judge correctness versus corruption on the strict fixtures and tighten texel mapping / alias behavior where needed
 - The tracked adapter now supports a memory-based wait primitive, `WAIT_CORE_MEMORY_HEX`, so scenarios and probes can block on exact vanilla RAM signatures instead of sleep-only timing
 - The semantic JSON now also emits a decomp-backed `map_name_candidate` for KMR, HOS, and OSR area-local map indices
 - The corrected startup semantic values are stable for both tracked fixtures: `areaID=0 (AREA_KMR)`, `mapID=0`, `entryID=0`, `introPart=1`, `startupState=0`

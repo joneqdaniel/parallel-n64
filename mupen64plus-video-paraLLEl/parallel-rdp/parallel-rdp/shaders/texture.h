@@ -25,11 +25,120 @@
 
 #include "data_structures.h"
 
+#if defined(HIRES_REPLACEMENT) && HIRES_REPLACEMENT
+#extension GL_EXT_nonuniform_qualifier : require
+#extension GL_EXT_samplerless_texture_functions : require
+layout(set = 3, binding = 0) uniform mediump texture2D uHiresTextures[];
+#endif
+
 const int TEXTURE_FORMAT_RGBA = 0;
 const int TEXTURE_FORMAT_YUV = 1;
 const int TEXTURE_FORMAT_CI = 2;
 const int TEXTURE_FORMAT_IA = 3;
 const int TEXTURE_FORMAT_I = 4;
+const uint HIRES_INVALID_DESC_INDEX = 0xffffffffu;
+
+bool tile_uses_hires_replacement(TileInfo tile)
+{
+#if defined(HIRES_REPLACEMENT) && HIRES_REPLACEMENT
+	return tile.repl_desc_index != HIRES_INVALID_DESC_INDEX &&
+	       tile.repl_orig_w != 0u &&
+	       tile.repl_orig_h != 0u &&
+	       tile.repl_w != 0u &&
+	       tile.repl_h != 0u;
+#else
+	return false;
+#endif
+}
+
+vec4 normalize_hires_replacement_texel(TileInfo tile, vec4 repl)
+{
+	if (tile.fmt == TEXTURE_FORMAT_I)
+	{
+		float intensity = dot(repl.rgb, vec3(1.0 / 3.0));
+		repl = vec4(intensity);
+	}
+
+	return repl;
+}
+
+int remap_hires_coord_fp5(int coord_fp5, int mask_bits, bool mirror)
+{
+	int coord = coord_fp5 >> 5;
+	int frac = coord_fp5 & 31;
+
+	if (mask_bits != 0)
+	{
+		int mask = 1 << mask_bits;
+		bool mirrored = mirror && ((coord & mask) != 0);
+		if (mirrored)
+			frac = 31 - frac;
+		if (mirror)
+			coord ^= max((coord & mask) - 1, 0);
+		coord &= mask - 1;
+	}
+
+	return (coord << 5) + frac;
+}
+
+ivec2 remap_hires_st_fp5(TileInfo tile, ivec2 st_fp5)
+{
+#if SCALING_FACTOR > 1
+	st_fp5 /= SCALING_FACTOR;
+#endif
+	return ivec2(
+			remap_hires_coord_fp5(st_fp5.x, tile.mask_s, (tile.flags & TILE_INFO_MIRROR_S_BIT) != 0),
+			remap_hires_coord_fp5(st_fp5.y, tile.mask_t, (tile.flags & TILE_INFO_MIRROR_T_BIT) != 0));
+}
+
+ivec2 remap_hires_st_fp5_copy(TileInfo tile, ivec2 st_fp5, int s_offset)
+{
+	ivec2 remapped = ivec2(
+			remap_hires_coord_fp5(st_fp5.x + (s_offset << 5), tile.mask_s, (tile.flags & TILE_INFO_MIRROR_S_BIT) != 0),
+			remap_hires_coord_fp5(st_fp5.y, tile.mask_t, (tile.flags & TILE_INFO_MIRROR_T_BIT) != 0));
+#if SCALING_FACTOR > 1
+	remapped /= SCALING_FACTOR;
+#endif
+	return remapped;
+}
+
+i16x4 sample_hires_replacement_texel_fp5(TileInfo tile, ivec2 st_fp5, bool linear_filter)
+{
+#if defined(HIRES_REPLACEMENT) && HIRES_REPLACEMENT
+	ivec2 orig_dims = max(ivec2(tile.repl_orig_w, tile.repl_orig_h), ivec2(1));
+	ivec2 repl_dims = max(ivec2(tile.repl_w, tile.repl_h), ivec2(1));
+	vec2 st_texel = vec2(st_fp5) * (1.0 / 32.0);
+	vec2 repl_texel = (st_texel + vec2(0.5)) * (vec2(repl_dims) / vec2(orig_dims)) - vec2(0.5);
+	vec2 repl_texel_clamped = clamp(repl_texel, vec2(0.0), vec2(repl_dims - 1));
+
+	vec4 repl;
+	if (linear_filter)
+	{
+		ivec2 p0 = ivec2(floor(repl_texel_clamped));
+		ivec2 p1 = min(p0 + ivec2(1), repl_dims - 1);
+		vec2 frac = repl_texel_clamped - vec2(p0);
+
+		vec4 c00 = texelFetch(uHiresTextures[nonuniformEXT(tile.repl_desc_index)], p0, 0);
+		vec4 c10 = texelFetch(uHiresTextures[nonuniformEXT(tile.repl_desc_index)], ivec2(p1.x, p0.y), 0);
+		vec4 c01 = texelFetch(uHiresTextures[nonuniformEXT(tile.repl_desc_index)], ivec2(p0.x, p1.y), 0);
+		vec4 c11 = texelFetch(uHiresTextures[nonuniformEXT(tile.repl_desc_index)], p1, 0);
+		vec4 cx0 = mix(c00, c10, frac.x);
+		vec4 cx1 = mix(c01, c11, frac.x);
+		repl = mix(cx0, cx1, frac.y);
+	}
+	else
+	{
+		ivec2 repl_coord = ivec2(floor(repl_texel_clamped + vec2(0.5)));
+		repl = texelFetch(uHiresTextures[nonuniformEXT(tile.repl_desc_index)], repl_coord, 0);
+	}
+
+	repl = normalize_hires_replacement_texel(tile, repl);
+	ivec4 expanded = ivec4(clamp(repl * vec4(255.0) + vec4(0.5), vec4(0.0), vec4(255.0)));
+	return i16x4(expanded);
+#else
+	return i16x4(0);
+#endif
+}
 
 int texel_mask_s(TileInfo tile, int s)
 {
@@ -448,9 +557,24 @@ int sample_texture_copy_word(TileInfo tile, uint tmem_instance, ivec2 st, int s_
 
 int sample_texture_copy(TileInfo tile, uint tmem_instance, ivec2 st, int s_offset, bool tlut, bool tlut_type)
 {
-	st.x = shift_coord(st.x, int(tile.slo), int(tile.shift_s));
-	st.y = shift_coord(st.y, int(tile.tlo), int(tile.shift_t));
-	st >>= 5;
+	ivec2 st_fp5;
+	st_fp5.x = shift_coord(st.x, int(tile.slo), int(tile.shift_s));
+	st_fp5.y = shift_coord(st.y, int(tile.tlo), int(tile.shift_t));
+	st = st_fp5 >> 5;
+
+	if (tile_uses_hires_replacement(tile))
+	{
+		ivec2 st_repl_fp5 = remap_hires_st_fp5_copy(tile, st_fp5, s_offset);
+		i16x4 repl_texel = sample_hires_replacement_texel_fp5(tile, st_repl_fp5, false);
+		uvec4 repl = uvec4(clamp(ivec4(repl_texel), ivec4(0), ivec4(255)));
+		if (global_constants.fb_info.fb_size == 1)
+			return int(repl.x);
+
+		return int(((repl.x & 0xf8u) << 8u) |
+		           ((repl.y & 0xf8u) << 3u) |
+		           ((repl.z & 0xf8u) >> 2u) |
+		           ((repl.w != 0u) ? 1u : 0u));
+	}
 
 	int samp;
 	if (global_constants.fb_info.fb_size == 0)
@@ -518,7 +642,29 @@ i16x4 sample_texture(TileInfo tile, uint tmem_instance, ivec2 st, bool tlut, boo
 	bool yuv = tile.fmt == TEXTURE_FORMAT_YUV;
 	ivec2 base_st = sum_frac >= 0x20 ? ivec2(s1, t1) : ivec2(s0, t0);
 
-	if (tlut)
+	if (tile_uses_hires_replacement(tile))
+	{
+		yuv = false;
+		ivec2 st_fp5 = st << 5;
+		bool hires_direct_sample = !tlut;
+		bool hires_linear = tlut || hires_direct_sample;
+
+		t_base = sample_hires_replacement_texel_fp5(tile, remap_hires_st_fp5(tile, st_fp5), hires_linear);
+		if (sample_quad)
+		{
+			t10 = sample_hires_replacement_texel_fp5(tile, remap_hires_st_fp5(tile, st_fp5 + ivec2(32, 0)), hires_linear);
+			t01 = sample_hires_replacement_texel_fp5(tile, remap_hires_st_fp5(tile, st_fp5 + ivec2(0, 32)), hires_linear);
+		}
+		if (mid_texel)
+			t11 = sample_hires_replacement_texel_fp5(tile, remap_hires_st_fp5(tile, st_fp5 + ivec2(32, 32)), hires_linear);
+
+		if (hires_direct_sample)
+		{
+			sample_quad = false;
+			mid_texel = false;
+		}
+	}
+	else if (tlut)
 	{
 		switch (int(tile.fmt))
 		{

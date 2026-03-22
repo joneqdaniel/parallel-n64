@@ -26,11 +26,13 @@
 #include "device.hpp"
 #include "rdp_common.hpp"
 #include "worker_thread.hpp"
+#include <unordered_map>
 #include <unordered_set>
 
 namespace RDP
 {
 struct CoherencyOperation;
+struct ReplacementMeta;
 class ReplacementProvider;
 
 struct SyncObject
@@ -73,6 +75,8 @@ struct RendererOptions
 
 class Renderer : public Vulkan::DebugChannelInterface
 {
+	struct ReplacementTileState;
+
 public:
 	explicit Renderer(CommandProcessor &processor);
 	~Renderer();
@@ -170,6 +174,10 @@ private:
 	void init_blender_lut();
 	void init_buffers(const RendererOptions &options);
 	bool init_internal_upscaling_factor(const RendererOptions &options);
+	bool init_hires_resources(unsigned requested_capacity);
+	bool resolve_hires_replacement_descriptor(uint64_t checksum64, uint16_t formatsize, ReplacementMeta &meta);
+	void apply_hires_tile_binding(unsigned tile, const ReplacementTileState &state);
+	void clear_hires_tile_binding(unsigned tile);
 
 	struct
 	{
@@ -214,6 +222,9 @@ private:
 		uint16_t formatsize = 0;
 		uint16_t orig_w = 0;
 		uint16_t orig_h = 0;
+		uint16_t repl_w = 0;
+		uint16_t repl_h = 0;
+		uint32_t vk_image_index = 0xffffffffu;
 		bool valid = false;
 		bool hit = false;
 	};
@@ -371,6 +382,7 @@ private:
 		bool ubershader = false;
 		bool supports_small_integer_arithmetic = false;
 		bool subgroup_tile_binning = false;
+		bool hires_replacement_shader = false;
 		unsigned upscaling = 1;
 		unsigned max_num_tile_instances = Limits::MaxTileInstances;
 		unsigned max_tiles_x = ImplementationConstants::MaxTilesX;
@@ -388,6 +400,42 @@ private:
 	};
 
 	std::unique_ptr<WorkerThread<Vulkan::DeferredPipelineCompile, PipelineExecutor>> pipeline_worker;
+
+	struct HiresKey
+	{
+		uint64_t checksum64 = 0;
+		uint16_t formatsize = 0;
+
+		bool operator==(const HiresKey &other) const
+		{
+			return checksum64 == other.checksum64 && formatsize == other.formatsize;
+		}
+	};
+
+	struct HiresKeyHasher
+	{
+		size_t operator()(const HiresKey &key) const
+		{
+			return size_t(key.checksum64 ^ (uint64_t(key.formatsize) << 48));
+		}
+	};
+
+	struct HiresResidentImage
+	{
+		Vulkan::ImageHandle image;
+		uint32_t descriptor_index = 0xffffffffu;
+		uint16_t repl_w = 0;
+		uint16_t repl_h = 0;
+	};
+
+	struct HiresResources
+	{
+		Vulkan::BindlessDescriptorPoolHandle bindless_pool;
+		Vulkan::ImageHandle fallback_image;
+		std::unordered_map<HiresKey, HiresResidentImage, HiresKeyHasher> resident_images;
+		unsigned capacity = 0;
+		unsigned next_descriptor = 1;
+	} hires_resources;
 
 	void resolve_coherency_host_to_gpu(Vulkan::CommandBuffer &cmd);
 	void resolve_coherency_gpu_to_host(CoherencyOperation &op, Vulkan::CommandBuffer &cmd);

@@ -285,10 +285,20 @@ struct TileMeta
 	TileInfoFlags flags = 0;
 };
 
+struct TileReplacementMeta
+{
+	uint16_t repl_orig_w = 0;
+	uint16_t repl_orig_h = 0;
+	uint16_t repl_w = 0;
+	uint16_t repl_h = 0;
+	uint32_t repl_desc_index = 0xffffffffu;
+};
+
 struct TileInfo
 {
 	TileSize size;
 	TileMeta meta;
+	TileReplacementMeta replacement;
 };
 
 struct CombinerInputsRGB
@@ -321,7 +331,7 @@ struct BlendModes
 	BlendMode2B blend_2b;
 };
 
-static_assert(sizeof(TileInfo) == 32, "TileInfo must be 32 bytes.");
+static_assert(sizeof(TileInfo) == 44, "TileInfo must be 44 bytes.");
 
 enum class VIRegister
 {

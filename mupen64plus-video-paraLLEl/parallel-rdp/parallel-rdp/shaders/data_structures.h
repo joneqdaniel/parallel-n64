@@ -228,6 +228,11 @@ struct TileInfoMem
 	mem_u8 mask_t;
 	mem_u8 shift_t;
 	mem_u8 flags;
+	mem_u16 repl_orig_w;
+	mem_u16 repl_orig_h;
+	mem_u16 repl_w;
+	mem_u16 repl_h;
+	uint repl_desc_index;
 };
 
 #if SMALL_TYPES
@@ -249,6 +254,11 @@ struct TileInfo
 	u8 mask_t;
 	u8 shift_t;
 	u8 flags;
+	u16 repl_orig_w;
+	u16 repl_orig_h;
+	u16 repl_w;
+	u16 repl_h;
+	uint repl_desc_index;
 };
 #endif
 

@@ -4,25 +4,25 @@ set -euo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "$SCRIPT_DIR/../.." && pwd)"
 source "$SCRIPT_DIR/lib/common.sh"
-RUNTIME_ENV="$SCRIPT_DIR/paper-mario-file-select.runtime.env"
+RUNTIME_ENV="$SCRIPT_DIR/paper-mario-title-screen.runtime.env"
 
-EXPECTED_SCREENSHOT_SHA256="ee62392552352b8e585eac0f2dbbd22872c20e9f05506ec1350d8b0f3c16fe0a"
-OUTPUT_PATH="$REPO_ROOT/assets/states/paper-mario-file-select/ParaLLEl N64/Paper Mario (USA).state"
+EXPECTED_SCREENSHOT_SHA256="611f3db618b6f38b978e4b17ba0255661f3281cc36e630a4f6891fe0aafaf285"
+OUTPUT_PATH="$REPO_ROOT/assets/states/paper-mario-title-screen/ParaLLEl N64/Paper Mario (USA).state"
 BUNDLE_ROOT=""
 
 usage() {
   cat <<'EOF'
 Usage:
-  tools/scenarios/remint-paper-mario-file-select-authority.sh [options]
+  tools/scenarios/remint-paper-mario-title-screen-authority.sh [options]
 
 Options:
   --output-path PATH  Write the reminted authoritative state here
-  --bundle-root PATH  Directory for bootstrap/verify evidence bundles
+  --bundle-root PATH  Directory for remint/verify evidence bundles
   -h, --help          Show this help
 
 Notes:
-  - This script intentionally remints the authoritative Paper Mario file-select state.
-  - It uses the verified bootstrap path: title-screen state -> settle 3 -> START pulse -> advance to frame 343 -> save.
+  - This script intentionally remints the authoritative Paper Mario title-screen state.
+  - It uses the verified wall-clock bootstrap path: boot -> wait 20s -> START once -> wait 5s -> save.
   - It then verifies the result with the canonical steady-state path: load -> settle 3 -> capture.
 EOF
 }
@@ -61,29 +61,17 @@ done
 # shellcheck disable=SC1090
 source "$RUNTIME_ENV"
 
-if [[ -z "${BOOTSTRAP_STATE_PATH:-}" || ! -f "${BOOTSTRAP_STATE_PATH:-}" ]]; then
-  echo "Bootstrap state not found: ${BOOTSTRAP_STATE_PATH:-missing}" >&2
-  exit 1
-fi
-
 if [[ -z "$BUNDLE_ROOT" ]]; then
   timestamp="$(date +"%Y%m%d-%H%M%S")"
-  BUNDLE_ROOT="$REPO_ROOT/artifacts/paper-mario-file-select/remint/$timestamp"
+  BUNDLE_ROOT="$REPO_ROOT/artifacts/paper-mario-title-screen/remint/$timestamp"
 fi
 
 BOOTSTRAP_BUNDLE="$BUNDLE_ROOT/bootstrap"
 VERIFY_BUNDLE="$BUNDLE_ROOT/verify"
-BOOTSTRAP_STATE_COPY="$BOOTSTRAP_BUNDLE/states/ParaLLEl N64/Paper Mario (USA).state"
-
-mkdir -p "$BOOTSTRAP_BUNDLE/states/ParaLLEl N64"
-cp "$BOOTSTRAP_STATE_PATH" "$BOOTSTRAP_STATE_COPY"
 
 echo "[remint] bootstrap bundle: $BOOTSTRAP_BUNDLE"
 echo "[remint] verify bundle: $VERIFY_BUNDLE"
 echo "[remint] output path: $OUTPUT_PATH"
-
-INPUT_PULSE_TARGET=$(( POST_LOAD_SETTLE_FRAMES + FILE_SELECT_START_PULSE_FRAMES ))
-REMAINING_FRAMES=$(( FILE_SELECT_TARGET_FRAME - INPUT_PULSE_TARGET ))
 
 "$REPO_ROOT/tools/adapters/retroarch_stdin_session.sh" \
   --bundle-dir "$BOOTSTRAP_BUNDLE" \
@@ -94,21 +82,17 @@ REMAINING_FRAMES=$(( FILE_SELECT_TARGET_FRAME - INPUT_PULSE_TARGET ))
   --rom "$ROM_PATH" \
   --startup-wait "$STARTUP_WAIT" \
   --command "WAIT_LOG 120 ${STARTUP_READY_PATTERN:-EmuThread: M64CMD_EXECUTE.}" \
-  --command "LOAD_STATE_SLOT_PAUSED 0" \
-  --command "STEP_FRAME ${POST_LOAD_SETTLE_FRAMES}" \
-  --command "WAIT_STATUS_FRAME PAUSED ${POST_LOAD_SETTLE_FRAMES} 10" \
-  --command "SET_INPUT_PORT 0 ${FILE_SELECT_START_MASK}" \
-  --command "STEP_FRAME ${FILE_SELECT_START_PULSE_FRAMES}" \
-  --command "WAIT_STATUS_FRAME PAUSED ${INPUT_PULSE_TARGET} 10" \
+  --command "WAIT ${TITLE_BOOT_WAIT_SECONDS}" \
+  --command "SET_INPUT_PORT 0 ${TITLE_START_MASK}" \
+  --command "WAIT 0.2" \
   --command "CLEAR_INPUT_PORT 0" \
-  --command "STEP_FRAME ${REMAINING_FRAMES}" \
-  --command "WAIT_STATUS_FRAME PAUSED ${FILE_SELECT_TARGET_FRAME} 10" \
+  --command "WAIT ${TITLE_POST_PRESS_WAIT_SECONDS}" \
   --command "SAVE_STATE" \
   --command "WAIT_SAVE_STATE" \
   --command "QUIT"
 
 mkdir -p "$(dirname -- "$OUTPUT_PATH")"
-cp "$BOOTSTRAP_STATE_COPY" "$OUTPUT_PATH"
+cp "$BOOTSTRAP_BUNDLE/states/ParaLLEl N64/Paper Mario (USA).state" "$OUTPUT_PATH"
 
 mkdir -p "$VERIFY_BUNDLE/states/ParaLLEl N64"
 cp "$OUTPUT_PATH" "$VERIFY_BUNDLE/states/ParaLLEl N64/Paper Mario (USA).state"
@@ -125,7 +109,6 @@ cp "$OUTPUT_PATH" "$VERIFY_BUNDLE/states/ParaLLEl N64/Paper Mario (USA).state"
   --command "LOAD_STATE_SLOT_PAUSED 0" \
   --command "STEP_FRAME ${POST_LOAD_SETTLE_FRAMES}" \
   --command "WAIT_STATUS_FRAME PAUSED ${POST_LOAD_SETTLE_FRAMES} 10" \
-  --command "GET_STATUS" \
   --command "SCREENSHOT" \
   --command "WAIT_NEW_CAPTURE 10" \
   --command "QUIT"
@@ -149,4 +132,4 @@ if [[ "$VERIFY_SHA256" != "$EXPECTED_SCREENSHOT_SHA256" ]]; then
   exit 1
 fi
 
-echo "[remint] canonical file-select authority verified."
+echo "[remint] canonical title-screen authority verified."

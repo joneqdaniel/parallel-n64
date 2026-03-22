@@ -26,9 +26,10 @@ Current RetroArch adapter notes:
 - the adapter disables RetroArch quit confirmation in its per-run appendconfig so a single tracked `QUIT` command exits deterministically
 - the adapter disables savestate thumbnails in its per-run appendconfig because that frontend path currently destabilizes ParaLLEl-RDP save-state runs
 - the adapter disables RetroArch widgets and screenshot/save-state notifications in tracked runs so capture bytes remain stable
-- the current RetroArch stdin agent command surface includes explicit pause, frame-step, savestate-load-paused, and input-port control commands
+- the current RetroArch stdin agent command surface includes explicit pause, frame-step, savestate-load-paused, save-task wait, and input-port control commands
 - tracked Paper Mario flows now use a log-gated startup handoff instead of blind startup sleeps
 - when a core does not publish a libretro memory map, the local RetroArch build now falls back to `RETRO_MEMORY_SYSTEM_RAM` for `READ_CORE_MEMORY`
+- `SAVE_STATE` is asynchronous in RetroArch; tracked flows now use `WAIT_SAVE_STATE`, and save tasks should be sequenced before screenshot tasks when minting authoritative states
 
 Adapters should translate between systems.
 They should not become the main source of truth for renderer correctness or scene semantics.

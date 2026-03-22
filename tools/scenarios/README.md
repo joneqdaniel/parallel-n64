@@ -43,8 +43,11 @@ Current Paper Mario runtime note:
 - the canonical steady-state Paper Mario workflow is `load savestate -> settle 3 frames -> capture`
 - the tracked Paper Mario semantic trace currently uses an empirical vanilla `gGameStatus` slice at `0x800740aa`; it now records a raw window SHA-256, empirical phase guess for proven authority states, and decomp-backed `map_name_candidate` values for KMR/HOS/OSR area-local map indices, but it is not yet a full scene-name/mode decoder
 - tracked title-screen and file-select runs now also snapshot symbol-backed vanilla `CurGameMode` and map-transition globals, so each authority bundle records callback-phase evidence in addition to the `gGameStatus` window
-- current evidence says the tracked title-screen and file-select authorities are still startup-style semantic states: both report `state_init_logos` / `state_step_logos` callbacks and idle map-transition globals even though their screenshots are stable and distinct
-- deterministic cold-boot tracing now shows the vanilla callback path is `startup -> logos -> intro`, and the startup-to-title automation path is still unresolved even under stepped frame control
+- the corrected Paper Mario title-screen authority now reports `state_init_title_screen` / `state_step_title_screen` and captures to `611f3db618b6f38b978e4b17ba0255661f3281cc36e630a4f6891fe0aafaf285`
+- the corrected Paper Mario file-select authority now reports `state_init_file_select` / `state_step_file_select` and captures to `ee62392552352b8e585eac0f2dbbd22872c20e9f05506ec1350d8b0f3c16fe0a`
+- the verified title remint path is `boot -> wait 20s -> START once -> wait 5s -> save`
+- the verified file-select remint path is `load title state -> settle 3 -> START pulse -> advance to frame 343 -> save`
+- `SAVE_STATE` is asynchronous in RetroArch; tracked authority minting now requires `WAIT_SAVE_STATE`, and save steps should happen before screenshot tasks to avoid task-queue contention
 - raw `gGameStatus` button-array snapshots are not currently a trustworthy input-delivery metric; they stay zero even in later title-screen authority probes where `START` clearly changes behavior
 - Paper Mario decomp research shows `LOAD_FROM_FILE_SELECT` is handled specially in `kmr_02`, so deeper startup-to-world probes should not treat the first `area/map/entry` tuple as canonical scene identity without more evidence
 - tracked runtime scenarios now isolate save RAM inside each bundle via `savefile_directory`, even when no explicit `.srm` is staged

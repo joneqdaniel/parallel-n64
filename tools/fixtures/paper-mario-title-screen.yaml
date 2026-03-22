@@ -21,7 +21,7 @@ authority:
   node_id: title_screen_idle
   preferred_mode: authoritative
   bootstrap_parent_fixture_id: ""
-  remint_script: ""
+  remint_script: tools/scenarios/remint-paper-mario-title-screen-authority.sh
 
 requirements:
   assets:
@@ -64,5 +64,6 @@ checks:
 
 notes:
   - The canonical title-screen path is now `load savestate -> settle 3 frames -> screenshot`.
-  - Controller scripting remains relevant only when minting or replacing authoritative savestates.
+  - The verified remint path is `boot -> wait 20s -> START once -> wait 5s -> save`.
+  - The current canonical title-screen capture hash is `611f3db618b6f38b978e4b17ba0255661f3281cc36e630a4f6891fe0aafaf285`.
   - The tracked runtime path now also snapshots and decodes an empirical vanilla Paper Mario US `gGameStatus` slice into `traces/paper-mario-game-status.json`.

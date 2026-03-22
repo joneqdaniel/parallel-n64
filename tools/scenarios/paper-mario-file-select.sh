@@ -137,8 +137,8 @@ cat > "$BUNDLE_DIR/bundle.json" <<EOF
   },
   "controller_script": {
     "start_mask": "",
-    "start_hold_frames": 0,
-    "post_input_settle_frames": 0
+    "start_pulse_frames": 0,
+    "target_frame": 0
   },
   "status": {
     "phase": "phase-0",
@@ -174,8 +174,8 @@ ACTIVE_STATE_PATH=
 ACTIVE_STATE_SHA256=missing
 POST_LOAD_SETTLE_FRAMES=0
 FILE_SELECT_START_MASK=
-FILE_SELECT_START_HOLD_FRAMES=0
-POST_INPUT_SETTLE_FRAMES=0
+FILE_SELECT_START_PULSE_FRAMES=0
+FILE_SELECT_TARGET_FRAME=0
 INTERNAL_SCALE=4x
 SERIAL_EXECUTION=1
 DISPLAY_REQUIRED=1
@@ -254,8 +254,8 @@ else
   mkdir -p "$BUNDLE_DIR/states/ParaLLEl N64"
   cp "$ACTIVE_STATE_PATH" "$BUNDLE_DIR/states/ParaLLEl N64/Paper Mario (USA).state"
 
-  scenario_patch_file "$BUNDLE_DIR/bundle.json" 's|"savefile_path": ""|"savefile_path": "'"${SAVEFILE_PATH:-}"'"|g; s|"savefile_present": false|"savefile_present": '"$(scenario_json_bool "$SAVEFILE_PRESENT")"'|g; s|"savefile_sha256": "missing"|"savefile_sha256": "'"${SAVEFILE_SHA256:-missing}"'"|g; s|"authority_mode_used": "none"|"authority_mode_used": "'"${AUTHORITY_MODE_USED:-none}"'"|g; s|"bootstrap_parent_fixture_id": "paper-mario-title-screen"|"bootstrap_parent_fixture_id": "'"${BOOTSTRAP_PARENT_FIXTURE_ID:-}"'"|g; s|"remint_script": "tools/scenarios/remint-paper-mario-file-select-authority.sh"|"remint_script": "'"${REMINT_SCRIPT:-}"'"|g; s|"authoritative_state_path": ""|"authoritative_state_path": "'"${AUTHORITATIVE_STATE_PATH:-}"'"|g; s|"authoritative_state_present": false|"authoritative_state_present": '"$(scenario_json_bool "$AUTHORITATIVE_STATE_PRESENT")"'|g; s|"authoritative_state_sha256": "missing"|"authoritative_state_sha256": "'"${AUTHORITATIVE_STATE_SHA256:-missing}"'"|g; s|"bootstrap_state_path": ""|"bootstrap_state_path": "'"${BOOTSTRAP_STATE_PATH:-}"'"|g; s|"bootstrap_state_present": false|"bootstrap_state_present": '"$(scenario_json_bool "$BOOTSTRAP_STATE_PRESENT")"'|g; s|"bootstrap_state_sha256": "missing"|"bootstrap_state_sha256": "'"${BOOTSTRAP_STATE_SHA256:-missing}"'"|g; s|"active_state_path": ""|"active_state_path": "'"${ACTIVE_STATE_PATH:-}"'"|g; s|"active_state_sha256": "missing"|"active_state_sha256": "'"${ACTIVE_STATE_SHA256:-missing}"'"|g; s|"post_load_settle_frames": 0|"post_load_settle_frames": '"${POST_LOAD_SETTLE_FRAMES:-0}"'|g; s|"start_mask": ""|"start_mask": "'"${FILE_SELECT_START_MASK:-}"'"|g; s|"start_hold_frames": 0|"start_hold_frames": '"${FILE_SELECT_START_HOLD_FRAMES:-0}"'|g; s|"post_input_settle_frames": 0|"post_input_settle_frames": '"${POST_INPUT_SETTLE_FRAMES:-0}"'|g'
-  scenario_patch_file "$BUNDLE_DIR/config.env" 's|SAVEFILE_PATH=|SAVEFILE_PATH='"${SAVEFILE_PATH:-}"'|g; s|SAVEFILE_PRESENT=0|SAVEFILE_PRESENT='"$SAVEFILE_PRESENT"'|g; s|SAVEFILE_SHA256=missing|SAVEFILE_SHA256='"${SAVEFILE_SHA256:-missing}"'|g; s|AUTHORITY_MODE_USED=none|AUTHORITY_MODE_USED='"${AUTHORITY_MODE_USED:-none}"'|g; s|BOOTSTRAP_PARENT_FIXTURE_ID=paper-mario-title-screen|BOOTSTRAP_PARENT_FIXTURE_ID='"${BOOTSTRAP_PARENT_FIXTURE_ID:-}"'|g; s|REMINT_SCRIPT=tools/scenarios/remint-paper-mario-file-select-authority.sh|REMINT_SCRIPT='"${REMINT_SCRIPT:-}"'|g; s|AUTHORITATIVE_STATE_PATH=|AUTHORITATIVE_STATE_PATH='"${AUTHORITATIVE_STATE_PATH:-}"'|g; s|AUTHORITATIVE_STATE_PRESENT=0|AUTHORITATIVE_STATE_PRESENT='"$AUTHORITATIVE_STATE_PRESENT"'|g; s|AUTHORITATIVE_STATE_SHA256=missing|AUTHORITATIVE_STATE_SHA256='"${AUTHORITATIVE_STATE_SHA256:-missing}"'|g; s|BOOTSTRAP_STATE_PATH=|BOOTSTRAP_STATE_PATH='"${BOOTSTRAP_STATE_PATH:-}"'|g; s|BOOTSTRAP_STATE_PRESENT=0|BOOTSTRAP_STATE_PRESENT='"$BOOTSTRAP_STATE_PRESENT"'|g; s|BOOTSTRAP_STATE_SHA256=missing|BOOTSTRAP_STATE_SHA256='"${BOOTSTRAP_STATE_SHA256:-missing}"'|g; s|ACTIVE_STATE_PATH=|ACTIVE_STATE_PATH='"${ACTIVE_STATE_PATH:-}"'|g; s|ACTIVE_STATE_SHA256=missing|ACTIVE_STATE_SHA256='"${ACTIVE_STATE_SHA256:-missing}"'|g; s|POST_LOAD_SETTLE_FRAMES=0|POST_LOAD_SETTLE_FRAMES='"${POST_LOAD_SETTLE_FRAMES:-0}"'|g; s|FILE_SELECT_START_MASK=|FILE_SELECT_START_MASK='"${FILE_SELECT_START_MASK:-}"'|g; s|FILE_SELECT_START_HOLD_FRAMES=0|FILE_SELECT_START_HOLD_FRAMES='"${FILE_SELECT_START_HOLD_FRAMES:-0}"'|g; s|POST_INPUT_SETTLE_FRAMES=0|POST_INPUT_SETTLE_FRAMES='"${POST_INPUT_SETTLE_FRAMES:-0}"'|g'
+  scenario_patch_file "$BUNDLE_DIR/bundle.json" 's|"savefile_path": ""|"savefile_path": "'"${SAVEFILE_PATH:-}"'"|g; s|"savefile_present": false|"savefile_present": '"$(scenario_json_bool "$SAVEFILE_PRESENT")"'|g; s|"savefile_sha256": "missing"|"savefile_sha256": "'"${SAVEFILE_SHA256:-missing}"'"|g; s|"authority_mode_used": "none"|"authority_mode_used": "'"${AUTHORITY_MODE_USED:-none}"'"|g; s|"bootstrap_parent_fixture_id": "paper-mario-title-screen"|"bootstrap_parent_fixture_id": "'"${BOOTSTRAP_PARENT_FIXTURE_ID:-}"'"|g; s|"remint_script": "tools/scenarios/remint-paper-mario-file-select-authority.sh"|"remint_script": "'"${REMINT_SCRIPT:-}"'"|g; s|"authoritative_state_path": ""|"authoritative_state_path": "'"${AUTHORITATIVE_STATE_PATH:-}"'"|g; s|"authoritative_state_present": false|"authoritative_state_present": '"$(scenario_json_bool "$AUTHORITATIVE_STATE_PRESENT")"'|g; s|"authoritative_state_sha256": "missing"|"authoritative_state_sha256": "'"${AUTHORITATIVE_STATE_SHA256:-missing}"'"|g; s|"bootstrap_state_path": ""|"bootstrap_state_path": "'"${BOOTSTRAP_STATE_PATH:-}"'"|g; s|"bootstrap_state_present": false|"bootstrap_state_present": '"$(scenario_json_bool "$BOOTSTRAP_STATE_PRESENT")"'|g; s|"bootstrap_state_sha256": "missing"|"bootstrap_state_sha256": "'"${BOOTSTRAP_STATE_SHA256:-missing}"'"|g; s|"active_state_path": ""|"active_state_path": "'"${ACTIVE_STATE_PATH:-}"'"|g; s|"active_state_sha256": "missing"|"active_state_sha256": "'"${ACTIVE_STATE_SHA256:-missing}"'"|g; s|"post_load_settle_frames": 0|"post_load_settle_frames": '"${POST_LOAD_SETTLE_FRAMES:-0}"'|g; s|"start_mask": ""|"start_mask": "'"${FILE_SELECT_START_MASK:-}"'"|g; s|"start_pulse_frames": 0|"start_pulse_frames": '"${FILE_SELECT_START_PULSE_FRAMES:-0}"'|g; s|"target_frame": 0|"target_frame": '"${FILE_SELECT_TARGET_FRAME:-0}"'|g'
+  scenario_patch_file "$BUNDLE_DIR/config.env" 's|SAVEFILE_PATH=|SAVEFILE_PATH='"${SAVEFILE_PATH:-}"'|g; s|SAVEFILE_PRESENT=0|SAVEFILE_PRESENT='"$SAVEFILE_PRESENT"'|g; s|SAVEFILE_SHA256=missing|SAVEFILE_SHA256='"${SAVEFILE_SHA256:-missing}"'|g; s|AUTHORITY_MODE_USED=none|AUTHORITY_MODE_USED='"${AUTHORITY_MODE_USED:-none}"'|g; s|BOOTSTRAP_PARENT_FIXTURE_ID=paper-mario-title-screen|BOOTSTRAP_PARENT_FIXTURE_ID='"${BOOTSTRAP_PARENT_FIXTURE_ID:-}"'|g; s|REMINT_SCRIPT=tools/scenarios/remint-paper-mario-file-select-authority.sh|REMINT_SCRIPT='"${REMINT_SCRIPT:-}"'|g; s|AUTHORITATIVE_STATE_PATH=|AUTHORITATIVE_STATE_PATH='"${AUTHORITATIVE_STATE_PATH:-}"'|g; s|AUTHORITATIVE_STATE_PRESENT=0|AUTHORITATIVE_STATE_PRESENT='"$AUTHORITATIVE_STATE_PRESENT"'|g; s|AUTHORITATIVE_STATE_SHA256=missing|AUTHORITATIVE_STATE_SHA256='"${AUTHORITATIVE_STATE_SHA256:-missing}"'|g; s|BOOTSTRAP_STATE_PATH=|BOOTSTRAP_STATE_PATH='"${BOOTSTRAP_STATE_PATH:-}"'|g; s|BOOTSTRAP_STATE_PRESENT=0|BOOTSTRAP_STATE_PRESENT='"$BOOTSTRAP_STATE_PRESENT"'|g; s|BOOTSTRAP_STATE_SHA256=missing|BOOTSTRAP_STATE_SHA256='"${BOOTSTRAP_STATE_SHA256:-missing}"'|g; s|ACTIVE_STATE_PATH=|ACTIVE_STATE_PATH='"${ACTIVE_STATE_PATH:-}"'|g; s|ACTIVE_STATE_SHA256=missing|ACTIVE_STATE_SHA256='"${ACTIVE_STATE_SHA256:-missing}"'|g; s|POST_LOAD_SETTLE_FRAMES=0|POST_LOAD_SETTLE_FRAMES='"${POST_LOAD_SETTLE_FRAMES:-0}"'|g; s|FILE_SELECT_START_MASK=|FILE_SELECT_START_MASK='"${FILE_SELECT_START_MASK:-}"'|g; s|FILE_SELECT_START_PULSE_FRAMES=0|FILE_SELECT_START_PULSE_FRAMES='"${FILE_SELECT_START_PULSE_FRAMES:-0}"'|g; s|FILE_SELECT_TARGET_FRAME=0|FILE_SELECT_TARGET_FRAME='"${FILE_SELECT_TARGET_FRAME:-0}"'|g'
 
   if [[ "$AUTHORITY_MODE_USED" == "authoritative" ]]; then
     "$REPO_ROOT/tools/adapters/retroarch_stdin_session.sh" \
@@ -277,9 +277,8 @@ else
       --command "WAIT_NEW_CAPTURE 10" \
       --command "QUIT"
   else
-    post_load_target=$(( POST_LOAD_SETTLE_FRAMES ))
-    post_input_target=$(( POST_LOAD_SETTLE_FRAMES + FILE_SELECT_START_HOLD_FRAMES ))
-    final_target=$(( post_input_target + POST_INPUT_SETTLE_FRAMES ))
+    input_pulse_target=$(( POST_LOAD_SETTLE_FRAMES + FILE_SELECT_START_PULSE_FRAMES ))
+    remaining_frames=$(( FILE_SELECT_TARGET_FRAME - input_pulse_target ))
 
     "$REPO_ROOT/tools/adapters/retroarch_stdin_session.sh" \
       --bundle-dir "$BUNDLE_DIR" \
@@ -292,13 +291,13 @@ else
       --command "WAIT_LOG 120 ${STARTUP_READY_PATTERN:-EmuThread: M64CMD_EXECUTE.}" \
       --command "LOAD_STATE_SLOT_PAUSED 0" \
       --command "STEP_FRAME ${POST_LOAD_SETTLE_FRAMES}" \
-      --command "WAIT_STATUS_FRAME PAUSED ${post_load_target} 10" \
+      --command "WAIT_STATUS_FRAME PAUSED ${POST_LOAD_SETTLE_FRAMES} 10" \
       --command "SET_INPUT_PORT 0 ${FILE_SELECT_START_MASK}" \
-      --command "STEP_FRAME ${FILE_SELECT_START_HOLD_FRAMES}" \
-      --command "WAIT_STATUS_FRAME PAUSED ${post_input_target} 10" \
+      --command "STEP_FRAME ${FILE_SELECT_START_PULSE_FRAMES}" \
+      --command "WAIT_STATUS_FRAME PAUSED ${input_pulse_target} 10" \
       --command "CLEAR_INPUT_PORT 0" \
-      --command "STEP_FRAME ${POST_INPUT_SETTLE_FRAMES}" \
-      --command "WAIT_STATUS_FRAME PAUSED ${final_target} 10" \
+      --command "STEP_FRAME ${remaining_frames}" \
+      --command "WAIT_STATUS_FRAME PAUSED ${FILE_SELECT_TARGET_FRAME} 10" \
       --command "SNAPSHOT_CORE_MEMORY paper-mario-gamestatus 800740aa 230" \
       --command "SNAPSHOT_CORE_MEMORY paper-mario-curgamemode 80151700 20" \
       --command "SNAPSHOT_CORE_MEMORY paper-mario-transition 800a0944 8" \

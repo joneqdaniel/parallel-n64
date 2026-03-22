@@ -98,6 +98,11 @@
 - complete: traced the deterministic cold-boot callback path and confirmed the current vanilla startup flow is `startup -> logos -> intro`
 - complete: proved the current startup-to-title automation path is still unresolved; repeated deterministic `START` pulses do not change the cold-boot callback path
 - complete: ruled out one tempting but bad metric for that investigation: direct snapshots of the raw `gGameStatus` button arrays remain zero even in later title-screen authority probes where `START` clearly affects behavior, so those raw button windows are not currently trustworthy input-delivery evidence
+- complete: identified the real title-screen and file-select bootstrap routes from live wall-clock runs; title is now `boot -> wait 20s -> START once -> wait 5s`, and file select is now `load title state -> settle 3 -> START once -> wait 5s`
+- complete: added a RetroArch stdin `WAIT_SAVE_STATE` command and adapter acknowledgement path so tracked workflows can wait for async save tasks instead of sleeping blindly
+- complete: identified a real task-ordering constraint in RetroArch save flows; authority minting now saves before screenshots to avoid blocking-task contention in the task queue
+- complete: reminted and verified a true title-screen authority state that loads back into `state_init_title_screen` / `state_step_title_screen` and captures to `611f3db618b6f38b978e4b17ba0255661f3281cc36e630a4f6891fe0aafaf285`
+- complete: reminted and verified a true file-select authority state that loads back into `state_init_file_select` / `state_step_file_select` and captures to `ee62392552352b8e585eac0f2dbbd22872c20e9f05506ec1350d8b0f3c16fe0a`
 - in progress: broaden the Paper Mario semantic trace beyond the current vanilla `gGameStatus` slice and current `CurGameMode`/transition windows so deeper probes can name high-level startup/menu/intro/world state cleanly and reach the planned `hos_05 ENTRY_3` authority path
 
 ## Out Of Scope

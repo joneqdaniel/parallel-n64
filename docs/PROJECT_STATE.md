@@ -28,6 +28,8 @@
 - The current authoritative file-select state was minted from the deterministic bootstrap path at save offset `2`
 - Tracked Paper Mario scenario bundles now record requested/used authority mode and active state hashes
 - There is now a dedicated file-select remint helper for intentionally rebuilding the authoritative state from the bootstrap path
+- Paper Mario fixture lineage is now explicit in a machine-readable authority graph at `tools/fixtures/paper-mario-authority-graph.yaml`
+- The tracked RetroArch adapter now enforces serial runtime launches with a lock in addition to the existing process check
 - `run-build.sh` is the authoritative local build entrypoint because it carries the ParaLLEl build flags and auto-cleans when flag fingerprints change
 
 ## Locked Planning Backbone

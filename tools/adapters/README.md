@@ -16,6 +16,7 @@ Current tracked adapter seeds:
 Current RetroArch adapter notes:
 
 - the adapter refuses to start if any other `retroarch` process is already running
+- the adapter now also holds a runtime lock so concurrent tracked launches cannot race past the singleton check
 - runtime launches are standardized as fullscreen borderless windows for consistent local capture framing
 - commands are sent serially over the stdin command interface
 - `WAIT <seconds>` is a local adapter pseudo-command and is not forwarded to RetroArch

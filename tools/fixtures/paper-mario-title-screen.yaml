@@ -15,6 +15,13 @@ entry:
   authority: authoritative_title_screen_savestate
   target_state: title_screen_idle
 
+authority:
+  graph_path: tools/fixtures/paper-mario-authority-graph.yaml
+  node_id: title_screen_idle
+  preferred_mode: authoritative
+  bootstrap_parent_fixture_id: ""
+  remint_script: ""
+
 requirements:
   assets:
     - assets/Paper Mario (USA).zip

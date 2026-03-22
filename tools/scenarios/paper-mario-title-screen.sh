@@ -81,6 +81,10 @@ fi
 ROM_PATH="$REPO_ROOT/assets/Paper Mario (USA).zip"
 PACK_PATH="$REPO_ROOT/assets/PAPER MARIO_HIRESTEXTURES.hts"
 RETROARCH_PATH="/home/auro/code/RetroArch"
+AUTHORITY_GRAPH_PATH="$REPO_ROOT/tools/fixtures/paper-mario-authority-graph.yaml"
+AUTHORITY_NODE_ID="title_screen_idle"
+BOOTSTRAP_PARENT_FIXTURE_ID=""
+REMINT_SCRIPT=""
 AUTHORITATIVE_STATE_PATH=""
 AUTHORITATIVE_STATE_PRESENT=0
 AUTHORITATIVE_STATE_SHA256="missing"
@@ -110,6 +114,10 @@ cat > "$BUNDLE_DIR/bundle.json" <<EOF
   "fixture_authority": {
     "authority_mode_requested": "$AUTHORITY_MODE",
     "authority_mode_used": "none",
+    "authority_graph_path": "$AUTHORITY_GRAPH_PATH",
+    "authority_node_id": "$AUTHORITY_NODE_ID",
+    "bootstrap_parent_fixture_id": "$BOOTSTRAP_PARENT_FIXTURE_ID",
+    "remint_script": "$REMINT_SCRIPT",
     "authoritative_state_path": "",
     "authoritative_state_present": false,
     "authoritative_state_sha256": "missing",
@@ -134,6 +142,10 @@ HIRES_PACK_PATH=$PACK_PATH
 RETROARCH_PATH=$RETROARCH_PATH
 AUTHORITY_MODE_REQUESTED=$AUTHORITY_MODE
 AUTHORITY_MODE_USED=none
+AUTHORITY_GRAPH_PATH=$AUTHORITY_GRAPH_PATH
+AUTHORITY_NODE_ID=$AUTHORITY_NODE_ID
+BOOTSTRAP_PARENT_FIXTURE_ID=
+REMINT_SCRIPT=
 AUTHORITATIVE_STATE_PATH=
 AUTHORITATIVE_STATE_PRESENT=0
 AUTHORITATIVE_STATE_SHA256=missing
@@ -179,8 +191,8 @@ else
     exit 1
   fi
 
-  scenario_patch_file "$BUNDLE_DIR/bundle.json" 's|"authority_mode_used": "none"|"authority_mode_used": "'"${AUTHORITY_MODE_USED:-none}"'"|g; s|"authoritative_state_path": ""|"authoritative_state_path": "'"${AUTHORITATIVE_STATE_PATH:-}"'"|g; s|"authoritative_state_present": false|"authoritative_state_present": '"$(scenario_json_bool "$AUTHORITATIVE_STATE_PRESENT")"'|g; s|"authoritative_state_sha256": "missing"|"authoritative_state_sha256": "'"${AUTHORITATIVE_STATE_SHA256:-missing}"'"|g; s|"active_state_path": ""|"active_state_path": "'"${AUTHORITATIVE_STATE_PATH:-}"'"|g; s|"active_state_sha256": "missing"|"active_state_sha256": "'"${AUTHORITATIVE_STATE_SHA256:-missing}"'"|g; s|"post_load_settle_frames": 0|"post_load_settle_frames": '"${POST_LOAD_SETTLE_FRAMES:-0}"'|g'
-  scenario_patch_file "$BUNDLE_DIR/config.env" 's|AUTHORITY_MODE_USED=none|AUTHORITY_MODE_USED='"${AUTHORITY_MODE_USED:-none}"'|g; s|AUTHORITATIVE_STATE_PATH=|AUTHORITATIVE_STATE_PATH='"${AUTHORITATIVE_STATE_PATH:-}"'|g; s|AUTHORITATIVE_STATE_PRESENT=0|AUTHORITATIVE_STATE_PRESENT='"$AUTHORITATIVE_STATE_PRESENT"'|g; s|AUTHORITATIVE_STATE_SHA256=missing|AUTHORITATIVE_STATE_SHA256='"${AUTHORITATIVE_STATE_SHA256:-missing}"'|g; s|ACTIVE_STATE_PATH=|ACTIVE_STATE_PATH='"${AUTHORITATIVE_STATE_PATH:-}"'|g; s|ACTIVE_STATE_SHA256=missing|ACTIVE_STATE_SHA256='"${AUTHORITATIVE_STATE_SHA256:-missing}"'|g; s|POST_LOAD_SETTLE_FRAMES=0|POST_LOAD_SETTLE_FRAMES='"${POST_LOAD_SETTLE_FRAMES:-0}"'|g'
+  scenario_patch_file "$BUNDLE_DIR/bundle.json" 's|"authority_mode_used": "none"|"authority_mode_used": "'"${AUTHORITY_MODE_USED:-none}"'"|g; s|"bootstrap_parent_fixture_id": ""|"bootstrap_parent_fixture_id": "'"${BOOTSTRAP_PARENT_FIXTURE_ID:-}"'"|g; s|"remint_script": ""|"remint_script": "'"${REMINT_SCRIPT:-}"'"|g; s|"authoritative_state_path": ""|"authoritative_state_path": "'"${AUTHORITATIVE_STATE_PATH:-}"'"|g; s|"authoritative_state_present": false|"authoritative_state_present": '"$(scenario_json_bool "$AUTHORITATIVE_STATE_PRESENT")"'|g; s|"authoritative_state_sha256": "missing"|"authoritative_state_sha256": "'"${AUTHORITATIVE_STATE_SHA256:-missing}"'"|g; s|"active_state_path": ""|"active_state_path": "'"${AUTHORITATIVE_STATE_PATH:-}"'"|g; s|"active_state_sha256": "missing"|"active_state_sha256": "'"${AUTHORITATIVE_STATE_SHA256:-missing}"'"|g; s|"post_load_settle_frames": 0|"post_load_settle_frames": '"${POST_LOAD_SETTLE_FRAMES:-0}"'|g'
+  scenario_patch_file "$BUNDLE_DIR/config.env" 's|AUTHORITY_MODE_USED=none|AUTHORITY_MODE_USED='"${AUTHORITY_MODE_USED:-none}"'|g; s|BOOTSTRAP_PARENT_FIXTURE_ID=|BOOTSTRAP_PARENT_FIXTURE_ID='"${BOOTSTRAP_PARENT_FIXTURE_ID:-}"'|g; s|REMINT_SCRIPT=|REMINT_SCRIPT='"${REMINT_SCRIPT:-}"'|g; s|AUTHORITATIVE_STATE_PATH=|AUTHORITATIVE_STATE_PATH='"${AUTHORITATIVE_STATE_PATH:-}"'|g; s|AUTHORITATIVE_STATE_PRESENT=0|AUTHORITATIVE_STATE_PRESENT='"$AUTHORITATIVE_STATE_PRESENT"'|g; s|AUTHORITATIVE_STATE_SHA256=missing|AUTHORITATIVE_STATE_SHA256='"${AUTHORITATIVE_STATE_SHA256:-missing}"'|g; s|ACTIVE_STATE_PATH=|ACTIVE_STATE_PATH='"${AUTHORITATIVE_STATE_PATH:-}"'|g; s|ACTIVE_STATE_SHA256=missing|ACTIVE_STATE_SHA256='"${AUTHORITATIVE_STATE_SHA256:-missing}"'|g; s|POST_LOAD_SETTLE_FRAMES=0|POST_LOAD_SETTLE_FRAMES='"${POST_LOAD_SETTLE_FRAMES:-0}"'|g'
 
   declare -a runtime_commands
   runtime_commands=(

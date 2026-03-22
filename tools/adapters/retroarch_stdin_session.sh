@@ -29,6 +29,16 @@ EOF
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "$SCRIPT_DIR/../.." && pwd)"
+LOCK_FILE="${TMPDIR:-/tmp}/parallel-n64-retroarch-runtime.lock"
+LOCK_FD=""
+
+acquire_runtime_lock() {
+  exec {LOCK_FD}> "$LOCK_FILE"
+  if ! flock -n "$LOCK_FD"; then
+    echo "Another tracked RetroArch runtime scenario is already holding the launch lock." >&2
+    exit 1
+  fi
+}
 
 fail_if_retroarch_running() {
   local matches
@@ -123,6 +133,7 @@ if [[ ! -f "$CORE_PATH" ]]; then
   exit 1
 fi
 
+acquire_runtime_lock
 fail_if_retroarch_running
 
 mkdir -p "$BUNDLE_DIR"/captures "$BUNDLE_DIR"/logs "$BUNDLE_DIR"/traces "$BUNDLE_DIR"/states

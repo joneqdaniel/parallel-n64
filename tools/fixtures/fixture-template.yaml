@@ -9,6 +9,15 @@ content:
 entry:
   method: savestate
   reference: replace-with-state-or-scene-id
+  authority: replace-with-authority-name
+  target_state: replace-with-target-state-id
+
+authority:
+  graph_path: tools/fixtures/example-authority-graph.yaml
+  node_id: replace-with-authority-node-id
+  preferred_mode: authoritative
+  bootstrap_parent_fixture_id: ""
+  remint_script: ""
 
 requirements:
   assets:

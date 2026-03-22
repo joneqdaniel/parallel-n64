@@ -1,0 +1,38 @@
+game: paper_mario
+version: 1
+description: >
+  Authority graph for tracked Paper Mario fixture states. This defines the
+  steady-state savestates, their bootstrap lineage, and the intentional remint
+  helpers that rebuild them.
+
+nodes:
+  - id: title_screen_idle
+    fixture_id: paper-mario-title-screen
+    state_path: assets/states/paper-mario-title-screen/ParaLLEl N64/Paper Mario (USA).state
+    kind: authoritative
+    steady_state_capture:
+      settle_frames: 3
+      capture_id: title_screen
+    lineage:
+      source: root_authority
+
+  - id: file_select_idle
+    fixture_id: paper-mario-file-select
+    state_path: assets/states/paper-mario-file-select/ParaLLEl N64/Paper Mario (USA).state
+    kind: authoritative
+    steady_state_capture:
+      settle_frames: 3
+      capture_id: file_select
+      expected_capture_sha256: f81d11bb9946ee49aec6691823fff03916f43e87c5f63f839a614573dd54c644
+    lineage:
+      source: bootstrap
+      parent_node_id: title_screen_idle
+      bootstrap_sequence:
+        load_parent_settle_frames: 3
+        input:
+          port: 0
+          joypad_mask: "0x8"
+          hold_frames: 60
+        post_input_settle_frames: 2
+        save_offset_frames: 2
+      remint_script: tools/scenarios/remint-paper-mario-file-select-authority.sh

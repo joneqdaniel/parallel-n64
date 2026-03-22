@@ -23,6 +23,7 @@ Options:
                         WAIT_STATUS_FRAME <state> <min_frame> <timeout_seconds>
                         WAIT_LOG <timeout_seconds> <literal pattern>
                         WAIT_NEW_CAPTURE <timeout_seconds>
+                        WAIT_CORE_MEMORY_HEX <address> <number_of_bytes> <expected_hex> <timeout_seconds>
                         SNAPSHOT_CORE_MEMORY <label> <address> <number_of_bytes>
   -h, --help            Show this help
 EOF
@@ -323,6 +324,46 @@ handle_wait_new_capture() {
   return 1
 }
 
+normalize_hex_string() {
+  printf '%s' "$1" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]'
+}
+
+handle_wait_core_memory_hex() {
+  local address="$1"
+  local nbytes="$2"
+  local expected_hex="$3"
+  local timeout_seconds="$4"
+  local normalized_expected
+  local deadline
+
+  normalized_expected="$(normalize_hex_string "$expected_hex")"
+  if [[ ${#normalized_expected} -ne $(( nbytes * 2 )) ]]; then
+    echo "[adapter] WAIT_CORE_MEMORY_HEX expected ${nbytes} bytes but got ${#normalized_expected} hex chars." >&2
+    return 1
+  fi
+
+  deadline=$(( $(date +%s) + $(timeout_ceiling_seconds "$timeout_seconds") ))
+  while (( $(date +%s) < deadline )); do
+    local start_bytes
+    local core_memory_line
+    local normalized_actual
+    start_bytes="$(log_size_bytes)"
+    send_retroarch_command "READ_CORE_MEMORY $address $nbytes"
+    if wait_for_log_pattern_after "$start_bytes" "READ_CORE_MEMORY " 2; then
+      core_memory_line="$(get_last_core_memory_line_after "$start_bytes" || true)"
+      if [[ -n "$core_memory_line" ]]; then
+        normalized_actual="$(normalize_hex_string "$(printf '%s\n' "$core_memory_line" | cut -d' ' -f3-)")"
+        if [[ "$normalized_actual" == "$normalized_expected" ]]; then
+          return 0
+        fi
+      fi
+    fi
+    sleep 0.2
+  done
+
+  return 1
+}
+
 "$RETROARCH_BIN" \
   --verbose \
   --config "$BASE_CONFIG" \
@@ -404,6 +445,20 @@ for cmd in "${COMMANDS[@]}"; do
     echo "[adapter] wait new capture (${timeout_seconds}s)"
     if ! handle_wait_new_capture "$timeout_seconds"; then
       echo "[adapter] WAIT_NEW_CAPTURE failed." >&2
+      exit 1
+    fi
+    continue
+  fi
+
+  if [[ "$cmd" =~ ^WAIT_CORE_MEMORY_HEX[[:space:]]+([^[:space:]]+)[[:space:]]+([0-9]+)[[:space:]]+([0-9A-Fa-f]+)[[:space:]]+([0-9]+([.][0-9]+)?)$ ]]; then
+    address="${BASH_REMATCH[1]}"
+    nbytes="${BASH_REMATCH[2]}"
+    expected_hex="${BASH_REMATCH[3]}"
+    timeout_seconds="${BASH_REMATCH[4]}"
+    printf '%s\n' "$cmd" >> "$COMMAND_LOG"
+    echo "[adapter] wait core memory: addr=$address bytes=$nbytes expected=$expected_hex (${timeout_seconds}s)"
+    if ! handle_wait_core_memory_hex "$address" "$nbytes" "$expected_hex" "$timeout_seconds"; then
+      echo "[adapter] WAIT_CORE_MEMORY_HEX failed: addr=$address bytes=$nbytes expected=$expected_hex" >&2
       exit 1
     fi
     continue

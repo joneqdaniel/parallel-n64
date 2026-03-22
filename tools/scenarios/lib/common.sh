@@ -317,21 +317,27 @@ if cur_game_mode_trace is not None:
     cur_game_mode = cur_game_mode_trace["data"]
     init_ptr = u32le(cur_game_mode, 0x04)
     step_ptr = u32le(cur_game_mode, 0x08)
+    render_front_ui_ptr = u32le(cur_game_mode, 0x0C)
+    render_back_ui_ptr = u32le(cur_game_mode, 0x10)
     result["sources"]["cur_game_mode"] = {
         "path": cur_game_mode_trace["path"],
         "base_address": f"0x{cur_game_mode_trace['base_address']:08x}",
         "window_size_bytes": len(cur_game_mode_trace["data"]),
         "window_sha256": hashlib.sha256(cur_game_mode).hexdigest(),
-        "description": "Vanilla Paper Mario US CurGameMode struct from symbol_addrs.txt.",
+        "description": "Vanilla Paper Mario US CurGameMode runtime block from symbol_addrs.txt.",
     }
     result["paper_mario_us"]["cur_game_mode"] = {
-        "flags": u16le(cur_game_mode, 0x00),
+        "layout_note": "Runtime observations currently indicate a 2-byte leading field, then 2-byte flags, then init/step/renderFront/renderBack pointers.",
+        "leading_u16": u16le(cur_game_mode, 0x00),
+        "flags": u16le(cur_game_mode, 0x02),
         "init_ptr": f"0x{init_ptr:08x}",
         "init_symbol": CUR_GAME_MODE_POINTER_NAMES.get(init_ptr),
         "step_ptr": f"0x{step_ptr:08x}",
         "step_symbol": CUR_GAME_MODE_POINTER_NAMES.get(step_ptr),
-        "render_back_ui_ptr": f"0x{u32le(cur_game_mode, 0x0C):08x}",
-        "render_front_ui_ptr": f"0x{u32le(cur_game_mode, 0x10):08x}",
+        "render_front_ui_ptr": f"0x{render_front_ui_ptr:08x}",
+        "render_front_ui_symbol": CUR_GAME_MODE_POINTER_NAMES.get(render_front_ui_ptr, "game_mode_nop" if render_front_ui_ptr == 0x80112B90 else None),
+        "render_back_ui_ptr": f"0x{render_back_ui_ptr:08x}",
+        "render_back_ui_symbol": CUR_GAME_MODE_POINTER_NAMES.get(render_back_ui_ptr),
         "phase_guess": CUR_GAME_MODE_PHASE_BY_POINTERS.get((init_ptr, step_ptr), "unknown"),
     }
 

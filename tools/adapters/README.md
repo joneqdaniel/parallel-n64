@@ -21,6 +21,7 @@ Current RetroArch adapter notes:
 - commands are sent serially over the stdin command interface
 - `WAIT <seconds>` is a local adapter pseudo-command and is not forwarded to RetroArch
 - `WAIT_STATUS_FRAME <state> <min_frame> <timeout_seconds>` is a local adapter pseudo-command for frame-aware waits based on `GET_STATUS`
+- `WAIT_CORE_MEMORY_HEX <address> <number_of_bytes> <expected_hex> <timeout_seconds>` is a local adapter pseudo-command for exact RAM-signature waits
 - `SNAPSHOT_CORE_MEMORY <label> <address> <number_of_bytes>` is a local adapter pseudo-command that captures a `READ_CORE_MEMORY` reply into a bundle trace file
 - the adapter disables RetroArch quit confirmation in its per-run appendconfig so a single tracked `QUIT` command exits deterministically
 - the adapter disables savestate thumbnails in its per-run appendconfig because that frontend path currently destabilizes ParaLLEl-RDP save-state runs

@@ -94,6 +94,9 @@
 - complete: promoted symbol-backed vanilla globals into the tracked title-screen and file-select semantic bundle path by snapshotting `CurGameMode` (`0x80151700`) and map-transition globals (`0x800A0944`) alongside the existing `gGameStatus` slice
 - complete: verified those richer tracked traces still preserve the canonical title-screen and file-select screenshot hashes while exposing a new constraint: both authority states currently report `state_init_logos` / `state_step_logos` callbacks and idle map-transition globals
 - complete: verified the deeper deterministic `START` probe switches `CurGameMode` callback pointers to the `intro` pair while map-transition globals remain idle, which strongly suggests the current path is progressing through intro-state logic rather than a clean file-select-to-world handoff
+- complete: added a reusable adapter wait primitive, `WAIT_CORE_MEMORY_HEX`, so runtime flows can block on exact vanilla RAM signatures instead of sleep-only timing
+- complete: traced the deterministic cold-boot callback path and confirmed the current vanilla startup flow is `startup -> logos -> intro`
+- complete: proved the current frontend-side agent input override is not yet authoritative for early startup/logos automation; repeated deterministic `START` pulses do not change the cold-boot callback path, and direct `gGameStatus` button snapshots remain zero during those boot probes
 - in progress: broaden the Paper Mario semantic trace beyond the current vanilla `gGameStatus` slice and current `CurGameMode`/transition windows so deeper probes can name high-level startup/menu/intro/world state cleanly and reach the planned `hos_05 ENTRY_3` authority path
 
 ## Out Of Scope

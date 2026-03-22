@@ -96,7 +96,8 @@
 - complete: verified the deeper deterministic `START` probe switches `CurGameMode` callback pointers to the `intro` pair while map-transition globals remain idle, which strongly suggests the current path is progressing through intro-state logic rather than a clean file-select-to-world handoff
 - complete: added a reusable adapter wait primitive, `WAIT_CORE_MEMORY_HEX`, so runtime flows can block on exact vanilla RAM signatures instead of sleep-only timing
 - complete: traced the deterministic cold-boot callback path and confirmed the current vanilla startup flow is `startup -> logos -> intro`
-- complete: proved the current frontend-side agent input override is not yet authoritative for early startup/logos automation; repeated deterministic `START` pulses do not change the cold-boot callback path, and direct `gGameStatus` button snapshots remain zero during those boot probes
+- complete: proved the current startup-to-title automation path is still unresolved; repeated deterministic `START` pulses do not change the cold-boot callback path
+- complete: ruled out one tempting but bad metric for that investigation: direct snapshots of the raw `gGameStatus` button arrays remain zero even in later title-screen authority probes where `START` clearly affects behavior, so those raw button windows are not currently trustworthy input-delivery evidence
 - in progress: broaden the Paper Mario semantic trace beyond the current vanilla `gGameStatus` slice and current `CurGameMode`/transition windows so deeper probes can name high-level startup/menu/intro/world state cleanly and reach the planned `hos_05 ENTRY_3` authority path
 
 ## Out Of Scope

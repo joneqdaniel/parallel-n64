@@ -118,6 +118,46 @@ AREA_NAMES = {
     27: "AREA_TST",
 }
 
+AREA_MAP_NAMES = {
+    0: [
+        "kmr_00",
+        "kmr_02",
+        "kmr_03",
+        "kmr_04",
+        "kmr_05",
+        "kmr_06",
+        "kmr_07",
+        "kmr_09",
+        "kmr_10",
+        "kmr_11",
+        "kmr_12",
+        "kmr_20",
+        "kmr_21",
+        "kmr_22",
+        "kmr_23",
+        "kmr_24",
+        "kmr_30",
+    ],
+    5: [
+        "hos_00",
+        "hos_01",
+        "hos_02",
+        "hos_03",
+        "hos_04",
+        "hos_05",
+        "hos_06",
+        "hos_10",
+        "hos_20",
+    ],
+    23: [
+        "osr_00",
+        "osr_01",
+        "osr_02",
+        "osr_03",
+        "osr_04",
+    ],
+}
+
 EMPIRICAL_PHASE_BY_WINDOW_SHA256 = {
     "db67c1ef1d1916e044bf53aded99d66adf4e776fd7438012bd7b44d618fb98eb": "title_screen_authority",
     "220e633751b7992388351bce48f3f9f79aa17f95bf7655f1dc0bc2cd52a70cf4": "file_select_authority",
@@ -175,6 +215,12 @@ if len(trace["data"]) < expected_size:
 
 gamestatus = trace["data"]
 window_sha256 = hashlib.sha256(gamestatus).hexdigest()
+area_id = s16le(gamestatus, 0x00)
+map_id = s16le(gamestatus, 0x06)
+map_name_candidates = AREA_MAP_NAMES.get(area_id, [])
+map_name_candidate = None
+if 0 <= map_id < len(map_name_candidates):
+    map_name_candidate = map_name_candidates[map_id]
 
 result = {
     "sources": {
@@ -189,12 +235,13 @@ result = {
     "paper_mario_us": {
         "empirical_phase_guess": EMPIRICAL_PHASE_BY_WINDOW_SHA256.get(window_sha256, "unknown"),
         "game_status": {
-            "area_id": s16le(gamestatus, 0x00),
-            "area_name": AREA_NAMES.get(s16le(gamestatus, 0x00), "UNKNOWN"),
+            "area_id": area_id,
+            "area_name": AREA_NAMES.get(area_id, "UNKNOWN"),
             "prev_area": s16le(gamestatus, 0x02),
             "prev_area_name": AREA_NAMES.get(s16le(gamestatus, 0x02), "UNKNOWN"),
             "did_area_change": s16le(gamestatus, 0x04),
-            "map_id": s16le(gamestatus, 0x06),
+            "map_id": map_id,
+            "map_name_candidate": map_name_candidate,
             "entry_id": s16le(gamestatus, 0x08),
             "intro_part": s8(gamestatus, 0x22),
             "startup_state": s8(gamestatus, 0x26),

@@ -37,10 +37,12 @@
 - The local RetroArch build now falls back to `RETRO_MEMORY_SYSTEM_RAM` for `READ_CORE_MEMORY` when a core does not publish a libretro memory map
 - The tracked title-screen and file-select fixtures now decode an empirical vanilla Paper Mario US `gGameStatus` slice from `0x800740aa` into `traces/paper-mario-game-status.json`
 - The Paper Mario semantic JSON now records a SHA-256 for that raw window plus an explicit empirical phase guess for the proven title-screen and file-select authorities
+- The semantic JSON now also emits a decomp-backed `map_name_candidate` for KMR, HOS, and OSR area-local map indices
 - The corrected startup semantic values are stable for both tracked fixtures: `areaID=0 (AREA_KMR)`, `mapID=0`, `entryID=0`, `introPart=1`, `startupState=0`
 - A deeper savefile-backed probe now verifies deterministic long-step control from the file-select authority and settles reproducibly at `areaID=0 (AREA_KMR)`, `mapID=3`, `entryID=5`
 - Paper Mario decomp research now shows `LOAD_FROM_FILE_SELECT` is handled specially in `kmr_02`, and KMR map IDs are area-local indices rather than direct map suffixes
-- That means the first save-backed gameplay transition is now semantically distinguishable from the startup/file-select fixtures, but its current `area/map/entry` tuple should still be treated as a transition candidate rather than canonical scene identity, and it does not yet reach the planned `hos_05 ENTRY_3` target
+- In the current decomp-backed map ordering, that deeper probe's `mapID=3` corresponds to a `kmr_04` candidate, which directly highlights the remaining ambiguity: the candidate map name and the `kmr_02` file-select special case do not line up yet
+- That means the first save-backed gameplay transition is now semantically distinguishable from the startup/file-select fixtures, but its current `area/map/entry` tuple should still be treated as transition evidence rather than canonical scene identity, and it does not yet reach the planned `hos_05 ENTRY_3` target
 - The obvious shifted-symbol probes for deeper mode/menu state have been ruled out so far: the likely `CurGameModeID` window near `0x80195750` is zero in the tracked states, and a broad `0x80180000` region scan did not produce a valid title/file-select/world mode candidate
 - Tracked runtime scenarios now isolate save RAM inside each bundle, and savefile identity is explicit in bundle metadata instead of silently coming from `~/.config/retroarch/saves`
 - There is now an intentional helper to stage a local Paper Mario `.srm` into gitignored assets for future deeper fixtures

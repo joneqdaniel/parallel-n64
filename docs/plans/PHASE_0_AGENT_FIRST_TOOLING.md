@@ -85,8 +85,10 @@
 - complete: isolated save RAM inside tracked runtime bundles and added an intentional Paper Mario savefile staging helper for future deeper fixtures
 - complete: corrected the tracked Paper Mario semantic decode to use an empirical vanilla `gGameStatus` slice at `0x800740aa` with little-endian field decoding, restoring coherent startup traces for title screen and file select
 - complete: added a stable SHA-256 identity for the raw Paper Mario semantic window plus explicit empirical phase guesses for the proven title-screen and file-select authority states
+- complete: added decomp-backed `map_name_candidate` output for KMR, HOS, and OSR area-local map indices so semantic traces can name likely map targets without pretending they are authoritative yet
 - complete: verified the first deeper save-backed transition with the corrected semantic slice; it reproducibly settles at `AREA_KMR map=3 entry=5`, which proves non-startup state transition even though it is not the planned `hos_05 ENTRY_3` target yet
 - complete: confirmed from decomp that `LOAD_FROM_FILE_SELECT` is handled specially in `kmr_02`, so the current post-file-select `area/map/entry` tuple should be treated as transition evidence, not final scene identity
+- complete: mapped the current post-file-select tuple through the decomp KMR map order; `AREA_KMR map=3` currently implies a `kmr_04` candidate, which makes the remaining scene-identity ambiguity explicit instead of hidden
 - complete: ruled out the first obvious shifted-symbol mode-state candidates; the likely `CurGameModeID` window near `0x80195750` is zero in the tracked states, and a broad `0x80180000` scan did not produce a valid title/file-select/world mode pattern
 - in progress: broaden the Paper Mario semantic trace beyond the current vanilla `gGameStatus` slice so deeper savefile-backed gameplay probes can name high-level mode/menu state and reach the planned `hos_05 ENTRY_3` authority path
 

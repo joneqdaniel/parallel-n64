@@ -28,6 +28,7 @@ Each fixture is defined by:
 - hi-res pack hash when present
 - log output relevant to the run
 - replacement hit/miss or fallback reporting when present
+- semantic scene identity traces when stable memory addresses are known
 
 ## Primary Pass/Fail Signals
 

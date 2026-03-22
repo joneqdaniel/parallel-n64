@@ -89,6 +89,8 @@ AUTHORITATIVE_STATE_PATH=""
 AUTHORITATIVE_STATE_PRESENT=0
 AUTHORITATIVE_STATE_SHA256="missing"
 AUTHORITY_MODE_USED="none"
+GAME_STATUS_TRACE_REL="traces/paper-mario-game-status.core-memory.txt"
+GAME_STATUS_JSON_REL="traces/paper-mario-game-status.json"
 
 scenario_prepare_bundle_dirs "$BUNDLE_DIR"
 
@@ -204,6 +206,7 @@ else
       --command "LOAD_STATE_SLOT_PAUSED 0"
       --command "STEP_FRAME ${POST_LOAD_SETTLE_FRAMES:-3}"
       --command "WAIT_STATUS_FRAME PAUSED ${POST_LOAD_SETTLE_FRAMES:-3} 10"
+      --command "SNAPSHOT_CORE_MEMORY paper-mario-game-status 800740aa 40"
       --command "SCREENSHOT"
       --command "WAIT_NEW_CAPTURE 10"
       --command "QUIT"
@@ -228,4 +231,10 @@ else
     --rom "$ROM_PATH" \
     --startup-wait "$STARTUP_WAIT" \
     "${runtime_commands[@]}"
+
+  if [[ -f "$BUNDLE_DIR/$GAME_STATUS_TRACE_REL" ]]; then
+    scenario_decode_paper_mario_game_status_snapshot \
+      "$BUNDLE_DIR/$GAME_STATUS_TRACE_REL" \
+      "$BUNDLE_DIR/$GAME_STATUS_JSON_REL"
+  fi
 fi

@@ -31,6 +31,10 @@
 - Paper Mario fixture lineage is now explicit in a machine-readable authority graph at `tools/fixtures/paper-mario-authority-graph.yaml`
 - The next ladder target, `hos_05 ENTRY_3`, is now modeled explicitly as a planned fixture even though its bootstrap route and authoritative state are not minted yet
 - The tracked RetroArch adapter now enforces serial runtime launches with a lock in addition to the existing process check
+- The tracked adapter can now snapshot core memory directly into bundle traces with `SNAPSHOT_CORE_MEMORY`
+- The local RetroArch build now falls back to `RETRO_MEMORY_SYSTEM_RAM` for `READ_CORE_MEMORY` when a core does not publish a libretro memory map
+- The tracked title-screen and file-select fixtures now decode a Paper Mario US `gGameStatus` semantic trace from vanilla runs
+- The current decoded semantic values for both tracked startup fixtures are `areaID=0`, `mapID=0`, `entryID=0`, `introPart=1`, `startupState=0`
 - `run-build.sh` is the authoritative local build entrypoint because it carries the ParaLLEl build flags and auto-cleans when flag fingerprints change
 
 ## Locked Planning Backbone

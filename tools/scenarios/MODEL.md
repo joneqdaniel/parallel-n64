@@ -37,6 +37,7 @@ Every tracked scenario bundle should record:
 - ROM hash
 - pack hash when present
 - the post-load settle frame count
+- semantic scene traces when stable addresses are known and the frontend can read memory safely
 
 ## Frame Contract
 

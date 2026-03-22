@@ -55,3 +55,51 @@ scenario_patch_file() {
   local expr="$2"
   perl -0pi -e "$expr" "$path"
 }
+
+scenario_decode_paper_mario_game_status_snapshot() {
+  local snapshot_path="$1"
+  local output_path="$2"
+  local -a fields=()
+  local area_id=0
+  local map_id=0
+  local entry_id=0
+  local intro_part=0
+  local startup_state=0
+
+  if [[ ! -f "$snapshot_path" ]]; then
+    echo "Paper Mario snapshot not found: $snapshot_path" >&2
+    return 1
+  fi
+
+  read -r -a fields < "$snapshot_path" || true
+  if [[ "${fields[0]:-}" != "READ_CORE_MEMORY" ]]; then
+    echo "Unexpected Paper Mario snapshot format: $snapshot_path" >&2
+    return 1
+  fi
+
+  if (( ${#fields[@]} < 42 )); then
+    echo "Paper Mario snapshot too short: $snapshot_path" >&2
+    return 1
+  fi
+
+  area_id=$(( (16#${fields[2]} << 8) | 16#${fields[3]} ))
+  map_id=$(( (16#${fields[8]} << 8) | 16#${fields[9]} ))
+  entry_id=$(( (16#${fields[10]} << 8) | 16#${fields[11]} ))
+  intro_part=$(( 16#${fields[36]} ))
+  startup_state=$(( 16#${fields[40]} ))
+
+  cat > "$output_path" <<EOF
+{
+  "source_trace": "$snapshot_path",
+  "base_address": "0x${fields[1]}",
+  "window_size_bytes": 40,
+  "paper_mario_us_gamestatus": {
+    "area_id": $area_id,
+    "map_id": $map_id,
+    "entry_id": $entry_id,
+    "intro_part": $intro_part,
+    "startup_state": $startup_state
+  }
+}
+EOF
+}

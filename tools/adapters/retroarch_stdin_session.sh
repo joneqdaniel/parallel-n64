@@ -23,6 +23,7 @@ Options:
                         WAIT_STATUS_FRAME <state> <min_frame> <timeout_seconds>
                         WAIT_LOG <timeout_seconds> <literal pattern>
                         WAIT_NEW_CAPTURE <timeout_seconds>
+                        SNAPSHOT_CORE_MEMORY <label> <address> <number_of_bytes>
   -h, --help            Show this help
 EOF
 }
@@ -231,6 +232,15 @@ get_last_status_line_after() {
   tail -c +"$((start_bytes + 1))" "$RA_LOG" 2>/dev/null | rg -o "GET_STATUS [^\r\n]*" | tail -n1
 }
 
+get_last_core_memory_line_after() {
+  local start_bytes="$1"
+  if [[ ! -f "$RA_LOG" ]]; then
+    return 1
+  fi
+
+  tail -c +"$((start_bytes + 1))" "$RA_LOG" 2>/dev/null | rg -o "READ_CORE_MEMORY [^\r\n]*" | tail -n1
+}
+
 send_retroarch_command() {
   local cmd="$1"
   printf '%s\n' "$cmd" >> "$COMMAND_LOG"
@@ -393,6 +403,28 @@ for cmd in "${COMMANDS[@]}"; do
       echo "[adapter] WAIT_NEW_CAPTURE failed." >&2
       exit 1
     fi
+    continue
+  fi
+
+  if [[ "$cmd" =~ ^SNAPSHOT_CORE_MEMORY[[:space:]]+([A-Za-z0-9._-]+)[[:space:]]+([^[:space:]]+)[[:space:]]+([0-9]+)$ ]]; then
+    label="${BASH_REMATCH[1]}"
+    address="${BASH_REMATCH[2]}"
+    nbytes="${BASH_REMATCH[3]}"
+    trace_path="$BUNDLE_DIR/traces/${label}.core-memory.txt"
+    start_bytes="$(log_size_bytes)"
+    printf '%s\n' "$cmd" >> "$COMMAND_LOG"
+    echo "[adapter] snapshot core memory: $label addr=$address bytes=$nbytes"
+    send_retroarch_command "READ_CORE_MEMORY $address $nbytes"
+    if ! wait_for_log_pattern_after "$start_bytes" "READ_CORE_MEMORY " 5; then
+      echo "[adapter] SNAPSHOT_CORE_MEMORY acknowledgement missing." >&2
+      exit 1
+    fi
+    core_memory_line="$(get_last_core_memory_line_after "$start_bytes" || true)"
+    if [[ -z "$core_memory_line" ]]; then
+      echo "[adapter] SNAPSHOT_CORE_MEMORY log line missing." >&2
+      exit 1
+    fi
+    printf '%s\n' "$core_memory_line" > "$trace_path"
     continue
   fi
 

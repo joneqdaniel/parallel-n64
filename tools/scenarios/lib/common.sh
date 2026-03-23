@@ -132,15 +132,18 @@ result = {
         "cache_path": None,
         "miss_event_counts": {
             "checksum_absent": 0,
+            "same_texture_crc_other_palette": 0,
             "other_formatsize_only": 0,
             "exact_or_generic_present": 0,
         },
         "unique_checksum_counts": {
             "checksum_absent": 0,
+            "same_texture_crc_other_palette": 0,
             "other_formatsize_only": 0,
             "exact_or_generic_present": 0,
         },
         "top_absent_buckets": [],
+        "top_same_texture_crc_other_palette_buckets": [],
         "top_other_formatsize_buckets": [],
         "top_exact_or_generic_present_buckets": [],
     },
@@ -157,7 +160,7 @@ capability_re = re.compile(
 )
 disabled_re = re.compile(r"Hi-res textures requested, but disabled: (.+) \(maxDescriptorSetUpdateAfterBindSampledImages=(\d+), required>=(\d+)\)\.")
 summary_re = re.compile(
-    r"Hi-res keying summary: lookups=(\d+) hits=(\d+) misses=(\d+)(?: filtered=(\d+))? provider=(on|off)\."
+    r"Hi-res keying summary: lookups=(\d+) hits=(\d+) misses=(\d+)(?: filtered=(\d+))?(?: block_probe_hits=(\d+))? provider=(on|off)\."
 )
 hit_miss_re = re.compile(r"Hi-res keying (hit|miss): (.+)")
 filtered_re = re.compile(r"Hi-res keying filtered: reason=([^\s]+) (.+)")
@@ -353,14 +356,20 @@ def finalize_pack_crosscheck():
 
     category_buckets = {
         "checksum_absent": {},
+        "same_texture_crc_other_palette": {},
         "other_formatsize_only": {},
         "exact_or_generic_present": {},
     }
     unique_checksums = {
         "checksum_absent": set(),
+        "same_texture_crc_other_palette": set(),
         "other_formatsize_only": set(),
         "exact_or_generic_present": set(),
     }
+    low32_index = {}
+    for checksum64, formats in cache_entries.items():
+        texture_crc = checksum64 & 0xffffffff
+        low32_index.setdefault(texture_crc, set()).update(formats)
 
     for record in miss_records:
         checksum64 = record["checksum64"]
@@ -368,8 +377,13 @@ def finalize_pack_crosscheck():
         signature = record["signature"]
 
         available_formats = cache_entries.get(checksum64)
+        texture_crc = checksum64 & 0xffffffff
+        low32_formats = low32_index.get(texture_crc)
         if available_formats is None:
-            category = "checksum_absent"
+            if low32_formats is not None and (formatsize in low32_formats or 0 in low32_formats):
+                category = "same_texture_crc_other_palette"
+            else:
+                category = "checksum_absent"
         elif formatsize in available_formats or 0 in available_formats:
             category = "exact_or_generic_present"
         else:
@@ -403,6 +417,7 @@ def finalize_pack_crosscheck():
         result["pack_crosscheck"][field_name] = items[:10]
 
     write_bucket_list("top_absent_buckets", category_buckets["checksum_absent"])
+    write_bucket_list("top_same_texture_crc_other_palette_buckets", category_buckets["same_texture_crc_other_palette"])
     write_bucket_list("top_other_formatsize_buckets", category_buckets["other_formatsize_only"])
     write_bucket_list("top_exact_or_generic_present_buckets", category_buckets["exact_or_generic_present"])
 
@@ -462,7 +477,8 @@ for line in log_path.read_text(errors="replace").splitlines():
             "hits": int(m.group(2)),
             "misses": int(m.group(3)),
             "filtered": int(m.group(4) or 0),
-            "provider": m.group(5),
+            "block_probe_hits": int(m.group(5) or 0),
+            "provider": m.group(6),
         }
         continue
 

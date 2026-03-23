@@ -193,6 +193,8 @@ CommandProcessor::CommandProcessor(Vulkan::Device &device_, void *rdram_ptr,
 
 	if (const char *env = getenv("PARALLEL_RDP_HIRES_DEBUG"))
 		renderer.set_hires_debug(strtol(env, nullptr, 0) > 0);
+	if (const char *env = getenv("PARALLEL_RDP_HIRES_BLOCK_SHAPE_PROBE"))
+		renderer.set_hires_debug_block_shape_probe(strtol(env, nullptr, 0) > 0);
 
 	const bool allow_tile = parse_optional_bool_env(getenv("PARALLEL_RDP_HIRES_FILTER_ALLOW_TILE"), true);
 	const bool allow_block = parse_optional_bool_env(getenv("PARALLEL_RDP_HIRES_FILTER_ALLOW_BLOCK"), true);

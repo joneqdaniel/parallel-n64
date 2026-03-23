@@ -46,6 +46,15 @@
     - disabling the shared `mode=tile fmt=2 siz=1 wh=296x6 fs=258 tile=7` class filters 33 replacement applications and pulls the frame much closer to baseline `off`
     - disabling `mode=tile fmt=3 siz=1 wh=16x8 fs=259 tile=7` filters 44 replacement applications but leaves the frame much closer to baseline `on`, so that class appears to be a narrower UI/detail layer
   - disabling all tile replacements on the title screen reproduces the baseline `off` hash exactly, which proves the current visible hi-res path is entirely carried by tile-hit replacement classes
+  - swapping the active local pack to the closest `v4.0.1` candidate (`PM64K-NWO401`) does not change the strict title/file fixtures at all: hashes, semantic state, and hit/miss summaries stay identical
+  - that means the current strict-scene misses are not resolved by a simple pack-version bump from the older local candidate to `v4.0.1 4K NWO`
+  - the pack cross-check now separates a smaller implementation-bug class from full checksum absence: on file select, `8` miss events / `7` unique keys are present in the pack under the same low-32 texture CRC but a different palette half
+  - those palette-variant misses are the smaller CI tile classes (`8x16` / `32x16`), not the dominant `64x1` block class
+  - runtime debug logs now expose `pal=` and `pcrc=` for hi-res keys, and the current palette-variant misses all show `pal=0`, which points away from palette-bank selection and toward a deeper CI palette-CRC mismatch
+  - the debug-only block-shape probe is now available on tracked file-select runs via `PARALLEL_RDP_HIRES_BLOCK_SHAPE_PROBE=1`
+  - current probe result:
+    - the dominant `mode=block fmt=2 siz=2 wh=64x1 fs=514 tile=7` class is not rescued by simple contiguous shape reinterpretation and logs as a plain `64x1` upload with `tmem_stride_words=0`
+    - smaller non-dominant block misses do have alternate-shape pack hits (`128x1 -> 4x32`, `1024x1 -> 32x32`)
 
 ## Not Yet Claimed Categories
 

@@ -56,6 +56,7 @@
 - The latest verified `on`-mode file-select run also preserves steady-state semantics while loading the hi-res pack successfully and reporting `lookups=165 hits=82 misses=83 provider=on`
 - `on` and `off` are no longer pixel-identical on the strict fixtures: the current title-screen `on` hash is `ba91ffce0cc7b6053568c0a7774bf0ae80825c95d95fce89ba4a9f79c62b9d16`, and the current file-select `on` hash is `8a90f7874bd797a186ff85d488033dc332b2a75f5bec91ad33ca8246e6be7730`
 - Raw-pixel comparison now confirms real visible divergence on both fixtures while semantic state stays locked: title-screen `AE=3412580`, `RMSE=0.267821`; file-select `AE=1289800`, `RMSE=0.0928543`
+- The tracked title-screen and file-select scenarios can now verify known-good `on` hashes as well as `off`, so the current visible-hires milestone is enforced directly by the scenario layer instead of only by manual comparison
 - The current Phase 1 blocker has therefore moved again: replacement wiring is now visibly live, and the next task is to judge correctness versus corruption on the strict fixtures and tighten texel mapping / alias behavior where needed
 - The tracked adapter now supports a memory-based wait primitive, `WAIT_CORE_MEMORY_HEX`, so scenarios and probes can block on exact vanilla RAM signatures instead of sleep-only timing
 - The semantic JSON now also emits a decomp-backed `map_name_candidate` for KMR, HOS, and OSR area-local map indices

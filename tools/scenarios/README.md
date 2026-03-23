@@ -53,6 +53,7 @@ Current Paper Mario runtime note:
 - `SAVE_STATE` is asynchronous in RetroArch; tracked authority minting now requires `WAIT_SAVE_STATE`, and save steps should happen before screenshot tasks to avoid task-queue contention
 - the current `on`-mode result on this machine now reaches a real active provider path: the pack loads, the provider turns `on`, and bundles record real hit/miss telemetry
 - the current `on`-mode result is now visibly active as well: tracked title/file-select `on` bundles no longer match `off` at the raw-pixel level while still preserving the same semantic callback state
+- the tracked title-screen and file-select scenarios now carry known-good `off` and `on` screenshot hashes, so both sides of the first strict Phase 1 targets can be verified automatically
 - the current Phase 1 question is no longer “is the path live”; it is “is the visible result correct, or is it corrupted”
 - raw `gGameStatus` button-array snapshots are not currently a trustworthy input-delivery metric; they stay zero even in later title-screen authority probes where `START` clearly changes behavior
 - Paper Mario decomp research shows `LOAD_FROM_FILE_SELECT` is handled specially in `kmr_02`, so deeper startup-to-world probes should not treat the first `area/map/entry` tuple as canonical scene identity without more evidence

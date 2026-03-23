@@ -105,6 +105,7 @@ result = {
     "debug_line_counts": {
         "hit": 0,
         "miss": 0,
+        "filtered": 0,
         "tlut_update": 0,
     },
     "bucket_summaries": {
@@ -116,11 +117,16 @@ result = {
             "unique_bucket_count": 0,
             "top_buckets": [],
         },
+        "filtered": {
+            "unique_bucket_count": 0,
+            "top_buckets": [],
+        },
         "tlut_update": {
             "unique_bucket_count": 0,
             "top_buckets": [],
         },
     },
+    "debug_filter": None,
     "pack_crosscheck": {
         "available": False,
         "cache_path": None,
@@ -151,15 +157,18 @@ capability_re = re.compile(
 )
 disabled_re = re.compile(r"Hi-res textures requested, but disabled: (.+) \(maxDescriptorSetUpdateAfterBindSampledImages=(\d+), required>=(\d+)\)\.")
 summary_re = re.compile(
-    r"Hi-res keying summary: lookups=(\d+) hits=(\d+) misses=(\d+) provider=(on|off)\."
+    r"Hi-res keying summary: lookups=(\d+) hits=(\d+) misses=(\d+)(?: filtered=(\d+))? provider=(on|off)\."
 )
 hit_miss_re = re.compile(r"Hi-res keying (hit|miss): (.+)")
+filtered_re = re.compile(r"Hi-res keying filtered: reason=([^\s]+) (.+)")
 tlut_re = re.compile(r"Hi-res keying TLUT update: (.+)")
+filter_config_re = re.compile(r"Hi-res debug filter: allow_tile=(\d+) allow_block=(\d+) signature_count=(\d+)\.")
 field_re = re.compile(r"(\w+)=([^\s]+)")
 
 bucket_maps = {
     "hit": {},
     "miss": {},
+    "filtered": {},
     "tlut_update": {},
 }
 miss_records = []
@@ -173,6 +182,8 @@ def parse_fields(detail):
 def get_bucket_identity(kind, fields):
     if kind in ("hit", "miss"):
         return tuple((key, fields.get(key)) for key in ("mode", "fmt", "siz", "wh", "fs", "tile"))
+    if kind == "filtered":
+        return tuple((key, fields.get(key)) for key in ("reason", "mode", "fmt", "siz", "wh", "fs", "tile"))
     return tuple((key, fields.get(key)) for key in ("bytes", "tile"))
 
 def update_bucket(kind, detail):
@@ -450,7 +461,18 @@ for line in log_path.read_text(errors="replace").splitlines():
             "lookups": int(m.group(1)),
             "hits": int(m.group(2)),
             "misses": int(m.group(3)),
-            "provider": m.group(4),
+            "filtered": int(m.group(4) or 0),
+            "provider": m.group(5),
+        }
+        continue
+
+    m = filter_config_re.search(line)
+    if m:
+        result["available"] = True
+        result["debug_filter"] = {
+            "allow_tile": bool(int(m.group(1))),
+            "allow_block": bool(int(m.group(2))),
+            "signature_count": int(m.group(3)),
         }
         continue
 
@@ -485,6 +507,19 @@ for line in log_path.read_text(errors="replace").splitlines():
             })
         continue
 
+    m = filtered_re.search(line)
+    if m:
+        result["available"] = True
+        detail = f"reason={m.group(1)} {m.group(2).strip()}"
+        result["debug_line_counts"]["filtered"] += 1
+        update_bucket("filtered", detail)
+        if len(result["sample_events"]) < 20:
+            result["sample_events"].append({
+                "kind": "filtered",
+                "detail": detail,
+            })
+        continue
+
     m = tlut_re.search(line)
     if m:
         result["available"] = True
@@ -497,7 +532,7 @@ for line in log_path.read_text(errors="replace").splitlines():
                 "detail": detail,
             })
 
-for kind in ("hit", "miss", "tlut_update"):
+for kind in ("hit", "miss", "filtered", "tlut_update"):
     finalize_bucket_summary(kind)
 finalize_pack_crosscheck()
 

@@ -41,6 +41,7 @@
 #include "shaders/slangmosh.hpp"
 #endif
 #include <algorithm>
+#include <cstdio>
 #include <cstring>
 
 namespace RDP
@@ -60,6 +61,42 @@ static const char *load_mode_to_string(UploadMode mode)
 	default:
 		return "unknown";
 	}
+}
+
+static bool hires_debug_filter_is_active(const HiresDebugFilterState &filter)
+{
+	return !filter.allow_tile || !filter.allow_block || !filter.blocked_signatures.empty();
+}
+
+static std::string make_hires_debug_signature(UploadMode mode, uint32_t tile,
+                                              TextureFormat fmt, TextureSize size,
+                                              uint32_t key_width_pixels, uint32_t key_height_pixels,
+                                              uint16_t formatsize)
+{
+	char signature[128] = {};
+	std::snprintf(signature, sizeof(signature),
+	              "mode=%s fmt=%u siz=%u wh=%ux%u fs=%u tile=%u",
+	              load_mode_to_string(mode),
+	              unsigned(fmt),
+	              unsigned(size),
+	              key_width_pixels,
+	              key_height_pixels,
+	              unsigned(formatsize),
+	              tile);
+	return signature;
+}
+
+static const char *get_hires_debug_filter_reason(const HiresDebugFilterState &filter,
+                                                 UploadMode mode,
+                                                 const std::string &signature)
+{
+	if (mode == UploadMode::Tile && !filter.allow_tile)
+		return "mode-disabled";
+	if (mode == UploadMode::Block && !filter.allow_block)
+		return "mode-disabled";
+	if (filter.blocked_signatures.find(signature) != filter.blocked_signatures.end())
+		return "signature-disabled";
+	return nullptr;
 }
 
 static void zero_transparent_replacement_rgb(std::vector<uint8_t> &rgba8)
@@ -716,6 +753,7 @@ void Renderer::set_replacement_provider(const ReplacementProvider *provider)
 	replacement_provider = provider;
 	detail::reset_hires_tracking_state(
 			replacement_tiles, tlut_shadow_valid, hires_lookup_total, hires_lookup_hits, hires_lookup_misses);
+	hires_lookup_filtered = 0;
 
 	if (caps.hires_replacement_shader)
 	{
@@ -731,15 +769,33 @@ void Renderer::set_hires_debug(bool enable)
 	hires_debug = enable;
 }
 
+void Renderer::set_hires_debug_filter(bool allow_tile,
+                                      bool allow_block,
+                                      std::unordered_set<std::string> &&blocked_signatures)
+{
+	hires_debug_filter.allow_tile = allow_tile;
+	hires_debug_filter.allow_block = allow_block;
+	hires_debug_filter.blocked_signatures = std::move(blocked_signatures);
+
+	if (!hires_debug_filter_is_active(hires_debug_filter))
+		return;
+
+	LOGI("Hi-res debug filter: allow_tile=%d allow_block=%d signature_count=%u.\n",
+	     hires_debug_filter.allow_tile ? 1 : 0,
+	     hires_debug_filter.allow_block ? 1 : 0,
+	     unsigned(hires_debug_filter.blocked_signatures.size()));
+}
+
 void Renderer::log_hires_summary() const
 {
 	if (!replacement_provider && !hires_debug)
 		return;
 
-	LOGI("Hi-res keying summary: lookups=%llu hits=%llu misses=%llu provider=%s.\n",
+	LOGI("Hi-res keying summary: lookups=%llu hits=%llu misses=%llu filtered=%llu provider=%s.\n",
 	     static_cast<unsigned long long>(hires_lookup_total),
 	     static_cast<unsigned long long>(hires_lookup_hits),
 	     static_cast<unsigned long long>(hires_lookup_misses),
+	     static_cast<unsigned long long>(hires_lookup_filtered),
 	     replacement_provider ? "on" : "off");
 }
 
@@ -3534,6 +3590,8 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 
 			const uint64_t checksum64 = detail::compose_hires_checksum64(texture_crc, palette_crc);
 			const uint16_t formatsize = formatsize_key(meta.fmt, meta.size);
+			const std::string hires_signature = make_hires_debug_signature(
+					info.mode, tile, meta.fmt, meta.size, key_width_pixels, key_height_pixels, formatsize);
 			ReplacementMeta repl_meta = {};
 			bool hit = replacement_provider->lookup(checksum64, formatsize, &repl_meta);
 			if (hit)
@@ -3541,6 +3599,13 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 				repl_meta.orig_w = key_width_pixels;
 				repl_meta.orig_h = key_height_pixels;
 				if (!resolve_hires_replacement_descriptor(checksum64, formatsize, repl_meta))
+					hit = false;
+			}
+			const char *filter_reason = nullptr;
+			if (hit && hires_debug_filter_is_active(hires_debug_filter))
+			{
+				filter_reason = get_hires_debug_filter_reason(hires_debug_filter, info.mode, hires_signature);
+				if (filter_reason)
 					hit = false;
 			}
 
@@ -3568,10 +3633,23 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 				apply_hires_tile_binding(alias_tile, replacement_tiles[alias_tile]);
 			}
 
-			detail::record_hires_lookup_result(hit, hires_lookup_total, hires_lookup_hits, hires_lookup_misses);
+			hires_lookup_total++;
+			if (filter_reason)
+				hires_lookup_filtered++;
+			else if (hit)
+				hires_lookup_hits++;
+			else
+				hires_lookup_misses++;
 
 			if (hires_debug)
 			{
+				if (filter_reason)
+				{
+					LOGI("Hi-res keying filtered: reason=%s %s key=%016llx.\n",
+					     filter_reason,
+					     hires_signature.c_str(),
+					     static_cast<unsigned long long>(checksum64));
+				}
 				LOGI("Hi-res keying %s: mode=%s addr=0x%06x tile=%u fmt=%u siz=%u wh=%ux%u key=%016llx fs=%u hit=%d.\n",
 				     hit ? "hit" : "miss",
 				     load_mode_to_string(info.mode),

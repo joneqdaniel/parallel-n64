@@ -26,6 +26,7 @@
 #include "device.hpp"
 #include "rdp_common.hpp"
 #include "worker_thread.hpp"
+#include <string>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -73,6 +74,13 @@ struct RendererOptions
 	unsigned upscaling_factor = 1;
 };
 
+struct HiresDebugFilterState
+{
+	bool allow_tile = true;
+	bool allow_block = true;
+	std::unordered_set<std::string> blocked_signatures;
+};
+
 class Renderer : public Vulkan::DebugChannelInterface
 {
 	struct ReplacementTileState;
@@ -107,6 +115,9 @@ public:
 	void load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint32_t tmem_offset);
 	void set_replacement_provider(const ReplacementProvider *provider);
 	void set_hires_debug(bool enable);
+	void set_hires_debug_filter(bool allow_tile,
+	                           bool allow_block,
+	                           std::unordered_set<std::string> &&blocked_signatures);
 	void log_hires_summary() const;
 
 	void set_blend_color(uint32_t color);
@@ -169,6 +180,7 @@ private:
 	const ShaderBank *shader_bank = nullptr;
 	const ReplacementProvider *replacement_provider = nullptr;
 	bool hires_debug = false;
+	HiresDebugFilterState hires_debug_filter;
 
 	bool init_caps();
 	void init_blender_lut();
@@ -234,6 +246,7 @@ private:
 	uint64_t hires_lookup_total = 0;
 	uint64_t hires_lookup_hits = 0;
 	uint64_t hires_lookup_misses = 0;
+	uint64_t hires_lookup_filtered = 0;
 	Vulkan::BufferHandle tmem_instances;
 	Vulkan::BufferHandle span_setups;
 	Vulkan::BufferHandle blender_divider_lut_buffer;

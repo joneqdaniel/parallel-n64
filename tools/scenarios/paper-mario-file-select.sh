@@ -10,7 +10,7 @@ MODE="off"
 AUTHORITY_MODE="auto"
 DRY_RUN=1
 BUNDLE_DIR=""
-RUNTIME_ENV="$SCRIPT_DIR/paper-mario-file-select.runtime.env"
+RUNTIME_ENV="${RUNTIME_ENV_OVERRIDE:-$SCRIPT_DIR/paper-mario-file-select.runtime.env}"
 
 usage() {
   cat <<'EOF'
@@ -211,6 +211,9 @@ else
   elif [[ "$MODE" == "on" ]]; then
     VERIFY_SCREENSHOT_SHA256="${EXPECTED_SCREENSHOT_SHA256_ON:-}"
   fi
+  if [[ "${DISABLE_SCREENSHOT_VERIFY:-0}" == "1" ]]; then
+    VERIFY_SCREENSHOT_SHA256=""
+  fi
 
   if [[ -n "${AUTHORITATIVE_STATE_PATH:-}" && -f "${AUTHORITATIVE_STATE_PATH:-}" ]]; then
     AUTHORITATIVE_STATE_PRESENT=1
@@ -271,6 +274,9 @@ else
     PARALLEL_N64_GFX_PLUGIN_OVERRIDE="parallel" \
     PARALLEL_RDP_HIRES_CACHE_PATH="$PACK_PATH" \
     PARALLEL_RDP_HIRES_DEBUG="$([[ "$MODE" == "on" ]] && echo 1 || echo 0)" \
+    PARALLEL_RDP_HIRES_FILTER_ALLOW_TILE="${HIRES_FILTER_ALLOW_TILE:-}" \
+    PARALLEL_RDP_HIRES_FILTER_ALLOW_BLOCK="${HIRES_FILTER_ALLOW_BLOCK:-}" \
+    PARALLEL_RDP_HIRES_FILTER_SIGNATURES="${HIRES_FILTER_SIGNATURES:-}" \
     "$REPO_ROOT/tools/adapters/retroarch_stdin_session.sh" \
       --bundle-dir "$BUNDLE_DIR" \
       --mode "$MODE" \
@@ -296,6 +302,9 @@ else
     PARALLEL_N64_GFX_PLUGIN_OVERRIDE="parallel" \
     PARALLEL_RDP_HIRES_CACHE_PATH="$PACK_PATH" \
     PARALLEL_RDP_HIRES_DEBUG="$([[ "$MODE" == "on" ]] && echo 1 || echo 0)" \
+    PARALLEL_RDP_HIRES_FILTER_ALLOW_TILE="${HIRES_FILTER_ALLOW_TILE:-}" \
+    PARALLEL_RDP_HIRES_FILTER_ALLOW_BLOCK="${HIRES_FILTER_ALLOW_BLOCK:-}" \
+    PARALLEL_RDP_HIRES_FILTER_SIGNATURES="${HIRES_FILTER_SIGNATURES:-}" \
     "$REPO_ROOT/tools/adapters/retroarch_stdin_session.sh" \
       --bundle-dir "$BUNDLE_DIR" \
       --mode "$MODE" \

@@ -119,6 +119,7 @@ public:
 	                           bool allow_block,
 	                           std::unordered_set<std::string> &&blocked_signatures);
 	void set_hires_debug_block_shape_probe(bool enable);
+	void set_hires_debug_ci_palette_probe(bool enable);
 	void log_hires_summary() const;
 
 	void set_blend_color(uint32_t color);
@@ -183,6 +184,7 @@ private:
 	bool hires_debug = false;
 	HiresDebugFilterState hires_debug_filter;
 	bool hires_debug_block_shape_probe = false;
+	bool hires_debug_ci_palette_probe = false;
 
 	bool init_caps();
 	void init_blender_lut();
@@ -252,6 +254,8 @@ private:
 	uint64_t hires_lookup_block_shape_probe_hits = 0;
 	std::unordered_set<std::string> hires_block_shape_probe_logged_hits;
 	std::unordered_set<std::string> hires_block_shape_probe_logged_contexts;
+	std::unordered_set<std::string> hires_ci_palette_probe_logged_hits;
+	std::unordered_set<std::string> hires_ci_palette_probe_logged_contexts;
 	Vulkan::BufferHandle tmem_instances;
 	Vulkan::BufferHandle span_setups;
 	Vulkan::BufferHandle blender_divider_lut_buffer;

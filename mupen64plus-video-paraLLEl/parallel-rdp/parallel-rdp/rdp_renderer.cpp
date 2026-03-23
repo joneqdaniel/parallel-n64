@@ -767,6 +767,8 @@ void Renderer::set_replacement_provider(const ReplacementProvider *provider)
 	hires_lookup_block_shape_probe_hits = 0;
 	hires_block_shape_probe_logged_hits.clear();
 	hires_block_shape_probe_logged_contexts.clear();
+	hires_ci_palette_probe_logged_hits.clear();
+	hires_ci_palette_probe_logged_contexts.clear();
 
 	if (caps.hires_replacement_shader)
 	{
@@ -804,6 +806,13 @@ void Renderer::set_hires_debug_block_shape_probe(bool enable)
 	hires_debug_block_shape_probe = enable;
 	if (hires_debug_block_shape_probe)
 		LOGI("Hi-res debug block-shape probe enabled.\n");
+}
+
+void Renderer::set_hires_debug_ci_palette_probe(bool enable)
+{
+	hires_debug_ci_palette_probe = enable;
+	if (hires_debug_ci_palette_probe)
+		LOGI("Hi-res debug CI palette probe enabled.\n");
 }
 
 void Renderer::log_hires_summary() const
@@ -3570,17 +3579,30 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 		if (detail::should_update_tlut_shadow(rdram_view_ok, is_tlut_mode))
 		{
 			const uint32_t bytes = key_width_pixels * key_height_pixels * bpp_bytes;
-			const uint32_t max_copy = std::min<uint32_t>(bytes, sizeof(tlut_shadow));
+			const uint32_t tlut_region_base = 256u << 3;
+			uint32_t max_copy = 0;
+			uint32_t tlut_shadow_offset = 0;
+
+			if (upload.tmem_offset >= int32_t(tlut_region_base))
+			{
+				const uint32_t palette_entry_base = uint32_t(upload.tmem_offset - int32_t(tlut_region_base)) >> 3;
+				tlut_shadow_offset = palette_entry_base << 1;
+				if (!tlut_shadow_valid)
+					memset(tlut_shadow, 0, sizeof(tlut_shadow));
+				if (tlut_shadow_offset < sizeof(tlut_shadow))
+					max_copy = std::min<uint32_t>(bytes, uint32_t(sizeof(tlut_shadow)) - tlut_shadow_offset);
+			}
+
 			for (uint32_t i = 0; i < max_copy; i++)
-				tlut_shadow[i] = wrapped_read_u8(cpu_rdram, rdram_size, src_base_addr + i);
-			if (max_copy < sizeof(tlut_shadow))
-				memset(tlut_shadow + max_copy, 0, sizeof(tlut_shadow) - max_copy);
-			tlut_shadow_valid = max_copy > 0;
+				tlut_shadow[tlut_shadow_offset + i] = wrapped_read_u8(cpu_rdram, rdram_size, src_base_addr + i);
+			tlut_shadow_valid = tlut_shadow_valid || (max_copy > 0);
 
 			if (hires_debug)
 			{
-				LOGI("Hi-res keying TLUT update: addr=0x%06x bytes=%u tile=%u.\n",
-				     src_base_addr & 0x00ffffffu, max_copy, tile);
+				LOGI("Hi-res keying TLUT update: addr=0x%06x bytes=%u tile=%u tmem=0x%03x shadow_off=%u.\n",
+				     src_base_addr & 0x00ffffffu, max_copy, tile,
+				     unsigned(upload.tmem_offset) & 0xfff,
+				     tlut_shadow_offset);
 			}
 		}
 		else if (detail::should_run_hires_lookup(
@@ -3590,24 +3612,35 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 		             key_width_pixels,
 		             key_height_pixels))
 		{
-			uint32_t texture_crc = rice_crc32_wrapped(cpu_rdram, rdram_size, src_base_addr,
-			                                          key_width_pixels, key_height_pixels,
-			                                          uint32_t(info.size), row_stride_bytes);
-			uint32_t palette_crc = 0;
+				uint32_t texture_crc = rice_crc32_wrapped(cpu_rdram, rdram_size, src_base_addr,
+				                                          key_width_pixels, key_height_pixels,
+				                                          uint32_t(info.size), row_stride_bytes);
+				uint32_t palette_crc = 0;
+				uint32_t ci_palette_entries = 0;
 
-			if (meta.fmt == TextureFormat::CI && tlut_shadow_valid)
-				palette_crc = detail::compute_hires_ci_palette_crc(
-						meta.size,
-						meta.palette,
+				if (meta.fmt == TextureFormat::CI && tlut_shadow_valid)
+				{
+					ci_palette_entries = detail::compute_hires_ci_palette_entry_count(
+							meta.size,
+							cpu_rdram,
+							rdram_size,
+							src_base_addr,
+							key_width_pixels,
+							key_height_pixels,
+							row_stride_bytes);
+					palette_crc = detail::compute_hires_ci_palette_crc(
+							meta.size,
+							meta.palette,
 						cpu_rdram,
 						rdram_size,
 						src_base_addr,
 						key_width_pixels,
 						key_height_pixels,
-						row_stride_bytes,
-						tlut_shadow,
-						sizeof(tlut_shadow),
-						tlut_shadow_valid);
+							row_stride_bytes,
+							tlut_shadow,
+							sizeof(tlut_shadow),
+							tlut_shadow_valid);
+				}
 
 			const uint64_t checksum64 = detail::compose_hires_checksum64(texture_crc, palette_crc);
 			const uint16_t formatsize = formatsize_key(meta.fmt, meta.size);
@@ -3686,6 +3719,179 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 					     unsigned(formatsize),
 					     hit ? 1 : 0);
 					}
+
+				if (!hit &&
+				    hires_debug_ci_palette_probe &&
+				    meta.fmt == TextureFormat::CI &&
+				    tlut_shadow_valid &&
+				    !filter_reason)
+				{
+					auto log_ci_palette_probe_hit = [&](const char *scheme,
+					                                    uint32_t candidate_palette_crc,
+					                                    const ReplacementMeta &candidate_meta,
+					                                    int32_t entries) {
+						if (candidate_palette_crc == 0 || candidate_palette_crc == palette_crc)
+							return;
+
+						const uint64_t candidate_checksum64 = detail::compose_hires_checksum64(texture_crc, candidate_palette_crc);
+						char probe_key[256] = {};
+						if (entries >= 0)
+						{
+							std::snprintf(probe_key, sizeof(probe_key),
+							              "%s scheme=%s entries=%d:%016llx",
+							              hires_signature.c_str(),
+							              scheme,
+							              entries,
+							              static_cast<unsigned long long>(candidate_checksum64));
+						}
+						else
+						{
+							std::snprintf(probe_key, sizeof(probe_key),
+							              "%s scheme=%s:%016llx",
+							              hires_signature.c_str(),
+							              scheme,
+							              static_cast<unsigned long long>(candidate_checksum64));
+						}
+
+						const bool first_log = hires_ci_palette_probe_logged_hits.insert(probe_key).second;
+						if (hires_debug && first_log)
+						{
+							if (entries >= 0)
+							{
+								LOGI("Hi-res CI palette probe hit: scheme=%s mode=%s addr=0x%06x wh=%ux%u entries=%d key=%016llx pcrc=%08x fs=%u repl=%ux%u.\n",
+								     scheme,
+								     load_mode_to_string(info.mode),
+								     src_base_addr & 0x00ffffffu,
+								     key_width_pixels,
+								     key_height_pixels,
+								     entries,
+								     static_cast<unsigned long long>(candidate_checksum64),
+								     candidate_palette_crc,
+								     unsigned(formatsize),
+								     candidate_meta.repl_w,
+								     candidate_meta.repl_h);
+							}
+							else
+							{
+								LOGI("Hi-res CI palette probe hit: scheme=%s mode=%s addr=0x%06x wh=%ux%u key=%016llx pcrc=%08x fs=%u repl=%ux%u.\n",
+								     scheme,
+								     load_mode_to_string(info.mode),
+								     src_base_addr & 0x00ffffffu,
+								     key_width_pixels,
+								     key_height_pixels,
+								     static_cast<unsigned long long>(candidate_checksum64),
+								     candidate_palette_crc,
+								     unsigned(formatsize),
+								     candidate_meta.repl_w,
+								     candidate_meta.repl_h);
+							}
+						}
+					};
+
+					const bool first_context_log = hires_ci_palette_probe_logged_contexts.insert(hires_signature).second;
+					if (hires_debug && first_context_log)
+					{
+						LOGI("Hi-res CI palette probe context: mode=%s addr=0x%06x wh=%ux%u pal=%u entries=%u key=%016llx pcrc=%08x fs=%u.\n",
+						     load_mode_to_string(info.mode),
+						     src_base_addr & 0x00ffffffu,
+						     key_width_pixels,
+						     key_height_pixels,
+						     meta.palette,
+						     ci_palette_entries,
+						     static_cast<unsigned long long>(checksum64),
+						     palette_crc,
+						     unsigned(formatsize));
+						LOGI("Hi-res CI palette probe candidates: legacy-bank-hash=%08x legacy-bank-crc32=%08x.\n",
+						     detail::compute_hires_ci_palette_crc_legacy_bank_hash(
+								meta.size,
+								meta.palette,
+								tlut_shadow,
+								sizeof(tlut_shadow),
+								tlut_shadow_valid),
+						     detail::compute_hires_ci_palette_crc_legacy_bank_crc32(
+								meta.size,
+								meta.palette,
+								tlut_shadow,
+								sizeof(tlut_shadow),
+								tlut_shadow_valid));
+					}
+
+					const uint32_t ci8_candidate_entries[] = { 16u, 32u, 64u, 128u, 256u };
+					const uint32_t ci4_candidate_entries[] = { 1u, 2u, 4u, 8u, 16u };
+					const uint32_t *candidate_entries = meta.size == TextureSize::Bpp8 ? ci8_candidate_entries : ci4_candidate_entries;
+					const size_t candidate_count = meta.size == TextureSize::Bpp8 ?
+							(sizeof(ci8_candidate_entries) / sizeof(ci8_candidate_entries[0])) :
+							(sizeof(ci4_candidate_entries) / sizeof(ci4_candidate_entries[0]));
+					for (size_t i = 0; i < candidate_count; i++)
+					{
+						const uint32_t entries = candidate_entries[i];
+						if (entries == 0 || entries == ci_palette_entries)
+							continue;
+
+						const uint32_t candidate_palette_crc = detail::compute_hires_ci_palette_crc_for_entries(
+								meta.size,
+								meta.palette,
+								tlut_shadow,
+								sizeof(tlut_shadow),
+								tlut_shadow_valid,
+								entries);
+						ReplacementMeta candidate_meta = {};
+						if (!replacement_provider->lookup(detail::compose_hires_checksum64(texture_crc, candidate_palette_crc), formatsize, &candidate_meta))
+							continue;
+						log_ci_palette_probe_hit("entry-count", candidate_palette_crc, candidate_meta, int32_t(entries));
+					}
+
+					const struct
+					{
+						const char *scheme;
+						uint32_t (*compute)(TextureSize, uint32_t, const uint8_t *, size_t, bool);
+					} legacy_schemes[] = {
+						{ "legacy-bank-hash", detail::compute_hires_ci_palette_crc_legacy_bank_hash },
+						{ "legacy-bank-crc32", detail::compute_hires_ci_palette_crc_legacy_bank_crc32 },
+					};
+
+					for (const auto &legacy_scheme : legacy_schemes)
+					{
+						const uint32_t candidate_palette_crc = legacy_scheme.compute(
+								meta.size,
+								meta.palette,
+								tlut_shadow,
+								sizeof(tlut_shadow),
+								tlut_shadow_valid);
+						ReplacementMeta candidate_meta = {};
+						if (!replacement_provider->lookup(detail::compose_hires_checksum64(texture_crc, candidate_palette_crc), formatsize, &candidate_meta))
+							continue;
+						log_ci_palette_probe_hit(legacy_scheme.scheme, candidate_palette_crc, candidate_meta, -1);
+					}
+
+					const struct
+					{
+						const char *scheme;
+						uint32_t (*compute)(uint32_t, const uint8_t *, size_t, bool);
+					} bank_schemes[] = {
+						{ "legacy-bank-hash-bank", detail::compute_hires_palette_bank_hash },
+						{ "legacy-bank-crc32-bank", detail::compute_hires_palette_bank_crc32 },
+					};
+
+					for (const auto &bank_scheme : bank_schemes)
+					{
+						for (uint32_t bank = 0; bank < 16; bank++)
+						{
+							const uint32_t candidate_palette_crc = bank_scheme.compute(
+									bank,
+									tlut_shadow,
+									sizeof(tlut_shadow),
+									tlut_shadow_valid);
+							ReplacementMeta candidate_meta = {};
+							if (!replacement_provider->lookup(detail::compose_hires_checksum64(texture_crc, candidate_palette_crc), formatsize, &candidate_meta))
+								continue;
+
+							char scheme_name[64] = {};
+							std::snprintf(scheme_name, sizeof(scheme_name), "%s%u", bank_scheme.scheme, bank);
+							log_ci_palette_probe_hit(scheme_name, candidate_palette_crc, candidate_meta, -1);
+						}
+					}
+				}
 
 				if (!hit &&
 				    info.mode == UploadMode::Block &&

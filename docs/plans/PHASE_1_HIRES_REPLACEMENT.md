@@ -51,6 +51,21 @@
   - the pack cross-check now separates a smaller implementation-bug class from full checksum absence: on file select, `8` miss events / `7` unique keys are present in the pack under the same low-32 texture CRC but a different palette half
   - those palette-variant misses are the smaller CI tile classes (`8x16` / `32x16`), not the dominant `64x1` block class
   - runtime debug logs now expose `pal=` and `pcrc=` for hi-res keys, and the current palette-variant misses all show `pal=0`, which points away from palette-bank selection and toward a deeper CI palette-CRC mismatch
+  - the debug-only CI palette probe is now available on tracked file-select runs via `PARALLEL_RDP_HIRES_CI_PALETTE_PROBE=1`
+  - current CI probe result:
+    - changing the inferred palette entry count does not rescue the representative `8x16` / `32x16` file-select misses
+    - legacy aggregate bank-hash candidates do not rescue those misses either
+    - legacy per-bank hash / CRC32 candidates also fail to produce pack hits
+    - the representative current and candidate palette CRCs still do not line up with the active pack's stored high-32 variants for the same low-32 texture CRCs
+    - that pushes the next likely bug boundary from “pick a different CRC formula” to “verify whether the current `LoadTLUT` shadow/update path is even hashing the right palette bytes/layout”
+  - the first TLUT-state correction is now in place: the shadow patches by TMEM offset instead of wiping the whole palette shadow on every 32-byte update
+  - current result of that correction:
+    - the representative CI palette CRCs change materially on file select, so the old whole-shadow overwrite path was definitely wrong
+    - the strict file-select frame and hit/miss totals still do not improve, so offset/persistence alone is not the remaining fix
+  - a naive “swap every 16-bit TLUT entry before hashing” follow-up was tested and rejected:
+    - it regressed strict file select to `hits=48` / `misses=117`
+    - it changed the file-select `on` frame to `948a4fad87bba561d40cf683915c9d52d6273f1a15017f17885fd1a808a2afdd`
+    - that means the remaining palette mismatch needs a more exact TMEM/TLUT representation, not a blanket byte swap at the current shadow layer
   - the debug-only block-shape probe is now available on tracked file-select runs via `PARALLEL_RDP_HIRES_BLOCK_SHAPE_PROBE=1`
   - current probe result:
     - the dominant `mode=block fmt=2 siz=2 wh=64x1 fs=514 tile=7` class is not rescued by simple contiguous shape reinterpretation and logs as a plain `64x1` upload with `tmem_stride_words=0`

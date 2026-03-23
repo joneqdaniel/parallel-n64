@@ -39,7 +39,8 @@
   - file select: `lookups=165 hits=82 misses=83 provider=on`, `AE=1289800`, `RMSE=0.0928543`
   - hi-res traces now also expose stable bucket summaries, which collapse title misses to 5 unique classes and file-select misses to 6 unique classes
   - the current dominant unresolved file-select class is `mode=block fmt=2 siz=2 wh=64x1 fs=514 tile=7` with 70 repeated misses in the last verified strict `on` bundle
-  - the new pack cross-check in `hires-evidence.json` shows those current strict-fixture misses are absent from the active Paper Mario `.hts` pack, not mismatched under another `formatsize`
+  - the new pack cross-check in `hires-evidence.json` shows those current strict-fixture misses are unmatched in the active local Paper Mario `.hts` index under our current checksum generation, not mismatched under another `formatsize`
+  - that is not the same as proving the pack has no intended coverage there; it still leaves open a different pack revision or a runtime keying mismatch on our side
   - the new temporary debug filter path can now suppress selected replacement classes for controlled experiments, and the first title-screen probe shows `mode=tile fmt=2 siz=1 wh=296x6 fs=258 tile=7` is a major visual driver: disabling it filters 66 replacement applications while keeping the fixture semantically stable
   - file-select probes now sharpen that picture:
     - disabling the shared `mode=tile fmt=2 siz=1 wh=296x6 fs=258 tile=7` class filters 33 replacement applications and pulls the frame much closer to baseline `off`

@@ -1,5 +1,15 @@
 #!/usr/bin/env bash
 
+scenario_source_runtime_env() {
+  local runtime_env="$1"
+  # Scenario runtime env files define both local shell vars and process env overrides.
+  # Auto-export while sourcing so renderer/debug toggles reliably reach RetroArch/core children.
+  set -a
+  # shellcheck disable=SC1090
+  source "$runtime_env"
+  set +a
+}
+
 scenario_sha256_file() {
   local path="$1"
   if [[ ! -f "$path" ]]; then

@@ -58,8 +58,7 @@ while (($#)); do
   shift
 done
 
-# shellcheck disable=SC1090
-source "$RUNTIME_ENV"
+scenario_source_runtime_env "$RUNTIME_ENV"
 
 if [[ -z "${BOOTSTRAP_STATE_PATH:-}" || ! -f "${BOOTSTRAP_STATE_PATH:-}" ]]; then
   echo "Bootstrap state not found: ${BOOTSTRAP_STATE_PATH:-missing}" >&2

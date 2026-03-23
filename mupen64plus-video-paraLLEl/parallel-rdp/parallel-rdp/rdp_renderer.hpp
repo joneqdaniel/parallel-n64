@@ -81,6 +81,13 @@ struct HiresDebugFilterState
 	std::unordered_set<std::string> blocked_signatures;
 };
 
+enum class HiresDebugCILow32FallbackMode : uint8_t
+{
+	Off = 0,
+	Unique,
+	Any
+};
+
 class Renderer : public Vulkan::DebugChannelInterface
 {
 	struct ReplacementTileState;
@@ -120,6 +127,7 @@ public:
 	                           std::unordered_set<std::string> &&blocked_signatures);
 	void set_hires_debug_block_shape_probe(bool enable);
 	void set_hires_debug_ci_palette_probe(bool enable);
+	void set_hires_debug_ci_low32_fallback(HiresDebugCILow32FallbackMode mode);
 	void log_hires_summary() const;
 
 	void set_blend_color(uint32_t color);
@@ -185,6 +193,7 @@ private:
 	HiresDebugFilterState hires_debug_filter;
 	bool hires_debug_block_shape_probe = false;
 	bool hires_debug_ci_palette_probe = false;
+	HiresDebugCILow32FallbackMode hires_debug_ci_low32_fallback = HiresDebugCILow32FallbackMode::Off;
 
 	bool init_caps();
 	void init_blender_lut();
@@ -246,6 +255,7 @@ private:
 	};
 	ReplacementTileState replacement_tiles[Limits::MaxNumTiles] = {};
 	uint8_t tlut_shadow[512] = {};
+	uint8_t tlut_tmem_shadow[2048] = {};
 	bool tlut_shadow_valid = false;
 	uint64_t hires_lookup_total = 0;
 	uint64_t hires_lookup_hits = 0;

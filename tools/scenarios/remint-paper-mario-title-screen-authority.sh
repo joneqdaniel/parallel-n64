@@ -58,8 +58,7 @@ while (($#)); do
   shift
 done
 
-# shellcheck disable=SC1090
-source "$RUNTIME_ENV"
+scenario_source_runtime_env "$RUNTIME_ENV"
 
 if [[ -z "$BUNDLE_ROOT" ]]; then
   timestamp="$(date +"%Y%m%d-%H%M%S")"

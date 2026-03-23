@@ -63,6 +63,7 @@
 - That evidence does not yet prove the creator omitted those replacements; it still leaves room for a different pack revision or a checksum/path mismatch between our current runtime keying and the pack's intended replacement identity
 - The renderer now has a temporary hi-res debug filter path driven by `PARALLEL_RDP_HIRES_FILTER_ALLOW_TILE`, `PARALLEL_RDP_HIRES_FILTER_ALLOW_BLOCK`, and `PARALLEL_RDP_HIRES_FILTER_SIGNATURES`, so strict fixtures can suppress a chosen replacement class without changing the normal architecture
 - The scenario layer now supports `RUNTIME_ENV_OVERRIDE` and `DISABLE_SCREENSHOT_VERIFY=1` for controlled experimental runs that intentionally diverge from the locked strict hashes
+- Scenario runtime env files are now auto-exported while sourcing, so `PARALLEL_RDP_*` debug toggles reliably reach the RetroArch/core child process during controlled experiments
 - The first controlled filter experiment is now recorded on the title screen: suppressing `mode=tile fmt=2 siz=1 wh=296x6 fs=258 tile=7` yields `filtered=66`, keeps `state_init_title_screen` / `state_step_title_screen`, and produces filtered hash `654fe6a57bca20d337272304fac66216c474b7eeeea5d3d494cae73a47862e1a`
 - File-select filter experiments now show the same shared `mode=tile fmt=2 siz=1 wh=296x6 fs=258 tile=7` class is the main visual driver there as well: suppressing it yields `filtered=33` and moves the frame much closer to baseline `off` than baseline `on`
 - The dominant file-select-specific hit class, `mode=tile fmt=3 siz=1 wh=16x8 fs=259 tile=7`, is secondary by comparison: suppressing it yields `filtered=44` but only a small pixel shift relative to baseline `on`, which points at a narrower UI/detail contribution
@@ -82,6 +83,18 @@
 - `tlut_shadow` now patches the palette-shadow range by TMEM offset instead of overwriting and zeroing the whole 512-byte shadow on every partial `LoadTLUT`; on the strict file-select fixture that changes the CI palette CRCs materially but does not yet change the final frame or recover new pack hits
 - A blunt follow-up experiment, copying TLUT entries into the shadow with a naive 16-bit byte swap, regressed the strict file-select `on` result badly (`hits=48`, `misses=117`, hash `948a4fad87bba561d40cf683915c9d52d6273f1a15017f17885fd1a808a2afdd`), so the remaining issue is not solved by simply swapping palette bytes at the current shadow layer
 - The next likely fix boundary is therefore a more exact TMEM/TLUT model for replacement keying rather than one more small palette-CRC tweak: offset/persistence mattered, but exact palette representation still does not match the pack identity
+- The CI replacement evidence is now sharper than “palette mismatch exists”: a new low-32 diagnostic index proves the current strict file-select CI misses do have pack-backed candidates when keyed only by the low-32 texture CRC
+- That diagnostic result is now validated by live runtime experiments after fixing the scenario env-export bug:
+  - `PARALLEL_RDP_HIRES_CI_LOW32_FALLBACK=1` (`unique`) is a narrow real change, not a shell no-op
+  - it converts one unique `8x16` CI miss into a hit, moves file-select from `hits=82 misses=83` to `hits=84 misses=81`, and changes the frame hash to `d4661996bc280d4e6a6e1a4fa6dbabeadb47520c4b4b0241f9e2b20f489dcf4e`
+  - the pixel delta versus the strict `on` baseline is small (`15946` changed pixels, normalized average channel delta `0.000639`)
+  - `PARALLEL_RDP_HIRES_CI_LOW32_FALLBACK=2` (`any`) is a much broader real change
+  - it converts all current CI tile palette misses on the strict file-select fixture into hits, moves file-select from `hits=82 misses=83` to `hits=90 misses=75`, and changes the frame hash to `2f00a7eb6c0c592a363fca987981d6eb6e6d5a43c9cac0d337c8f444282b18c8`
+  - in that broader mode, the remaining unresolved strict file-select misses collapse entirely to the block classes, still dominated by `mode=block fmt=2 siz=2 wh=64x1 fs=514 tile=7`
+  - the pixel delta versus the strict `on` baseline is material but still bounded (`166168` changed pixels, normalized average channel delta `0.006020`), which makes it useful as a debug direction even though it is too permissive to treat as production behavior today
+- The current Phase 1 question is therefore narrower again:
+  - CI low-32 fallback is directionally capable of recovering pack-backed file-select replacements
+  - the real remaining design choice is how to recover those replacements with a rule tighter than blanket `any`, while separately solving the still-unmatched block classes
 - The current Phase 1 blocker has therefore moved again: replacement wiring is now visibly live, and the next task is to judge correctness versus corruption on the strict fixtures and tighten texel mapping / alias behavior where needed
 - The tracked adapter now supports a memory-based wait primitive, `WAIT_CORE_MEMORY_HEX`, so scenarios and probes can block on exact vanilla RAM signatures instead of sleep-only timing
 - The semantic JSON now also emits a decomp-backed `map_name_candidate` for KMR, HOS, and OSR area-local map indices

@@ -216,5 +216,40 @@ inline uint32_t compute_hires_ci_palette_crc_legacy_bank_crc32(TextureSize size,
 
 	return 0;
 }
+
+inline uint32_t compute_hires_ci_palette_crc_legacy_tmem_hash(TextureSize size,
+                                                              uint32_t palette,
+                                                              const uint8_t *tlut_tmem_shadow,
+                                                              size_t tlut_tmem_shadow_size,
+                                                              bool tlut_shadow_valid)
+{
+	if (!tlut_shadow_valid || !tlut_tmem_shadow || tlut_tmem_shadow_size < 2048)
+		return 0;
+
+	constexpr uint32_t bank_count = 16;
+	constexpr uint32_t bank_stride_bytes = 16u * 8u;
+	const uint32_t bank = std::min<uint32_t>(palette, bank_count - 1);
+
+	if (size == TextureSize::Bpp4)
+		return legacy_hash_calculate_words(0xffffffffu,
+		                                   tlut_tmem_shadow + bank * bank_stride_bytes,
+		                                   16u);
+
+	if (size == TextureSize::Bpp8)
+	{
+		uint32_t bank_hashes[bank_count] = {};
+		for (uint32_t i = 0; i < bank_count; i++)
+		{
+			bank_hashes[i] = legacy_hash_calculate_words(0xffffffffu,
+			                                             tlut_tmem_shadow + i * bank_stride_bytes,
+			                                             16u);
+		}
+		return legacy_hash_calculate_words(0xffffffffu,
+		                                   reinterpret_cast<const uint8_t *>(bank_hashes),
+		                                   sizeof(bank_hashes));
+	}
+
+	return 0;
+}
 }
 }

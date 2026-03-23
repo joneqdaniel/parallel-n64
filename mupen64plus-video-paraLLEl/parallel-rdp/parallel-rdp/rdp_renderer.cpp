@@ -109,6 +109,14 @@ static uint32_t compute_hires_texture_total_bytes(uint32_t width, uint32_t heigh
 	return compute_hires_texture_row_bytes(width, size) * height;
 }
 
+static uint16_t emulate_load_tlut_entry_word(const uint8_t *rdram, size_t rdram_size, uint32_t addr)
+{
+	const uint32_t mapped_addr = addr ^ 2u;
+	const uint8_t b0 = wrapped_read_u8(rdram, rdram_size, mapped_addr + 0);
+	const uint8_t b1 = wrapped_read_u8(rdram, rdram_size, mapped_addr + 1);
+	return uint16_t(b1) | (uint16_t(b0) << 8);
+}
+
 static void zero_transparent_replacement_rgb(std::vector<uint8_t> &rgba8)
 {
 	for (size_t i = 0; i + 3 < rgba8.size(); i += 4)
@@ -763,6 +771,8 @@ void Renderer::set_replacement_provider(const ReplacementProvider *provider)
 	replacement_provider = provider;
 	detail::reset_hires_tracking_state(
 			replacement_tiles, tlut_shadow_valid, hires_lookup_total, hires_lookup_hits, hires_lookup_misses);
+	memset(tlut_shadow, 0, sizeof(tlut_shadow));
+	memset(tlut_tmem_shadow, 0, sizeof(tlut_tmem_shadow));
 	hires_lookup_filtered = 0;
 	hires_lookup_block_shape_probe_hits = 0;
 	hires_block_shape_probe_logged_hits.clear();
@@ -813,6 +823,15 @@ void Renderer::set_hires_debug_ci_palette_probe(bool enable)
 	hires_debug_ci_palette_probe = enable;
 	if (hires_debug_ci_palette_probe)
 		LOGI("Hi-res debug CI palette probe enabled.\n");
+}
+
+void Renderer::set_hires_debug_ci_low32_fallback(HiresDebugCILow32FallbackMode mode)
+{
+	hires_debug_ci_low32_fallback = mode;
+	if (hires_debug_ci_low32_fallback == HiresDebugCILow32FallbackMode::Unique)
+		LOGI("Hi-res debug CI low32 fallback enabled: unique.\n");
+	else if (hires_debug_ci_low32_fallback == HiresDebugCILow32FallbackMode::Any)
+		LOGI("Hi-res debug CI low32 fallback enabled: any.\n");
 }
 
 void Renderer::log_hires_summary() const
@@ -3588,9 +3607,26 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 				const uint32_t palette_entry_base = uint32_t(upload.tmem_offset - int32_t(tlut_region_base)) >> 3;
 				tlut_shadow_offset = palette_entry_base << 1;
 				if (!tlut_shadow_valid)
+				{
 					memset(tlut_shadow, 0, sizeof(tlut_shadow));
+					memset(tlut_tmem_shadow, 0, sizeof(tlut_tmem_shadow));
+				}
 				if (tlut_shadow_offset < sizeof(tlut_shadow))
 					max_copy = std::min<uint32_t>(bytes, uint32_t(sizeof(tlut_shadow)) - tlut_shadow_offset);
+
+				const uint32_t tlut_entry_count = bytes >> 1;
+				for (uint32_t entry = 0; entry < tlut_entry_count; entry++)
+				{
+					const uint32_t tmem_entry = palette_entry_base + entry;
+					const uint32_t tmem_byte_offset = tmem_entry * 8u;
+					if (tmem_byte_offset + 8u > sizeof(tlut_tmem_shadow))
+						break;
+
+					const uint16_t word = emulate_load_tlut_entry_word(cpu_rdram, rdram_size, src_base_addr + entry * 2u);
+					tlut_tmem_shadow[tmem_byte_offset + 0] = uint8_t(word & 0xff);
+					tlut_tmem_shadow[tmem_byte_offset + 1] = uint8_t(word >> 8);
+					memset(tlut_tmem_shadow + tmem_byte_offset + 2, 0, 6);
+				}
 			}
 
 			for (uint32_t i = 0; i < max_copy; i++)
@@ -3643,6 +3679,7 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 				}
 
 			const uint64_t checksum64 = detail::compose_hires_checksum64(texture_crc, palette_crc);
+			uint64_t resolved_checksum64 = checksum64;
 			const uint16_t formatsize = formatsize_key(meta.fmt, meta.size);
 			const std::string hires_signature = make_hires_debug_signature(
 					info.mode, tile, meta.fmt, meta.size, key_width_pixels, key_height_pixels, formatsize);
@@ -3652,8 +3689,47 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 			{
 				repl_meta.orig_w = key_width_pixels;
 				repl_meta.orig_h = key_height_pixels;
-				if (!resolve_hires_replacement_descriptor(checksum64, formatsize, repl_meta))
+				if (!resolve_hires_replacement_descriptor(resolved_checksum64, formatsize, repl_meta))
 					hit = false;
+			}
+			const char *ci_low32_fallback_reason = nullptr;
+			if (!hit &&
+			    meta.fmt == TextureFormat::CI &&
+			    hires_debug_ci_low32_fallback != HiresDebugCILow32FallbackMode::Off)
+			{
+				ReplacementMeta fallback_meta = {};
+				uint64_t fallback_checksum64 = 0;
+				bool matched_preferred_palette = false;
+				bool fallback_hit = false;
+				if (hires_debug_ci_low32_fallback == HiresDebugCILow32FallbackMode::Unique)
+				{
+					fallback_hit = replacement_provider->lookup_ci_low32_unique(
+							texture_crc, formatsize, &fallback_meta, &fallback_checksum64);
+					ci_low32_fallback_reason = "ci-low32-unique";
+				}
+				else if (hires_debug_ci_low32_fallback == HiresDebugCILow32FallbackMode::Any)
+				{
+					fallback_hit = replacement_provider->lookup_ci_low32_any(
+							texture_crc,
+							formatsize,
+							palette_crc,
+							&fallback_meta,
+							&fallback_checksum64,
+							&matched_preferred_palette);
+					ci_low32_fallback_reason = matched_preferred_palette ? "ci-low32-any-preferred" : "ci-low32-any";
+				}
+
+				if (fallback_hit)
+				{
+					fallback_meta.orig_w = key_width_pixels;
+					fallback_meta.orig_h = key_height_pixels;
+					if (resolve_hires_replacement_descriptor(fallback_checksum64, formatsize, fallback_meta))
+					{
+						repl_meta = fallback_meta;
+						resolved_checksum64 = fallback_checksum64;
+						hit = true;
+					}
+				}
 			}
 			const char *filter_reason = nullptr;
 			if (hit && hires_debug_filter_is_active(hires_debug_filter))
@@ -3667,7 +3743,7 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 			detail::write_hires_lookup_tile_state(
 					repl_state,
 					hit,
-					checksum64,
+					resolved_checksum64,
 					formatsize,
 					key_width_pixels,
 					key_height_pixels);
@@ -3702,7 +3778,7 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 						LOGI("Hi-res keying filtered: reason=%s %s key=%016llx.\n",
 					     filter_reason,
 					     hires_signature.c_str(),
-					     static_cast<unsigned long long>(checksum64));
+					     static_cast<unsigned long long>(resolved_checksum64));
 				}
 					LOGI("Hi-res keying %s: mode=%s addr=0x%06x tile=%u fmt=%u siz=%u pal=%u wh=%ux%u key=%016llx pcrc=%08x fs=%u hit=%d.\n",
 					     hit ? "hit" : "miss",
@@ -3714,10 +3790,20 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 					     meta.palette,
 					     key_width_pixels,
 					     key_height_pixels,
-					     static_cast<unsigned long long>(checksum64),
+					     static_cast<unsigned long long>(resolved_checksum64),
 					     palette_crc,
 					     unsigned(formatsize),
 					     hit ? 1 : 0);
+					if (hit && ci_low32_fallback_reason)
+					{
+						LOGI("Hi-res keying fallback: reason=%s mode=%s addr=0x%06x wh=%ux%u resolved_key=%016llx.\n",
+						     ci_low32_fallback_reason,
+						     load_mode_to_string(info.mode),
+						     src_base_addr & 0x00ffffffu,
+						     key_width_pixels,
+						     key_height_pixels,
+						     static_cast<unsigned long long>(resolved_checksum64));
+					}
 					}
 
 				if (!hit &&
@@ -3801,7 +3887,7 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 						     static_cast<unsigned long long>(checksum64),
 						     palette_crc,
 						     unsigned(formatsize));
-						LOGI("Hi-res CI palette probe candidates: legacy-bank-hash=%08x legacy-bank-crc32=%08x.\n",
+						LOGI("Hi-res CI palette probe candidates: legacy-bank-hash=%08x legacy-bank-crc32=%08x legacy-tmem-hash=%08x.\n",
 						     detail::compute_hires_ci_palette_crc_legacy_bank_hash(
 								meta.size,
 								meta.palette,
@@ -3813,6 +3899,12 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 								meta.palette,
 								tlut_shadow,
 								sizeof(tlut_shadow),
+								tlut_shadow_valid),
+						     detail::compute_hires_ci_palette_crc_legacy_tmem_hash(
+								meta.size,
+								meta.palette,
+								tlut_tmem_shadow,
+								sizeof(tlut_tmem_shadow),
 								tlut_shadow_valid));
 					}
 
@@ -3862,6 +3954,48 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 						if (!replacement_provider->lookup(detail::compose_hires_checksum64(texture_crc, candidate_palette_crc), formatsize, &candidate_meta))
 							continue;
 						log_ci_palette_probe_hit(legacy_scheme.scheme, candidate_palette_crc, candidate_meta, -1);
+					}
+
+					{
+						const uint32_t candidate_palette_crc = detail::compute_hires_ci_palette_crc_legacy_tmem_hash(
+								meta.size,
+								meta.palette,
+								tlut_tmem_shadow,
+								sizeof(tlut_tmem_shadow),
+								tlut_shadow_valid);
+						ReplacementMeta candidate_meta = {};
+						if (replacement_provider->lookup(detail::compose_hires_checksum64(texture_crc, candidate_palette_crc), formatsize, &candidate_meta))
+							log_ci_palette_probe_hit("legacy-tmem-hash", candidate_palette_crc, candidate_meta, -1);
+					}
+
+					{
+						uint64_t resolved_checksum64 = 0;
+						ReplacementMeta candidate_meta = {};
+						if (replacement_provider->lookup_ci_low32_unique(texture_crc, formatsize, &candidate_meta, &resolved_checksum64))
+						{
+							log_ci_palette_probe_hit("ci-low32-unique",
+							                         uint32_t((resolved_checksum64 >> 32) & 0xffffffffu),
+							                         candidate_meta,
+							                         -1);
+						}
+					}
+
+					{
+						uint64_t resolved_checksum64 = 0;
+						bool matched_preferred_palette = false;
+						ReplacementMeta candidate_meta = {};
+						if (replacement_provider->lookup_ci_low32_any(texture_crc,
+						                                              formatsize,
+						                                              palette_crc,
+						                                              &candidate_meta,
+						                                              &resolved_checksum64,
+						                                              &matched_preferred_palette))
+						{
+							log_ci_palette_probe_hit(matched_preferred_palette ? "ci-low32-any-preferred" : "ci-low32-any",
+							                         uint32_t((resolved_checksum64 >> 32) & 0xffffffffu),
+							                         candidate_meta,
+							                         -1);
+						}
 					}
 
 					const struct

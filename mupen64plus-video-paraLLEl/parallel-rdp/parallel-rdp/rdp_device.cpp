@@ -197,6 +197,16 @@ CommandProcessor::CommandProcessor(Vulkan::Device &device_, void *rdram_ptr,
 		renderer.set_hires_debug_block_shape_probe(strtol(env, nullptr, 0) > 0);
 	if (const char *env = getenv("PARALLEL_RDP_HIRES_CI_PALETTE_PROBE"))
 		renderer.set_hires_debug_ci_palette_probe(strtol(env, nullptr, 0) > 0);
+	if (const char *env = getenv("PARALLEL_RDP_HIRES_CI_LOW32_FALLBACK"))
+	{
+		const long value = strtol(env, nullptr, 0);
+		if (value == 1)
+			renderer.set_hires_debug_ci_low32_fallback(HiresDebugCILow32FallbackMode::Unique);
+		else if (value == 2)
+			renderer.set_hires_debug_ci_low32_fallback(HiresDebugCILow32FallbackMode::Any);
+		else
+			renderer.set_hires_debug_ci_low32_fallback(HiresDebugCILow32FallbackMode::Off);
+	}
 
 	const bool allow_tile = parse_optional_bool_env(getenv("PARALLEL_RDP_HIRES_FILTER_ALLOW_TILE"), true);
 	const bool allow_block = parse_optional_bool_env(getenv("PARALLEL_RDP_HIRES_FILTER_ALLOW_BLOCK"), true);

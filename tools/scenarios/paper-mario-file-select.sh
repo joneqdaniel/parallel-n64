@@ -202,8 +202,7 @@ scenario_print_header "$FIXTURE_ID" "$MODE" "$BUNDLE_DIR" "$MANIFEST"
 if (( DRY_RUN )); then
   echo "[scenario] dry-run complete; runtime launch is intentionally deferred."
 else
-  # shellcheck disable=SC1090
-  source "$RUNTIME_ENV"
+  scenario_source_runtime_env "$RUNTIME_ENV"
 
   VERIFY_SCREENSHOT_SHA256=""
   if [[ "$MODE" == "off" ]]; then

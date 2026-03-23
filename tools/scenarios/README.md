@@ -47,6 +47,7 @@ Current Paper Mario runtime note:
 - paired `on` runs now also collapse raw hi-res hit/miss/TLUT lines into stable bucket summaries in `traces/hires-evidence.json`, so repeated uncovered classes can be compared across runs without diffing the whole RetroArch log
 - the same `hires-evidence.json` trace now also cross-checks miss keys against the active `.hts`/`.htc` index, so bundle evidence can distinguish “unmatched in the local pack index under the current checksum generation” from “lookup present under another formatsize”
 - tracked Paper Mario scenarios now also support `RUNTIME_ENV_OVERRIDE` for temporary experimental runs, and `DISABLE_SCREENSHOT_VERIFY=1` when a controlled debug run is expected to diverge from the locked strict hashes
+- runtime env files are now auto-exported while sourcing, so temporary `PARALLEL_RDP_*` debug toggles in a `RUNTIME_ENV_OVERRIDE` file actually reach the RetroArch/core child process
 - the ParaLLEl runtime path now supports temporary hi-res debug filters through `PARALLEL_RDP_HIRES_FILTER_ALLOW_TILE`, `PARALLEL_RDP_HIRES_FILTER_ALLOW_BLOCK`, and `PARALLEL_RDP_HIRES_FILTER_SIGNATURES`; filtered events are recorded in `traces/hires-evidence.json`
 - tracked file-select runs also forward `PARALLEL_RDP_HIRES_BLOCK_SHAPE_PROBE=1` into the ParaLLEl runtime for debug-only block reinterpretation evidence; this keeps the strict screenshot hash locked while logging alternate-shape hits and block upload context
 - the current Phase 1 experimental pattern is: keep the strict authority state fixed, suppress one bucket or one mode, and compare the filtered frame against the locked `off` / `on` captures to identify which replacement classes actually drive the visible change
@@ -54,6 +55,10 @@ Current Paper Mario runtime note:
 - the current strict file-select evidence now distinguishes two unresolved classes:
   - the smaller CI tile misses (`8x16` / `32x16`) are present in the pack under the same low-32 texture CRC but a different palette half
   - the dominant `64x1` CI block miss stays absent even under the new block-shape probe, so it is not explained by a simple contiguous reinterpretation like `32x2` or `16x4`
+- the current low-32 CI fallback experiments refine that split further:
+  - `PARALLEL_RDP_HIRES_CI_LOW32_FALLBACK=1` is a narrow real change and recovers one unique `8x16` case on strict file select
+  - `PARALLEL_RDP_HIRES_CI_LOW32_FALLBACK=2` recovers the current CI tile palette-class misses broadly on strict file select, leaving only the block classes unresolved
+  - these are debug-only direction-finding experiments, not accepted runtime policy
 - the tracked Paper Mario semantic trace currently uses an empirical vanilla `gGameStatus` slice at `0x800740aa`; it now records a raw window SHA-256, empirical phase guess for proven authority states, and decomp-backed `map_name_candidate` values for KMR/HOS/OSR area-local map indices, but it is not yet a full scene-name/mode decoder
 - tracked title-screen and file-select runs now also snapshot symbol-backed vanilla `CurGameMode` and map-transition globals, so each authority bundle records callback-phase evidence in addition to the `gGameStatus` window
 - the corrected Paper Mario title-screen authority now reports `state_init_title_screen` / `state_step_title_screen` and captures to `42e501afb2548a5067bc034578c5bcebf0bf2a40f612bbcc94972af716ad6ff2`

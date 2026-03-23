@@ -42,6 +42,7 @@
   - the new pack cross-check in `hires-evidence.json` shows those current strict-fixture misses are unmatched in the active local Paper Mario `.hts` index under our current checksum generation, not mismatched under another `formatsize`
   - that is not the same as proving the pack has no intended coverage there; it still leaves open a different pack revision or a runtime keying mismatch on our side
   - the new temporary debug filter path can now suppress selected replacement classes for controlled experiments, and the first title-screen probe shows `mode=tile fmt=2 siz=1 wh=296x6 fs=258 tile=7` is a major visual driver: disabling it filters 66 replacement applications while keeping the fixture semantically stable
+  - scenario runtime env files now auto-export while sourcing, after a Phase 1 tooling bug briefly made `PARALLEL_RDP_*` experiment toggles look active in the scenario shell without actually reaching the RetroArch/core child process
   - file-select probes now sharpen that picture:
     - disabling the shared `mode=tile fmt=2 siz=1 wh=296x6 fs=258 tile=7` class filters 33 replacement applications and pulls the frame much closer to baseline `off`
     - disabling `mode=tile fmt=3 siz=1 wh=16x8 fs=259 tile=7` filters 44 replacement applications but leaves the frame much closer to baseline `on`, so that class appears to be a narrower UI/detail layer
@@ -66,10 +67,19 @@
     - it regressed strict file select to `hits=48` / `misses=117`
     - it changed the file-select `on` frame to `948a4fad87bba561d40cf683915c9d52d6273f1a15017f17885fd1a808a2afdd`
     - that means the remaining palette mismatch needs a more exact TMEM/TLUT representation, not a blanket byte swap at the current shadow layer
+  - the new low-32 CI fallback experiments now prove that the palette-class misses are recoverable in principle:
+    - `PARALLEL_RDP_HIRES_CI_LOW32_FALLBACK=1` (`unique`) produces a real but narrow result on strict file select: `hits=84` / `misses=81`, hash `d4661996bc280d4e6a6e1a4fa6dbabeadb47520c4b4b0241f9e2b20f489dcf4e`
+    - in that mode, one unique `8x16` CI case is recovered while the remaining palette-class misses stay unresolved
+    - `PARALLEL_RDP_HIRES_CI_LOW32_FALLBACK=2` (`any`) produces the first broad CI recovery result on strict file select: `hits=90` / `misses=75`, hash `2f00a7eb6c0c592a363fca987981d6eb6e6d5a43c9cac0d337c8f444282b18c8`
+    - in that broader mode, the current CI palette miss classes disappear from the strict fixture and only the block classes remain unresolved
+    - that makes low-32 matching a useful debug direction, but not yet an acceptable runtime policy: `any` is too permissive to claim as correct without a tighter acceptance rule
   - the debug-only block-shape probe is now available on tracked file-select runs via `PARALLEL_RDP_HIRES_BLOCK_SHAPE_PROBE=1`
   - current probe result:
     - the dominant `mode=block fmt=2 siz=2 wh=64x1 fs=514 tile=7` class is not rescued by simple contiguous shape reinterpretation and logs as a plain `64x1` upload with `tmem_stride_words=0`
     - smaller non-dominant block misses do have alternate-shape pack hits (`128x1 -> 4x32`, `1024x1 -> 32x32`)
+  - the current Phase 1 split is now explicit:
+    - CI palette-class misses have a plausible tighter recovery path to design
+    - the dominant block miss class is still unmatched and appears to need a different fix entirely
 
 ## Not Yet Claimed Categories
 

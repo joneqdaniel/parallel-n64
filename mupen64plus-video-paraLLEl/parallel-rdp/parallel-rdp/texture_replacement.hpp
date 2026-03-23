@@ -32,6 +32,13 @@ public:
 	void set_enabled(bool enable);
 	bool load_cache_dir(const std::string &path);
 	bool lookup(uint64_t checksum64, uint16_t formatsize, ReplacementMeta *out) const;
+	bool lookup_ci_low32_unique(uint32_t checksum_low32, uint16_t formatsize, ReplacementMeta *out, uint64_t *resolved_checksum64 = nullptr) const;
+	bool lookup_ci_low32_any(uint32_t checksum_low32,
+	                         uint16_t formatsize,
+	                         uint32_t preferred_palette_crc,
+	                         ReplacementMeta *out,
+	                         uint64_t *resolved_checksum64 = nullptr,
+	                         bool *matched_preferred_palette = nullptr) const;
 	bool decode_rgba8(uint64_t checksum64, uint16_t formatsize, ReplacementImage *out) const;
 	void trim_to_budget(size_t bytes);
 	void clear();
@@ -68,7 +75,7 @@ private:
 	std::string cache_dir_;
 	std::vector<Entry> entries_;
 	std::unordered_map<uint64_t, std::vector<size_t>> checksum_index_;
+	std::unordered_map<uint32_t, std::vector<size_t>> checksum_low32_index_;
 	size_t memory_budget_bytes_ = 0;
 };
 }
-

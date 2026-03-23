@@ -82,11 +82,14 @@ scenario_extract_hires_log_evidence() {
 import json
 import re
 import sys
+import gzip
+import struct
 from pathlib import Path
 
 bundle_dir = Path(sys.argv[1])
 output_path = Path(sys.argv[2])
 log_path = bundle_dir / "logs" / "retroarch.log"
+TXCACHE_FORMAT_VERSION = 0x08000000
 
 result = {
     "available": False,
@@ -118,6 +121,23 @@ result = {
             "top_buckets": [],
         },
     },
+    "pack_crosscheck": {
+        "available": False,
+        "cache_path": None,
+        "miss_event_counts": {
+            "checksum_absent": 0,
+            "other_formatsize_only": 0,
+            "exact_or_generic_present": 0,
+        },
+        "unique_checksum_counts": {
+            "checksum_absent": 0,
+            "other_formatsize_only": 0,
+            "exact_or_generic_present": 0,
+        },
+        "top_absent_buckets": [],
+        "top_other_formatsize_buckets": [],
+        "top_exact_or_generic_present_buckets": [],
+    },
     "sample_events": [],
 }
 
@@ -142,6 +162,7 @@ bucket_maps = {
     "miss": {},
     "tlut_update": {},
 }
+miss_records = []
 
 def parse_fields(detail):
     fields = {}
@@ -202,6 +223,177 @@ def finalize_bucket_summary(kind):
         "unique_bucket_count": len(raw_buckets),
         "top_buckets": raw_buckets[:10],
     }
+
+def parse_hts_cache_index(cache_path):
+    data = cache_path.read_bytes()
+    if len(data) < 16:
+        return {}
+
+    version = struct.unpack_from("<i", data, 0)[0]
+    if version == TXCACHE_FORMAT_VERSION:
+        storage_pos = struct.unpack_from("<q", data, 8)[0]
+        old_version = False
+    else:
+        storage_pos = struct.unpack_from("<q", data, 4)[0]
+        old_version = True
+
+    if storage_pos <= 0 or storage_pos + 4 > len(data):
+        return {}
+
+    storage_size = struct.unpack_from("<i", data, storage_pos)[0]
+    offset = storage_pos + 4
+    entries = {}
+
+    for _ in range(storage_size):
+        if offset + 16 > len(data):
+            break
+        checksum64 = struct.unpack_from("<Q", data, offset)[0]
+        packed = struct.unpack_from("<q", data, offset + 8)[0]
+        offset += 16
+
+        record_offset = packed & 0x0000ffffffffffff
+        formatsize = (packed >> 48) & 0xffff
+        if record_offset + 17 > len(data):
+            continue
+
+        pos = record_offset + 17
+        if not old_version:
+            if pos + 2 > len(data):
+                continue
+            record_formatsize = struct.unpack_from("<H", data, pos)[0]
+            pos += 2
+            if formatsize == 0:
+                formatsize = record_formatsize
+
+        entries.setdefault(checksum64, set()).add(formatsize)
+
+    return entries
+
+def parse_htc_cache_index(cache_path):
+    entries = {}
+    with gzip.open(cache_path, "rb") as fp:
+        version_raw = fp.read(4)
+        if len(version_raw) != 4:
+            return entries
+        version = struct.unpack("<i", version_raw)[0]
+        old_version = version != TXCACHE_FORMAT_VERSION
+
+        if not old_version:
+            config_raw = fp.read(4)
+            if len(config_raw) != 4:
+                return entries
+
+        while True:
+            checksum_raw = fp.read(8)
+            if not checksum_raw:
+                break
+            if len(checksum_raw) != 8:
+                break
+            checksum64 = struct.unpack("<Q", checksum_raw)[0]
+
+            header = fp.read(4 + 4 + 4 + 2 + 2 + 1)
+            if len(header) != 17:
+                break
+
+            formatsize = 0
+            if not old_version:
+                formatsize_raw = fp.read(2)
+                if len(formatsize_raw) != 2:
+                    break
+                formatsize = struct.unpack("<H", formatsize_raw)[0]
+
+            data_size_raw = fp.read(4)
+            if len(data_size_raw) != 4:
+                break
+            data_size = struct.unpack("<I", data_size_raw)[0]
+            if data_size < 0:
+                break
+
+            skipped = fp.read(data_size)
+            if len(skipped) != data_size:
+                break
+
+            entries.setdefault(checksum64, set()).add(formatsize)
+
+    return entries
+
+def load_cache_index(cache_path_str):
+    if not cache_path_str:
+        return None
+
+    cache_path = Path(cache_path_str)
+    if not cache_path.is_file():
+        return None
+
+    suffix = cache_path.suffix.lower()
+    if suffix == ".hts":
+        return parse_hts_cache_index(cache_path)
+    if suffix == ".htc":
+        return parse_htc_cache_index(cache_path)
+    return None
+
+def finalize_pack_crosscheck():
+    cache_entries = load_cache_index(result["cache_path"])
+    if cache_entries is None:
+        return
+
+    result["pack_crosscheck"]["available"] = True
+    result["pack_crosscheck"]["cache_path"] = result["cache_path"]
+
+    category_buckets = {
+        "checksum_absent": {},
+        "other_formatsize_only": {},
+        "exact_or_generic_present": {},
+    }
+    unique_checksums = {
+        "checksum_absent": set(),
+        "other_formatsize_only": set(),
+        "exact_or_generic_present": set(),
+    }
+
+    for record in miss_records:
+        checksum64 = record["checksum64"]
+        formatsize = record["formatsize"]
+        signature = record["signature"]
+
+        available_formats = cache_entries.get(checksum64)
+        if available_formats is None:
+            category = "checksum_absent"
+        elif formatsize in available_formats or 0 in available_formats:
+            category = "exact_or_generic_present"
+        else:
+            category = "other_formatsize_only"
+
+        result["pack_crosscheck"]["miss_event_counts"][category] += 1
+        unique_checksums[category].add(checksum64)
+
+        bucket = category_buckets[category].setdefault(
+            signature,
+            {
+                "count": 0,
+                "sample_detail": record["detail"],
+            },
+        )
+        bucket["count"] += 1
+
+    for category, values in unique_checksums.items():
+        result["pack_crosscheck"]["unique_checksum_counts"][category] = len(values)
+
+    def write_bucket_list(field_name, bucket_map):
+        items = [
+            {
+                "signature": signature,
+                "count": payload["count"],
+                "sample_detail": payload["sample_detail"],
+            }
+            for signature, payload in bucket_map.items()
+        ]
+        items.sort(key=lambda item: (-item["count"], item["signature"]))
+        result["pack_crosscheck"][field_name] = items[:10]
+
+    write_bucket_list("top_absent_buckets", category_buckets["checksum_absent"])
+    write_bucket_list("top_other_formatsize_buckets", category_buckets["other_formatsize_only"])
+    write_bucket_list("top_exact_or_generic_present_buckets", category_buckets["exact_or_generic_present"])
 
 for line in log_path.read_text(errors="replace").splitlines():
     if "Hi-res replacement enabled, but cache path is empty." in line:
@@ -269,6 +461,23 @@ for line in log_path.read_text(errors="replace").splitlines():
         detail = m.group(2).strip()
         result["debug_line_counts"][kind] += 1
         update_bucket(kind, detail)
+        if kind == "miss":
+            fields = parse_fields(detail)
+            key_value = fields.get("key")
+            formatsize_value = fields.get("fs")
+            if key_value is not None and formatsize_value is not None:
+                miss_records.append(
+                    {
+                        "checksum64": int(key_value, 16),
+                        "formatsize": int(formatsize_value),
+                        "signature": " ".join(
+                            f"{key}={fields.get(key)}"
+                            for key in ("mode", "fmt", "siz", "wh", "fs", "tile")
+                            if fields.get(key) is not None
+                        ),
+                        "detail": detail,
+                    }
+                )
         if len(result["sample_events"]) < 20:
             result["sample_events"].append({
                 "kind": kind,
@@ -290,6 +499,7 @@ for line in log_path.read_text(errors="replace").splitlines():
 
 for kind in ("hit", "miss", "tlut_update"):
     finalize_bucket_summary(kind)
+finalize_pack_crosscheck()
 
 output_path.write_text(json.dumps(result, indent=2) + "\n")
 PY

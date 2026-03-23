@@ -44,6 +44,7 @@ Current Paper Mario runtime note:
 - the tracked adapter now supports `WAIT_CORE_MEMORY_HEX`, which lets local scenario flows wait on exact RAM signatures for deterministic probes
 - the canonical steady-state Paper Mario workflow is `load savestate -> settle 3 frames -> capture`
 - paired `on` runs now also emit machine-readable hi-res capability evidence, including the resolved cache path, the coarse disable reason, and the descriptor-indexing feature bits seen at runtime
+- paired `on` runs now also collapse raw hi-res hit/miss/TLUT lines into stable bucket summaries in `traces/hires-evidence.json`, so repeated uncovered classes can be compared across runs without diffing the whole RetroArch log
 - the tracked Paper Mario semantic trace currently uses an empirical vanilla `gGameStatus` slice at `0x800740aa`; it now records a raw window SHA-256, empirical phase guess for proven authority states, and decomp-backed `map_name_candidate` values for KMR/HOS/OSR area-local map indices, but it is not yet a full scene-name/mode decoder
 - tracked title-screen and file-select runs now also snapshot symbol-backed vanilla `CurGameMode` and map-transition globals, so each authority bundle records callback-phase evidence in addition to the `gGameStatus` window
 - the corrected Paper Mario title-screen authority now reports `state_init_title_screen` / `state_step_title_screen` and captures to `42e501afb2548a5067bc034578c5bcebf0bf2a40f612bbcc94972af716ad6ff2`

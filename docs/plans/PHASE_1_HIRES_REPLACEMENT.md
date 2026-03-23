@@ -37,6 +37,8 @@
 - current strict-fixture evidence:
   - title screen: `lookups=196 hits=178 misses=18 provider=on`, `AE=3412580`, `RMSE=0.267821`
   - file select: `lookups=165 hits=82 misses=83 provider=on`, `AE=1289800`, `RMSE=0.0928543`
+  - hi-res traces now also expose stable bucket summaries, which collapse title misses to 5 unique classes and file-select misses to 6 unique classes
+  - the current dominant unresolved file-select class is `mode=block fmt=2 siz=2 wh=64x1 fs=514 tile=7` with 70 repeated misses in the last verified strict `on` bundle
 
 ## Not Yet Claimed Categories
 

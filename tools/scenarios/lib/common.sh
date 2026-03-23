@@ -104,6 +104,20 @@ result = {
         "miss": 0,
         "tlut_update": 0,
     },
+    "bucket_summaries": {
+        "hit": {
+            "unique_bucket_count": 0,
+            "top_buckets": [],
+        },
+        "miss": {
+            "unique_bucket_count": 0,
+            "top_buckets": [],
+        },
+        "tlut_update": {
+            "unique_bucket_count": 0,
+            "top_buckets": [],
+        },
+    },
     "sample_events": [],
 }
 
@@ -121,6 +135,73 @@ summary_re = re.compile(
 )
 hit_miss_re = re.compile(r"Hi-res keying (hit|miss): (.+)")
 tlut_re = re.compile(r"Hi-res keying TLUT update: (.+)")
+field_re = re.compile(r"(\w+)=([^\s]+)")
+
+bucket_maps = {
+    "hit": {},
+    "miss": {},
+    "tlut_update": {},
+}
+
+def parse_fields(detail):
+    fields = {}
+    for key, value in field_re.findall(detail):
+        fields[key] = value.rstrip(".")
+    return fields
+
+def get_bucket_identity(kind, fields):
+    if kind in ("hit", "miss"):
+        return tuple((key, fields.get(key)) for key in ("mode", "fmt", "siz", "wh", "fs", "tile"))
+    return tuple((key, fields.get(key)) for key in ("bytes", "tile"))
+
+def update_bucket(kind, detail):
+    fields = parse_fields(detail)
+    identity = get_bucket_identity(kind, fields)
+    bucket = bucket_maps[kind].setdefault(
+        identity,
+        {
+            "count": 0,
+            "sample_detail": detail,
+            "fields": {key: value for key, value in identity},
+            "unique_keys": set(),
+            "unique_addrs": set(),
+        },
+    )
+    bucket["count"] += 1
+    key_value = fields.get("key")
+    if key_value:
+        bucket["unique_keys"].add(key_value)
+    addr_value = fields.get("addr")
+    if addr_value:
+        bucket["unique_addrs"].add(addr_value)
+
+def finalize_bucket_summary(kind):
+    raw_buckets = []
+    for bucket in bucket_maps[kind].values():
+        raw_buckets.append(
+            {
+                "count": bucket["count"],
+                "signature": " ".join(
+                    f"{key}={value}"
+                    for key, value in bucket["fields"].items()
+                    if value is not None
+                ),
+                "fields": bucket["fields"],
+                "sample_detail": bucket["sample_detail"],
+                "unique_key_count": len(bucket["unique_keys"]),
+                "unique_addr_count": len(bucket["unique_addrs"]),
+            }
+        )
+    raw_buckets.sort(
+        key=lambda item: (
+            -item["count"],
+            item["signature"],
+        )
+    )
+    result["bucket_summaries"][kind] = {
+        "unique_bucket_count": len(raw_buckets),
+        "top_buckets": raw_buckets[:10],
+    }
 
 for line in log_path.read_text(errors="replace").splitlines():
     if "Hi-res replacement enabled, but cache path is empty." in line:
@@ -185,23 +266,30 @@ for line in log_path.read_text(errors="replace").splitlines():
     if m:
         result["available"] = True
         kind = m.group(1)
+        detail = m.group(2).strip()
         result["debug_line_counts"][kind] += 1
+        update_bucket(kind, detail)
         if len(result["sample_events"]) < 20:
             result["sample_events"].append({
                 "kind": kind,
-                "detail": m.group(2).strip(),
+                "detail": detail,
             })
         continue
 
     m = tlut_re.search(line)
     if m:
         result["available"] = True
+        detail = m.group(1).strip()
         result["debug_line_counts"]["tlut_update"] += 1
+        update_bucket("tlut_update", detail)
         if len(result["sample_events"]) < 20:
             result["sample_events"].append({
                 "kind": "tlut_update",
-                "detail": m.group(1).strip(),
+                "detail": detail,
             })
+
+for kind in ("hit", "miss", "tlut_update"):
+    finalize_bucket_summary(kind)
 
 output_path.write_text(json.dumps(result, indent=2) + "\n")
 PY

@@ -8,10 +8,73 @@ from hires_pack_common import parse_cache_entries, parse_bundle_ci_context, pars
 from hires_pack_migrate import build_imported_index, load_import_policy
 
 
+def analyze_variant_groups(variant_groups, observed, applied_policy):
+    sample_dims = observed.get("sample_replacement_dims")
+    suggested_group_id = (applied_policy or {}).get("suggested_variant_group_id")
+    selected_group_id = (applied_policy or {}).get("selected_variant_group_id")
+
+    analyzed = []
+    for group in variant_groups:
+        notes = []
+        score = 0
+        if sample_dims and group.get("dims") == sample_dims:
+            score += 3
+            notes.append("matches observed sample_replacement_dims")
+        else:
+            notes.append("does not match observed sample_replacement_dims")
+
+        if suggested_group_id and group.get("variant_group_id") == suggested_group_id:
+            score += 2
+            notes.append("matches current policy suggestion")
+        elif suggested_group_id:
+            notes.append("does not match current policy suggestion")
+
+        if selected_group_id and group.get("variant_group_id") == selected_group_id:
+            score += 4
+            notes.append("matches current policy selection")
+
+        if group.get("candidate_count", 0) == 1:
+            score += 1
+            notes.append("single replacement candidate")
+        else:
+            notes.append("multiple replacement candidates")
+
+        if group.get("legacy_palette_crc_count", 0) == 1:
+            score += 1
+            notes.append("single palette CRC in group")
+        else:
+            notes.append("multiple palette CRCs in group")
+
+        analyzed.append(
+            {
+                **group,
+                "review_score": score,
+                "review_notes": notes,
+            }
+        )
+
+    analyzed.sort(key=lambda item: (-item["review_score"], item["variant_group_id"]))
+    return analyzed
+
+
 def summarize_family(record, family_type):
     selector_policy = record.get("selector_policy") or {}
     observed = record.get("observed_runtime_context") or {}
     variant_groups = record.get("variant_groups") or record.get("diagnostics", {}).get("variant_groups", [])
+    applied_policy = selector_policy.get("applied_policy")
+    analyzed_variant_groups = analyze_variant_groups(
+        [
+            {
+                "variant_group_id": group.get("variant_group_id"),
+                "dims": group.get("dims"),
+                "candidate_count": len(group.get("candidate_replacement_ids", [])),
+                "legacy_palette_crc_count": len(group.get("legacy_palette_crcs", [])),
+            }
+            for group in variant_groups
+        ],
+        observed,
+        applied_policy,
+    )
 
     summary = {
         "family_type": family_type,
@@ -29,15 +92,7 @@ def summarize_family(record, family_type):
             "usage": observed.get("usage"),
             "emulated_tmem": observed.get("emulated_tmem"),
         },
-        "variant_groups": [
-            {
-                "variant_group_id": group.get("variant_group_id"),
-                "dims": group.get("dims"),
-                "candidate_count": len(group.get("candidate_replacement_ids", [])),
-                "legacy_palette_crc_count": len(group.get("legacy_palette_crcs", [])),
-            }
-            for group in variant_groups
-        ],
+        "variant_groups": analyzed_variant_groups,
     }
 
     if family_type == "compatibility":
@@ -135,8 +190,10 @@ def format_markdown(report):
                 lines.append(f"  - applied_policy: `{json.dumps(family['applied_policy'], sort_keys=True)}`")
             for group in family["variant_groups"]:
                 lines.append(
-                    f"  - variant_group `{group['variant_group_id']}` dims=`{group['dims']}` candidates=`{group['candidate_count']}` palette_crcs=`{group['legacy_palette_crc_count']}`"
+                    f"  - variant_group `{group['variant_group_id']}` dims=`{group['dims']}` candidates=`{group['candidate_count']}` palette_crcs=`{group['legacy_palette_crc_count']}` review_score=`{group['review_score']}`"
                 )
+                for note in group["review_notes"]:
+                    lines.append(f"    - {note}")
 
     return "\n".join(lines) + "\n"
 

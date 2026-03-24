@@ -209,6 +209,7 @@ The current strict file-select result shows both cases:
   - current selector state
   - current runtime context
   - current variant-group breakdown
+  - simple review scores and notes for each variant group based on current observed runtime context and attached policy
   - any applied policy entries
 
 This is the preferred inspection path while the import format is still evolving.

@@ -84,6 +84,11 @@
   - the current Phase 1 split is now explicit:
     - CI palette-class misses have a plausible tighter recovery path to design
     - the dominant block miss class is still unmatched and appears to need a different fix entirely
+  - cross-emulator comparison now sharpens the broad design rule:
+    - keep exact replacement identity authoritative
+    - if CI compatibility lookup survives, promote it into a named second-tier identity rather than letting it remain an opaque runtime heuristic
+    - focus the exact-path redesign on more faithful CI/TLUT semantics, likely closer to the effective palette slice/bank actually sampled by the RDP
+    - keep block-shape probing in research mode unless a documented `LoadBlock` / `dxt` / interleave rule justifies a specific normalization path
 
 ## Not Yet Claimed Categories
 

@@ -101,6 +101,17 @@
   - CI low-32 fallback is directionally capable of recovering pack-backed file-select replacements
   - `replacement-dims-unique` is now the first concrete tighter candidate rule worth considering
   - the real remaining design choice is whether that rule is acceptable enough to harden, or whether we still need a better palette-side discriminator for the ambiguous `8x16` family, while separately solving the still-unmatched block classes
+- Cross-emulator research now gives the broad guardrails for that decision:
+  - the strongest relevant local references are `PCSX2`, `Dolphin`, `PPSSPP`, and `Flycast`
+  - the shared pattern is consistent: exact replacement identity remains authoritative, while broader compatibility matching lives in an explicit second tier with separate reporting and tighter constraints
+  - `PCSX2` is the clearest conceptual precedent for the current CI work: exact paletted lookup first, then an explicit palette-relaxed retry
+  - `Dolphin` strengthens the palette-model side of the argument: palette/TLUT identity should track the actually used palette span rather than a blunt full-shadow view
+  - `Flycast` reinforces bank-aware paletted identity, which maps well onto the current N64 CI4/CI8 problem
+  - `PPSSPP` reinforces the policy lesson: wildcard/alias-style fallback can exist, but it must remain explicit, constrained, and diagnosable
+  - the main design risk from those references is now explicit: hardening `low32_any` as production behavior would repeat the same permissive trap other emulators avoid
+  - the main positive direction from those references is also explicit: improve the exact CI/TLUT identity so it matches the effective palette semantics pack authors expect, then keep any broader lookup as a named compatibility tier rather than burying it inside the exact path
+  - the block/shape research is equally clear: other emulators do not broadly solve replacement misses with free-form runtime shape reinterpretation, and local N64 docs only justify such reinterpretation when the `LoadBlock` / `LoadTile` transfer semantics prove an equivalent layout
+  - that means the current generic block-shape search should remain diagnostic unless a documented `dxt` / interleave / wrap rule can justify turning a specific class into a real compatibility path
 - The current Phase 1 blocker has therefore moved again: replacement wiring is now visibly live, and the next task is to judge correctness versus corruption on the strict fixtures and tighten texel mapping / alias behavior where needed
 - The tracked adapter now supports a memory-based wait primitive, `WAIT_CORE_MEMORY_HEX`, so scenarios and probes can block on exact vanilla RAM signatures instead of sleep-only timing
 - The semantic JSON now also emits a decomp-backed `map_name_candidate` for KMR, HOS, and OSR area-local map indices

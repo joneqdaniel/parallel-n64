@@ -5,7 +5,12 @@ import sys
 from collections import Counter
 from pathlib import Path
 
-from hires_pack_common import build_family_summary, parse_bundle_families, parse_cache_entries
+from hires_pack_common import (
+    build_family_summary,
+    collect_family_entries,
+    parse_bundle_families,
+    parse_cache_entries,
+)
 
 
 def build_migration_plan(entries, requested_pairs):
@@ -27,12 +32,128 @@ def build_migration_plan(entries, requested_pairs):
     return plan
 
 
+def make_replacement_id(texture_crc, palette_crc, formatsize, width, height):
+    return f"legacy-{texture_crc:08x}-{palette_crc:08x}-fs{formatsize}-{width}x{height}"
+
+
+def build_imported_index(entries, requested_pairs, source_cache_path):
+    records = []
+    compatibility_aliases = []
+    unresolved_families = []
+
+    for texture_crc, formatsize in requested_pairs:
+        family_summary = build_family_summary(entries, texture_crc, formatsize)
+        family_entries = collect_family_entries(entries, texture_crc)
+        active_entries = [
+            entry for entry in family_entries
+            if entry["formatsize"] == formatsize
+        ]
+        if not active_entries:
+            active_entries = [
+                entry for entry in family_entries
+                if entry["formatsize"] == 0
+            ]
+
+        replacement_ids = []
+        for entry in active_entries:
+            replacement_id = make_replacement_id(
+                entry["texture_crc"],
+                entry["palette_crc"],
+                entry["formatsize"],
+                entry["width"],
+                entry["height"],
+            )
+            replacement_ids.append(replacement_id)
+            records.append(
+                {
+                    "replacement_id": replacement_id,
+                    "source": {
+                        "legacy_checksum64": f"{entry['checksum64']:016x}",
+                        "legacy_texture_crc": f"{entry['texture_crc']:08x}",
+                        "legacy_palette_crc": f"{entry['palette_crc']:08x}",
+                        "legacy_formatsize": entry["formatsize"],
+                        "legacy_storage": entry["storage"],
+                        "legacy_source_path": entry["source_path"],
+                    },
+                    "match": {
+                        "exact_legacy_checksum64": f"{entry['checksum64']:016x}",
+                        "texture_crc": f"{entry['texture_crc']:08x}",
+                        "palette_crc": f"{entry['palette_crc']:08x}",
+                        "formatsize": entry["formatsize"],
+                    },
+                    "replacement_asset": {
+                        "width": entry["width"],
+                        "height": entry["height"],
+                        "format": entry["format"],
+                        "texture_format": entry["texture_format"],
+                        "pixel_type": entry["pixel_type"],
+                        "data_size": entry["data_size"],
+                        "is_hires": entry["is_hires"],
+                    },
+                    "diagnostics": {
+                        "family_low32": f"{texture_crc:08x}",
+                        "requested_formatsize": formatsize,
+                        "family_tier": family_summary["recommended_tier"],
+                        "active_pool": family_summary["active_pool"],
+                    },
+                }
+            )
+
+        if family_summary["recommended_tier"] in ("compat-unique", "compat-repl-dims-unique"):
+            compatibility_aliases.append(
+                {
+                    "alias_id": f"legacy-low32-{texture_crc:08x}-fs{formatsize}",
+                    "kind": family_summary["recommended_tier"],
+                    "match": {
+                        "texture_crc": f"{texture_crc:08x}",
+                        "formatsize": formatsize,
+                        "active_pool": family_summary["active_pool"],
+                    },
+                    "resolution_policy": {
+                        "rule": family_summary["recommended_tier"],
+                        "uniform_replacement_dims": family_summary["active_unique_repl_dim_count"] == 1,
+                    },
+                    "candidate_replacement_ids": replacement_ids,
+                    "diagnostics": {
+                        "active_unique_palette_count": family_summary["active_unique_palette_count"],
+                        "active_unique_repl_dim_count": family_summary["active_unique_repl_dim_count"],
+                        "active_replacement_dims": family_summary["active_replacement_dims"],
+                    },
+                }
+            )
+        elif family_summary["recommended_tier"] == "ambiguous-import-or-policy":
+            unresolved_families.append(
+                {
+                    "family_low32": f"{texture_crc:08x}",
+                    "formatsize": formatsize,
+                    "reason": "legacy-family-ambiguous",
+                    "active_pool": family_summary["active_pool"],
+                    "active_unique_palette_count": family_summary["active_unique_palette_count"],
+                    "active_unique_repl_dim_count": family_summary["active_unique_repl_dim_count"],
+                    "active_replacement_dims": family_summary["active_replacement_dims"],
+                    "candidate_replacement_ids": replacement_ids,
+                }
+            )
+
+    return {
+        "schema_version": 1,
+        "source": {
+            "legacy_cache_path": str(source_cache_path),
+            "legacy_entry_count": len(entries),
+        },
+        "records": records,
+        "compatibility_aliases": compatibility_aliases,
+        "unresolved_families": unresolved_families,
+    }
+
+
 def main():
     parser = argparse.ArgumentParser(description="Build a migration-oriented plan from a legacy hi-res pack.")
     parser.add_argument("--cache", required=True, help="Path to .hts or .htc pack.")
     parser.add_argument("--bundle", help="Optional strict bundle path; imports low32/fs pairs from ci_palette_probe.families.")
     parser.add_argument("--low32", action="append", default=[], help="Low32 texture CRC in hex.")
     parser.add_argument("--formatsize", action="append", type=int, default=[], help="Formatsize values paired with --low32 in order.")
+    parser.add_argument("--emit-import-index", action="store_true", help="Emit the first imported-index format instead of only the migration plan.")
     parser.add_argument("--output", help="Optional output JSON path.")
     args = parser.parse_args()
 
@@ -62,14 +183,16 @@ def main():
         seen.add(pair)
         deduped_pairs.append(pair)
 
-    plan = {
+    result = {
         "cache_path": str(cache_path),
         "entry_count": len(entries),
         "requested_family_count": len(deduped_pairs),
         "plan": build_migration_plan(entries, deduped_pairs),
     }
+    if args.emit_import_index:
+        result["imported_index"] = build_imported_index(entries, deduped_pairs, cache_path)
 
-    serialized = json.dumps(plan, indent=2) + "\n"
+    serialized = json.dumps(result, indent=2) + "\n"
     if args.output:
         Path(args.output).write_text(serialized)
     else:

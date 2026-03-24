@@ -167,7 +167,7 @@ def classify_family(summary):
 
 
 def build_family_summary(entries, texture_crc, formatsize):
-    family_entries = [entry for entry in entries if entry["texture_crc"] == texture_crc]
+    family_entries = collect_family_entries(entries, texture_crc)
     exact_entries = [entry for entry in family_entries if entry["formatsize"] == formatsize]
     generic_entries = [entry for entry in family_entries if entry["formatsize"] == 0]
     active_entries = exact_entries if exact_entries else generic_entries
@@ -207,3 +207,7 @@ def build_family_summary(entries, texture_crc, formatsize):
     }
     summary["recommended_tier"] = classify_family(summary)
     return summary
+
+
+def collect_family_entries(entries, texture_crc):
+    return [entry for entry in entries if entry["texture_crc"] == texture_crc]

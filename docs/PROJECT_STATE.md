@@ -89,6 +89,11 @@
   - the representative `8x16` family (`low32=42779bdd`) classifies as `ambiguous-import-or-policy`
   - that is the strongest current evidence that the inherited Glide-era pack identity is itself part of the problem, and that an imported internal pack format is now a first-class design path rather than a fallback idea
 - There is now a migration-oriented scaffold at [hires_pack_migrate.py](/home/auro/code/parallel-n64/tools/hires_pack_migrate.py) plus a first design note at [HIRES_PACK_IMPORT_MODEL.md](/home/auro/code/parallel-n64/docs/plans/HIRES_PACK_IMPORT_MODEL.md), so legacy-pack import is now a tracked Phase 1 workstream rather than just an open-ended idea
+- The migration scaffold now emits the first imported-index format for selected families, separating:
+  - imported `records`
+  - explicit `compatibility_aliases`
+  - `unresolved_families`
+- That makes legacy pack transport a real implementation path instead of only a planning statement
 - The new block-shape probe is now wired through the tracked file-select scenario and keeps the strict hash intact while logging alternate-shape diagnostics
 - That probe has already ruled out the dominant file-select miss as a simple hidden multi-line reinterpretation: `mode=block fmt=2 siz=2 wh=64x1 fs=514 tile=7` stays a plain `64x1` upload (`tmem_stride_words=0`) and finds no alternate-shape pack hit
 - The same probe does find alternate-shape hits for smaller non-dominant block misses, including `mode=block fmt=4 siz=2 wh=128x1 fs=516 tile=7 -> 4x32` and `mode=block fmt=0 siz=3 wh=1024x1 fs=768 tile=7 -> 32x32`

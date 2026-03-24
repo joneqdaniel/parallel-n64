@@ -72,6 +72,10 @@
     - `tools/hires_pack_family_report.py --cache assets/PAPER MARIO_HIRESTEXTURES.hts --bundle <strict-file-select-bundle>` classifies the representative `32x16` family (`low32=2a1be0a4`) as `compat-repl-dims-unique`
     - the same analyzer classifies the representative ambiguous `8x16` family (`low32=42779bdd`) as `ambiguous-import-or-policy`
     - that means part of the current CI problem is not “find the right CRC”; it is “the inherited pack format is collapsing multiple semantic variants into one runtime family, and we may need an imported internal format to separate them cleanly”
+  - the migration utility now emits the first imported-index scaffold:
+    - `tools/hires_pack_migrate.py --emit-import-index --cache assets/PAPER MARIO_HIRESTEXTURES.hts --bundle <strict-file-select-bundle>`
+    - that output separates imported `records`, explicit `compatibility_aliases`, and `unresolved_families`
+    - this is the first concrete transport path from legacy Glide-era packs into a cleaner ParaLLEl-owned representation
   - the first TLUT-state correction is now in place: the shadow patches by TMEM offset instead of wiping the whole palette shadow on every 32-byte update
   - current result of that correction:
     - the representative CI palette CRCs change materially on file select, so the old whole-shadow overwrite path was definitely wrong

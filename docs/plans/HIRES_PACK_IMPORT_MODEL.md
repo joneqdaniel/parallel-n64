@@ -81,9 +81,28 @@
   - family-level report for selected low32/fs pairs
 - [`tools/hires_pack_migrate.py`](/home/auro/code/parallel-n64/tools/hires_pack_migrate.py)
   - migration-oriented tier summary for selected families
+  - now also emits the first imported-index scaffold with:
+    - `records`
+    - `compatibility_aliases`
+    - `unresolved_families`
+
+## Imported Index v1
+
+- `schema_version`
+- `source`
+  - legacy cache path
+  - legacy entry count
+- `records`
+  - one imported record per active legacy entry in the selected family set
+  - preserves legacy checksum provenance and decoded asset metadata
+- `compatibility_aliases`
+  - explicit aliases for constrained compatibility tiers only
+  - currently intended for `compat-unique` and `compat-repl-dims-unique`
+- `unresolved_families`
+  - explicit ambiguous legacy families that should not become runtime fallback automatically
 
 ## Next Implementation Step
 
-- Define the first serialized imported-index format
-- Add a migration output mode that writes that format for a narrow Paper Mario subset
+- Inspect the imported-index output on the strict Paper Mario families
+- Decide what additional fields are required to disambiguate ambiguous CI families during import
 - Keep runtime code unchanged until the imported subset can be inspected and compared against strict fixture evidence

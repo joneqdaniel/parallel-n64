@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "families": {
+    "legacy-low32-2a1be0a4-fs258": {
+      "status": "selected",
+      "selected_variant_group_id": "legacy-low32-2a1be0a4-fs258-640x160",
+      "justification": "Single compatibility variant group under compat-repl-dims-unique on the strict file-select fixture."
+    },
+    "legacy-low32-42779bdd-fs258": {
+      "status": "manual-review-required",
+      "suggested_variant_group_id": "legacy-low32-42779bdd-fs258-120x120",
+      "justification": "Matches the current strict file-select sample_replacement_dims observation (120x120), but remains non-binding until validated against imported output and future fixture evidence."
+    }
+  }
+}

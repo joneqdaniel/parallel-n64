@@ -41,6 +41,19 @@ def make_variant_group_id(texture_crc, requested_formatsize, width, height):
     return f"legacy-low32-{texture_crc:08x}-fs{requested_formatsize}-{width}x{height}"
 
 
+def make_family_policy_key(texture_crc, formatsize):
+    return f"legacy-low32-{texture_crc:08x}-fs{formatsize}"
+
+
+def load_import_policy(policy_path):
+    data = json.loads(Path(policy_path).read_text())
+    return {
+        "schema_version": data.get("schema_version", 0),
+        "families": data.get("families", {}),
+        "source_path": str(policy_path),
+    }
+
+
 def build_selector_policy(texture_crc, formatsize, observation, variant_group_list, tier):
     base_selector = {
         "texture_crc": f"{texture_crc:08x}",
@@ -82,16 +95,19 @@ def build_selector_policy(texture_crc, formatsize, observation, variant_group_li
     return policy
 
 
-def build_imported_index(entries, requested_pairs, source_cache_path, bundle_context=None):
+def build_imported_index(entries, requested_pairs, source_cache_path, bundle_context=None, import_policy=None):
     records = []
     compatibility_aliases = []
     unresolved_families = []
     bundle_context = bundle_context or {}
+    import_policy = import_policy or {"families": {}}
 
     for texture_crc, formatsize in requested_pairs:
         family_summary = build_family_summary(entries, texture_crc, formatsize)
         family_entries = collect_family_entries(entries, texture_crc)
         observation = bundle_context.get((texture_crc, formatsize))
+        family_policy_key = make_family_policy_key(texture_crc, formatsize)
+        family_policy = import_policy["families"].get(family_policy_key)
         active_entries = [
             entry for entry in family_entries
             if entry["formatsize"] == formatsize
@@ -182,11 +198,13 @@ def build_imported_index(entries, requested_pairs, source_cache_path, bundle_con
             variant_group_list,
             family_summary["recommended_tier"],
         )
+        if family_policy:
+            selector_policy["applied_policy"] = family_policy
 
         if family_summary["recommended_tier"] in ("compat-unique", "compat-repl-dims-unique"):
             compatibility_aliases.append(
                 {
-                    "alias_id": f"legacy-low32-{texture_crc:08x}-fs{formatsize}",
+                    "alias_id": family_policy_key,
                     "kind": family_summary["recommended_tier"],
                     "match": {
                         "texture_crc": f"{texture_crc:08x}",
@@ -197,6 +215,7 @@ def build_imported_index(entries, requested_pairs, source_cache_path, bundle_con
                         "rule": family_summary["recommended_tier"],
                         "uniform_replacement_dims": family_summary["active_unique_repl_dim_count"] == 1,
                     },
+                    "policy_key": family_policy_key,
                     "observed_runtime_context": observation,
                     "selector_policy": selector_policy,
                     "candidate_replacement_ids": replacement_ids,
@@ -212,6 +231,7 @@ def build_imported_index(entries, requested_pairs, source_cache_path, bundle_con
         elif family_summary["recommended_tier"] == "ambiguous-import-or-policy":
             unresolved_families.append(
                 {
+                    "policy_key": family_policy_key,
                     "family_low32": f"{texture_crc:08x}",
                     "formatsize": formatsize,
                     "reason": "legacy-family-ambiguous",
@@ -232,6 +252,10 @@ def build_imported_index(entries, requested_pairs, source_cache_path, bundle_con
             "legacy_cache_path": str(source_cache_path),
             "legacy_entry_count": len(entries),
         },
+        "policy_source": {
+            "path": import_policy.get("source_path"),
+            "schema_version": import_policy.get("schema_version"),
+        } if import_policy.get("source_path") else None,
         "records": records,
         "compatibility_aliases": compatibility_aliases,
         "unresolved_families": unresolved_families,
@@ -245,12 +269,16 @@ def main():
     parser.add_argument("--low32", action="append", default=[], help="Low32 texture CRC in hex.")
     parser.add_argument("--formatsize", action="append", type=int, default=[], help="Formatsize values paired with --low32 in order.")
     parser.add_argument("--emit-import-index", action="store_true", help="Emit the first imported-index format instead of only the migration plan.")
+    parser.add_argument("--policy", help="Optional import policy JSON to attach to selector output.")
     parser.add_argument("--output", help="Optional output JSON path.")
     args = parser.parse_args()
 
     cache_path = Path(args.cache)
     entries = parse_cache_entries(cache_path)
     bundle_context = {}
+    import_policy = {"families": {}}
+    if args.policy:
+        import_policy = load_import_policy(args.policy)
 
     requested_pairs = []
     if args.bundle:
@@ -284,7 +312,7 @@ def main():
         "plan": build_migration_plan(entries, deduped_pairs),
     }
     if args.emit_import_index:
-        result["imported_index"] = build_imported_index(entries, deduped_pairs, cache_path, bundle_context)
+        result["imported_index"] = build_imported_index(entries, deduped_pairs, cache_path, bundle_context, import_policy)
 
     serialized = json.dumps(result, indent=2) + "\n"
     if args.output:

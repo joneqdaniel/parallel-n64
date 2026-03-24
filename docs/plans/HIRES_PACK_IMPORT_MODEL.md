@@ -86,6 +86,8 @@
     - `compatibility_aliases`
     - `unresolved_families`
     - explicit `variant_groups` inside compatibility and unresolved family output
+- [`tools/hires_pack_import_policy.json`](/home/auro/code/parallel-n64/tools/hires_pack_import_policy.json)
+  - first explicit import-policy layer for legacy family decisions and review-required suggestions
 
 ## Imported Index v1
 
@@ -93,6 +95,8 @@
 - `source`
   - legacy cache path
   - legacy entry count
+- `policy_source`
+  - optional attached policy path and schema version
 - `records`
   - one imported record per active legacy entry in the selected family set
   - preserves legacy checksum provenance and decoded asset metadata
@@ -102,6 +106,7 @@
   - now also carries:
     - `observed_runtime_context`
     - `selector_policy`
+    - `policy_key`
     - `candidate_variant_group_ids`
     - `diagnostics.variant_groups`
 - `unresolved_families`
@@ -109,6 +114,7 @@
   - now grouped into explicit dimension-led `variant_groups` so import-time policy can reason about concrete ambiguous clusters instead of a flat legacy family
   - now also carries `observed_runtime_context` from the strict bundle that surfaced the family
   - now also carries `selector_policy`, even when that policy is only “manual disambiguation required”
+  - now also carries `policy_key`
 
 ## Variant Groups
 
@@ -169,13 +175,28 @@ The point of `observed_runtime_context` is not to turn runtime guesses back on. 
   - present only when the selector policy is deterministic
 - `selection_reason`
   - explains why the current selector is deterministic or why it remains unresolved
+- `applied_policy`
+  - optional policy file entry attached by `--policy`
 
 The current strict file-select result shows both cases:
 - `2a1be0a4/fs258` now has a deterministic selector policy that lands on `legacy-low32-2a1be0a4-fs258-640x160`
 - `42779bdd/fs258` now has a manual selector policy with three candidate variant groups and explicit disambiguation inputs instead of a flat ambiguous blob
 
+## Policy Layer
+
+- Use [`tools/hires_pack_import_policy.json`](/home/auro/code/parallel-n64/tools/hires_pack_import_policy.json) to record explicit import decisions or non-binding suggestions.
+- Pass it with `--policy` when emitting an imported index.
+- Current examples:
+  - `legacy-low32-2a1be0a4-fs258`
+    - explicit selected variant group: `legacy-low32-2a1be0a4-fs258-640x160`
+  - `legacy-low32-42779bdd-fs258`
+    - manual-review-required
+    - suggested variant group: `legacy-low32-42779bdd-fs258-120x120`
+    - suggestion is intentionally non-binding until validated
+
 ## Next Implementation Step
 
 - Inspect the imported-index output on the strict Paper Mario families
+- Use the attached policy layer to start testing explicit imported-family decisions without changing runtime behavior
 - Decide what additional discriminators or policy fields are required to turn the ambiguous selector policies into deterministic ones, using the recorded runtime context instead of ad hoc notes
 - Keep runtime code unchanged until the imported subset can be inspected and compared against strict fixture evidence

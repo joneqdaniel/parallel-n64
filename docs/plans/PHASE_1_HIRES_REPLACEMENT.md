@@ -83,6 +83,9 @@
       - that family now has a deterministic selector policy
       - `42779bdd/fs258` remains unresolved but is now split into three import-time groups: `64x64`, `120x120`, and `144x144`
       - that family now carries a manual-disambiguation selector policy instead of being an unstructured unresolved family
+    - there is now a first explicit policy file at `tools/hires_pack_import_policy.json`
+      - it locks the deterministic `2a1be0a4/fs258 -> 640x160` case
+      - it records a non-binding `120x120` suggestion for `42779bdd/fs258` based on the current strict file-select observation
     - this is the first concrete transport path from legacy Glide-era packs into a cleaner ParaLLEl-owned representation
   - the first TLUT-state correction is now in place: the shadow patches by TMEM offset instead of wiping the whole palette shadow on every 32-byte update
   - current result of that correction:

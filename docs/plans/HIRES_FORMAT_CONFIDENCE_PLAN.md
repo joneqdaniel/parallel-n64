@@ -102,6 +102,103 @@ We need to prove that migration is practical:
 
 ## Evidence Program
 
+### Research Phase 0: N64 Identity Constraints
+
+Goal:
+- establish the N64-side rules that the new format must not violate
+
+Primary sources:
+- local N64 documentation in `/home/auro/code/n64_docs`
+- decomp-backed Paper Mario observations only as supporting evidence, not as the rule source
+
+Questions to answer:
+- what exact texture identity is implied by TMEM, TLUT, CI4/CI8, `LoadTile`, `LoadBlock`, texrect, and related RDP behavior
+- which palette/TLUT bytes are semantically relevant for replacement identity
+- when is runtime reinterpretation justified by real N64 transfer semantics, and when is it just emulator policy
+
+Expected outputs:
+- concise constraints we should preserve in ParaLLEl
+- explicit notes on what the format must encode versus what can remain compatibility policy
+- explicit notes on block-class and CI/TLUT identity boundaries
+
+Exit signal:
+- we can explain the N64-side identity constraints the new format is trying to respect
+
+### Research Phase 1: Emulator And Pack-Model Comparison
+
+Goal:
+- understand how other emulators separate exact identity, compatibility matching, and imported or legacy pack models
+
+Primary sources:
+- local emulator references in `/home/auro/code/emulator_references`
+- official or primary implementation sources already mirrored there
+
+Questions to answer:
+- how do other emulators define exact replacement identity
+- how do they handle paletted / TLUT-backed textures
+- how do they separate runtime lookup from imported or legacy pack policy
+- what compatibility rules are explicit versus hidden heuristics
+
+Expected outputs:
+- emulator-by-emulator comparison of replacement identity and import model shape
+- concrete patterns we should reuse
+- concrete anti-patterns we should avoid
+
+Exit signal:
+- we can justify why the new ParaLLEl format is closer to an exact-authoritative model than Glide-era pack behavior
+
+### Research Phase 2: Targeted Re-Research
+
+Goal:
+- resolve specific ambiguous families or policy questions as they appear
+
+Use this phase when:
+- a family remains ambiguous after import review
+- a block-class behavior still lacks N64-side justification
+- a compatibility rule looks plausible but not defensible
+
+Expected outputs:
+- narrowly scoped answers tied to a specific family, runtime class, or policy question
+
+Exit signal:
+- the ambiguous question is either resolved or explicitly left unresolved in the format/policy layer
+
+## Initial Research Conclusions
+
+The first explicit research pass across local N64 docs and emulator references already narrows the format direction materially.
+
+### From N64 Documentation
+
+- The new format should describe the post-load sampled texture object, not just the raw upload blob.
+- Exact identity should preserve:
+  - sampled format (`fmt/siz`, direct vs CI, TLUT type)
+  - logical texel payload
+  - logical palette payload
+  - sampler state such as tile window, line/stride, palette selector for CI4, and wrap/clamp/mirror/mask/shift
+- CI4 and CI8 should not be treated as the same kind of palette identity:
+  - CI4 depends on the selected 16-entry palette
+  - CI8 depends on the logical TLUT contents addressed directly
+- `LoadTile` and `LoadBlock` are semantically different upload paths, and their provenance is valuable diagnostic or exactness data even when sampled output may sometimes coincide.
+- `LoadTLUT` expands entries in TMEM, so exact palette identity should be based on logical palette entries, not on the expanded TMEM image.
+- `texrect` is a draw use of a tile, not a different texture object; reuse across texrect variants belongs in compatibility policy, not exact identity.
+
+### From Emulator Comparison
+
+- Exact identity should separate base texel identity from palette/TLUT identity, then combine them for authoritative lookup.
+- Used palette span or effective palette selection is a better exactness model than a blunt full-palette hash.
+- Palette bank/select belongs in identity when the hardware model makes it meaningful.
+- Exact lookup should remain tier 1; compatibility lookup should be explicit tier 2.
+- Imported legacy behavior should remain visibly legacy and must not redefine the canonical ParaLLEl identity.
+- Wildcards, broad low-entropy hashes, and silent relaxations are all anti-patterns for an accuracy-first format.
+
+### Immediate Format Implications
+
+- The canonical ParaLLEl format should be structured and metadata-rich, not filename-only.
+- The default runtime policy should be `exact-only`.
+- Imported Glide-era packs should be migration input into explicit compatibility aliases, not the spec itself.
+- CI/TLUT compatibility should stay explicit and named; it should not be allowed to blur the exact identity model.
+- Block-class reinterpretation should stay diagnostic until it has clear N64-side justification.
+
 ### Workstream A: Broaden The Observed Family Set
 
 Goal:
@@ -221,7 +318,8 @@ Why:
 2. Mint the next authoritative Paper Mario state that is outside the current menu neighborhood.
 3. Capture at least one additional family class from a deeper state before treating the format as near-final.
 4. Keep refining the exact-vs-compatibility boundary in the import model.
-5. Preserve unresolved families aggressively until the new evidence base is stronger.
+5. Run explicit subagent-backed research phases against N64 docs and emulator references as part of the normal confidence loop.
+6. Preserve unresolved families aggressively until the new evidence base is stronger.
 
 ## Working Rule
 

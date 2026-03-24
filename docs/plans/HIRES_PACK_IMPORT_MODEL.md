@@ -12,6 +12,7 @@ This document describes the shape of the import model itself. The evidence thres
 
 - Legacy pack format is an input format
 - Internal imported format is the authoritative working format for future ParaLLEl hi-res work
+- The authoritative imported identity should describe the sampled texture object plus relevant sampler/palette state, not merely the legacy upload blob or filename schema
 
 ## Import Goals
 

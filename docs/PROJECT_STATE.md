@@ -198,6 +198,9 @@
 - The active planning question is no longer whether a ParaLLEl-owned hi-res format is justified.
 - The active planning question is what evidence threshold we require before committing to that format.
 - That threshold is now documented in [HIRES_FORMAT_CONFIDENCE_PLAN.md](/home/auro/code/parallel-n64/docs/plans/HIRES_FORMAT_CONFIDENCE_PLAN.md).
+- The first explicit research phases in that plan are already producing concrete constraints:
+  - N64 docs are pointing us toward post-load sampled identity plus sampler state, not raw upload blobs or expanded-TMEM TLUT images.
+  - emulator comparison is reinforcing an exact-first model with explicit tiered compatibility, not wildcard-heavy runtime heuristics.
 
 ## Current Validation Scope
 

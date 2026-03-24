@@ -154,6 +154,66 @@ def parse_bundle_families(bundle_path: Path):
     return families
 
 
+def parse_bundle_ci_context(bundle_path: Path):
+    hires_path = bundle_path / "traces" / "hires-evidence.json"
+    data = json.loads(hires_path.read_text())
+    ci_probe = data.get("ci_palette_probe", {})
+
+    usage_by_key = {}
+    for record in ci_probe.get("usages", []):
+        key = (
+            record.get("mode"),
+            record.get("wh"),
+            int(record.get("fs", "0")),
+        )
+        usage_by_key[key] = {
+            "used_count": int(record.get("used_count", "0")),
+            "used_min": int(record.get("used_min", "0")),
+            "used_max": int(record.get("used_max", "0")),
+            "mask_crc": record.get("mask_crc"),
+            "sparse_pcrc": record.get("sparse_pcrc"),
+        }
+
+    emulated_tmem_by_key = {}
+    for record in ci_probe.get("emulated_tmem", []):
+        key = (
+            record.get("mode"),
+            record.get("wh"),
+            int(record.get("fs", "0")),
+        )
+        emulated_tmem_by_key[key] = {
+            "entry_pcrc": record.get("entry_pcrc"),
+            "sparse_pcrc": record.get("sparse_pcrc"),
+        }
+
+    context = {}
+    for family in ci_probe.get("families", []):
+        key = (
+            int(family.get("low32"), 16),
+            int(family.get("fs", "0")),
+        )
+        observation_key = (
+            family.get("mode"),
+            family.get("wh"),
+            int(family.get("fs", "0")),
+        )
+        context[key] = {
+            "mode": family.get("mode"),
+            "runtime_address": family.get("addr"),
+            "runtime_wh": family.get("wh"),
+            "requested_formatsize": int(family.get("fs", "0")),
+            "observed_runtime_pcrc": family.get("pcrc"),
+            "active_pool": family.get("active_pool"),
+            "preferred_palette_matches": int(family.get("preferred_palette_matches", "0")),
+            "uniform_replacement_dims": family.get("uniform_repl_dims") == "1",
+            "sample_replacement_dims": family.get("sample_repl"),
+            "usage": usage_by_key.get(observation_key),
+            "emulated_tmem": emulated_tmem_by_key.get(observation_key),
+        }
+
+    return context
+
+
 def classify_family(summary):
     if summary["active_pool"] == "exact":
         return "exact-authoritative"

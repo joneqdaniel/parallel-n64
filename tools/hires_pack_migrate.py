@@ -8,6 +8,7 @@ from pathlib import Path
 from hires_pack_common import (
     build_family_summary,
     collect_family_entries,
+    parse_bundle_ci_context,
     parse_bundle_families,
     parse_cache_entries,
 )
@@ -40,14 +41,16 @@ def make_variant_group_id(texture_crc, requested_formatsize, width, height):
     return f"legacy-low32-{texture_crc:08x}-fs{requested_formatsize}-{width}x{height}"
 
 
-def build_imported_index(entries, requested_pairs, source_cache_path):
+def build_imported_index(entries, requested_pairs, source_cache_path, bundle_context=None):
     records = []
     compatibility_aliases = []
     unresolved_families = []
+    bundle_context = bundle_context or {}
 
     for texture_crc, formatsize in requested_pairs:
         family_summary = build_family_summary(entries, texture_crc, formatsize)
         family_entries = collect_family_entries(entries, texture_crc)
+        observation = bundle_context.get((texture_crc, formatsize))
         active_entries = [
             entry for entry in family_entries
             if entry["formatsize"] == formatsize
@@ -146,6 +149,7 @@ def build_imported_index(entries, requested_pairs, source_cache_path):
                         "rule": family_summary["recommended_tier"],
                         "uniform_replacement_dims": family_summary["active_unique_repl_dim_count"] == 1,
                     },
+                    "observed_runtime_context": observation,
                     "candidate_replacement_ids": replacement_ids,
                     "candidate_variant_group_ids": [group["variant_group_id"] for group in variant_group_list],
                     "diagnostics": {
@@ -166,6 +170,7 @@ def build_imported_index(entries, requested_pairs, source_cache_path):
                     "active_unique_palette_count": family_summary["active_unique_palette_count"],
                     "active_unique_repl_dim_count": family_summary["active_unique_repl_dim_count"],
                     "active_replacement_dims": family_summary["active_replacement_dims"],
+                    "observed_runtime_context": observation,
                     "candidate_replacement_ids": replacement_ids,
                     "variant_groups": variant_group_list,
                 }
@@ -195,10 +200,13 @@ def main():
 
     cache_path = Path(args.cache)
     entries = parse_cache_entries(cache_path)
+    bundle_context = {}
 
     requested_pairs = []
     if args.bundle:
-        requested_pairs.extend(parse_bundle_families(Path(args.bundle)))
+        bundle_path = Path(args.bundle)
+        requested_pairs.extend(parse_bundle_families(bundle_path))
+        bundle_context = parse_bundle_ci_context(bundle_path)
 
     if args.low32:
         formatsizes = args.formatsize or []
@@ -226,7 +234,7 @@ def main():
         "plan": build_migration_plan(entries, deduped_pairs),
     }
     if args.emit_import_index:
-        result["imported_index"] = build_imported_index(entries, deduped_pairs, cache_path)
+        result["imported_index"] = build_imported_index(entries, deduped_pairs, cache_path, bundle_context)
 
     serialized = json.dumps(result, indent=2) + "\n"
     if args.output:

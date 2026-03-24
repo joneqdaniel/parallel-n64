@@ -100,11 +100,13 @@
   - explicit aliases for constrained compatibility tiers only
   - currently intended for `compat-unique` and `compat-repl-dims-unique`
   - now also carries:
+    - `observed_runtime_context`
     - `candidate_variant_group_ids`
     - `diagnostics.variant_groups`
 - `unresolved_families`
   - explicit ambiguous legacy families that should not become runtime fallback automatically
   - now grouped into explicit dimension-led `variant_groups` so import-time policy can reason about concrete ambiguous clusters instead of a flat legacy family
+  - now also carries `observed_runtime_context` from the strict bundle that surfaced the family
 
 ## Variant Groups
 
@@ -123,8 +125,31 @@
 
 The point of `variant_groups` is to make ambiguous Glide-era families importable without pretending they are already resolved. A family like the strict file-select `42779bdd/fs258` case now lands as three explicit variant groups (`64x64`, `120x120`, `144x144`) instead of a single opaque unresolved blob.
 
+## Observed Runtime Context
+
+- `mode`
+  - current runtime load mode that produced the family in the strict bundle
+- `runtime_address`
+  - observed TMEM/RDRAM-side address for the tracked upload
+- `runtime_wh`
+  - observed runtime texture dimensions before replacement
+- `requested_formatsize`
+  - runtime formatsize that selected the family
+- `observed_runtime_pcrc`
+  - current exact palette CRC seen by the runtime path
+- `usage`
+  - bundle-backed sparse palette usage data:
+    - used count
+    - used min/max
+    - used-mask CRC
+    - sparse palette CRC
+- `emulated_tmem`
+  - bundle-backed TLUT/TMEM-derived palette view for the same runtime event
+
+The point of `observed_runtime_context` is not to turn runtime guesses back on. It is to give import-time policy and future tooling a concrete record of the exact strict-fixture event that exposed the ambiguous family.
+
 ## Next Implementation Step
 
 - Inspect the imported-index output on the strict Paper Mario families
-- Decide what additional discriminators or policy fields are required to choose between `variant_groups` during import
+- Decide what additional discriminators or policy fields are required to choose between `variant_groups` during import, using the recorded runtime context instead of ad hoc notes
 - Keep runtime code unchanged until the imported subset can be inspected and compared against strict fixture evidence

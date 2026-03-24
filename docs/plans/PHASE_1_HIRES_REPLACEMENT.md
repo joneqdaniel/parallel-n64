@@ -86,6 +86,7 @@
     - there is now a first explicit policy file at `tools/hires_pack_import_policy.json`
       - it locks the deterministic `2a1be0a4/fs258 -> 640x160` case
       - it records a non-binding `120x120` suggestion for `42779bdd/fs258` based on the current strict file-select observation
+      - it now also records explicit reasoning for why `120x120` currently looks stronger than `64x64` and `144x144`
     - there is now a first review tool at `tools/hires_pack_review.py`
       - use it to inspect selector state, variant groups, runtime context, applied policy, and simple candidate-review notes for a strict bundle without treating the imported index as a final committed format
     - this is the first concrete transport path from legacy Glide-era packs into a cleaner ParaLLEl-owned representation

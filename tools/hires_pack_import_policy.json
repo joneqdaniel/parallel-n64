@@ -4,12 +4,37 @@
     "legacy-low32-2a1be0a4-fs258": {
       "status": "selected",
       "selected_variant_group_id": "legacy-low32-2a1be0a4-fs258-640x160",
-      "justification": "Single compatibility variant group under compat-repl-dims-unique on the strict file-select fixture."
+      "justification": "Single compatibility variant group under compat-repl-dims-unique on the strict file-select fixture.",
+      "selection_notes": [
+        "Only one compatibility variant group exists for this family.",
+        "Observed sample_replacement_dims is 640x160 on the strict file-select fixture."
+      ]
     },
     "legacy-low32-42779bdd-fs258": {
       "status": "manual-review-required",
       "suggested_variant_group_id": "legacy-low32-42779bdd-fs258-120x120",
-      "justification": "Matches the current strict file-select sample_replacement_dims observation (120x120), but remains non-binding until validated against imported output and future fixture evidence."
+      "justification": "Matches the current strict file-select sample_replacement_dims observation (120x120), but remains non-binding until validated against imported output and future fixture evidence.",
+      "supporting_notes": [
+        "Observed sample_replacement_dims is 120x120 on the strict file-select fixture.",
+        "Current review scoring ranks 120x120 above the other candidate variant groups for this family."
+      ],
+      "weaker_variant_groups": [
+        {
+          "variant_group_id": "legacy-low32-42779bdd-fs258-144x144",
+          "reasons": [
+            "Does not match observed sample_replacement_dims.",
+            "Not the current policy suggestion."
+          ]
+        },
+        {
+          "variant_group_id": "legacy-low32-42779bdd-fs258-64x64",
+          "reasons": [
+            "Does not match observed sample_replacement_dims.",
+            "Not the current policy suggestion.",
+            "Carries the broadest candidate pool and palette spread of the three groups."
+          ]
+        }
+      ]
     }
   }
 }

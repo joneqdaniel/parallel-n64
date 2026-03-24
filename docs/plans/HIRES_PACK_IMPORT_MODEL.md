@@ -188,6 +188,7 @@ The current strict file-select result shows both cases:
 
 - Use [`tools/hires_pack_import_policy.json`](/home/auro/code/parallel-n64/tools/hires_pack_import_policy.json) to record explicit import decisions or non-binding suggestions.
 - Pass it with `--policy` when emitting an imported index.
+- The policy file can also carry explicit reasoning notes, including why a suggested candidate currently looks stronger and why other variant groups are weaker.
 - Current examples:
   - `legacy-low32-2a1be0a4-fs258`
     - explicit selected variant group: `legacy-low32-2a1be0a4-fs258-640x160`

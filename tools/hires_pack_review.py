@@ -188,6 +188,14 @@ def format_markdown(report):
             )
             if family.get("applied_policy"):
                 lines.append(f"  - applied_policy: `{json.dumps(family['applied_policy'], sort_keys=True)}`")
+                for note in family["applied_policy"].get("selection_notes", []):
+                    lines.append(f"    - policy_note: {note}")
+                for note in family["applied_policy"].get("supporting_notes", []):
+                    lines.append(f"    - policy_note: {note}")
+                for weaker in family["applied_policy"].get("weaker_variant_groups", []):
+                    lines.append(f"    - weaker_variant_group `{weaker['variant_group_id']}`")
+                    for reason in weaker.get("reasons", []):
+                        lines.append(f"      - {reason}")
             for group in family["variant_groups"]:
                 lines.append(
                     f"  - variant_group `{group['variant_group_id']}` dims=`{group['dims']}` candidates=`{group['candidate_count']}` palette_crcs=`{group['legacy_palette_crc_count']}` review_score=`{group['review_score']}`"

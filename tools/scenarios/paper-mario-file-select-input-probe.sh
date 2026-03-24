@@ -17,6 +17,7 @@ INPUT_REPEAT_COUNT="1"
 INTER_PULSE_SETTLE_FRAMES="5"
 POST_INPUT_SETTLE_FRAMES="20"
 STEP_CHUNK_FRAMES="1"
+INPUT_SEQUENCE=""
 
 usage() {
   cat <<'EOF'
@@ -29,6 +30,9 @@ Options:
   --input-hold-frames N      Frames to hold the input (default: 1)
   --input-repeat-count N     Number of input pulses to send (default: 1)
   --inter-pulse-settle N     Frames to settle between repeated pulses (default: 5)
+  --input-sequence SPEC      Comma-separated pulse sequence overriding repeat mode.
+                             Item format: MASK[:HOLD[:SETTLE_AFTER]]
+                             Example: 0x20:1:5,0x01:1:20
   --post-input-settle N      Frames to settle after release (default: 20)
   --probe-label LABEL        Short label for bundle metadata
   --bundle-dir PATH          Output bundle directory
@@ -59,6 +63,10 @@ while (($#)); do
       shift
       INTER_PULSE_SETTLE_FRAMES="${1:-}"
       ;;
+    --input-sequence)
+      shift
+      INPUT_SEQUENCE="${1:-}"
+      ;;
     --post-input-settle)
       shift
       POST_INPUT_SETTLE_FRAMES="${1:-}"
@@ -87,8 +95,8 @@ while (($#)); do
   shift
 done
 
-if [[ -z "$INPUT_MASK" ]]; then
-  echo "--input-mask is required." >&2
+if [[ -z "$INPUT_MASK" && -z "$INPUT_SEQUENCE" ]]; then
+  echo "--input-mask or --input-sequence is required." >&2
   exit 2
 fi
 
@@ -121,6 +129,7 @@ cat > "$BUNDLE_DIR/bundle.json" <<EOF
     "input_hold_frames": $INPUT_HOLD_FRAMES,
     "input_repeat_count": $INPUT_REPEAT_COUNT,
     "inter_pulse_settle_frames": $INTER_PULSE_SETTLE_FRAMES,
+    "input_sequence": "$INPUT_SEQUENCE",
     "post_input_settle_frames": $POST_INPUT_SETTLE_FRAMES,
     "step_chunk_frames": $STEP_CHUNK_FRAMES
   },
@@ -147,6 +156,7 @@ INPUT_MASK=$INPUT_MASK
 INPUT_HOLD_FRAMES=$INPUT_HOLD_FRAMES
 INPUT_REPEAT_COUNT=$INPUT_REPEAT_COUNT
 INTER_PULSE_SETTLE_FRAMES=$INTER_PULSE_SETTLE_FRAMES
+INPUT_SEQUENCE=$INPUT_SEQUENCE
 POST_INPUT_SETTLE_FRAMES=$POST_INPUT_SETTLE_FRAMES
 STEP_CHUNK_FRAMES=$STEP_CHUNK_FRAMES
 ROM_PATH=$ROM_PATH
@@ -208,18 +218,52 @@ append_chunked_step_commands() {
   done
 }
 
-repeat_index="1"
-while (( repeat_index <= INPUT_REPEAT_COUNT )); do
-  ADAPTER_ARGS+=(--command "SET_INPUT_PORT 0 ${INPUT_MASK}")
-  append_chunked_step_commands "$INPUT_HOLD_FRAMES" 10
+append_input_pulse() {
+  local pulse_mask="$1"
+  local hold_frames="$2"
+  local settle_frames="$3"
+  ADAPTER_ARGS+=(--command "SET_INPUT_PORT 0 ${pulse_mask}")
+  append_chunked_step_commands "$hold_frames" 10
   ADAPTER_ARGS+=(--command "CLEAR_INPUT_PORT 0")
-  if (( repeat_index < INPUT_REPEAT_COUNT )); then
-    append_chunked_step_commands "$INTER_PULSE_SETTLE_FRAMES" 10
-  else
-    append_chunked_step_commands "$POST_INPUT_SETTLE_FRAMES" 10
-  fi
-  repeat_index=$(( repeat_index + 1 ))
-done
+  append_chunked_step_commands "$settle_frames" 10
+}
+
+if [[ -n "$INPUT_SEQUENCE" ]]; then
+  IFS=',' read -r -a sequence_items <<< "$INPUT_SEQUENCE"
+  sequence_count="${#sequence_items[@]}"
+  sequence_index="0"
+  while (( sequence_index < sequence_count )); do
+    sequence_item="${sequence_items[$sequence_index]}"
+    IFS=':' read -r seq_mask seq_hold seq_settle <<< "$sequence_item"
+    if [[ -z "${seq_mask:-}" ]]; then
+      echo "[scenario] invalid --input-sequence item: $sequence_item" >&2
+      exit 2
+    fi
+    if [[ -z "${seq_hold:-}" ]]; then
+      seq_hold="$INPUT_HOLD_FRAMES"
+    fi
+    if [[ -z "${seq_settle:-}" ]]; then
+      if (( sequence_index + 1 < sequence_count )); then
+        seq_settle="$INTER_PULSE_SETTLE_FRAMES"
+      else
+        seq_settle="$POST_INPUT_SETTLE_FRAMES"
+      fi
+    fi
+    append_input_pulse "$seq_mask" "$seq_hold" "$seq_settle"
+    sequence_index=$(( sequence_index + 1 ))
+  done
+else
+  repeat_index="1"
+  while (( repeat_index <= INPUT_REPEAT_COUNT )); do
+    if (( repeat_index < INPUT_REPEAT_COUNT )); then
+      settle_frames="$INTER_PULSE_SETTLE_FRAMES"
+    else
+      settle_frames="$POST_INPUT_SETTLE_FRAMES"
+    fi
+    append_input_pulse "$INPUT_MASK" "$INPUT_HOLD_FRAMES" "$settle_frames"
+    repeat_index=$(( repeat_index + 1 ))
+  done
+fi
 
 ADAPTER_ARGS+=(
   --command "SNAPSHOT_CORE_MEMORY paper-mario-gamestatus 800740aa 230"

@@ -46,6 +46,7 @@ Current Paper Mario runtime note:
 - paired `on` runs now also emit machine-readable hi-res capability evidence, including the resolved cache path, the coarse disable reason, and the descriptor-indexing feature bits seen at runtime
 - paired `on` runs now also collapse raw hi-res hit/miss/TLUT lines into stable bucket summaries in `traces/hires-evidence.json`, so repeated uncovered classes can be compared across runs without diffing the whole RetroArch log
 - the same `hires-evidence.json` trace now also cross-checks miss keys against the active `.hts`/`.htc` index, so bundle evidence can distinguish “unmatched in the local pack index under the current checksum generation” from “lookup present under another formatsize”
+- CI palette probe runs now also record `ci_palette_probe.families` in `traces/hires-evidence.json`, so representative CI misses can report whether their low-32 pack family is exact/generic, dimension-uniform, or structurally ambiguous without changing the default lookup path
 - tracked Paper Mario scenarios now also support `RUNTIME_ENV_OVERRIDE` for temporary experimental runs, and `DISABLE_SCREENSHOT_VERIFY=1` when a controlled debug run is expected to diverge from the locked strict hashes
 - runtime env files are now auto-exported while sourcing, so temporary `PARALLEL_RDP_*` debug toggles in a `RUNTIME_ENV_OVERRIDE` file actually reach the RetroArch/core child process
 - the ParaLLEl runtime path now supports temporary hi-res debug filters through `PARALLEL_RDP_HIRES_FILTER_ALLOW_TILE`, `PARALLEL_RDP_HIRES_FILTER_ALLOW_BLOCK`, and `PARALLEL_RDP_HIRES_FILTER_SIGNATURES`; filtered events are recorded in `traces/hires-evidence.json`
@@ -60,6 +61,9 @@ Current Paper Mario runtime note:
   - `PARALLEL_RDP_HIRES_CI_LOW32_FALLBACK=3` is a tighter middle-ground experiment that only accepts low-32 fallback when all candidate pack entries agree on replacement dimensions; on strict file select it recovers the unambiguous `32x16` class and the single truly unique `8x16` case
   - `PARALLEL_RDP_HIRES_CI_LOW32_FALLBACK=2` recovers the current CI tile palette-class misses broadly on strict file select, leaving only the block classes unresolved
   - these are debug-only direction-finding experiments, not accepted runtime policy
+- the new CI family probe explains why those fallback results split the way they do:
+  - the representative `32x16` family is generic-only but dimension-uniform (`2` generic entries, `1` replacement-dimension family), which matches the success of `replacement-dims-unique`
+  - the representative `8x16` family is generic-only and structurally broad (`17` generic entries across `3` replacement-dimension families), which is exactly the kind of case that should stay out of the default path until a better discriminator exists
 - the tracked Paper Mario semantic trace currently uses an empirical vanilla `gGameStatus` slice at `0x800740aa`; it now records a raw window SHA-256, empirical phase guess for proven authority states, and decomp-backed `map_name_candidate` values for KMR/HOS/OSR area-local map indices, but it is not yet a full scene-name/mode decoder
 - tracked title-screen and file-select runs now also snapshot symbol-backed vanilla `CurGameMode` and map-transition globals, so each authority bundle records callback-phase evidence in addition to the `gGameStatus` window
 - the corrected Paper Mario title-screen authority now reports `state_init_title_screen` / `state_step_title_screen` and captures to `42e501afb2548a5067bc034578c5bcebf0bf2a40f612bbcc94972af716ad6ff2`

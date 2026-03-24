@@ -59,6 +59,10 @@
     - legacy per-bank hash / CRC32 candidates also fail to produce pack hits
     - the representative current and candidate palette CRCs still do not line up with the active pack's stored high-32 variants for the same low-32 texture CRCs
     - that pushes the next likely bug boundary from “pick a different CRC formula” to “verify whether the current `LoadTLUT` shadow/update path is even hashing the right palette bytes/layout”
+  - the CI probe now also records low-32 pack-family structure without changing lookup behavior:
+    - the representative `32x16` file-select family (`low32=2a1be0a4`) is generic-only and dimension-uniform: `2` generic entries, `2` palette variants, `1` replacement-dimension family (`640x160`)
+    - the representative ambiguous `8x16` family (`low32=42779bdd`) is also generic-only but structurally broad: `17` generic entries, `17` palette variants, `3` replacement-dimension families, and no entry matching the current exact palette CRC
+    - that split explains why `replacement-dims-unique` is a plausible constrained compatibility tier for part of the CI problem while the broader `8x16` family still needs a better discriminator than “same low-32 texture CRC”
   - the first TLUT-state correction is now in place: the shadow patches by TMEM offset instead of wiping the whole palette shadow on every 32-byte update
   - current result of that correction:
     - the representative CI palette CRCs change materially on file select, so the old whole-shadow overwrite path was definitely wrong

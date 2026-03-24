@@ -92,6 +92,15 @@ inline uint8_t expand_6_to_8(uint32_t v)
 {
 	return static_cast<uint8_t>((v << 2) | (v >> 4));
 }
+
+template <typename T>
+inline void push_unique(std::vector<T> &values, const T &value)
+{
+	for (const auto &existing : values)
+		if (existing == value)
+			return;
+	values.push_back(value);
+}
 }
 
 bool ReplacementProvider::enabled() const
@@ -386,6 +395,73 @@ bool ReplacementProvider::lookup_ci_low32_any(uint32_t checksum_low32,
 		*resolved_checksum64 = entry->checksum64;
 	if (matched_preferred_palette)
 		*matched_preferred_palette = matched_preferred;
+	return true;
+}
+
+bool ReplacementProvider::describe_ci_low32_family(uint32_t checksum_low32,
+                                                   uint16_t formatsize,
+                                                   uint32_t preferred_palette_crc,
+                                                   CILow32FamilyDiagnostics *out) const
+{
+	if (!enabled_ || !out)
+		return false;
+
+	auto it = checksum_low32_index_.find(checksum_low32);
+	if (it == checksum_low32_index_.end())
+		return false;
+
+	CILow32FamilyDiagnostics diag = {};
+	diag.available = true;
+
+	for (size_t index : it->second)
+	{
+		const Entry &entry = entries_[index];
+		if (entry.formatsize == formatsize)
+			diag.exact_formatsize_entries++;
+		else if (entry.formatsize == 0)
+			diag.generic_formatsize_entries++;
+	}
+
+	const bool use_exact_formatsize = diag.exact_formatsize_entries > 0;
+	diag.prefer_exact_formatsize = use_exact_formatsize;
+	const uint16_t active_formatsize = use_exact_formatsize ? formatsize : 0;
+
+	std::vector<uint64_t> unique_checksums;
+	std::vector<uint32_t> unique_palettes;
+	std::vector<uint64_t> unique_repl_dims;
+
+	for (size_t index : it->second)
+	{
+		const Entry &entry = entries_[index];
+		if (entry.formatsize != active_formatsize)
+			continue;
+
+		diag.active_entry_count++;
+		push_unique(unique_checksums, entry.checksum64);
+		push_unique(unique_palettes, uint32_t((entry.checksum64 >> 32) & 0xffffffffu));
+		push_unique(unique_repl_dims, (uint64_t(entry.width) << 32) | uint64_t(entry.height));
+
+		if (((entry.checksum64 >> 32) & 0xffffffffu) == preferred_palette_crc)
+			diag.active_preferred_palette_match_count++;
+
+		if (diag.sample_repl_w == 0 && diag.sample_repl_h == 0)
+		{
+			diag.sample_repl_w = entry.width;
+			diag.sample_repl_h = entry.height;
+		}
+	}
+
+	diag.active_unique_checksum_count = uint32_t(unique_checksums.size());
+	diag.active_unique_palette_count = uint32_t(unique_palettes.size());
+	diag.active_unique_repl_dim_count = uint32_t(unique_repl_dims.size());
+	diag.active_repl_dims_uniform = diag.active_unique_repl_dim_count == 1 && diag.active_entry_count > 0;
+	if (diag.active_repl_dims_uniform && !unique_repl_dims.empty())
+	{
+		diag.sample_repl_w = uint32_t(unique_repl_dims.front() >> 32);
+		diag.sample_repl_h = uint32_t(unique_repl_dims.front() & 0xffffffffu);
+	}
+
+	*out = diag;
 	return true;
 }
 

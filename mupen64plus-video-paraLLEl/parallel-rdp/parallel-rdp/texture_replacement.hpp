@@ -25,6 +25,22 @@ struct ReplacementImage
 	std::vector<uint8_t> rgba8;
 };
 
+struct CILow32FamilyDiagnostics
+{
+	bool available = false;
+	bool prefer_exact_formatsize = false;
+	uint32_t exact_formatsize_entries = 0;
+	uint32_t generic_formatsize_entries = 0;
+	uint32_t active_entry_count = 0;
+	uint32_t active_unique_checksum_count = 0;
+	uint32_t active_unique_palette_count = 0;
+	uint32_t active_unique_repl_dim_count = 0;
+	uint32_t active_preferred_palette_match_count = 0;
+	uint32_t sample_repl_w = 0;
+	uint32_t sample_repl_h = 0;
+	bool active_repl_dims_uniform = false;
+};
+
 class ReplacementProvider
 {
 public:
@@ -40,6 +56,10 @@ public:
 	                         ReplacementMeta *out,
 	                         uint64_t *resolved_checksum64 = nullptr,
 	                         bool *matched_preferred_palette = nullptr) const;
+	bool describe_ci_low32_family(uint32_t checksum_low32,
+	                              uint16_t formatsize,
+	                              uint32_t preferred_palette_crc,
+	                              CILow32FamilyDiagnostics *out) const;
 	bool decode_rgba8(uint64_t checksum64, uint16_t formatsize, ReplacementImage *out) const;
 	void trim_to_budget(size_t bytes);
 	void clear();

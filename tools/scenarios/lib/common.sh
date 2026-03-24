@@ -158,6 +158,9 @@ result = {
         "top_exact_or_generic_present_buckets": [],
     },
     "sample_events": [],
+    "ci_palette_probe": {
+        "families": [],
+    },
 }
 
 if not log_path.is_file():
@@ -176,6 +179,7 @@ hit_miss_re = re.compile(r"Hi-res keying (hit|miss): (.+)")
 filtered_re = re.compile(r"Hi-res keying filtered: reason=([^\s]+) (.+)")
 tlut_re = re.compile(r"Hi-res keying TLUT update: (.+)")
 filter_config_re = re.compile(r"Hi-res debug filter: allow_tile=(\d+) allow_block=(\d+) signature_count=(\d+)\.")
+ci_family_re = re.compile(r"Hi-res CI palette probe family: (.+)")
 field_re = re.compile(r"(\w+)=([^\s]+)")
 
 bucket_maps = {
@@ -500,6 +504,14 @@ for line in log_path.read_text(errors="replace").splitlines():
             "allow_block": bool(int(m.group(2))),
             "signature_count": int(m.group(3)),
         }
+        continue
+
+    m = ci_family_re.search(line)
+    if m:
+        result["available"] = True
+        fields = parse_fields(m.group(1).strip())
+        if len(result["ci_palette_probe"]["families"]) < 20:
+            result["ci_palette_probe"]["families"].append(fields)
         continue
 
     m = hit_miss_re.search(line)

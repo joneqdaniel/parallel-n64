@@ -3914,6 +3914,30 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 								tlut_tmem_shadow,
 								sizeof(tlut_tmem_shadow),
 								tlut_shadow_valid));
+						CILow32FamilyDiagnostics family_diag = {};
+						if (replacement_provider->describe_ci_low32_family(texture_crc, formatsize, palette_crc, &family_diag) &&
+						    family_diag.available)
+						{
+							LOGI("Hi-res CI palette probe family: mode=%s addr=0x%06x wh=%ux%u fs=%u low32=%08x pcrc=%08x active_pool=%s exact_entries=%u generic_entries=%u active_entries=%u unique_checksums=%u unique_palettes=%u unique_repl_dims=%u preferred_palette_matches=%u uniform_repl_dims=%d sample_repl=%ux%u.\n",
+							     load_mode_to_string(info.mode),
+							     src_base_addr & 0x00ffffffu,
+							     key_width_pixels,
+							     key_height_pixels,
+							     unsigned(formatsize),
+							     texture_crc,
+							     palette_crc,
+							     family_diag.prefer_exact_formatsize ? "exact" : "generic",
+							     family_diag.exact_formatsize_entries,
+							     family_diag.generic_formatsize_entries,
+							     family_diag.active_entry_count,
+							     family_diag.active_unique_checksum_count,
+							     family_diag.active_unique_palette_count,
+							     family_diag.active_unique_repl_dim_count,
+							     family_diag.active_preferred_palette_match_count,
+							     family_diag.active_repl_dims_uniform ? 1 : 0,
+							     family_diag.sample_repl_w,
+							     family_diag.sample_repl_h);
+						}
 					}
 
 					const uint32_t ci8_candidate_entries[] = { 16u, 32u, 64u, 128u, 256u };

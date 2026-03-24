@@ -193,6 +193,12 @@
 2. Phase 1: hi-res replacement without corruption
 3. Phase 2: scaling and sharpness work
 
+## Current Planning Focus
+
+- The active planning question is no longer whether a ParaLLEl-owned hi-res format is justified.
+- The active planning question is what evidence threshold we require before committing to that format.
+- That threshold is now documented in [HIRES_FORMAT_CONFIDENCE_PLAN.md](/home/auro/code/parallel-n64/docs/plans/HIRES_FORMAT_CONFIDENCE_PLAN.md).
+
 ## Current Validation Scope
 
 - Paper Mario only

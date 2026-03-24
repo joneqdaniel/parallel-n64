@@ -6,6 +6,8 @@
 - Some CI families are suitable for constrained compatibility handling
 - Other CI families are fundamentally ambiguous under the legacy format and should not be promoted into permissive runtime fallback
 
+This document describes the shape of the import model itself. The evidence threshold for when we should feel confident enough to commit to that model is tracked separately in [HIRES_FORMAT_CONFIDENCE_PLAN.md](/home/auro/code/parallel-n64/docs/plans/HIRES_FORMAT_CONFIDENCE_PLAN.md).
+
 ## Core Rule
 
 - Legacy pack format is an input format

@@ -102,6 +102,7 @@
 - There is now a first explicit import-policy layer at [hires_pack_import_policy.json](/home/auro/code/parallel-n64/tools/hires_pack_import_policy.json), which currently:
   - locks the deterministic `2a1be0a4/fs258 -> 640x160` case
   - records a non-binding `120x120` suggestion for the ambiguous `42779bdd/fs258` family
+- There is now a first non-committal review path at [hires_pack_review.py](/home/auro/code/parallel-n64/tools/hires_pack_review.py), so strict import slices can be inspected as review artifacts before we treat the imported index as a settled format
 - That makes legacy pack transport a real implementation path instead of only a planning statement
 - The new block-shape probe is now wired through the tracked file-select scenario and keeps the strict hash intact while logging alternate-shape diagnostics
 - That probe has already ruled out the dominant file-select miss as a simple hidden multi-line reinterpretation: `mode=block fmt=2 siz=2 wh=64x1 fs=514 tile=7` stays a plain `64x1` upload (`tmem_stride_words=0`) and finds no alternate-shape pack hit

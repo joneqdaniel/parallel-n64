@@ -86,6 +86,8 @@
     - there is now a first explicit policy file at `tools/hires_pack_import_policy.json`
       - it locks the deterministic `2a1be0a4/fs258 -> 640x160` case
       - it records a non-binding `120x120` suggestion for `42779bdd/fs258` based on the current strict file-select observation
+    - there is now a first review tool at `tools/hires_pack_review.py`
+      - use it to inspect selector state, variant groups, runtime context, and applied policy for a strict bundle without treating the imported index as a final committed format
     - this is the first concrete transport path from legacy Glide-era packs into a cleaner ParaLLEl-owned representation
   - the first TLUT-state correction is now in place: the shadow patches by TMEM offset instead of wiping the whole palette shadow on every 32-byte update
   - current result of that correction:

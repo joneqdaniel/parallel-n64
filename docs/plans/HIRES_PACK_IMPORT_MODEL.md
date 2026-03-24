@@ -88,6 +88,8 @@
     - explicit `variant_groups` inside compatibility and unresolved family output
 - [`tools/hires_pack_import_policy.json`](/home/auro/code/parallel-n64/tools/hires_pack_import_policy.json)
   - first explicit import-policy layer for legacy family decisions and review-required suggestions
+- [`tools/hires_pack_review.py`](/home/auro/code/parallel-n64/tools/hires_pack_review.py)
+  - emits a review artifact for a bundle-backed import slice so we can inspect selector state, variant groups, and applied policy without treating the imported index as final format
 
 ## Imported Index v1
 
@@ -194,9 +196,26 @@ The current strict file-select result shows both cases:
     - suggested variant group: `legacy-low32-42779bdd-fs258-120x120`
     - suggestion is intentionally non-binding until validated
 
+## Review Artifact
+
+- Use [`tools/hires_pack_review.py`](/home/auro/code/parallel-n64/tools/hires_pack_review.py) when the goal is understanding rather than committing to a format.
+- It consumes:
+  - cache path
+  - strict bundle
+  - optional policy file
+- It emits:
+  - summary counts
+  - compatibility vs unresolved family review
+  - current selector state
+  - current runtime context
+  - current variant-group breakdown
+  - any applied policy entries
+
+This is the preferred inspection path while the import format is still evolving.
+
 ## Next Implementation Step
 
-- Inspect the imported-index output on the strict Paper Mario families
+- Inspect the review artifact and imported-index output on the strict Paper Mario families
 - Use the attached policy layer to start testing explicit imported-family decisions without changing runtime behavior
 - Decide what additional discriminators or policy fields are required to turn the ambiguous selector policies into deterministic ones, using the recorded runtime context instead of ad hoc notes
 - Keep runtime code unchanged until the imported subset can be inspected and compared against strict fixture evidence

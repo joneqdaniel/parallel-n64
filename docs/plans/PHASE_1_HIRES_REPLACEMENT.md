@@ -85,6 +85,7 @@
       - that family now carries a manual-disambiguation selector policy instead of being an unstructured unresolved family
     - there is now a first explicit policy file at `tools/hires_pack_import_policy.json`
       - it locks the deterministic `2a1be0a4/fs258 -> 640x160` case
+      - it now also locks the deterministic probe-backed `dd798ca8/fs258 -> 560x160` case
       - it records a non-binding `120x120` suggestion for `42779bdd/fs258` based on the current strict file-select observation
       - it now also records explicit reasoning for why `120x120` currently looks stronger than `64x64` and `144x144`
       - it now records overturn conditions as well, so the current `120x120` preference is explicitly testable rather than sticky by default
@@ -104,7 +105,14 @@
         - `120x120`: `7` records / `12576` bytes
         - `144x144`: `1` record / `2054` bytes
         - `64x64`: `9` records / `16034` bytes
-    - caution: the current import-model evidence is still based on only `2` distinct CI families, both from the strict file-select fixture
+    - the new file-select input-probe scenario now expands that evidence base without changing the default strict fixtures:
+      - it advances exploratory post-input settles one frame at a time so probe bundles stay reliable even when transition-heavy probe paths stall on larger `STEP_FRAME` requests
+      - the first `down` probe changes the captured file-select frame but does not add a new CI family
+      - the first `right` probe adds a third CI family, `dd798ca8/fs258/28x16 -> 560x160`
+      - that new family classifies cleanly as `compat-unique`, which is the first sign that deterministic imported selectors can grow beyond the original strict pair without widening runtime lookup heuristics
+    - caution: the current import-model evidence is still narrow
+      - it now covers `3` distinct CI families instead of `2`
+      - all three still come from file-select-state exploration rather than broader gameplay coverage
     - this is the first concrete transport path from legacy Glide-era packs into a cleaner ParaLLEl-owned representation
   - the first TLUT-state correction is now in place: the shadow patches by TMEM offset instead of wiping the whole palette shadow on every 32-byte update
   - current result of that correction:

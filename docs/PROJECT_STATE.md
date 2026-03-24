@@ -31,6 +31,7 @@
 - The tracked Paper Mario scenarios now use `WAIT_COMMAND_READY` for real command-channel readiness on the ParaLLEl path instead of relying on earlier log-only startup gates
 - The local RetroArch stdin command surface now includes `PING`, and the adapter uses it to prove the command channel is ready before issuing tracked savestate commands
 - The current authoritative file-select state is minted from the deterministic title-screen bootstrap path using a held `START` input for `60` frames and a frame-targeted save at `frame=303`
+- There is now a dedicated file-select input-probe scenario for bundle-backed Phase 1 exploration, and it advances exploratory post-input settles one frame at a time so probe evidence stays reliable without loosening the global adapter contract
 - Paired `off` and `on` scenario runs are now verified directly from the tracked scenario entrypoints on the corrected ParaLLEl path
 - The Vulkan descriptor-indexing gate on this machine is now fixed for tracked runs: the context recovers the required feature bits through a Vulkan 1.2 feature-query fallback, and hi-res startup no longer disables itself on capability grounds
 - The tracked hi-res pack-path override bug is now fixed: `PARALLEL_RDP_HIRES_CACHE_PATH` takes precedence over the core's default system-directory path during runtime resolution
@@ -101,6 +102,7 @@
 - Those same imported entries now also carry `selector_policy`, so the current import output can already distinguish deterministic compatibility families from unresolved families that still need a manual import decision
 - There is now a first explicit import-policy layer at [hires_pack_import_policy.json](/home/auro/code/parallel-n64/tools/hires_pack_import_policy.json), which currently:
   - locks the deterministic `2a1be0a4/fs258 -> 640x160` case
+  - locks the deterministic probe-backed `dd798ca8/fs258 -> 560x160` case
   - records a non-binding `120x120` suggestion for the ambiguous `42779bdd/fs258` family
   - records why `120x120` is currently stronger than `64x64` / `144x144` on the strict file-select evidence
   - records what new evidence would overturn that `120x120` suggestion
@@ -118,11 +120,14 @@
   - `120x120`: `7` records, total `12576` bytes, matches current runtime `sample_replacement_dims`
   - `144x144`: `1` record, total `2054` bytes, smallest artifact but no positive match to current runtime evidence
   - `64x64`: `9` records, total `16034` bytes, broadest artifact and no positive match to current runtime evidence
-- The current CI import-model evidence is still narrow:
-  - only `2` distinct CI families are represented in existing bundle-backed probes
-  - both come from the strict file-select fixture
-  - `2a1be0a4/fs258/32x16 -> 640x160`
-  - `42779bdd/fs258/8x16 -> {120x120, 144x144, 64x64}`
+- The current CI import-model evidence is still narrow, but it is broader than the original strict pair:
+  - the strict file-select authority still surfaces two families:
+    - `2a1be0a4/fs258/32x16 -> 640x160`
+    - `42779bdd/fs258/8x16 -> {120x120, 144x144, 64x64}`
+  - a deterministic `right` input probe from that same authority now adds a third family:
+    - `dd798ca8/fs258/28x16 -> 560x160`
+  - a matching `down` input probe changes the captured file-select frame but does not add a new CI family
+  - so the current import evidence is no longer “only two families,” but it is still entirely tied to file-select-state exploration rather than broader game coverage
 - That makes legacy pack transport a real implementation path instead of only a planning statement
 - The new block-shape probe is now wired through the tracked file-select scenario and keeps the strict hash intact while logging alternate-shape diagnostics
 - That probe has already ruled out the dominant file-select miss as a simple hidden multi-line reinterpretation: `mode=block fmt=2 siz=2 wh=64x1 fs=514 tile=7` stays a plain `64x1` upload (`tmem_stride_words=0`) and finds no alternate-shape pack hit

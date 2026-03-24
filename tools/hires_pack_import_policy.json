@@ -10,6 +10,15 @@
         "Observed sample_replacement_dims is 640x160 on the strict file-select fixture."
       ]
     },
+    "legacy-low32-dd798ca8-fs258": {
+      "status": "selected",
+      "selected_variant_group_id": "legacy-low32-dd798ca8-fs258-560x160",
+      "justification": "Single compatibility variant group surfaced by the deterministic file-select right probe.",
+      "selection_notes": [
+        "Only one compatibility variant group exists for this family.",
+        "Observed sample_replacement_dims is 560x160 on the file-select right probe."
+      ]
+    },
     "legacy-low32-42779bdd-fs258": {
       "status": "manual-review-required",
       "suggested_variant_group_id": "legacy-low32-42779bdd-fs258-120x120",

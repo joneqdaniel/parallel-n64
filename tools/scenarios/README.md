@@ -26,6 +26,7 @@ Current tracked scenario seeds:
 - [`paper-mario-title-screen.runtime.env`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-title-screen.runtime.env)
 - [`paper-mario-file-select.sh`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-file-select.sh)
 - [`paper-mario-file-select.runtime.env`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-file-select.runtime.env)
+- [`paper-mario-file-select-input-probe.sh`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-file-select-input-probe.sh)
 - [`paper-mario-hos-05-entry-3.sh`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-hos-05-entry-3.sh)
 - [`paper-mario-hos-05-entry-3.runtime.env`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-hos-05-entry-3.runtime.env)
 - [`remint-paper-mario-file-select-authority.sh`](/home/auro/code/parallel-n64/tools/scenarios/remint-paper-mario-file-select-authority.sh)
@@ -43,6 +44,7 @@ Current Paper Mario runtime note:
 - tracked Paper Mario scenarios now force the intended ParaLLEl/Vulkan path with `PARALLEL_N64_GFX_PLUGIN_OVERRIDE=parallel` and bundle-local core options
 - the tracked adapter now supports `WAIT_CORE_MEMORY_HEX`, which lets local scenario flows wait on exact RAM signatures for deterministic probes
 - the canonical steady-state Paper Mario workflow is `load savestate -> settle 3 frames -> capture`
+- the new file-select input-probe scenario is the controlled Phase 1 exploration path for widening CI family evidence from the authoritative file-select state; it now advances post-input settles one frame at a time because larger probe-step batches were less reliable on transition-heavy menu paths
 - paired `on` runs now also emit machine-readable hi-res capability evidence, including the resolved cache path, the coarse disable reason, and the descriptor-indexing feature bits seen at runtime
 - paired `on` runs now also collapse raw hi-res hit/miss/TLUT lines into stable bucket summaries in `traces/hires-evidence.json`, so repeated uncovered classes can be compared across runs without diffing the whole RetroArch log
 - the same `hires-evidence.json` trace now also cross-checks miss keys against the active `.hts`/`.htc` index, so bundle evidence can distinguish “unmatched in the local pack index under the current checksum generation” from “lookup present under another formatsize”
@@ -80,6 +82,10 @@ Current Paper Mario runtime note:
 - the new CI family probe explains why those fallback results split the way they do:
   - the representative `32x16` family is generic-only but dimension-uniform (`2` generic entries, `1` replacement-dimension family), which matches the success of `replacement-dims-unique`
   - the representative `8x16` family is generic-only and structurally broad (`17` generic entries across `3` replacement-dimension families), which is exactly the kind of case that should stay out of the default path until a better discriminator exists
+- the first bundle-backed file-select input probes now extend that picture slightly:
+  - the `down` probe changes the captured file-select frame but does not add a new CI family
+  - the `right` probe adds `dd798ca8/fs258/28x16 -> 560x160`
+  - that new family currently classifies as `compat-unique`, so not every newly exposed CI family is ambiguous under the imported-selector model
 - the newer negative probe results narrow the next design step further:
   - hashing only the sparse set of actually used palette indices does not produce pack hits for the remaining ambiguous CI misses
   - hashing the emulated loaded TLUT words from `tlut_tmem_shadow` also does not produce pack hits for those misses

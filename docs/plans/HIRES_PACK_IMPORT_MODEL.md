@@ -188,6 +188,11 @@ The current strict file-select result shows both cases:
 - `2a1be0a4/fs258` now has a deterministic selector policy that lands on `legacy-low32-2a1be0a4-fs258-640x160`
 - `42779bdd/fs258` now has a manual selector policy with three candidate variant groups and explicit disambiguation inputs instead of a flat ambiguous blob
 
+The first file-select input-probe expansion now adds a third useful case as well:
+- a deterministic `right` probe from the authoritative file-select state surfaces `dd798ca8/fs258`
+- that family lands on a single `560x160` variant group and currently classifies as `compat-unique`
+- that matters because it shows the imported selector model can grow from real bundle-backed exploration without forcing us to treat every newly exposed CI family as ambiguous by default
+
 ## Policy Layer
 
 - Use [`tools/hires_pack_import_policy.json`](/home/auro/code/parallel-n64/tools/hires_pack_import_policy.json) to record explicit import decisions or non-binding suggestions.
@@ -197,6 +202,8 @@ The current strict file-select result shows both cases:
 - Current examples:
   - `legacy-low32-2a1be0a4-fs258`
     - explicit selected variant group: `legacy-low32-2a1be0a4-fs258-640x160`
+  - `legacy-low32-dd798ca8-fs258`
+    - explicit selected variant group: `legacy-low32-dd798ca8-fs258-560x160`
   - `legacy-low32-42779bdd-fs258`
     - manual-review-required
     - suggested variant group: `legacy-low32-42779bdd-fs258-120x120`
@@ -245,6 +252,7 @@ This is the preferred inspection path while the import format is still evolving.
 ## Next Implementation Step
 
 - Inspect the review artifact and imported-index output on the strict Paper Mario families
+- Use the file-select input-probe scenario to expand the bundle-backed CI family set gradually, one deterministic menu-state change at a time
 - Inspect a tiny imported subset for the strict file-select families
 - Use the attached policy layer to start testing explicit imported-family decisions without changing runtime behavior
 - Decide what additional discriminators or policy fields are required to turn the ambiguous selector policies into deterministic ones, using the recorded runtime context instead of ad hoc notes

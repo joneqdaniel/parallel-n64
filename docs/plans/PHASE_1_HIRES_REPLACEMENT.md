@@ -104,6 +104,7 @@
         - `120x120`: `7` records / `12576` bytes
         - `144x144`: `1` record / `2054` bytes
         - `64x64`: `9` records / `16034` bytes
+    - caution: the current import-model evidence is still based on only `2` distinct CI families, both from the strict file-select fixture
     - this is the first concrete transport path from legacy Glide-era packs into a cleaner ParaLLEl-owned representation
   - the first TLUT-state correction is now in place: the shadow patches by TMEM offset instead of wiping the whole palette shadow on every 32-byte update
   - current result of that correction:

@@ -118,6 +118,11 @@
   - `120x120`: `7` records, total `12576` bytes, matches current runtime `sample_replacement_dims`
   - `144x144`: `1` record, total `2054` bytes, smallest artifact but no positive match to current runtime evidence
   - `64x64`: `9` records, total `16034` bytes, broadest artifact and no positive match to current runtime evidence
+- The current CI import-model evidence is still narrow:
+  - only `2` distinct CI families are represented in existing bundle-backed probes
+  - both come from the strict file-select fixture
+  - `2a1be0a4/fs258/32x16 -> 640x160`
+  - `42779bdd/fs258/8x16 -> {120x120, 144x144, 64x64}`
 - That makes legacy pack transport a real implementation path instead of only a planning statement
 - The new block-shape probe is now wired through the tracked file-select scenario and keeps the strict hash intact while logging alternate-shape diagnostics
 - That probe has already ruled out the dominant file-select miss as a simple hidden multi-line reinterpretation: `mode=block fmt=2 siz=2 wh=64x1 fs=514 tile=7` stays a plain `64x1` upload (`tmem_stride_words=0`) and finds no alternate-shape pack hit

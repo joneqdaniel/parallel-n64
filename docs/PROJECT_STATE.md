@@ -103,6 +103,7 @@
   - locks the deterministic `2a1be0a4/fs258 -> 640x160` case
   - records a non-binding `120x120` suggestion for the ambiguous `42779bdd/fs258` family
   - records why `120x120` is currently stronger than `64x64` / `144x144` on the strict file-select evidence
+  - records what new evidence would overturn that `120x120` suggestion
 - There is now a first non-committal review path at [hires_pack_review.py](/home/auro/code/parallel-n64/tools/hires_pack_review.py), so strict import slices can be inspected as review artifacts before we treat the imported index as a settled format
 - That review path now also ranks candidate variant groups against the current observed runtime context and attached policy, so we can state why one ambiguous candidate looks stronger or weaker without turning that into runtime behavior
 - That makes legacy pack transport a real implementation path instead of only a planning statement

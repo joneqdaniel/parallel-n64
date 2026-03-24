@@ -56,6 +56,7 @@ Current Paper Mario runtime note:
 - the imported index now also emits `selector_policy`, which states whether a family is already deterministic at import time or still needs manual disambiguation and which inputs are available to resolve it
 - use [hires_pack_import_policy.json](/home/auro/code/parallel-n64/tools/hires_pack_import_policy.json) with `hires_pack_migrate.py --policy ...` when you want the imported index to carry explicit family decisions or review-required suggestions
 - the policy file can also carry reasoning notes and weaker-candidate explanations, which the review artifact now renders directly
+- the review artifact now also renders overturn conditions from the policy file, which helps keep ambiguous-family suggestions testable instead of sticky
 - use [hires_pack_review.py](/home/auro/code/parallel-n64/tools/hires_pack_review.py) when you want a review artifact for a strict bundle and policy file without treating the imported index as a final format commitment
 - the review artifact now includes simple variant-group scoring and notes based on current runtime context and policy, which is useful for comparing ambiguous candidates without widening runtime heuristics
 - tracked Paper Mario scenarios now also support `RUNTIME_ENV_OVERRIDE` for temporary experimental runs, and `DISABLE_SCREENSHOT_VERIFY=1` when a controlled debug run is expected to diverge from the locked strict hashes

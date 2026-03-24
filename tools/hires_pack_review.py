@@ -192,6 +192,8 @@ def format_markdown(report):
                     lines.append(f"    - policy_note: {note}")
                 for note in family["applied_policy"].get("supporting_notes", []):
                     lines.append(f"    - policy_note: {note}")
+                for note in family["applied_policy"].get("overturn_conditions", []):
+                    lines.append(f"    - overturn_condition: {note}")
                 for weaker in family["applied_policy"].get("weaker_variant_groups", []):
                     lines.append(f"    - weaker_variant_group `{weaker['variant_group_id']}`")
                     for reason in weaker.get("reasons", []):

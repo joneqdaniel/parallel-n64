@@ -18,6 +18,11 @@
         "Observed sample_replacement_dims is 120x120 on the strict file-select fixture.",
         "Current review scoring ranks 120x120 above the other candidate variant groups for this family."
       ],
+      "overturn_conditions": [
+        "A new strict fixture or imported-output comparison shows the correct visual result tracks 64x64 or 144x144 instead of 120x120.",
+        "A stronger selector field becomes available and points consistently at another variant group.",
+        "Imported-output validation shows 120x120 produces placement, sharpness, or corruption problems that another candidate avoids."
+      ],
       "weaker_variant_groups": [
         {
           "variant_group_id": "legacy-low32-42779bdd-fs258-144x144",

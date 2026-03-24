@@ -90,6 +90,8 @@
   - first explicit import-policy layer for legacy family decisions and review-required suggestions
 - [`tools/hires_pack_review.py`](/home/auro/code/parallel-n64/tools/hires_pack_review.py)
   - emits a review artifact for a bundle-backed import slice so we can inspect selector state, variant groups, and applied policy without treating the imported index as final format
+- [`tools/hires_pack_emit_subset.py`](/home/auro/code/parallel-n64/tools/hires_pack_emit_subset.py)
+  - emits a tiny imported subset for selected family policy keys so we can inspect a concrete ParaLLEl-owned slice without committing to the full format
 
 ## Imported Index v1
 
@@ -217,9 +219,20 @@ The current strict file-select result shows both cases:
 
 This is the preferred inspection path while the import format is still evolving.
 
+## Imported Subset Artifact
+
+- Use [`tools/hires_pack_emit_subset.py`](/home/auro/code/parallel-n64/tools/hires_pack_emit_subset.py) when you want a concrete imported slice for one or more family policy keys.
+- This is still a review artifact, not a commitment to final format.
+- It is useful for inspecting:
+  - selected family entries
+  - attached selector policy
+  - attached runtime context
+  - the exact replacement records that would travel with that slice
+
 ## Next Implementation Step
 
 - Inspect the review artifact and imported-index output on the strict Paper Mario families
+- Inspect a tiny imported subset for the strict file-select families
 - Use the attached policy layer to start testing explicit imported-family decisions without changing runtime behavior
 - Decide what additional discriminators or policy fields are required to turn the ambiguous selector policies into deterministic ones, using the recorded runtime context instead of ad hoc notes
 - Keep runtime code unchanged until the imported subset can be inspected and compared against strict fixture evidence

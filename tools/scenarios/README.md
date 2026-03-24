@@ -60,6 +60,7 @@ Current Paper Mario runtime note:
 - use [hires_pack_review.py](/home/auro/code/parallel-n64/tools/hires_pack_review.py) when you want a review artifact for a strict bundle and policy file without treating the imported index as a final format commitment
 - the review artifact now includes simple variant-group scoring and notes based on current runtime context and policy, which is useful for comparing ambiguous candidates without widening runtime heuristics
 - use `--focus-policy-key` to get a side-by-side decision sheet for one family when you need to compare candidate variant groups directly
+- use [hires_pack_emit_subset.py](/home/auro/code/parallel-n64/tools/hires_pack_emit_subset.py) when you want a concrete imported slice for selected family keys as review material
 - tracked Paper Mario scenarios now also support `RUNTIME_ENV_OVERRIDE` for temporary experimental runs, and `DISABLE_SCREENSHOT_VERIFY=1` when a controlled debug run is expected to diverge from the locked strict hashes
 - runtime env files are now auto-exported while sourcing, so temporary `PARALLEL_RDP_*` debug toggles in a `RUNTIME_ENV_OVERRIDE` file actually reach the RetroArch/core child process
 - the ParaLLEl runtime path now supports temporary hi-res debug filters through `PARALLEL_RDP_HIRES_FILTER_ALLOW_TILE`, `PARALLEL_RDP_HIRES_FILTER_ALLOW_BLOCK`, and `PARALLEL_RDP_HIRES_FILTER_SIGNATURES`; filtered events are recorded in `traces/hires-evidence.json`

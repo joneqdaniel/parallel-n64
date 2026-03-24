@@ -8,25 +8,66 @@ from hires_pack_common import parse_cache_entries, parse_bundle_ci_context, pars
 from hires_pack_migrate import build_imported_index, load_import_policy
 
 
-def filter_imported_index(imported_index, policy_keys):
+def parse_variant_selections(selection_args):
+    selections = {}
+    for raw in selection_args:
+        if "=" not in raw:
+            raise SystemExit(f"Invalid --variant-selection value: {raw}")
+        policy_key, variant_group_id = raw.split("=", 1)
+        selections[policy_key] = variant_group_id
+    return selections
+
+
+def apply_variant_selection(entry, variant_group_id):
+    variant_groups = entry.get("variant_groups") or entry.get("diagnostics", {}).get("variant_groups", [])
+    selected_groups = [group for group in variant_groups if group.get("variant_group_id") == variant_group_id]
+    if not selected_groups:
+        return entry, set()
+
+    selected_group = selected_groups[0]
+    selected_ids = set(selected_group.get("candidate_replacement_ids", []))
+    cloned = json.loads(json.dumps(entry))
+    cloned["variant_groups"] = [selected_group]
+    cloned["candidate_replacement_ids"] = [
+        replacement_id for replacement_id in cloned.get("candidate_replacement_ids", [])
+        if replacement_id in selected_ids
+    ]
+    selector_policy = cloned.get("selector_policy") or {}
+    selector_policy["proposed_selected_variant_group_id"] = variant_group_id
+    selector_policy["proposed_selection_reason"] = "review-subset-override"
+    cloned["selector_policy"] = selector_policy
+    return cloned, selected_ids
+
+
+def filter_imported_index(imported_index, policy_keys, variant_selections=None):
     if not policy_keys:
         return imported_index
 
+    variant_selections = variant_selections or {}
     wanted = set(policy_keys)
     compatibility = [
         entry for entry in imported_index.get("compatibility_aliases", [])
         if entry.get("policy_key") in wanted or entry.get("alias_id") in wanted
     ]
-    unresolved = [
-        entry for entry in imported_index.get("unresolved_families", [])
-        if entry.get("policy_key") in wanted
-    ]
+    unresolved = []
+    selected_candidate_ids = set()
+    for entry in imported_index.get("unresolved_families", []):
+        policy_key = entry.get("policy_key")
+        if policy_key not in wanted:
+            continue
+        if policy_key in variant_selections:
+            filtered_entry, selected_ids = apply_variant_selection(entry, variant_selections[policy_key])
+            unresolved.append(filtered_entry)
+            selected_candidate_ids.update(selected_ids)
+        else:
+            unresolved.append(entry)
 
     candidate_ids = set()
     for entry in compatibility:
         candidate_ids.update(entry.get("candidate_replacement_ids", []))
     for entry in unresolved:
         candidate_ids.update(entry.get("candidate_replacement_ids", []))
+    candidate_ids.update(selected_candidate_ids)
 
     records = [
         record for record in imported_index.get("records", [])
@@ -37,6 +78,7 @@ def filter_imported_index(imported_index, policy_keys):
         "schema_version": imported_index.get("schema_version"),
         "source": imported_index.get("source"),
         "policy_source": imported_index.get("policy_source"),
+        "variant_selections": variant_selections,
         "records": records,
         "compatibility_aliases": compatibility,
         "unresolved_families": unresolved,
@@ -49,6 +91,7 @@ def main():
     parser.add_argument("--bundle", required=True, help="Strict bundle path.")
     parser.add_argument("--policy", help="Optional import policy JSON.")
     parser.add_argument("--policy-key", action="append", default=[], help="Optional policy key(s) to keep in the emitted subset.")
+    parser.add_argument("--variant-selection", action="append", default=[], help="Optional policy_key=variant_group_id override for review-only subset emission.")
     parser.add_argument("--output", help="Optional output JSON path.")
     args = parser.parse_args()
 
@@ -69,11 +112,16 @@ def main():
         bundle_context=bundle_context,
         import_policy=import_policy,
     )
-    subset = filter_imported_index(imported_index, args.policy_key)
+    subset = filter_imported_index(
+        imported_index,
+        args.policy_key,
+        parse_variant_selections(args.variant_selection),
+    )
 
     result = {
         "bundle_path": str(bundle_path),
         "requested_policy_keys": args.policy_key,
+        "requested_variant_selections": args.variant_selection,
         "imported_subset": subset,
     }
 

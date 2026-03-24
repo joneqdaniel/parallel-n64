@@ -223,6 +223,7 @@ This is the preferred inspection path while the import format is still evolving.
 
 - Use [`tools/hires_pack_emit_subset.py`](/home/auro/code/parallel-n64/tools/hires_pack_emit_subset.py) when you want a concrete imported slice for one or more family policy keys.
 - This is still a review artifact, not a commitment to final format.
+- Use `--variant-selection policy_key=variant_group_id` when you want a review-only subset that materializes one ambiguous candidate as if it were selected.
 - It is useful for inspecting:
   - selected family entries
   - attached selector policy

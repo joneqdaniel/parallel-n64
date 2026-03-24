@@ -93,6 +93,11 @@
       - use `--focus-policy-key` when one ambiguous family needs a side-by-side decision sheet
     - there is now a first imported-subset emitter at `tools/hires_pack_emit_subset.py`
       - use it when we want a concrete imported slice for selected family keys without committing to the full format
+      - use `--variant-selection` when we want to inspect what one ambiguous candidate would look like as an imported subset without changing policy or runtime behavior
+      - the first strict file-select ambiguous-family subsets are now generated locally:
+        - `120x120`: `7` records
+        - `144x144`: `1` record
+        - `64x64`: `9` records
     - this is the first concrete transport path from legacy Glide-era packs into a cleaner ParaLLEl-owned representation
   - the first TLUT-state correction is now in place: the shadow patches by TMEM offset instead of wiping the whole palette shadow on every 32-byte update
   - current result of that correction:

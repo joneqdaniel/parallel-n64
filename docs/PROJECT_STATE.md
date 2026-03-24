@@ -93,6 +93,10 @@
   - imported `records`
   - explicit `compatibility_aliases`
   - `unresolved_families`
+- That imported index now also groups compatibility and ambiguous legacy families into explicit dimension-led `variant_groups`, so import-time policy can operate on concrete legacy clusters instead of flat low-32 families
+- The first strict file-select imported-index result is now concrete:
+  - the constrained `2a1be0a4/fs258` family collapses to one compatibility variant group, `640x160`
+  - the ambiguous `42779bdd/fs258` family remains unresolved but is now split into three explicit variant groups, `64x64`, `120x120`, and `144x144`
 - That makes legacy pack transport a real implementation path instead of only a planning statement
 - The new block-shape probe is now wired through the tracked file-select scenario and keeps the strict hash intact while logging alternate-shape diagnostics
 - That probe has already ruled out the dominant file-select miss as a simple hidden multi-line reinterpretation: `mode=block fmt=2 siz=2 wh=64x1 fs=514 tile=7` stays a plain `64x1` upload (`tmem_stride_words=0`) and finds no alternate-shape pack hit

@@ -36,6 +36,10 @@ def make_replacement_id(texture_crc, palette_crc, formatsize, width, height):
     return f"legacy-{texture_crc:08x}-{palette_crc:08x}-fs{formatsize}-{width}x{height}"
 
 
+def make_variant_group_id(texture_crc, requested_formatsize, width, height):
+    return f"legacy-low32-{texture_crc:08x}-fs{requested_formatsize}-{width}x{height}"
+
+
 def build_imported_index(entries, requested_pairs, source_cache_path):
     records = []
     compatibility_aliases = []
@@ -55,6 +59,7 @@ def build_imported_index(entries, requested_pairs, source_cache_path):
             ]
 
         replacement_ids = []
+        variant_groups = {}
         for entry in active_entries:
             replacement_id = make_replacement_id(
                 entry["texture_crc"],
@@ -63,7 +68,26 @@ def build_imported_index(entries, requested_pairs, source_cache_path):
                 entry["width"],
                 entry["height"],
             )
+            variant_group_id = make_variant_group_id(
+                entry["texture_crc"],
+                formatsize,
+                entry["width"],
+                entry["height"],
+            )
             replacement_ids.append(replacement_id)
+            group = variant_groups.setdefault(
+                variant_group_id,
+                {
+                    "variant_group_id": variant_group_id,
+                    "dims": f"{entry['width']}x{entry['height']}",
+                    "requested_formatsize": formatsize,
+                    "active_pool": family_summary["active_pool"],
+                    "candidate_replacement_ids": [],
+                    "legacy_palette_crcs": [],
+                },
+            )
+            group["candidate_replacement_ids"].append(replacement_id)
+            group["legacy_palette_crcs"].append(f"{entry['palette_crc']:08x}")
             records.append(
                 {
                     "replacement_id": replacement_id,
@@ -95,9 +119,18 @@ def build_imported_index(entries, requested_pairs, source_cache_path):
                         "requested_formatsize": formatsize,
                         "family_tier": family_summary["recommended_tier"],
                         "active_pool": family_summary["active_pool"],
+                        "variant_group_id": variant_group_id,
                     },
                 }
             )
+
+        variant_group_list = [
+            {
+                **group,
+                "legacy_palette_crcs": sorted(group["legacy_palette_crcs"]),
+            }
+            for group in sorted(variant_groups.values(), key=lambda item: item["variant_group_id"])
+        ]
 
         if family_summary["recommended_tier"] in ("compat-unique", "compat-repl-dims-unique"):
             compatibility_aliases.append(
@@ -114,10 +147,12 @@ def build_imported_index(entries, requested_pairs, source_cache_path):
                         "uniform_replacement_dims": family_summary["active_unique_repl_dim_count"] == 1,
                     },
                     "candidate_replacement_ids": replacement_ids,
+                    "candidate_variant_group_ids": [group["variant_group_id"] for group in variant_group_list],
                     "diagnostics": {
                         "active_unique_palette_count": family_summary["active_unique_palette_count"],
                         "active_unique_repl_dim_count": family_summary["active_unique_repl_dim_count"],
                         "active_replacement_dims": family_summary["active_replacement_dims"],
+                        "variant_groups": variant_group_list,
                     },
                 }
             )
@@ -132,6 +167,7 @@ def build_imported_index(entries, requested_pairs, source_cache_path):
                     "active_unique_repl_dim_count": family_summary["active_unique_repl_dim_count"],
                     "active_replacement_dims": family_summary["active_replacement_dims"],
                     "candidate_replacement_ids": replacement_ids,
+                    "variant_groups": variant_group_list,
                 }
             )
 

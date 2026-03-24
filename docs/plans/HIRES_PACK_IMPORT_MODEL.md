@@ -85,6 +85,7 @@
     - `records`
     - `compatibility_aliases`
     - `unresolved_families`
+    - explicit `variant_groups` inside compatibility and unresolved family output
 
 ## Imported Index v1
 
@@ -98,11 +99,32 @@
 - `compatibility_aliases`
   - explicit aliases for constrained compatibility tiers only
   - currently intended for `compat-unique` and `compat-repl-dims-unique`
+  - now also carries:
+    - `candidate_variant_group_ids`
+    - `diagnostics.variant_groups`
 - `unresolved_families`
   - explicit ambiguous legacy families that should not become runtime fallback automatically
+  - now grouped into explicit dimension-led `variant_groups` so import-time policy can reason about concrete ambiguous clusters instead of a flat legacy family
+
+## Variant Groups
+
+- `variant_group_id`
+  - stable imported grouping key for one low32/requested-formatsize/dimension cluster
+- `dims`
+  - replacement width and height for the group
+- `requested_formatsize`
+  - the runtime formatsize that selected this legacy family
+- `active_pool`
+  - whether the group came from an exact or generic legacy pool
+- `candidate_replacement_ids`
+  - imported records belonging to the group
+- `legacy_palette_crcs`
+  - source legacy palette CRCs represented inside the group
+
+The point of `variant_groups` is to make ambiguous Glide-era families importable without pretending they are already resolved. A family like the strict file-select `42779bdd/fs258` case now lands as three explicit variant groups (`64x64`, `120x120`, `144x144`) instead of a single opaque unresolved blob.
 
 ## Next Implementation Step
 
 - Inspect the imported-index output on the strict Paper Mario families
-- Decide what additional fields are required to disambiguate ambiguous CI families during import
+- Decide what additional discriminators or policy fields are required to choose between `variant_groups` during import
 - Keep runtime code unchanged until the imported subset can be inspected and compared against strict fixture evidence

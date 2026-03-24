@@ -75,6 +75,10 @@
   - the migration utility now emits the first imported-index scaffold:
     - `tools/hires_pack_migrate.py --emit-import-index --cache assets/PAPER MARIO_HIRESTEXTURES.hts --bundle <strict-file-select-bundle>`
     - that output separates imported `records`, explicit `compatibility_aliases`, and `unresolved_families`
+    - ambiguous and compatibility families are now grouped further into explicit dimension-led `variant_groups`, so import work can target concrete legacy clusters instead of flat low-32 families
+    - current strict file-select example:
+      - `2a1be0a4/fs258` collapses to one compatibility variant group: `640x160`
+      - `42779bdd/fs258` remains unresolved but is now split into three import-time groups: `64x64`, `120x120`, and `144x144`
     - this is the first concrete transport path from legacy Glide-era packs into a cleaner ParaLLEl-owned representation
   - the first TLUT-state correction is now in place: the shadow patches by TMEM offset instead of wiping the whole palette shadow on every 32-byte update
   - current result of that correction:
@@ -109,7 +113,7 @@
   - current working direction:
     - keep exact runtime lookup authoritative
     - keep `replacement-dims-unique` as a debug-backed compatibility candidate, not default policy
-    - begin defining an imported/internal replacement index that can encode a cleaner CI identity than the inherited Glide-era pack layout
+    - keep pushing the imported/internal replacement index so it can encode a cleaner CI identity than the inherited Glide-era pack layout, including explicit variant groups where legacy families are structurally ambiguous
 
 ## Not Yet Claimed Categories
 

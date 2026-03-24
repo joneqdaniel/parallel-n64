@@ -98,6 +98,8 @@
         - `120x120`: `7` records
         - `144x144`: `1` record
         - `64x64`: `9` records
+    - there is now a first subset-comparison tool at `tools/hires_pack_compare_subsets.py`
+      - use it to summarize those alternative subset artifacts side by side
     - this is the first concrete transport path from legacy Glide-era packs into a cleaner ParaLLEl-owned representation
   - the first TLUT-state correction is now in place: the shadow patches by TMEM offset instead of wiping the whole palette shadow on every 32-byte update
   - current result of that correction:

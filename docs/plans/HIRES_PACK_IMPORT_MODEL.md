@@ -92,6 +92,8 @@
   - emits a review artifact for a bundle-backed import slice so we can inspect selector state, variant groups, and applied policy without treating the imported index as final format
 - [`tools/hires_pack_emit_subset.py`](/home/auro/code/parallel-n64/tools/hires_pack_emit_subset.py)
   - emits a tiny imported subset for selected family policy keys so we can inspect a concrete ParaLLEl-owned slice without committing to the full format
+- [`tools/hires_pack_compare_subsets.py`](/home/auro/code/parallel-n64/tools/hires_pack_compare_subsets.py)
+  - compares multiple review-only subset artifacts so candidate imported-family choices can be summarized side by side
 
 ## Imported Index v1
 
@@ -229,6 +231,16 @@ This is the preferred inspection path while the import format is still evolving.
   - attached selector policy
   - attached runtime context
   - the exact replacement records that would travel with that slice
+
+## Imported Subset Comparison
+
+- Use [`tools/hires_pack_compare_subsets.py`](/home/auro/code/parallel-n64/tools/hires_pack_compare_subsets.py) when you have multiple review-only subset artifacts for the same family.
+- It summarizes:
+  - proposed variant group
+  - record count
+  - total replacement data size
+  - retained variant-group count
+  - shared runtime context
 
 ## Next Implementation Step
 

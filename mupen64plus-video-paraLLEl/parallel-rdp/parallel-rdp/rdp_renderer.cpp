@@ -832,6 +832,8 @@ void Renderer::set_hires_debug_ci_low32_fallback(HiresDebugCILow32FallbackMode m
 		LOGI("Hi-res debug CI low32 fallback enabled: unique.\n");
 	else if (hires_debug_ci_low32_fallback == HiresDebugCILow32FallbackMode::Any)
 		LOGI("Hi-res debug CI low32 fallback enabled: any.\n");
+	else if (hires_debug_ci_low32_fallback == HiresDebugCILow32FallbackMode::ReplacementDimsUnique)
+		LOGI("Hi-res debug CI low32 fallback enabled: replacement-dims-unique.\n");
 }
 
 void Renderer::log_hires_summary() const
@@ -3706,6 +3708,12 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 					fallback_hit = replacement_provider->lookup_ci_low32_unique(
 							texture_crc, formatsize, &fallback_meta, &fallback_checksum64);
 					ci_low32_fallback_reason = "ci-low32-unique";
+				}
+				else if (hires_debug_ci_low32_fallback == HiresDebugCILow32FallbackMode::ReplacementDimsUnique)
+				{
+					fallback_hit = replacement_provider->lookup_ci_low32_repl_dims_unique(
+							texture_crc, formatsize, &fallback_meta, &fallback_checksum64);
+					ci_low32_fallback_reason = "ci-low32-repl-dims-unique";
 				}
 				else if (hires_debug_ci_low32_fallback == HiresDebugCILow32FallbackMode::Any)
 				{

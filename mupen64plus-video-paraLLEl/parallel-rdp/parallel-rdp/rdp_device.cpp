@@ -204,6 +204,8 @@ CommandProcessor::CommandProcessor(Vulkan::Device &device_, void *rdram_ptr,
 			renderer.set_hires_debug_ci_low32_fallback(HiresDebugCILow32FallbackMode::Unique);
 		else if (value == 2)
 			renderer.set_hires_debug_ci_low32_fallback(HiresDebugCILow32FallbackMode::Any);
+		else if (value == 3)
+			renderer.set_hires_debug_ci_low32_fallback(HiresDebugCILow32FallbackMode::ReplacementDimsUnique);
 		else
 			renderer.set_hires_debug_ci_low32_fallback(HiresDebugCILow32FallbackMode::Off);
 	}

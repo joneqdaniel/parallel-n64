@@ -57,6 +57,7 @@ Current Paper Mario runtime note:
   - the dominant `64x1` CI block miss stays absent even under the new block-shape probe, so it is not explained by a simple contiguous reinterpretation like `32x2` or `16x4`
 - the current low-32 CI fallback experiments refine that split further:
   - `PARALLEL_RDP_HIRES_CI_LOW32_FALLBACK=1` is a narrow real change and recovers one unique `8x16` case on strict file select
+  - `PARALLEL_RDP_HIRES_CI_LOW32_FALLBACK=3` is a tighter middle-ground experiment that only accepts low-32 fallback when all candidate pack entries agree on replacement dimensions; on strict file select it recovers the unambiguous `32x16` class and the single truly unique `8x16` case
   - `PARALLEL_RDP_HIRES_CI_LOW32_FALLBACK=2` recovers the current CI tile palette-class misses broadly on strict file select, leaving only the block classes unresolved
   - these are debug-only direction-finding experiments, not accepted runtime policy
 - the tracked Paper Mario semantic trace currently uses an empirical vanilla `gGameStatus` slice at `0x800740aa`; it now records a raw window SHA-256, empirical phase guess for proven authority states, and decomp-backed `map_name_candidate` values for KMR/HOS/OSR area-local map indices, but it is not yet a full scene-name/mode decoder

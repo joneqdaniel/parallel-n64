@@ -33,6 +33,7 @@ public:
 	bool load_cache_dir(const std::string &path);
 	bool lookup(uint64_t checksum64, uint16_t formatsize, ReplacementMeta *out) const;
 	bool lookup_ci_low32_unique(uint32_t checksum_low32, uint16_t formatsize, ReplacementMeta *out, uint64_t *resolved_checksum64 = nullptr) const;
+	bool lookup_ci_low32_repl_dims_unique(uint32_t checksum_low32, uint16_t formatsize, ReplacementMeta *out, uint64_t *resolved_checksum64 = nullptr) const;
 	bool lookup_ci_low32_any(uint32_t checksum_low32,
 	                         uint16_t formatsize,
 	                         uint32_t preferred_palette_crc,

@@ -70,9 +70,13 @@
   - the new low-32 CI fallback experiments now prove that the palette-class misses are recoverable in principle:
     - `PARALLEL_RDP_HIRES_CI_LOW32_FALLBACK=1` (`unique`) produces a real but narrow result on strict file select: `hits=84` / `misses=81`, hash `d4661996bc280d4e6a6e1a4fa6dbabeadb47520c4b4b0241f9e2b20f489dcf4e`
     - in that mode, one unique `8x16` CI case is recovered while the remaining palette-class misses stay unresolved
+    - `PARALLEL_RDP_HIRES_CI_LOW32_FALLBACK=3` (`replacement-dims-unique`) is the first tighter middle-ground rule:
+      - it only accepts low-32 fallback when all candidate pack entries for that low-32 key agree on replacement dimensions
+      - on strict file select it yields `hits=86` / `misses=79`, hash `24274e62a18c436dc13570b6e51f7dc600b0de89d4aee56086cffd82248f797a`
+      - it recovers the `32x16` CI class and the single truly unique `8x16` case while leaving the ambiguous multi-size `8x16` families unresolved
     - `PARALLEL_RDP_HIRES_CI_LOW32_FALLBACK=2` (`any`) produces the first broad CI recovery result on strict file select: `hits=90` / `misses=75`, hash `2f00a7eb6c0c592a363fca987981d6eb6e6d5a43c9cac0d337c8f444282b18c8`
     - in that broader mode, the current CI palette miss classes disappear from the strict fixture and only the block classes remain unresolved
-    - that makes low-32 matching a useful debug direction, but not yet an acceptable runtime policy: `any` is too permissive to claim as correct without a tighter acceptance rule
+    - that makes low-32 matching a useful debug direction, but not yet an accepted runtime policy: `any` is too permissive, and `replacement-dims-unique` is the first concrete tighter rule that may be worth hardening or refining
   - the debug-only block-shape probe is now available on tracked file-select runs via `PARALLEL_RDP_HIRES_BLOCK_SHAPE_PROBE=1`
   - current probe result:
     - the dominant `mode=block fmt=2 siz=2 wh=64x1 fs=514 tile=7` class is not rescued by simple contiguous shape reinterpretation and logs as a plain `64x1` upload with `tmem_stride_words=0`

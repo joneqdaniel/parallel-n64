@@ -88,13 +88,19 @@
   - `PARALLEL_RDP_HIRES_CI_LOW32_FALLBACK=1` (`unique`) is a narrow real change, not a shell no-op
   - it converts one unique `8x16` CI miss into a hit, moves file-select from `hits=82 misses=83` to `hits=84 misses=81`, and changes the frame hash to `d4661996bc280d4e6a6e1a4fa6dbabeadb47520c4b4b0241f9e2b20f489dcf4e`
   - the pixel delta versus the strict `on` baseline is small (`15946` changed pixels, normalized average channel delta `0.000639`)
+  - `PARALLEL_RDP_HIRES_CI_LOW32_FALLBACK=3` (`replacement-dims-unique`) is a tighter middle ground
+  - it only accepts low-32 fallback when all candidate pack entries for that low-32 key agree on the replacement dimensions
+  - on strict file select it recovers the unambiguous `32x16` class and the single truly unique `8x16` case, moving file-select from `hits=82 misses=83` to `hits=86 misses=79` and changing the frame hash to `24274e62a18c436dc13570b6e51f7dc600b0de89d4aee56086cffd82248f797a`
+  - its pixel delta versus the strict `on` baseline sits where it should between `unique` and `any` (`139795` changed pixels, normalized average channel delta `0.005271`)
+  - after that tighter rule, the remaining palette-class misses collapse to the still-ambiguous `8x16` family, while the block classes remain unchanged
   - `PARALLEL_RDP_HIRES_CI_LOW32_FALLBACK=2` (`any`) is a much broader real change
   - it converts all current CI tile palette misses on the strict file-select fixture into hits, moves file-select from `hits=82 misses=83` to `hits=90 misses=75`, and changes the frame hash to `2f00a7eb6c0c592a363fca987981d6eb6e6d5a43c9cac0d337c8f444282b18c8`
   - in that broader mode, the remaining unresolved strict file-select misses collapse entirely to the block classes, still dominated by `mode=block fmt=2 siz=2 wh=64x1 fs=514 tile=7`
   - the pixel delta versus the strict `on` baseline is material but still bounded (`166168` changed pixels, normalized average channel delta `0.006020`), which makes it useful as a debug direction even though it is too permissive to treat as production behavior today
 - The current Phase 1 question is therefore narrower again:
   - CI low-32 fallback is directionally capable of recovering pack-backed file-select replacements
-  - the real remaining design choice is how to recover those replacements with a rule tighter than blanket `any`, while separately solving the still-unmatched block classes
+  - `replacement-dims-unique` is now the first concrete tighter candidate rule worth considering
+  - the real remaining design choice is whether that rule is acceptable enough to harden, or whether we still need a better palette-side discriminator for the ambiguous `8x16` family, while separately solving the still-unmatched block classes
 - The current Phase 1 blocker has therefore moved again: replacement wiring is now visibly live, and the next task is to judge correctness versus corruption on the strict fixtures and tighten texel mapping / alias behavior where needed
 - The tracked adapter now supports a memory-based wait primitive, `WAIT_CORE_MEMORY_HEX`, so scenarios and probes can block on exact vanilla RAM signatures instead of sleep-only timing
 - The semantic JSON now also emits a decomp-backed `map_name_candidate` for KMR, HOS, and OSR area-local map indices

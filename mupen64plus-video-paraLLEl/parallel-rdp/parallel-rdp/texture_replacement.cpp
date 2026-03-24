@@ -277,6 +277,56 @@ bool ReplacementProvider::lookup_ci_low32_unique(uint32_t checksum_low32,
 	return true;
 }
 
+bool ReplacementProvider::lookup_ci_low32_repl_dims_unique(uint32_t checksum_low32,
+                                                           uint16_t formatsize,
+                                                           ReplacementMeta *out,
+                                                           uint64_t *resolved_checksum64) const
+{
+	if (!enabled_ || !out)
+		return false;
+
+	auto it = checksum_low32_index_.find(checksum_low32);
+	if (it == checksum_low32_index_.end())
+		return false;
+
+	auto pick_candidate = [&](uint16_t candidate_formatsize) -> const Entry * {
+		const Entry *selected = nullptr;
+		for (auto itr = it->second.rbegin(); itr != it->second.rend(); ++itr)
+		{
+			const Entry &entry = entries_[*itr];
+			if (entry.formatsize != candidate_formatsize)
+				continue;
+
+			if (!selected)
+			{
+				selected = &entry;
+				continue;
+			}
+
+			if (entry.width != selected->width || entry.height != selected->height)
+				return nullptr;
+		}
+		return selected;
+	};
+
+	const Entry *entry = pick_candidate(formatsize);
+	if (!entry)
+		entry = pick_candidate(0);
+	if (!entry)
+		return false;
+
+	out->repl_w = entry->width;
+	out->repl_h = entry->height;
+	out->orig_w = 0;
+	out->orig_h = 0;
+	out->vk_image_index = 0xffffffffu;
+	out->has_mips = false;
+	out->srgb = false;
+	if (resolved_checksum64)
+		*resolved_checksum64 = entry->checksum64;
+	return true;
+}
+
 bool ReplacementProvider::lookup_ci_low32_any(uint32_t checksum_low32,
                                               uint16_t formatsize,
                                               uint32_t preferred_palette_crc,

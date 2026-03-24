@@ -85,7 +85,8 @@ enum class HiresDebugCILow32FallbackMode : uint8_t
 {
 	Off = 0,
 	Unique,
-	Any
+	Any,
+	ReplacementDimsUnique
 };
 
 class Renderer : public Vulkan::DebugChannelInterface

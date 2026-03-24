@@ -11,6 +11,7 @@
 
 - [Fixture And Evidence Contract](/home/auro/code/parallel-n64/docs/plans/FIXTURE_AND_EVIDENCE_CONTRACT.md)
 - [Repo Boundaries And Branching](/home/auro/code/parallel-n64/docs/plans/REPO_BOUNDARIES_AND_BRANCHING.md)
+- [Hi-Res Pack Import Model](/home/auro/code/parallel-n64/docs/plans/HIRES_PACK_IMPORT_MODEL.md)
 
 ## Status
 

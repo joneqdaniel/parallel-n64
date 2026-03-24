@@ -3820,6 +3820,14 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 				    tlut_shadow_valid &&
 				    !filter_reason)
 				{
+					const auto ci_palette_usage = detail::compute_hires_ci_palette_usage(
+							meta.size,
+							cpu_rdram,
+							rdram_size,
+							src_base_addr,
+							key_width_pixels,
+							key_height_pixels,
+							row_stride_bytes);
 					auto log_ci_palette_probe_hit = [&](const char *scheme,
 					                                    uint32_t candidate_palette_crc,
 					                                    const ReplacementMeta &candidate_meta,
@@ -3914,6 +3922,50 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 								tlut_tmem_shadow,
 								sizeof(tlut_tmem_shadow),
 								tlut_shadow_valid));
+						const uint32_t used_index_mask_crc = detail::legacy_crc32_reflected(
+								0xffffffffu,
+								ci_palette_usage.used_mask.data(),
+								meta.size == TextureSize::Bpp4 ? 2u : 32u);
+						const uint32_t used_index_sparse_crc = detail::compute_hires_ci_palette_crc_for_used_indices(
+								meta.size,
+								meta.palette,
+								tlut_shadow,
+								sizeof(tlut_shadow),
+								tlut_shadow_valid,
+								ci_palette_usage);
+						const uint32_t emulated_entry_crc = detail::compute_hires_ci_palette_crc_for_entries_tmem(
+								meta.size,
+								meta.palette,
+								tlut_tmem_shadow,
+								sizeof(tlut_tmem_shadow),
+								tlut_shadow_valid,
+								ci_palette_entries);
+						const uint32_t emulated_sparse_crc = detail::compute_hires_ci_palette_crc_for_used_indices_tmem(
+								meta.size,
+								meta.palette,
+								tlut_tmem_shadow,
+								sizeof(tlut_tmem_shadow),
+								tlut_shadow_valid,
+								ci_palette_usage);
+						LOGI("Hi-res CI palette probe usage: mode=%s addr=0x%06x wh=%ux%u fs=%u used_count=%u used_min=%u used_max=%u mask_crc=%08x sparse_pcrc=%08x.\n",
+						     load_mode_to_string(info.mode),
+						     src_base_addr & 0x00ffffffu,
+						     key_width_pixels,
+						     key_height_pixels,
+						     unsigned(formatsize),
+						     ci_palette_usage.used_count,
+						     ci_palette_usage.valid ? ci_palette_usage.min_index : 0u,
+						     ci_palette_usage.valid ? ci_palette_usage.max_index : 0u,
+						     used_index_mask_crc,
+						     used_index_sparse_crc);
+						LOGI("Hi-res CI palette probe emulated-tmem: mode=%s addr=0x%06x wh=%ux%u fs=%u entry_pcrc=%08x sparse_pcrc=%08x.\n",
+						     load_mode_to_string(info.mode),
+						     src_base_addr & 0x00ffffffu,
+						     key_width_pixels,
+						     key_height_pixels,
+						     unsigned(formatsize),
+						     emulated_entry_crc,
+						     emulated_sparse_crc);
 						CILow32FamilyDiagnostics family_diag = {};
 						if (replacement_provider->describe_ci_low32_family(texture_crc, formatsize, palette_crc, &family_diag) &&
 						    family_diag.available)
@@ -3937,6 +3989,24 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 							     family_diag.active_repl_dims_uniform ? 1 : 0,
 							     family_diag.sample_repl_w,
 							     family_diag.sample_repl_h);
+						}
+						if (used_index_sparse_crc != 0)
+						{
+							ReplacementMeta candidate_meta = {};
+							if (replacement_provider->lookup(detail::compose_hires_checksum64(texture_crc, used_index_sparse_crc), formatsize, &candidate_meta))
+								log_ci_palette_probe_hit("used-indices-sparse", used_index_sparse_crc, candidate_meta, int32_t(ci_palette_usage.used_count));
+						}
+						if (emulated_entry_crc != 0)
+						{
+							ReplacementMeta candidate_meta = {};
+							if (replacement_provider->lookup(detail::compose_hires_checksum64(texture_crc, emulated_entry_crc), formatsize, &candidate_meta))
+								log_ci_palette_probe_hit("emulated-tmem-entry-count", emulated_entry_crc, candidate_meta, int32_t(ci_palette_entries));
+						}
+						if (emulated_sparse_crc != 0)
+						{
+							ReplacementMeta candidate_meta = {};
+							if (replacement_provider->lookup(detail::compose_hires_checksum64(texture_crc, emulated_sparse_crc), formatsize, &candidate_meta))
+								log_ci_palette_probe_hit("emulated-tmem-used-indices-sparse", emulated_sparse_crc, candidate_meta, int32_t(ci_palette_usage.used_count));
 						}
 					}
 

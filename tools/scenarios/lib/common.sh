@@ -160,6 +160,8 @@ result = {
     "sample_events": [],
     "ci_palette_probe": {
         "families": [],
+        "usages": [],
+        "emulated_tmem": [],
     },
 }
 
@@ -180,6 +182,8 @@ filtered_re = re.compile(r"Hi-res keying filtered: reason=([^\s]+) (.+)")
 tlut_re = re.compile(r"Hi-res keying TLUT update: (.+)")
 filter_config_re = re.compile(r"Hi-res debug filter: allow_tile=(\d+) allow_block=(\d+) signature_count=(\d+)\.")
 ci_family_re = re.compile(r"Hi-res CI palette probe family: (.+)")
+ci_usage_re = re.compile(r"Hi-res CI palette probe usage: (.+)")
+ci_emulated_tmem_re = re.compile(r"Hi-res CI palette probe emulated-tmem: (.+)")
 field_re = re.compile(r"(\w+)=([^\s]+)")
 
 bucket_maps = {
@@ -512,6 +516,22 @@ for line in log_path.read_text(errors="replace").splitlines():
         fields = parse_fields(m.group(1).strip())
         if len(result["ci_palette_probe"]["families"]) < 20:
             result["ci_palette_probe"]["families"].append(fields)
+        continue
+
+    m = ci_usage_re.search(line)
+    if m:
+        result["available"] = True
+        fields = parse_fields(m.group(1).strip())
+        if len(result["ci_palette_probe"]["usages"]) < 20:
+            result["ci_palette_probe"]["usages"].append(fields)
+        continue
+
+    m = ci_emulated_tmem_re.search(line)
+    if m:
+        result["available"] = True
+        fields = parse_fields(m.group(1).strip())
+        if len(result["ci_palette_probe"]["emulated_tmem"]) < 20:
+            result["ci_palette_probe"]["emulated_tmem"].append(fields)
         continue
 
     m = hit_miss_re.search(line)

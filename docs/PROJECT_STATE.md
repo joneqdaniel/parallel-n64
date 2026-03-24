@@ -80,6 +80,10 @@
   - the representative `32x16` file-select family (`low32=2a1be0a4`) is generic-only and dimension-uniform: `2` generic entries, `2` palette variants, `1` replacement-dimension family (`640x160`)
   - the representative ambiguous `8x16` family (`low32=42779bdd`) is also generic-only but much broader: `17` generic entries, `17` palette variants, `3` replacement-dimension families, and no entry matching the current exact palette CRC
   - that split matches the earlier live fallback experiments: `replacement-dims-unique` is directionally reasonable for part of the CI class, while the broader `8x16` family still needs a better discriminator than a permissive low-32 alias
+- Two more CI hypotheses are now explicitly ruled out on the same strict file-select fixture without changing the default path:
+  - the ambiguous `8x16` miss only samples `19` palette indices across a `0..102` range, and the `32x16` miss samples `53` indices across `0..238`, but hashing only the sparse used-index set still does not produce a pack hit
+  - hashing the emulated loaded TLUT words from `tlut_tmem_shadow` also does not produce pack hits for those same misses, whether using the current entry-count view or the sparse used-index view
+  - together, those negatives mean the remaining CI gap is probably not one more small palette-CRC formula bug; it is more likely an identity-model mismatch that will need either a constrained compatibility tier or a cleaner imported pack representation
 - The new block-shape probe is now wired through the tracked file-select scenario and keeps the strict hash intact while logging alternate-shape diagnostics
 - That probe has already ruled out the dominant file-select miss as a simple hidden multi-line reinterpretation: `mode=block fmt=2 siz=2 wh=64x1 fs=514 tile=7` stays a plain `64x1` upload (`tmem_stride_words=0`) and finds no alternate-shape pack hit
 - The same probe does find alternate-shape hits for smaller non-dominant block misses, including `mode=block fmt=4 siz=2 wh=128x1 fs=516 tile=7 -> 4x32` and `mode=block fmt=0 siz=3 wh=1024x1 fs=768 tile=7 -> 32x32`

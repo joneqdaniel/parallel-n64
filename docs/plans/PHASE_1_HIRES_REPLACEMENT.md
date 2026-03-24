@@ -63,6 +63,10 @@
     - the representative `32x16` file-select family (`low32=2a1be0a4`) is generic-only and dimension-uniform: `2` generic entries, `2` palette variants, `1` replacement-dimension family (`640x160`)
     - the representative ambiguous `8x16` family (`low32=42779bdd`) is also generic-only but structurally broad: `17` generic entries, `17` palette variants, `3` replacement-dimension families, and no entry matching the current exact palette CRC
     - that split explains why `replacement-dims-unique` is a plausible constrained compatibility tier for part of the CI problem while the broader `8x16` family still needs a better discriminator than “same low-32 texture CRC”
+  - the CI probe now also carries two negative diagnostics that matter:
+    - the ambiguous `8x16` miss only samples `19` palette indices across a `0..102` range, and the `32x16` miss samples `53` indices across `0..238`, but hashing only the sparse used indices still does not produce a pack hit
+    - hashing the emulated TLUT words from `tlut_tmem_shadow` also does not produce pack hits for those same misses, whether using the current entry-count view or the sparse used-index view
+    - that means the remaining CI ambiguity is not explained by “hash only the used palette entries” or “hash the loaded TLUT words instead of the raw shadow”; the next likely step is a more explicit compatibility/import model rather than more ad hoc CRC variants
   - the first TLUT-state correction is now in place: the shadow patches by TMEM offset instead of wiping the whole palette shadow on every 32-byte update
   - current result of that correction:
     - the representative CI palette CRCs change materially on file select, so the old whole-shadow overwrite path was definitely wrong

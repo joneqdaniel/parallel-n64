@@ -13,6 +13,8 @@ RUNTIME_ENV="${RUNTIME_ENV_OVERRIDE:-$SCRIPT_DIR/paper-mario-file-select.runtime
 PROBE_LABEL="probe"
 INPUT_MASK=""
 INPUT_HOLD_FRAMES="1"
+INPUT_REPEAT_COUNT="1"
+INTER_PULSE_SETTLE_FRAMES="5"
 POST_INPUT_SETTLE_FRAMES="20"
 STEP_CHUNK_FRAMES="1"
 
@@ -25,6 +27,8 @@ Options:
   --mode off|on              Evidence bundle mode label (default: on)
   --input-mask HEX           Required controller mask (example: 0x20)
   --input-hold-frames N      Frames to hold the input (default: 1)
+  --input-repeat-count N     Number of input pulses to send (default: 1)
+  --inter-pulse-settle N     Frames to settle between repeated pulses (default: 5)
   --post-input-settle N      Frames to settle after release (default: 20)
   --probe-label LABEL        Short label for bundle metadata
   --bundle-dir PATH          Output bundle directory
@@ -46,6 +50,14 @@ while (($#)); do
     --input-hold-frames)
       shift
       INPUT_HOLD_FRAMES="${1:-}"
+      ;;
+    --input-repeat-count)
+      shift
+      INPUT_REPEAT_COUNT="${1:-}"
+      ;;
+    --inter-pulse-settle)
+      shift
+      INTER_PULSE_SETTLE_FRAMES="${1:-}"
       ;;
     --post-input-settle)
       shift
@@ -107,6 +119,8 @@ cat > "$BUNDLE_DIR/bundle.json" <<EOF
     "label": "$PROBE_LABEL",
     "input_mask": "$INPUT_MASK",
     "input_hold_frames": $INPUT_HOLD_FRAMES,
+    "input_repeat_count": $INPUT_REPEAT_COUNT,
+    "inter_pulse_settle_frames": $INTER_PULSE_SETTLE_FRAMES,
     "post_input_settle_frames": $POST_INPUT_SETTLE_FRAMES,
     "step_chunk_frames": $STEP_CHUNK_FRAMES
   },
@@ -131,6 +145,8 @@ MODE=$MODE
 PROBE_LABEL=$PROBE_LABEL
 INPUT_MASK=$INPUT_MASK
 INPUT_HOLD_FRAMES=$INPUT_HOLD_FRAMES
+INPUT_REPEAT_COUNT=$INPUT_REPEAT_COUNT
+INTER_PULSE_SETTLE_FRAMES=$INTER_PULSE_SETTLE_FRAMES
 POST_INPUT_SETTLE_FRAMES=$POST_INPUT_SETTLE_FRAMES
 STEP_CHUNK_FRAMES=$STEP_CHUNK_FRAMES
 ROM_PATH=$ROM_PATH
@@ -170,7 +186,6 @@ declare -a ADAPTER_ARGS=(
   --command "LOAD_STATE_SLOT_PAUSED 0"
   --command "STEP_FRAME ${POST_LOAD_SETTLE_FRAMES}"
   --command "WAIT_STATUS_FRAME PAUSED ${POST_LOAD_SETTLE_FRAMES} 10"
-  --command "SET_INPUT_PORT 0 ${INPUT_MASK}"
 )
 
 frame_cursor="$POST_LOAD_SETTLE_FRAMES"
@@ -193,9 +208,18 @@ append_chunked_step_commands() {
   done
 }
 
-append_chunked_step_commands "$INPUT_HOLD_FRAMES" 10
-ADAPTER_ARGS+=(--command "CLEAR_INPUT_PORT 0")
-append_chunked_step_commands "$POST_INPUT_SETTLE_FRAMES" 10
+repeat_index="1"
+while (( repeat_index <= INPUT_REPEAT_COUNT )); do
+  ADAPTER_ARGS+=(--command "SET_INPUT_PORT 0 ${INPUT_MASK}")
+  append_chunked_step_commands "$INPUT_HOLD_FRAMES" 10
+  ADAPTER_ARGS+=(--command "CLEAR_INPUT_PORT 0")
+  if (( repeat_index < INPUT_REPEAT_COUNT )); then
+    append_chunked_step_commands "$INTER_PULSE_SETTLE_FRAMES" 10
+  else
+    append_chunked_step_commands "$POST_INPUT_SETTLE_FRAMES" 10
+  fi
+  repeat_index=$(( repeat_index + 1 ))
+done
 
 ADAPTER_ARGS+=(
   --command "SNAPSHOT_CORE_MEMORY paper-mario-gamestatus 800740aa 230"

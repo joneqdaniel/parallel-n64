@@ -45,6 +45,7 @@ Current Paper Mario runtime note:
 - the tracked adapter now supports `WAIT_CORE_MEMORY_HEX`, which lets local scenario flows wait on exact RAM signatures for deterministic probes
 - the canonical steady-state Paper Mario workflow is `load savestate -> settle 3 frames -> capture`
 - the new file-select input-probe scenario is the controlled Phase 1 exploration path for widening CI family evidence from the authoritative file-select state; it now advances post-input settles one frame at a time because larger probe-step batches were less reliable on transition-heavy menu paths
+- the same probe scenario now also supports repeated deterministic input pulses from the same authority state, which is the current low-risk way to explore nearby file-select menu states without minting new fixtures
 - paired `on` runs now also emit machine-readable hi-res capability evidence, including the resolved cache path, the coarse disable reason, and the descriptor-indexing feature bits seen at runtime
 - paired `on` runs now also collapse raw hi-res hit/miss/TLUT lines into stable bucket summaries in `traces/hires-evidence.json`, so repeated uncovered classes can be compared across runs without diffing the whole RetroArch log
 - the same `hires-evidence.json` trace now also cross-checks miss keys against the active `.hts`/`.htc` index, so bundle evidence can distinguish “unmatched in the local pack index under the current checksum generation” from “lookup present under another formatsize”

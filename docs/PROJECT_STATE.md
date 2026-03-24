@@ -126,6 +126,7 @@
     - `42779bdd/fs258/8x16 -> {120x120, 144x144, 64x64}`
   - a deterministic `right` input probe from that same authority now adds a third family:
     - `dd798ca8/fs258/28x16 -> 560x160`
+  - a repeated `right x2` probe changes the captured frame again but does not add a fourth CI family, so the current nearby file-select menu neighborhood still collapses to the same three-family set
   - a matching `down` input probe changes the captured file-select frame but does not add a new CI family
   - so the current import evidence is no longer “only two families,” but it is still entirely tied to file-select-state exploration rather than broader game coverage
 - That makes legacy pack transport a real implementation path instead of only a planning statement

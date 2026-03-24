@@ -84,6 +84,10 @@
   - the ambiguous `8x16` miss only samples `19` palette indices across a `0..102` range, and the `32x16` miss samples `53` indices across `0..238`, but hashing only the sparse used-index set still does not produce a pack hit
   - hashing the emulated loaded TLUT words from `tlut_tmem_shadow` also does not produce pack hits for those same misses, whether using the current entry-count view or the sparse used-index view
   - together, those negatives mean the remaining CI gap is probably not one more small palette-CRC formula bug; it is more likely an identity-model mismatch that will need either a constrained compatibility tier or a cleaner imported pack representation
+- There is now a dedicated offline pack-family analyzer at [hires_pack_family_report.py](/home/auro/code/parallel-n64/tools/hires_pack_family_report.py), and it confirms the current split on the strict file-select bundle:
+  - the representative `32x16` family (`low32=2a1be0a4`) is a plausible constrained compatibility candidate and classifies as `compat-repl-dims-unique`
+  - the representative `8x16` family (`low32=42779bdd`) classifies as `ambiguous-import-or-policy`
+  - that is the strongest current evidence that the inherited Glide-era pack identity is itself part of the problem, and that an imported internal pack format is now a first-class design path rather than a fallback idea
 - The new block-shape probe is now wired through the tracked file-select scenario and keeps the strict hash intact while logging alternate-shape diagnostics
 - That probe has already ruled out the dominant file-select miss as a simple hidden multi-line reinterpretation: `mode=block fmt=2 siz=2 wh=64x1 fs=514 tile=7` stays a plain `64x1` upload (`tmem_stride_words=0`) and finds no alternate-shape pack hit
 - The same probe does find alternate-shape hits for smaller non-dominant block misses, including `mode=block fmt=4 siz=2 wh=128x1 fs=516 tile=7 -> 4x32` and `mode=block fmt=0 siz=3 wh=1024x1 fs=768 tile=7 -> 32x32`

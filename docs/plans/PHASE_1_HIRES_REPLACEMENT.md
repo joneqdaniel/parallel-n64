@@ -20,6 +20,7 @@
 
 - start with the current Paper Mario pack in local assets
 - allow preprocessing/import into a cleaner internal representation if that reduces runtime ambiguity or improves correctness
+- do not treat the inherited Glide-era pack identity as authoritative if it encodes ambiguous runtime policy rather than stable texture identity
 
 ## Success Definition
 
@@ -67,6 +68,10 @@
     - the ambiguous `8x16` miss only samples `19` palette indices across a `0..102` range, and the `32x16` miss samples `53` indices across `0..238`, but hashing only the sparse used indices still does not produce a pack hit
     - hashing the emulated TLUT words from `tlut_tmem_shadow` also does not produce pack hits for those same misses, whether using the current entry-count view or the sparse used-index view
     - that means the remaining CI ambiguity is not explained by “hash only the used palette entries” or “hash the loaded TLUT words instead of the raw shadow”; the next likely step is a more explicit compatibility/import model rather than more ad hoc CRC variants
+  - the new offline family analyzer makes the pack-format pressure explicit:
+    - `tools/hires_pack_family_report.py --cache assets/PAPER MARIO_HIRESTEXTURES.hts --bundle <strict-file-select-bundle>` classifies the representative `32x16` family (`low32=2a1be0a4`) as `compat-repl-dims-unique`
+    - the same analyzer classifies the representative ambiguous `8x16` family (`low32=42779bdd`) as `ambiguous-import-or-policy`
+    - that means part of the current CI problem is not “find the right CRC”; it is “the inherited pack format is collapsing multiple semantic variants into one runtime family, and we may need an imported internal format to separate them cleanly”
   - the first TLUT-state correction is now in place: the shadow patches by TMEM offset instead of wiping the whole palette shadow on every 32-byte update
   - current result of that correction:
     - the representative CI palette CRCs change materially on file select, so the old whole-shadow overwrite path was definitely wrong
@@ -97,6 +102,10 @@
     - if CI compatibility lookup survives, promote it into a named second-tier identity rather than letting it remain an opaque runtime heuristic
     - focus the exact-path redesign on more faithful CI/TLUT semantics, likely closer to the effective palette slice/bank actually sampled by the RDP
     - keep block-shape probing in research mode unless a documented `LoadBlock` / `dxt` / interleave rule justifies a specific normalization path
+  - current working direction:
+    - keep exact runtime lookup authoritative
+    - keep `replacement-dims-unique` as a debug-backed compatibility candidate, not default policy
+    - begin defining an imported/internal replacement index that can encode a cleaner CI identity than the inherited Glide-era pack layout
 
 ## Not Yet Claimed Categories
 

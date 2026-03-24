@@ -90,6 +90,7 @@
       - it now records overturn conditions as well, so the current `120x120` preference is explicitly testable rather than sticky by default
     - there is now a first review tool at `tools/hires_pack_review.py`
       - use it to inspect selector state, variant groups, runtime context, applied policy, and simple candidate-review notes for a strict bundle without treating the imported index as a final committed format
+      - use `--focus-policy-key` when one ambiguous family needs a side-by-side decision sheet
     - this is the first concrete transport path from legacy Glide-era packs into a cleaner ParaLLEl-owned representation
   - the first TLUT-state correction is now in place: the shadow patches by TMEM offset instead of wiping the whole palette shadow on every 32-byte update
   - current result of that correction:

@@ -48,6 +48,11 @@ def analyze_variant_groups(variant_groups, observed, applied_policy):
         analyzed.append(
             {
                 **group,
+                "policy_relation": (
+                    "selected" if selected_group_id and group.get("variant_group_id") == selected_group_id
+                    else "suggested" if suggested_group_id and group.get("variant_group_id") == suggested_group_id
+                    else "none"
+                ),
                 "review_score": score,
                 "review_notes": notes,
             }
@@ -145,7 +150,65 @@ def build_review_report(cache_path, bundle_path, policy_path=None):
     }
 
 
-def format_markdown(report):
+def find_family(report, policy_key):
+    for family in report["compatibility_families"] + report["unresolved_families"]:
+        if family["policy_key"] == policy_key:
+            return family
+    return None
+
+
+def append_family_markdown(lines, family):
+    lines.append(f"- `{family['policy_key']}`")
+    lines.append(f"  - status: `{family['status']}`")
+    if family.get("kind"):
+        lines.append(f"  - kind: `{family['kind']}`")
+    if family.get("reason"):
+        lines.append(f"  - reason: `{family['reason']}`")
+    lines.append(f"  - selection_reason: `{family['selection_reason']}`")
+    if family.get("selected_variant_group_id"):
+        lines.append(f"  - selected_variant_group_id: `{family['selected_variant_group_id']}`")
+    runtime = family["runtime_context"]
+    lines.append(
+        f"  - runtime: mode=`{runtime.get('mode')}` wh=`{runtime.get('runtime_wh')}` pcrc=`{runtime.get('observed_runtime_pcrc')}` sample_repl=`{runtime.get('sample_replacement_dims')}`"
+    )
+    if family.get("applied_policy"):
+        lines.append(f"  - applied_policy: `{json.dumps(family['applied_policy'], sort_keys=True)}`")
+        for note in family["applied_policy"].get("selection_notes", []):
+            lines.append(f"    - policy_note: {note}")
+        for note in family["applied_policy"].get("supporting_notes", []):
+            lines.append(f"    - policy_note: {note}")
+        for note in family["applied_policy"].get("overturn_conditions", []):
+            lines.append(f"    - overturn_condition: {note}")
+        for weaker in family["applied_policy"].get("weaker_variant_groups", []):
+            lines.append(f"    - weaker_variant_group `{weaker['variant_group_id']}`")
+            for reason in weaker.get("reasons", []):
+                lines.append(f"      - {reason}")
+    for group in family["variant_groups"]:
+        lines.append(
+            f"  - variant_group `{group['variant_group_id']}` dims=`{group['dims']}` candidates=`{group['candidate_count']}` palette_crcs=`{group['legacy_palette_crc_count']}` review_score=`{group['review_score']}`"
+        )
+        for note in group["review_notes"]:
+            lines.append(f"    - {note}")
+
+
+def append_focus_markdown(lines, family):
+    lines.append("")
+    lines.append("## Focus Review")
+    lines.append("")
+    lines.append(f"- `policy_key`: `{family['policy_key']}`")
+    lines.append(f"- `status`: `{family['status']}`")
+    lines.append(f"- `selection_reason`: `{family['selection_reason']}`")
+    lines.append("")
+    lines.append("| Variant Group | Dims | Candidates | Palette CRCs | Policy | Score | Notes |")
+    lines.append("| --- | --- | ---: | ---: | --- | ---: | --- |")
+    for group in family["variant_groups"]:
+        notes = "; ".join(group["review_notes"])
+        lines.append(
+            f"| `{group['variant_group_id']}` | `{group['dims']}` | `{group['candidate_count']}` | `{group['legacy_palette_crc_count']}` | `{group['policy_relation']}` | `{group['review_score']}` | {notes} |"
+        )
+
+
+def format_markdown(report, focus_policy_key=None):
     lines = []
     lines.append("# Hi-Res Pack Review")
     lines.append("")
@@ -173,37 +236,12 @@ def format_markdown(report):
             lines.append("- None")
             continue
         for family in families:
-            lines.append(f"- `{family['policy_key']}`")
-            lines.append(f"  - status: `{family['status']}`")
-            if family.get("kind"):
-                lines.append(f"  - kind: `{family['kind']}`")
-            if family.get("reason"):
-                lines.append(f"  - reason: `{family['reason']}`")
-            lines.append(f"  - selection_reason: `{family['selection_reason']}`")
-            if family.get("selected_variant_group_id"):
-                lines.append(f"  - selected_variant_group_id: `{family['selected_variant_group_id']}`")
-            runtime = family["runtime_context"]
-            lines.append(
-                f"  - runtime: mode=`{runtime.get('mode')}` wh=`{runtime.get('runtime_wh')}` pcrc=`{runtime.get('observed_runtime_pcrc')}` sample_repl=`{runtime.get('sample_replacement_dims')}`"
-            )
-            if family.get("applied_policy"):
-                lines.append(f"  - applied_policy: `{json.dumps(family['applied_policy'], sort_keys=True)}`")
-                for note in family["applied_policy"].get("selection_notes", []):
-                    lines.append(f"    - policy_note: {note}")
-                for note in family["applied_policy"].get("supporting_notes", []):
-                    lines.append(f"    - policy_note: {note}")
-                for note in family["applied_policy"].get("overturn_conditions", []):
-                    lines.append(f"    - overturn_condition: {note}")
-                for weaker in family["applied_policy"].get("weaker_variant_groups", []):
-                    lines.append(f"    - weaker_variant_group `{weaker['variant_group_id']}`")
-                    for reason in weaker.get("reasons", []):
-                        lines.append(f"      - {reason}")
-            for group in family["variant_groups"]:
-                lines.append(
-                    f"  - variant_group `{group['variant_group_id']}` dims=`{group['dims']}` candidates=`{group['candidate_count']}` palette_crcs=`{group['legacy_palette_crc_count']}` review_score=`{group['review_score']}`"
-                )
-                for note in group["review_notes"]:
-                    lines.append(f"    - {note}")
+            append_family_markdown(lines, family)
+
+    if focus_policy_key:
+        family = find_family(report, focus_policy_key)
+        if family:
+            append_focus_markdown(lines, family)
 
     return "\n".join(lines) + "\n"
 
@@ -214,12 +252,13 @@ def main():
     parser.add_argument("--bundle", required=True, help="Strict bundle path.")
     parser.add_argument("--policy", help="Optional import policy JSON.")
     parser.add_argument("--format", choices=("json", "markdown"), default="json")
+    parser.add_argument("--focus-policy-key", help="Optional family policy key to render as a focused side-by-side review.")
     parser.add_argument("--output", help="Optional output path.")
     args = parser.parse_args()
 
     report = build_review_report(Path(args.cache), Path(args.bundle), Path(args.policy) if args.policy else None)
     if args.format == "markdown":
-        serialized = format_markdown(report)
+        serialized = format_markdown(report, args.focus_policy_key)
     else:
         serialized = json.dumps(report, indent=2) + "\n"
 

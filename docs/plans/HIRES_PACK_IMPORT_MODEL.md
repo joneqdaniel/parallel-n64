@@ -213,6 +213,7 @@ The current strict file-select result shows both cases:
   - current variant-group breakdown
   - simple review scores and notes for each variant group based on current observed runtime context and attached policy
   - any applied policy entries
+- Use `--focus-policy-key` when you want a side-by-side decision sheet for one family.
 
 This is the preferred inspection path while the import format is still evolving.
 

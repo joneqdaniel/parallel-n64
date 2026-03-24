@@ -106,10 +106,13 @@
         - `144x144`: `1` record / `2054` bytes
         - `64x64`: `9` records / `16034` bytes
     - the new file-select input-probe scenario now expands that evidence base without changing the default strict fixtures:
-      - it advances exploratory post-input settles one frame at a time so probe bundles stay reliable even when transition-heavy probe paths stall on larger `STEP_FRAME` requests
+      - it now supports explicit `--step-chunk-frames`, and the first savefile-backed deep branch reproduces byte-identically with `30`-frame chunks instead of one-frame stepping
+      - on the heavier hi-res path, chunked probes now rely on `WAIT_STATUS_FRAME` rather than strict `STEP_FRAME` log acknowledgements, which made the fast deep probes reliable again
       - the first `down` probe changes the captured file-select frame but does not add a new CI family
       - the first `right` probe adds a third CI family, `dd798ca8/fs258/28x16 -> 560x160`
       - that new family classifies cleanly as `compat-unique`, which is the first sign that deterministic imported selectors can grow beyond the original strict pair without widening runtime lookup heuristics
+      - a deeper savefile-backed `START` branch is now deterministic too, but it still stays in `state_init_file_select` / `state_step_file_select` and lands on a deeper menu state (`entryID=11`) rather than gameplay
+      - `savefile-start -> right` and `savefile-start -> down` are now both verified in `on` mode, but they still expose the same three CI families as the shallower file-select neighborhood
     - caution: the current import-model evidence is still narrow
       - it now covers `3` distinct CI families instead of `2`
       - all three still come from file-select-state exploration rather than broader gameplay coverage

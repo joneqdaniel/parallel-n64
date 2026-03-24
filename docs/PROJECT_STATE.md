@@ -32,6 +32,10 @@
 - The local RetroArch stdin command surface now includes `PING`, and the adapter uses it to prove the command channel is ready before issuing tracked savestate commands
 - The current authoritative file-select state is minted from the deterministic title-screen bootstrap path using a held `START` input for `60` frames and a frame-targeted save at `frame=303`
 - There is now a dedicated file-select input-probe scenario for bundle-backed Phase 1 exploration, and it advances exploratory post-input settles one frame at a time so probe evidence stays reliable without loosening the global adapter contract
+- A savefile-backed branch from that authority is now proven deterministic as well: staging the local `.srm`, holding `START` for `120` frames, and settling to `frame=423` reproduces exactly across repeated runs
+- That savefile-backed branch does not currently reach gameplay; repeated runs stay in `state_init_file_select` / `state_step_file_select` and land on `areaID=0`, `mapID=0 (kmr_00)`, `entryID=11`
+- The input-probe scenario now supports explicit `--step-chunk-frames`, and the savefile-backed branch reproduces byte-identically with `30`-frame chunks instead of one-frame stepping
+- On the heavier hi-res path, `WAIT_STATUS_FRAME` is now the authoritative progress signal for chunked probe steps; missing `STEP_FRAME` log acknowledgements are downgraded to warnings because they can lag or disappear without breaking the fixture-relative frame clock
 - Paired `off` and `on` scenario runs are now verified directly from the tracked scenario entrypoints on the corrected ParaLLEl path
 - The Vulkan descriptor-indexing gate on this machine is now fixed for tracked runs: the context recovers the required feature bits through a Vulkan 1.2 feature-query fallback, and hi-res startup no longer disables itself on capability grounds
 - The tracked hi-res pack-path override bug is now fixed: `PARALLEL_RDP_HIRES_CACHE_PATH` takes precedence over the core's default system-directory path during runtime resolution
@@ -130,6 +134,15 @@
     - `right x2` changes the captured frame again but does not add a fourth CI family
     - `down -> right` also changes the captured frame but still collapses to the same three CI families
   - a matching `down` input probe changes the captured file-select frame but does not add a new CI family
+  - a deeper savefile-backed `START` branch is now also reproducible:
+    - repeated runs land on screenshot hash `89cb1bddd5c2dd2a62b063210af11c2324eca04d3060e746042edc0323b00e8e`
+    - the semantic window stays locked to `state_init_file_select` / `state_step_file_select`
+    - this is a deeper file-select/menu branch point, not yet a gameplay/world fixture
+  - deeper `on`-mode menu probes from that same branch are now verified too:
+    - `savefile-start -> right` lands on screenshot hash `0302c029e4a221359158486baa7cfbda5984bb0dfc8eb51f9f68fd98f18a305c`
+    - `savefile-start -> down` lands on screenshot hash `61ec2cb8d1e964356d4010395e29aa3ba7b1e6b2bf9980bd27d2bc225c8a547f`
+    - both still stay in `state_init_file_select` / `state_step_file_select` with `entryID=11`
+    - both still expose the same three CI families (`42779bdd`, `2a1be0a4`, `dd798ca8`)
   - so the current import evidence is no longer “only two families,” but it is still entirely tied to file-select-state exploration rather than broader game coverage
 - That makes legacy pack transport a real implementation path instead of only a planning statement
 - The new block-shape probe is now wired through the tracked file-select scenario and keeps the strict hash intact while logging alternate-shape diagnostics

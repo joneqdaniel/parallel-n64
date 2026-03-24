@@ -34,6 +34,7 @@ Options:
                              Item format: MASK[:HOLD[:SETTLE_AFTER]]
                              Example: 0x20:1:5,0x01:1:20
   --post-input-settle N      Frames to settle after release (default: 20)
+  --step-chunk-frames N      Maximum frames per STEP_FRAME command (default: 1)
   --probe-label LABEL        Short label for bundle metadata
   --bundle-dir PATH          Output bundle directory
   --run                      Execute the runtime path
@@ -70,6 +71,10 @@ while (($#)); do
     --post-input-settle)
       shift
       POST_INPUT_SETTLE_FRAMES="${1:-}"
+      ;;
+    --step-chunk-frames)
+      shift
+      STEP_CHUNK_FRAMES="${1:-}"
       ;;
     --probe-label)
       shift
@@ -109,6 +114,9 @@ PACK_PATH="$REPO_ROOT/assets/PAPER MARIO_HIRESTEXTURES.hts"
 RETROARCH_PATH="/home/auro/code/RetroArch"
 MANIFEST="$REPO_ROOT/tools/fixtures/paper-mario-file-select.yaml"
 PAPER_MARIO_SEMANTIC_JSON_REL="traces/paper-mario-game-status.json"
+SAVEFILE_PATH=""
+SAVEFILE_PRESENT=0
+SAVEFILE_SHA256="missing"
 
 scenario_prepare_bundle_dirs "$BUNDLE_DIR"
 
@@ -138,7 +146,10 @@ cat > "$BUNDLE_DIR/bundle.json" <<EOF
     "rom_sha256": "$(scenario_sha256_file "$ROM_PATH")",
     "hires_pack_path": "$PACK_PATH",
     "hires_pack_sha256": "$(scenario_sha256_file "$PACK_PATH")",
-    "retroarch_path": "$RETROARCH_PATH"
+    "retroarch_path": "$RETROARCH_PATH",
+    "savefile_path": "",
+    "savefile_present": false,
+    "savefile_sha256": "missing"
   },
   "status": {
     "phase": "phase-1",
@@ -162,6 +173,9 @@ STEP_CHUNK_FRAMES=$STEP_CHUNK_FRAMES
 ROM_PATH=$ROM_PATH
 HIRES_PACK_PATH=$PACK_PATH
 RETROARCH_PATH=$RETROARCH_PATH
+SAVEFILE_PATH=
+SAVEFILE_PRESENT=0
+SAVEFILE_SHA256=missing
 EOF
 
 scenario_print_header "$FIXTURE_ID" "$MODE" "$BUNDLE_DIR" "$MANIFEST"
@@ -178,11 +192,20 @@ if [[ -z "${AUTHORITATIVE_STATE_PATH:-}" || ! -f "${AUTHORITATIVE_STATE_PATH:-}"
   exit 1
 fi
 
+if [[ -n "${SAVEFILE_PATH:-}" && -f "${SAVEFILE_PATH:-}" ]]; then
+  SAVEFILE_PATH="${SAVEFILE_PATH:-}"
+  SAVEFILE_PRESENT=1
+  SAVEFILE_SHA256="$(scenario_sha256_file "$SAVEFILE_PATH")"
+  scenario_stage_optional_savefile "$SAVEFILE_PATH" "$BUNDLE_DIR" "Paper Mario (USA)"
+fi
+
 mkdir -p "$BUNDLE_DIR/states/ParaLLEl N64"
 cp "$AUTHORITATIVE_STATE_PATH" "$BUNDLE_DIR/states/ParaLLEl N64/Paper Mario (USA).state"
 
 scenario_patch_file "$BUNDLE_DIR/bundle.json" 's|"scenario_state": "bundle_initialized"|"scenario_state": "runtime_prepared"|g'
 scenario_patch_file "$BUNDLE_DIR/bundle.json" 's|"runtime_executed": false|"runtime_executed": true|g'
+scenario_patch_file "$BUNDLE_DIR/bundle.json" 's|"savefile_path": ""|"savefile_path": "'"${SAVEFILE_PATH:-}"'"|g; s|"savefile_present": false|"savefile_present": '"$(scenario_json_bool "$SAVEFILE_PRESENT")"'|g; s|"savefile_sha256": "missing"|"savefile_sha256": "'"${SAVEFILE_SHA256:-missing}"'"|g'
+scenario_patch_file "$BUNDLE_DIR/config.env" 's|SAVEFILE_PATH=|SAVEFILE_PATH='"${SAVEFILE_PATH:-}"'|g; s|SAVEFILE_PRESENT=0|SAVEFILE_PRESENT='"$SAVEFILE_PRESENT"'|g; s|SAVEFILE_SHA256=missing|SAVEFILE_SHA256='"${SAVEFILE_SHA256:-missing}"'|g'
 
 declare -a ADAPTER_ARGS=(
   --bundle-dir "$BUNDLE_DIR"

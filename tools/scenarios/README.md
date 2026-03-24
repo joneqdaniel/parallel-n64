@@ -27,6 +27,7 @@ Current tracked scenario seeds:
 - [`paper-mario-file-select.sh`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-file-select.sh)
 - [`paper-mario-file-select.runtime.env`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-file-select.runtime.env)
 - [`paper-mario-file-select-input-probe.sh`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-file-select-input-probe.sh)
+- [`paper-mario-savefile-start.runtime.env`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-savefile-start.runtime.env)
 - [`paper-mario-hos-05-entry-3.sh`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-hos-05-entry-3.sh)
 - [`paper-mario-hos-05-entry-3.runtime.env`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-hos-05-entry-3.runtime.env)
 - [`remint-paper-mario-file-select-authority.sh`](/home/auro/code/parallel-n64/tools/scenarios/remint-paper-mario-file-select-authority.sh)
@@ -44,9 +45,17 @@ Current Paper Mario runtime note:
 - tracked Paper Mario scenarios now force the intended ParaLLEl/Vulkan path with `PARALLEL_N64_GFX_PLUGIN_OVERRIDE=parallel` and bundle-local core options
 - the tracked adapter now supports `WAIT_CORE_MEMORY_HEX`, which lets local scenario flows wait on exact RAM signatures for deterministic probes
 - the canonical steady-state Paper Mario workflow is `load savestate -> settle 3 frames -> capture`
-- the new file-select input-probe scenario is the controlled Phase 1 exploration path for widening CI family evidence from the authoritative file-select state; it now advances post-input settles one frame at a time because larger probe-step batches were less reliable on transition-heavy menu paths
+- the new file-select input-probe scenario is the controlled Phase 1 exploration path for widening CI family evidence from the authoritative file-select state
+- it now supports explicit `--step-chunk-frames`, and the first savefile-backed deep branch is proven byte-identical with `30`-frame chunks instead of one-frame stepping
+- on the heavier hi-res path, `STEP_FRAME` log acknowledgements are no longer treated as authoritative; the adapter now lets `WAIT_STATUS_FRAME` prove progress, which is what made the chunked deep probes reliable again
 - the same probe scenario now also supports repeated deterministic input pulses from the same authority state, which is the current low-risk way to explore nearby file-select menu states without minting new fixtures
 - the probe scenario now also supports explicit mixed input sequences, which is the current way to test branch changes like `down -> right` without creating one-off scripts for each menu path
+- the current savefile-backed deep branch is reproducible but still menu-bound: staging the local `.srm`, holding `START` for `120` frames, and settling to `frame=423` lands on screenshot hash `89cb1bddd5c2dd2a62b063210af11c2324eca04d3060e746042edc0323b00e8e` while semantics stay in `state_init_file_select` / `state_step_file_select` with `entryID=11`
+- deeper `savefile-start` menu probes now have two verified `on` branches:
+  - `savefile-start -> right` produces screenshot hash `0302c029e4a221359158486baa7cfbda5984bb0dfc8eb51f9f68fd98f18a305c`
+  - `savefile-start -> down` produces screenshot hash `61ec2cb8d1e964356d4010395e29aa3ba7b1e6b2bf9980bd27d2bc225c8a547f`
+  - both remain in `state_init_file_select` / `state_step_file_select` with `entryID=11`
+  - both still expose the same three CI families, so this deeper branch point is giving us distinct menu states but not broader replacement-family coverage yet
 - paired `on` runs now also emit machine-readable hi-res capability evidence, including the resolved cache path, the coarse disable reason, and the descriptor-indexing feature bits seen at runtime
 - paired `on` runs now also collapse raw hi-res hit/miss/TLUT lines into stable bucket summaries in `traces/hires-evidence.json`, so repeated uncovered classes can be compared across runs without diffing the whole RetroArch log
 - the same `hires-evidence.json` trace now also cross-checks miss keys against the active `.hts`/`.htc` index, so bundle evidence can distinguish “unmatched in the local pack index under the current checksum generation” from “lookup present under another formatsize”

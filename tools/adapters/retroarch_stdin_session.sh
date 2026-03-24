@@ -61,6 +61,7 @@ RETROARCH_BIN="${RETROARCH_BIN:-/home/auro/code/RetroArch/retroarch}"
 BASE_CONFIG="${BASE_CONFIG:-/home/auro/code/RetroArch/retroarch.cfg}"
 STARTUP_WAIT="${STARTUP_WAIT:-8}"
 EXIT_WAIT="${EXIT_WAIT:-10}"
+STEP_FRAME_ACK_TIMEOUT_SECONDS="${STEP_FRAME_ACK_TIMEOUT_SECONDS:-30}"
 PENDING_CAPTURE_BASELINE=""
 declare -a COMMANDS=()
 
@@ -552,9 +553,8 @@ for cmd in "${COMMANDS[@]}"; do
       fi
       ;;
     STEP_FRAME*)
-      if ! wait_for_log_pattern_after "$start_bytes" "STEP_FRAME " 5; then
-        echo "[adapter] STEP_FRAME acknowledgement missing." >&2
-        exit 1
+      if ! wait_for_log_pattern_after "$start_bytes" "STEP_FRAME " "$STEP_FRAME_ACK_TIMEOUT_SECONDS"; then
+        echo "[adapter] STEP_FRAME acknowledgement missing; relying on subsequent status/frame wait."
       fi
       ;;
     SET_INPUT_PORT*)

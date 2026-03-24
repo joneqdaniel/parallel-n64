@@ -98,6 +98,7 @@
   - the constrained `2a1be0a4/fs258` family collapses to one compatibility variant group, `640x160`
   - the ambiguous `42779bdd/fs258` family remains unresolved but is now split into three explicit variant groups, `64x64`, `120x120`, and `144x144`
 - Those imported compatibility/unresolved entries now also carry strict-bundle `observed_runtime_context`, including runtime mode, runtime `wh`, observed palette CRC, sparse palette-usage data, and the emulated-TMEM palette view that originally exposed the family
+- Those same imported entries now also carry `selector_policy`, so the current import output can already distinguish deterministic compatibility families from unresolved families that still need a manual import decision
 - That makes legacy pack transport a real implementation path instead of only a planning statement
 - The new block-shape probe is now wired through the tracked file-select scenario and keeps the strict hash intact while logging alternate-shape diagnostics
 - That probe has already ruled out the dominant file-select miss as a simple hidden multi-line reinterpretation: `mode=block fmt=2 siz=2 wh=64x1 fs=514 tile=7` stays a plain `64x1` upload (`tmem_stride_words=0`) and finds no alternate-shape pack hit

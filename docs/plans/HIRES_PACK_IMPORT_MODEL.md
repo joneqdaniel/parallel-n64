@@ -101,12 +101,14 @@
   - currently intended for `compat-unique` and `compat-repl-dims-unique`
   - now also carries:
     - `observed_runtime_context`
+    - `selector_policy`
     - `candidate_variant_group_ids`
     - `diagnostics.variant_groups`
 - `unresolved_families`
   - explicit ambiguous legacy families that should not become runtime fallback automatically
   - now grouped into explicit dimension-led `variant_groups` so import-time policy can reason about concrete ambiguous clusters instead of a flat legacy family
   - now also carries `observed_runtime_context` from the strict bundle that surfaced the family
+  - now also carries `selector_policy`, even when that policy is only “manual disambiguation required”
 
 ## Variant Groups
 
@@ -148,8 +150,32 @@ The point of `variant_groups` is to make ambiguous Glide-era families importable
 
 The point of `observed_runtime_context` is not to turn runtime guesses back on. It is to give import-time policy and future tooling a concrete record of the exact strict-fixture event that exposed the ambiguous family.
 
+## Selector Policy
+
+- `status`
+  - `deterministic` when import can select one variant group safely
+  - `manual-disambiguation-required` when the family still needs an explicit import decision
+- `selector_basis`
+  - stable runtime-facing fields import can key from:
+    - `texture_crc`
+    - `requested_formatsize`
+    - current runtime `mode`
+    - current runtime `wh`
+- `candidate_variant_group_ids`
+  - the concrete variant groups eligible under that selector basis
+- `disambiguation_inputs`
+  - additional recorded fields available to a future importer or manual policy step
+- `selected_variant_group_id`
+  - present only when the selector policy is deterministic
+- `selection_reason`
+  - explains why the current selector is deterministic or why it remains unresolved
+
+The current strict file-select result shows both cases:
+- `2a1be0a4/fs258` now has a deterministic selector policy that lands on `legacy-low32-2a1be0a4-fs258-640x160`
+- `42779bdd/fs258` now has a manual selector policy with three candidate variant groups and explicit disambiguation inputs instead of a flat ambiguous blob
+
 ## Next Implementation Step
 
 - Inspect the imported-index output on the strict Paper Mario families
-- Decide what additional discriminators or policy fields are required to choose between `variant_groups` during import, using the recorded runtime context instead of ad hoc notes
+- Decide what additional discriminators or policy fields are required to turn the ambiguous selector policies into deterministic ones, using the recorded runtime context instead of ad hoc notes
 - Keep runtime code unchanged until the imported subset can be inspected and compared against strict fixture evidence

@@ -41,6 +41,47 @@ def make_variant_group_id(texture_crc, requested_formatsize, width, height):
     return f"legacy-low32-{texture_crc:08x}-fs{requested_formatsize}-{width}x{height}"
 
 
+def build_selector_policy(texture_crc, formatsize, observation, variant_group_list, tier):
+    base_selector = {
+        "texture_crc": f"{texture_crc:08x}",
+        "requested_formatsize": formatsize,
+    }
+    if observation:
+        base_selector.update(
+            {
+                "mode": observation.get("mode"),
+                "runtime_wh": observation.get("runtime_wh"),
+            }
+        )
+
+    disambiguation_inputs = []
+    if observation:
+        disambiguation_inputs.extend(
+            [
+                "observed_runtime_pcrc",
+                "usage.mask_crc",
+                "usage.sparse_pcrc",
+                "emulated_tmem.entry_pcrc",
+                "emulated_tmem.sparse_pcrc",
+            ]
+        )
+
+    policy = {
+        "status": "deterministic" if tier in ("compat-unique", "compat-repl-dims-unique") else "manual-disambiguation-required",
+        "selector_basis": base_selector,
+        "candidate_variant_group_ids": [group["variant_group_id"] for group in variant_group_list],
+        "disambiguation_inputs": disambiguation_inputs,
+    }
+
+    if tier in ("compat-unique", "compat-repl-dims-unique") and len(variant_group_list) == 1:
+        policy["selected_variant_group_id"] = variant_group_list[0]["variant_group_id"]
+        policy["selection_reason"] = tier
+    else:
+        policy["selection_reason"] = "legacy-family-ambiguous"
+
+    return policy
+
+
 def build_imported_index(entries, requested_pairs, source_cache_path, bundle_context=None):
     records = []
     compatibility_aliases = []
@@ -134,6 +175,13 @@ def build_imported_index(entries, requested_pairs, source_cache_path, bundle_con
             }
             for group in sorted(variant_groups.values(), key=lambda item: item["variant_group_id"])
         ]
+        selector_policy = build_selector_policy(
+            texture_crc,
+            formatsize,
+            observation,
+            variant_group_list,
+            family_summary["recommended_tier"],
+        )
 
         if family_summary["recommended_tier"] in ("compat-unique", "compat-repl-dims-unique"):
             compatibility_aliases.append(
@@ -150,6 +198,7 @@ def build_imported_index(entries, requested_pairs, source_cache_path, bundle_con
                         "uniform_replacement_dims": family_summary["active_unique_repl_dim_count"] == 1,
                     },
                     "observed_runtime_context": observation,
+                    "selector_policy": selector_policy,
                     "candidate_replacement_ids": replacement_ids,
                     "candidate_variant_group_ids": [group["variant_group_id"] for group in variant_group_list],
                     "diagnostics": {
@@ -171,6 +220,7 @@ def build_imported_index(entries, requested_pairs, source_cache_path, bundle_con
                     "active_unique_repl_dim_count": family_summary["active_unique_repl_dim_count"],
                     "active_replacement_dims": family_summary["active_replacement_dims"],
                     "observed_runtime_context": observation,
+                    "selector_policy": selector_policy,
                     "candidate_replacement_ids": replacement_ids,
                     "variant_groups": variant_group_list,
                 }

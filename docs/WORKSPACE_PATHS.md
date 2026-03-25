@@ -20,6 +20,9 @@ If that changes later, this file should become the source of truth for local pat
 - `papermario-dx`: `/home/auro/code/paper_mario/papermario-dx`
   Current role: semantic game-state reference, fixture research target, and possible game-side telemetry/instrumentation target.
 
+- `papermario`: `/home/auro/code/paper_mario/papermario`
+  Current role: upstream Paper Mario decomp/reference checkout for vanilla code and symbol/layout comparison alongside `papermario-dx`.
+
 - `emulator_references`: `/home/auro/code/emulator_references`
   Current role: local reference implementations from other emulator projects.
 
@@ -47,6 +50,7 @@ If that changes later, this file should become the source of truth for local pat
 
 - `parallel-n64` depends operationally on the local `RetroArch` checkout for frontend/tooling work.
 - `parallel-n64` depends operationally on the local `papermario-dx` checkout for fixture analysis and potential game-side debug work.
+- `parallel-n64` now also depends on the local `papermario` checkout for upstream vanilla-reference comparison when DX-specific relocation or symbol drift makes `papermario-dx` insufficient.
 - research and planning currently depend on the local `emulator_references` and `n64_docs` trees.
 
 ## Maintenance Rule

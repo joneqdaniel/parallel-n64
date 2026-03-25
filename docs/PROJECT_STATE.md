@@ -73,6 +73,8 @@
   - from that branch, `START -> START` collapses to `86d3d0a9f7db600bdc0f0f4b8ec29d9c7ff1418a7e7c7ac346dc9a710c2dd3a7`
   - all currently observed branches still report `filemenu_currentMenu = FILE_MENU_MAIN`
   - the first deeper `authority + A` branch currently preserves the same safe top-level panel predicates as the authority state, but it is now distinguished by the tracked `gWindows` update-function snapshots
+  - with the current shorter two-pulse probe path, `authority + A + A`, `authority + A + START`, and `authority + START + START` now converge to the same semantic window hash `d118c7cf5dbe96413ffe53150084c70a6c3f2bf4b7e8d96959735bb466d48576`
+  - that converged state still reports `state_init_file_select` / `state_step_file_select`, `FILE_MENU_MAIN`, and the same safe panel predicates, so it tightens the search tree without yet proving a real confirm/menu-mode transition
   - none of those paths leave `state_init_file_select` / `state_step_file_select` yet
 - The input-probe scenario now supports explicit `--step-chunk-frames`, and the savefile-backed branch reproduces byte-identically with `30`-frame chunks instead of one-frame stepping
 - On the heavier hi-res path, `WAIT_STATUS_FRAME` is now the authoritative progress signal for chunked probe steps; missing `STEP_FRAME` log acknowledgements are downgraded to warnings because they can lag or disappear without breaking the fixture-relative frame clock

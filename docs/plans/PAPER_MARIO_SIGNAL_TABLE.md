@@ -109,6 +109,24 @@
   - `WIN_FILES_CONFIRM_OPTIONS` stays on `WINDOW_UPDATE_HIDE` across that same sweep.
   - So the hidden branch is now distinguishable in a vanilla-safe way, even though it still remains inside `state_init_file_select` / `state_step_file_select` and keeps the same top-level filemenu panel predicates.
 
+- Deeper two-pulse branches now converge onto a second stable hidden state without leaving top-level file select.
+  - `authority + A + A`
+  - `authority + A + START`
+  - `authority + START + START`
+  all converge to the same semantic window hash:
+  - `d118c7cf5dbe96413ffe53150084c70a6c3f2bf4b7e8d96959735bb466d48576`
+  and still report:
+  - `state_init_file_select`
+  - `state_step_file_select`
+  - `FILE_MENU_MAIN`
+  - `FM_MAIN_SELECT_FILE`
+  - `FM_MAIN_OPT_FILE_2`
+  - `confirm_panel.selected = NO`
+  - `WIN_FILES_TITLE.fp_update = filemenu_update_hidden_with_rotation`
+  - `WIN_FILES_SLOT2_BODY.fp_update = filemenu_update_hidden_with_rotation`
+  - `WIN_FILES_CONFIRM_OPTIONS.fp_pending = WINDOW_UPDATE_HIDE`
+  - So the current branch ladder is getting more structured, but we still do not have proof of an actual confirm/menu-mode transition.
+
 - A no-input settle from the authoritative file-select state back to `frame=423` reproduces the canonical file-select hash:
   - `6fa8688b382fa1e6f0323f054861a85f593d2d47ca737bb78448e3f268ca63e3`
 

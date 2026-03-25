@@ -91,6 +91,11 @@ Current Paper Mario runtime note:
   - `WIN_FILES_TITLE.fp_update = filemenu_update_hidden_with_rotation`
   - `WIN_FILES_SLOT2_BODY.fp_update = filemenu_update_hidden_with_rotation`
   - `WIN_FILES_CONFIRM_OPTIONS.fp_pending = WINDOW_UPDATE_HIDE`
+- deeper two-pulse probes are now structured as well:
+  - `authority + A + A`
+  - `authority + A + START`
+  - `authority + START + START`
+  all converge to the same semantic window hash `d118c7cf5dbe96413ffe53150084c70a6c3f2bf4b7e8d96959735bb466d48576` while still staying in `FILE_MENU_MAIN`
 - a one-frame button sweep across `A`, `B`, `START`, `UP`, `DOWN`, `LEFT`, and `RIGHT`, plus `A` / `START` with `post-input-settle = 0`, stayed on that same decoded top-level file-select state too
 - the current trusted-vs-advisory Paper Mario runtime signals are documented in [PAPER_MARIO_SIGNAL_TABLE.md](/home/auro/code/parallel-n64/docs/plans/PAPER_MARIO_SIGNAL_TABLE.md)
 - deeper `savefile-start` menu probes now have two verified `on` branches:

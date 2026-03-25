@@ -14,6 +14,7 @@
 - [Hi-Res Pack Import Model](/home/auro/code/parallel-n64/docs/plans/HIRES_PACK_IMPORT_MODEL.md)
 - [Hi-Res Format Confidence Plan](/home/auro/code/parallel-n64/docs/plans/HIRES_FORMAT_CONFIDENCE_PLAN.md)
 - [Paper Mario State And Format Plan](/home/auro/code/parallel-n64/docs/plans/PAPER_MARIO_STATE_AND_FORMAT_PLAN.md)
+- [Paper Mario Signal Table](/home/auro/code/parallel-n64/docs/plans/PAPER_MARIO_SIGNAL_TABLE.md)
 
 ## Status
 

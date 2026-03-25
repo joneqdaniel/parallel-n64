@@ -115,13 +115,14 @@
       - later inspection showed `entryID=11` there is not trustworthy as world-entry evidence; DX file-select logic can inherit map/entry fields from save scanning while remaining inside `GAME_MODE_FILE_SELECT`
       - a no-input settle back out to `frame=423` from the authoritative file-select state reproduces the canonical file-select hash instead of the deeper `89cb1b...` branch, so that branch is definitely input-caused and not an idle-delay artifact
       - the first DX-backed attempt to snapshot filemenu panel globals is now explicitly treated as non-authoritative because the DX panel addresses do not line up with the vanilla ROM yet
+      - upstream `papermario` and `papermario-dx` now agree on the best vanilla-safe file-select signal addresses (`CurGameMode` callback pair, `filemenu_currentMenu`, `filemenu_pressedButtons`, `filemenu_heldButtons`), and that split is now recorded in [PAPER_MARIO_SIGNAL_TABLE.md](/home/auro/code/parallel-n64/docs/plans/PAPER_MARIO_SIGNAL_TABLE.md)
       - the current deterministic branch ladder is still useful even without valid panel addresses:
-        - direct one-frame `START` and `A` from the authoritative file-select state are both no-ops
-        - `START x120` yields the deeper branch `89cb1b...`
+        - direct one-frame `START` and `A` from the authoritative file-select state both collapse to the same first deeper branch after the current long settle
+        - that first deeper branch is `89cb1b...`
         - `START x120 -> A` yields `674bbf...`
         - `START x120 -> A -> A` and `START x120 -> A -> START` both yield `fece26...`
         - `START x120 -> START -> START` yields `86d3d0...`
-        - all of those paths still remain inside file-select callbacks
+        - all of those paths still remain inside file-select callbacks and keep `filemenu_currentMenu = FILE_MENU_MAIN`
       - `savefile-start -> right` and `savefile-start -> down` are now both verified in `on` mode, but they still expose the same three CI families as the shallower file-select neighborhood
     - caution: the current import-model evidence is still narrow
       - it now covers `3` distinct CI families instead of `2`

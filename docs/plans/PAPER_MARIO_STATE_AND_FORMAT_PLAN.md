@@ -106,6 +106,11 @@ Expected outputs:
 Exit signal:
 - we can say which Paper Mario signals are authoritative, which are advisory, and which are currently unsafe
 
+Current output:
+- the first version of that table now lives in [PAPER_MARIO_SIGNAL_TABLE.md](/home/auro/code/parallel-n64/docs/plans/PAPER_MARIO_SIGNAL_TABLE.md)
+- current best vanilla-safe signals are the `CurGameMode` callback pair and `filemenu_currentMenu`
+- current panel snapshots remain explicitly non-authoritative
+
 ### Workstream B: Vanilla-Safe State Discovery
 
 Goal:

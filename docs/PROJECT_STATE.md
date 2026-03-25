@@ -36,13 +36,17 @@
 - That savefile-backed branch does not currently reach gameplay; repeated runs stay in `state_init_file_select` / `state_step_file_select` and land on `areaID=0`, `mapID=0 (kmr_00)`, `entryID=11`
 - Inspection of `papermario-dx` now explains why `entryID=11` is misleading there: file-select save scanning can populate map/entry fields while the game is still firmly inside `GAME_MODE_FILE_SELECT`
 - A direct no-input settle from the authoritative file-select state back to `frame=423` reproduces the canonical file-select hash `6fa8688b382fa1e6f0323f054861a85f593d2d47ca737bb78448e3f268ca63e3`, which proves the deeper `89cb1b...` branch is input-caused rather than just a delayed idle path
-- The first attempt to snapshot filemenu panel globals from `papermario-dx` is intentionally marked non-authoritative now: the DX panel addresses are not validated against the vanilla ROM, and the current panel snapshots come back zeroed
+- The old hard-coded DX panel-address path is now retired: file-select panel snapshots are derived through the vanilla-safe `filemenu_menus` pointer table at `0x80249B84`
 - Upstream `papermario` and `papermario-dx` agree on the core file-select signal addresses that matter most here:
   - `state_init_file_select` / `state_step_file_select`
+  - `filemenu_menus`
   - `filemenu_currentMenu`
   - `filemenu_pressedButtons`
   - `filemenu_heldButtons`
 - The current vanilla-safe signal table is now documented in [PAPER_MARIO_SIGNAL_TABLE.md](/home/auro/code/parallel-n64/docs/plans/PAPER_MARIO_SIGNAL_TABLE.md)
+- Pointer-derived panel snapshots are now live in runtime bundles:
+  - the authoritative file-select state decodes as `FILE_MENU_MAIN`, `FM_MAIN_SELECT_FILE`, selected file `2`, with `exit_mode_guess = selected_file`
+  - the same path gives nonzero live `main_panel` / `confirm_panel` structs instead of the earlier zeroed DX-address snapshots
 - The current deterministic file-select branch ladder is clearer even without valid panel addresses:
   - direct one-frame `START` or `A` from the authoritative file-select state both collapse to the same first deeper branch after the current long settle
   - that first deeper branch is `89cb1bddd5c2dd2a62b063210af11c2324eca04d3060e746042edc0323b00e8e`
@@ -50,6 +54,7 @@
   - from that branch, `A -> A` and `A -> START` both collapse to `fece26f3ac694b9cbf9c395c10a4cb0543499cdc8eb2aa9beaacb896c2acd1ad`
   - from that branch, `START -> START` collapses to `86d3d0a9f7db600bdc0f0f4b8ec29d9c7ff1418a7e7c7ac346dc9a710c2dd3a7`
   - all currently observed branches still report `filemenu_currentMenu = FILE_MENU_MAIN`
+  - the first deeper `authority + A` branch currently preserves the same safe top-level panel predicates as the authority state, so it is still not distinguished by the current vanilla-safe signal set
   - none of those paths leave `state_init_file_select` / `state_step_file_select` yet
 - The input-probe scenario now supports explicit `--step-chunk-frames`, and the savefile-backed branch reproduces byte-identically with `30`-frame chunks instead of one-frame stepping
 - On the heavier hi-res path, `WAIT_STATUS_FRAME` is now the authoritative progress signal for chunked probe steps; missing `STEP_FRAME` log acknowledgements are downgraded to warnings because they can lag or disappear without breaking the fixture-relative frame clock

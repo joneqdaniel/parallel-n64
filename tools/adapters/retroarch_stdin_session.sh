@@ -26,6 +26,7 @@ Options:
                         WAIT_NEW_CAPTURE <timeout_seconds>
                         WAIT_CORE_MEMORY_HEX <address> <number_of_bytes> <expected_hex> <timeout_seconds>
                         SNAPSHOT_CORE_MEMORY <label> <address> <number_of_bytes>
+                        SNAPSHOT_CORE_POINTER_MEMORY <label> <pointer_address> <number_of_bytes>
   -h, --help            Show this help
 EOF
 }
@@ -251,6 +252,26 @@ get_last_core_memory_line_after() {
   fi
 
   tail -c +"$((start_bytes + 1))" "$RA_LOG" 2>/dev/null | rg -o "READ_CORE_MEMORY [^\r\n]*" | tail -n1
+}
+
+parse_core_memory_payload_to_bytes() {
+  local core_memory_line="$1"
+  local payload
+  payload="$(printf '%s\n' "$core_memory_line" | cut -d' ' -f3-)"
+  printf '%s\n' "$payload"
+}
+
+decode_u32le_from_hex_words() {
+  local payload="$1"
+  python3 - "$payload" <<'PY'
+import sys
+
+words = sys.argv[1].split()
+if len(words) < 4:
+    raise SystemExit(1)
+data = bytes(int(word, 16) for word in words[:4])
+print(f"0x{int.from_bytes(data, 'little'):08x}")
+PY
 }
 
 send_retroarch_command() {
@@ -521,6 +542,46 @@ for cmd in "${COMMANDS[@]}"; do
     core_memory_line="$(get_last_core_memory_line_after "$start_bytes" || true)"
     if [[ -z "$core_memory_line" ]]; then
       echo "[adapter] SNAPSHOT_CORE_MEMORY log line missing." >&2
+      exit 1
+    fi
+    printf '%s\n' "$core_memory_line" > "$trace_path"
+    continue
+  fi
+
+  if [[ "$cmd" =~ ^SNAPSHOT_CORE_POINTER_MEMORY[[:space:]]+([A-Za-z0-9._-]+)[[:space:]]+([^[:space:]]+)[[:space:]]+([0-9]+)$ ]]; then
+    label="${BASH_REMATCH[1]}"
+    pointer_address="${BASH_REMATCH[2]}"
+    nbytes="${BASH_REMATCH[3]}"
+    trace_path="$BUNDLE_DIR/traces/${label}.core-memory.txt"
+
+    start_bytes="$(log_size_bytes)"
+    printf '%s\n' "$cmd" >> "$COMMAND_LOG"
+    echo "[adapter] snapshot core pointer memory: $label ptr_addr=$pointer_address bytes=$nbytes"
+    send_retroarch_command "READ_CORE_MEMORY $pointer_address 4"
+    if ! wait_for_log_pattern_after "$start_bytes" "READ_CORE_MEMORY " 5; then
+      echo "[adapter] SNAPSHOT_CORE_POINTER_MEMORY pointer acknowledgement missing." >&2
+      exit 1
+    fi
+    pointer_line="$(get_last_core_memory_line_after "$start_bytes" || true)"
+    if [[ -z "$pointer_line" ]]; then
+      echo "[adapter] SNAPSHOT_CORE_POINTER_MEMORY pointer log line missing." >&2
+      exit 1
+    fi
+    resolved_address="$(decode_u32le_from_hex_words "$(parse_core_memory_payload_to_bytes "$pointer_line")" || true)"
+    if [[ -z "$resolved_address" || "$resolved_address" == "0x00000000" ]]; then
+      echo "[adapter] SNAPSHOT_CORE_POINTER_MEMORY resolved null/invalid pointer from $pointer_address." >&2
+      exit 1
+    fi
+
+    start_bytes="$(log_size_bytes)"
+    send_retroarch_command "READ_CORE_MEMORY $resolved_address $nbytes"
+    if ! wait_for_log_pattern_after "$start_bytes" "READ_CORE_MEMORY " 5; then
+      echo "[adapter] SNAPSHOT_CORE_POINTER_MEMORY dereference acknowledgement missing." >&2
+      exit 1
+    fi
+    core_memory_line="$(get_last_core_memory_line_after "$start_bytes" || true)"
+    if [[ -z "$core_memory_line" ]]; then
+      echo "[adapter] SNAPSHOT_CORE_POINTER_MEMORY dereference log line missing." >&2
       exit 1
     fi
     printf '%s\n' "$core_memory_line" > "$trace_path"

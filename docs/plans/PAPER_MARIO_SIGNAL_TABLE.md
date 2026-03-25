@@ -29,6 +29,19 @@
   - Why: the Phase 0 runtime contract is now deterministic for these Paper Mario fixtures.
   - Current use: this is still the authoritative branch identity when deeper semantic signals are missing.
 
+- `filemenu_menus` at `0x80249B84`
+  - Why: upstream and DX agree on the symbol address, and it gives us a vanilla-safe pointer source for the live `MenuPanel` structs.
+  - Current use: the tracked runtime path now dereferences `[FILE_MENU_MAIN]` and `[FILE_MENU_CONFIRM]` through this array instead of relying on guessed fixed addresses.
+
+- Pointer-derived `main_panel` / `confirm_panel` snapshots
+  - Why: these snapshots now resolve through `filemenu_menus` and produce live nonzero structs in the runtime bundles.
+  - Current safe fields:
+    - `main_panel.state`
+    - `main_panel.selected`
+    - `confirm_panel.selected`
+  - Current safe derived predicate:
+    - `exit_mode_guess`, mirroring vanilla `filemenu_get_exit_mode()`
+
 ### Advisory
 
 - `filemenu_pressedButtons` at `0x8024C084`
@@ -43,11 +56,9 @@
 
 ### Unsafe / Non-Authoritative
 
-- `filemenu_main_menuBP` snapshot at `0x80409158`
-- `filemenu_yesno_menuBP` snapshot at `0x804091D0`
-  - Why: these addresses are not currently backed by a trustworthy vanilla build artifact in the local references.
-  - Runtime evidence: the sampled structs are zeroed in current bundles.
-  - Rule: do not use these panel fields as evidence until they are derived or validated against a real vanilla symbol/build source.
+- Direct hard-coded `filemenu_main_menuBP` / `filemenu_yesno_menuBP` addresses
+  - Why: those fixed addresses are not backed by a trustworthy vanilla build artifact in the local references.
+  - Rule: do not reintroduce fixed panel-address snapshots; always go through `filemenu_menus`.
 
 ## Current Verified Conclusions
 
@@ -55,6 +66,15 @@
   - `state_init_file_select`
   - `state_step_file_select`
   - `filemenu_currentMenu = FILE_MENU_MAIN`
+
+- The current authoritative file-select state now decodes cleanly through `filemenu_menus` as:
+  - `main_panel.state = FM_MAIN_SELECT_FILE`
+  - `main_panel.selected = FM_MAIN_OPT_FILE_2`
+  - `confirm_panel.selected = NO`
+  - `exit_mode_guess = selected_file`
+
+- The first deeper `authority + A` branch currently decodes to the same top-level file-select predicates as the authority state.
+  - That means the current safe signals still do not distinguish that deeper visual branch from the steady-state authority.
 
 - A no-input settle from the authoritative file-select state back to `frame=423` reproduces the canonical file-select hash:
   - `6fa8688b382fa1e6f0323f054861a85f593d2d47ca737bb78448e3f268ca63e3`

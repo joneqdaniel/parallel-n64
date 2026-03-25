@@ -63,7 +63,12 @@ Current Paper Mario runtime note:
   - `START x120 -> A -> START` -> `fece26f3ac694b9cbf9c395c10a4cb0543499cdc8eb2aa9beaacb896c2acd1ad`
   - `START x120 -> START -> START` -> `86d3d0a9f7db600bdc0f0f4b8ec29d9c7ff1418a7e7c7ac346dc9a710c2dd3a7`
   - all of these remain in `state_init_file_select` / `state_step_file_select` and still read `filemenu_currentMenu = FILE_MENU_MAIN`
-- the current filemenu panel snapshots in `paper-mario-game-status.json` are intentionally flagged as non-authoritative: the first addresses came from `papermario-dx`, and the panel structs are still zeroed when sampled against the vanilla ROM
+- filemenu panel snapshots are now derived through the vanilla-safe `filemenu_menus` pointer table instead of fixed DX-style panel addresses
+- the authoritative file-select bundle now resolves live panel structs and currently decodes as:
+  - `main_panel.state = FM_MAIN_SELECT_FILE`
+  - `main_panel.selected = FM_MAIN_OPT_FILE_2`
+  - `exit_mode_guess = selected_file`
+- the first deeper `authority + A` branch still decodes to the same safe top-level file-select panel predicates as the authority state
 - the current trusted-vs-advisory Paper Mario runtime signals are documented in [PAPER_MARIO_SIGNAL_TABLE.md](/home/auro/code/parallel-n64/docs/plans/PAPER_MARIO_SIGNAL_TABLE.md)
 - deeper `savefile-start` menu probes now have two verified `on` branches:
   - `savefile-start -> right` produces screenshot hash `0302c029e4a221359158486baa7cfbda5984bb0dfc8eb51f9f68fd98f18a305c`

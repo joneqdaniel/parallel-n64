@@ -823,8 +823,9 @@ FILE_MENU_NAMES = {
 FILE_MENU_MAIN_STATE_NAMES = {
     0: "FM_MAIN_SELECT_FILE",
     1: "FM_MAIN_SELECT_DELETE",
-    2: "FM_MAIN_SELECT_COPY_FROM",
-    3: "FM_MAIN_SELECT_COPY_TO",
+    2: "FM_MAIN_SELECT_LANG_DUMMY",
+    3: "FM_MAIN_SELECT_COPY_FROM",
+    4: "FM_MAIN_SELECT_COPY_TO",
 }
 FILE_MENU_MAIN_SELECTED_NAMES = {
     0: "FM_MAIN_OPT_FILE_1",
@@ -837,13 +838,19 @@ FILE_MENU_MAIN_SELECTED_NAMES = {
 }
 FILE_MENU_CONFIRM_STATE_NAMES = {
     0: "FM_CONFIRM_DELETE",
-    1: "FM_CONFIRM_CREATE",
-    2: "FM_CONFIRM_COPY",
-    3: "FM_CONFIRM_START",
+    1: "FM_CONFIRM_DUMMY",
+    2: "FM_CONFIRM_CREATE",
+    3: "FM_CONFIRM_COPY",
+    4: "FM_CONFIRM_START",
 }
 FILE_MENU_CONFIRM_SELECTED_NAMES = {
     0: "YES",
     1: "NO",
+}
+FILE_MENU_EXIT_MODE_NAMES = {
+    0: "stay_file_select",
+    1: "selected_file",
+    2: "confirm_start_yes",
 }
 trace_path = bundle_dir / "traces" / "paper-mario-gamestatus.core-memory.txt"
 expected_base = 0x800740AA
@@ -857,11 +864,14 @@ transition_expected_size = 0x08
 filemenu_current_menu_trace_path = bundle_dir / "traces" / "paper-mario-filemenu-current-menu.core-memory.txt"
 filemenu_current_menu_expected_base = 0x8024C098
 filemenu_current_menu_expected_size = 0x01
+filemenu_menus_trace_path = bundle_dir / "traces" / "paper-mario-filemenu-menus.core-memory.txt"
+filemenu_menus_expected_base = 0x80249B84
+filemenu_menus_expected_size = 0x08
 filemenu_main_panel_trace_path = bundle_dir / "traces" / "paper-mario-filemenu-main-panel.core-memory.txt"
-filemenu_main_panel_expected_base = 0x80409158
+filemenu_main_panel_expected_base = None
 filemenu_main_panel_expected_size = 0x1C
 filemenu_confirm_panel_trace_path = bundle_dir / "traces" / "paper-mario-filemenu-confirm-panel.core-memory.txt"
-filemenu_confirm_panel_expected_base = 0x804091D0
+filemenu_confirm_panel_expected_base = None
 filemenu_confirm_panel_expected_size = 0x1C
 filemenu_pressed_buttons_trace_path = bundle_dir / "traces" / "paper-mario-filemenu-pressed-buttons.core-memory.txt"
 filemenu_pressed_buttons_expected_base = 0x8024C084
@@ -905,7 +915,7 @@ def u32le(buf, off):
 def ensure_trace_layout(trace, expected_base, expected_size, trace_name):
     if trace is None:
         return
-    if trace["base_address"] != expected_base:
+    if expected_base is not None and trace["base_address"] != expected_base:
         raise SystemExit(
             f"Unexpected base address for {trace_name}: "
             f"0x{trace['base_address']:08x} != 0x{expected_base:08x}"
@@ -970,6 +980,13 @@ ensure_trace_layout(
     filemenu_current_menu_expected_base,
     filemenu_current_menu_expected_size,
     filemenu_current_menu_trace_path.name,
+)
+filemenu_menus_trace = load_trace(filemenu_menus_trace_path)
+ensure_trace_layout(
+    filemenu_menus_trace,
+    filemenu_menus_expected_base,
+    filemenu_menus_expected_size,
+    filemenu_menus_trace_path.name,
 )
 filemenu_main_panel_trace = load_trace(filemenu_main_panel_trace_path)
 ensure_trace_layout(
@@ -1100,6 +1117,19 @@ if any(
         filemenu_result["current_menu"] = filemenu_current_menu
         filemenu_result["current_menu_name"] = FILE_MENU_NAMES.get(filemenu_current_menu)
 
+    if filemenu_menus_trace is not None:
+        main_panel_ptr = u32le(filemenu_menus_trace["data"], 0x00)
+        confirm_panel_ptr = u32le(filemenu_menus_trace["data"], 0x04)
+        result["sources"]["filemenu_runtime"]["menus"] = {
+            "path": filemenu_menus_trace["path"],
+            "base_address": f"0x{filemenu_menus_trace['base_address']:08x}",
+            "window_size_bytes": len(filemenu_menus_trace["data"]),
+        }
+        filemenu_result["menus"] = {
+            "main_panel_ptr": f"0x{main_panel_ptr:08x}",
+            "confirm_panel_ptr": f"0x{confirm_panel_ptr:08x}",
+        }
+
     if filemenu_main_panel_trace is not None:
         main_panel = filemenu_main_panel_trace["data"]
         result["sources"]["filemenu_runtime"]["main_panel"] = {
@@ -1154,6 +1184,7 @@ if any(
 
     main_panel_result = filemenu_result.get("main_panel")
     confirm_panel_result = filemenu_result.get("confirm_panel")
+    current_menu = filemenu_result.get("current_menu")
     panel_snapshots_valid = True
     if main_panel_result is not None and confirm_panel_result is not None:
         panel_snapshots_valid = not (
@@ -1167,9 +1198,24 @@ if any(
     filemenu_result["panel_snapshots_valid"] = panel_snapshots_valid
     if not panel_snapshots_valid:
         filemenu_result["warning"] = (
-            "Current filemenu panel addresses come from papermario-dx and are not yet "
-            "validated against the vanilla ROM. Treat these panel fields as non-authoritative."
+            "Current filemenu panel snapshots did not resolve to live menu structs. "
+            "Treat these panel fields as non-authoritative."
         )
+    elif main_panel_result is not None and confirm_panel_result is not None and current_menu is not None:
+        exit_mode_guess = 0
+        if (
+            main_panel_result["state"] == 0
+            and current_menu == 1
+            and confirm_panel_result["selected"] == 0
+        ):
+            exit_mode_guess = 2
+        elif (
+            main_panel_result["state"] == 0
+            and main_panel_result["selected"] <= 3
+        ):
+            exit_mode_guess = 1
+        filemenu_result["exit_mode_guess"] = exit_mode_guess
+        filemenu_result["exit_mode_guess_name"] = FILE_MENU_EXIT_MODE_NAMES.get(exit_mode_guess)
 
 output_path.write_text(json.dumps(result, indent=2) + "\n")
 PY

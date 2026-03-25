@@ -51,6 +51,16 @@ Current Paper Mario runtime note:
 - the same probe scenario now also supports repeated deterministic input pulses from the same authority state, which is the current low-risk way to explore nearby file-select menu states without minting new fixtures
 - the probe scenario now also supports explicit mixed input sequences, which is the current way to test branch changes like `down -> right` without creating one-off scripts for each menu path
 - the current savefile-backed deep branch is reproducible but still menu-bound: staging the local `.srm`, holding `START` for `120` frames, and settling to `frame=423` lands on screenshot hash `89cb1bddd5c2dd2a62b063210af11c2324eca04d3060e746042edc0323b00e8e` while semantics stay in `state_init_file_select` / `state_step_file_select` with `entryID=11`
+- a later no-input control run back out to `frame=423` from the authoritative file-select state reproduces the canonical file-select hash `6fa8688b382fa1e6f0323f054861a85f593d2d47ca737bb78448e3f268ca63e3`, which proves that deeper `89cb1b...` branch is input-caused rather than a pure settle-time effect
+- direct one-frame `START` and `A` pulses from the authoritative file-select state are both no-ops under the current savefile-backed setup; the first reliable branch change still requires the longer `START x120` handoff
+- the current post-handoff branch ladder is:
+  - `START x120` -> `89cb1bddd5c2dd2a62b063210af11c2324eca04d3060e746042edc0323b00e8e`
+  - `START x120 -> A` -> `674bbf51ab0c985d16088aedd373d2bd7d3d8fdc5f1e12020858f322e7073732`
+  - `START x120 -> A -> A` -> `fece26f3ac694b9cbf9c395c10a4cb0543499cdc8eb2aa9beaacb896c2acd1ad`
+  - `START x120 -> A -> START` -> `fece26f3ac694b9cbf9c395c10a4cb0543499cdc8eb2aa9beaacb896c2acd1ad`
+  - `START x120 -> START -> START` -> `86d3d0a9f7db600bdc0f0f4b8ec29d9c7ff1418a7e7c7ac346dc9a710c2dd3a7`
+  - all of these remain in `state_init_file_select` / `state_step_file_select`
+- the current filemenu panel snapshots in `paper-mario-game-status.json` are intentionally flagged as non-authoritative: the first addresses came from `papermario-dx`, and the panel structs are still zeroed when sampled against the vanilla ROM
 - deeper `savefile-start` menu probes now have two verified `on` branches:
   - `savefile-start -> right` produces screenshot hash `0302c029e4a221359158486baa7cfbda5984bb0dfc8eb51f9f68fd98f18a305c`
   - `savefile-start -> down` produces screenshot hash `61ec2cb8d1e964356d4010395e29aa3ba7b1e6b2bf9980bd27d2bc225c8a547f`

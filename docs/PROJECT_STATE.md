@@ -34,6 +34,16 @@
 - There is now a dedicated file-select input-probe scenario for bundle-backed Phase 1 exploration, and it advances exploratory post-input settles one frame at a time so probe evidence stays reliable without loosening the global adapter contract
 - A savefile-backed branch from that authority is now proven deterministic as well: staging the local `.srm`, holding `START` for `120` frames, and settling to `frame=423` reproduces exactly across repeated runs
 - That savefile-backed branch does not currently reach gameplay; repeated runs stay in `state_init_file_select` / `state_step_file_select` and land on `areaID=0`, `mapID=0 (kmr_00)`, `entryID=11`
+- Inspection of `papermario-dx` now explains why `entryID=11` is misleading there: file-select save scanning can populate map/entry fields while the game is still firmly inside `GAME_MODE_FILE_SELECT`
+- A direct no-input settle from the authoritative file-select state back to `frame=423` reproduces the canonical file-select hash `6fa8688b382fa1e6f0323f054861a85f593d2d47ca737bb78448e3f268ca63e3`, which proves the deeper `89cb1b...` branch is input-caused rather than just a delayed idle path
+- The first attempt to snapshot filemenu panel globals from `papermario-dx` is intentionally marked non-authoritative now: the DX panel addresses are not validated against the vanilla ROM, and the current panel snapshots come back zeroed
+- The current deterministic file-select branch ladder is clearer even without valid panel addresses:
+  - direct one-frame `START` or `A` from the authoritative file-select state are no-ops
+  - `START` held for `120` frames produces the deeper deterministic branch `89cb1bddd5c2dd2a62b063210af11c2324eca04d3060e746042edc0323b00e8e`
+  - from that branch, `A` produces `674bbf51ab0c985d16088aedd373d2bd7d3d8fdc5f1e12020858f322e7073732`
+  - from that branch, `A -> A` and `A -> START` both collapse to `fece26f3ac694b9cbf9c395c10a4cb0543499cdc8eb2aa9beaacb896c2acd1ad`
+  - from that branch, `START -> START` collapses to `86d3d0a9f7db600bdc0f0f4b8ec29d9c7ff1418a7e7c7ac346dc9a710c2dd3a7`
+  - none of those paths leave `state_init_file_select` / `state_step_file_select` yet
 - The input-probe scenario now supports explicit `--step-chunk-frames`, and the savefile-backed branch reproduces byte-identically with `30`-frame chunks instead of one-frame stepping
 - On the heavier hi-res path, `WAIT_STATUS_FRAME` is now the authoritative progress signal for chunked probe steps; missing `STEP_FRAME` log acknowledgements are downgraded to warnings because they can lag or disappear without breaking the fixture-relative frame clock
 - Paired `off` and `on` scenario runs are now verified directly from the tracked scenario entrypoints on the corrected ParaLLEl path

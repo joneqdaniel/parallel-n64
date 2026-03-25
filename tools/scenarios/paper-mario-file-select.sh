@@ -293,6 +293,11 @@ else
       --command "SNAPSHOT_CORE_MEMORY paper-mario-gamestatus 800740aa 230" \
       --command "SNAPSHOT_CORE_MEMORY paper-mario-curgamemode 80151700 20" \
       --command "SNAPSHOT_CORE_MEMORY paper-mario-transition 800a0944 8" \
+      --command "SNAPSHOT_CORE_MEMORY paper-mario-filemenu-current-menu 8024c098 1" \
+      --command "SNAPSHOT_CORE_MEMORY paper-mario-filemenu-main-panel 80409158 28" \
+      --command "SNAPSHOT_CORE_MEMORY paper-mario-filemenu-confirm-panel 804091d0 28" \
+      --command "SNAPSHOT_CORE_MEMORY paper-mario-filemenu-pressed-buttons 8024c084 4" \
+      --command "SNAPSHOT_CORE_MEMORY paper-mario-filemenu-held-buttons 8024c08c 4" \
       --command "SCREENSHOT" \
       --command "WAIT_NEW_CAPTURE 10" \
       --command "QUIT"
@@ -329,6 +334,11 @@ else
       --command "SNAPSHOT_CORE_MEMORY paper-mario-gamestatus 800740aa 230" \
       --command "SNAPSHOT_CORE_MEMORY paper-mario-curgamemode 80151700 20" \
       --command "SNAPSHOT_CORE_MEMORY paper-mario-transition 800a0944 8" \
+      --command "SNAPSHOT_CORE_MEMORY paper-mario-filemenu-current-menu 8024c098 1" \
+      --command "SNAPSHOT_CORE_MEMORY paper-mario-filemenu-main-panel 80409158 28" \
+      --command "SNAPSHOT_CORE_MEMORY paper-mario-filemenu-confirm-panel 804091d0 28" \
+      --command "SNAPSHOT_CORE_MEMORY paper-mario-filemenu-pressed-buttons 8024c084 4" \
+      --command "SNAPSHOT_CORE_MEMORY paper-mario-filemenu-held-buttons 8024c08c 4" \
       --command "SCREENSHOT" \
       --command "WAIT_NEW_CAPTURE 10" \
       --command "QUIT"

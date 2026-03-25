@@ -814,6 +814,37 @@ CUR_GAME_MODE_POINTER_NAMES = {
     0x80036DF0: "state_init_title_screen",
     0x800370B4: "state_step_title_screen",
 }
+FILE_MENU_NAMES = {
+    0: "FILE_MENU_MAIN",
+    1: "FILE_MENU_CONFIRM",
+    2: "FILE_MENU_MESSAGE",
+    3: "FILE_MENU_INPUT_NAME",
+}
+FILE_MENU_MAIN_STATE_NAMES = {
+    0: "FM_MAIN_SELECT_FILE",
+    1: "FM_MAIN_SELECT_DELETE",
+    2: "FM_MAIN_SELECT_COPY_FROM",
+    3: "FM_MAIN_SELECT_COPY_TO",
+}
+FILE_MENU_MAIN_SELECTED_NAMES = {
+    0: "FM_MAIN_OPT_FILE_1",
+    1: "FM_MAIN_OPT_FILE_2",
+    2: "FM_MAIN_OPT_FILE_3",
+    3: "FM_MAIN_OPT_FILE_4",
+    4: "FM_MAIN_OPT_DELETE",
+    5: "FM_MAIN_OPT_COPY",
+    6: "FM_MAIN_OPT_CANCEL",
+}
+FILE_MENU_CONFIRM_STATE_NAMES = {
+    0: "FM_CONFIRM_DELETE",
+    1: "FM_CONFIRM_CREATE",
+    2: "FM_CONFIRM_COPY",
+    3: "FM_CONFIRM_START",
+}
+FILE_MENU_CONFIRM_SELECTED_NAMES = {
+    0: "YES",
+    1: "NO",
+}
 trace_path = bundle_dir / "traces" / "paper-mario-gamestatus.core-memory.txt"
 expected_base = 0x800740AA
 expected_size = 0xE6
@@ -823,6 +854,21 @@ cur_game_mode_expected_size = 0x14
 transition_trace_path = bundle_dir / "traces" / "paper-mario-transition.core-memory.txt"
 transition_expected_base = 0x800A0944
 transition_expected_size = 0x08
+filemenu_current_menu_trace_path = bundle_dir / "traces" / "paper-mario-filemenu-current-menu.core-memory.txt"
+filemenu_current_menu_expected_base = 0x8024C098
+filemenu_current_menu_expected_size = 0x01
+filemenu_main_panel_trace_path = bundle_dir / "traces" / "paper-mario-filemenu-main-panel.core-memory.txt"
+filemenu_main_panel_expected_base = 0x80409158
+filemenu_main_panel_expected_size = 0x1C
+filemenu_confirm_panel_trace_path = bundle_dir / "traces" / "paper-mario-filemenu-confirm-panel.core-memory.txt"
+filemenu_confirm_panel_expected_base = 0x804091D0
+filemenu_confirm_panel_expected_size = 0x1C
+filemenu_pressed_buttons_trace_path = bundle_dir / "traces" / "paper-mario-filemenu-pressed-buttons.core-memory.txt"
+filemenu_pressed_buttons_expected_base = 0x8024C084
+filemenu_pressed_buttons_expected_size = 0x04
+filemenu_held_buttons_trace_path = bundle_dir / "traces" / "paper-mario-filemenu-held-buttons.core-memory.txt"
+filemenu_held_buttons_expected_base = 0x8024C08C
+filemenu_held_buttons_expected_size = 0x04
 
 def load_trace(path: Path):
     if not path.is_file():
@@ -856,19 +902,43 @@ def u32le(buf, off):
         | (buf[off + 3] << 24)
     )
 
+def ensure_trace_layout(trace, expected_base, expected_size, trace_name):
+    if trace is None:
+        return
+    if trace["base_address"] != expected_base:
+        raise SystemExit(
+            f"Unexpected base address for {trace_name}: "
+            f"0x{trace['base_address']:08x} != 0x{expected_base:08x}"
+        )
+    if len(trace["data"]) < expected_size:
+        raise SystemExit(
+            f"Snapshot too short for {trace_name}: "
+            f"{len(trace['data'])} < {expected_size}"
+        )
+
+def decode_menu_panel(buf, *, state_names, selected_names=None):
+    selected = u8(buf, 0x03)
+    state = s8(buf, 0x04)
+    return {
+        "initialized": bool(u8(buf, 0x00)),
+        "col": s8(buf, 0x01),
+        "row": s8(buf, 0x02),
+        "selected": selected,
+        "selected_name": None if selected_names is None else selected_names.get(selected),
+        "state": state,
+        "state_name": state_names.get(state),
+        "num_cols": s8(buf, 0x05),
+        "num_rows": s8(buf, 0x06),
+        "num_pages": s8(buf, 0x07),
+        "grid_data_ptr": f"0x{u32le(buf, 0x08):08x}",
+        "handle_input_ptr": f"0x{u32le(buf, 0x10):08x}",
+        "update_ptr": f"0x{u32le(buf, 0x14):08x}",
+    }
+
 trace = load_trace(trace_path)
 if trace is None:
     raise SystemExit("Paper Mario gamestatus snapshot not found in bundle traces.")
-if trace["base_address"] != expected_base:
-    raise SystemExit(
-        f"Unexpected base address for {trace_path.name}: "
-        f"0x{trace['base_address']:08x} != 0x{expected_base:08x}"
-    )
-if len(trace["data"]) < expected_size:
-    raise SystemExit(
-        f"Snapshot too short for {trace_path.name}: "
-        f"{len(trace['data'])} < {expected_size}"
-    )
+ensure_trace_layout(trace, expected_base, expected_size, trace_path.name)
 
 gamestatus = trace["data"]
 window_sha256 = hashlib.sha256(gamestatus).hexdigest()
@@ -880,30 +950,55 @@ if 0 <= map_id < len(map_name_candidates):
     map_name_candidate = map_name_candidates[map_id]
 
 cur_game_mode_trace = load_trace(cur_game_mode_trace_path)
-if cur_game_mode_trace is not None:
-    if cur_game_mode_trace["base_address"] != cur_game_mode_expected_base:
-        raise SystemExit(
-            f"Unexpected base address for {cur_game_mode_trace_path.name}: "
-            f"0x{cur_game_mode_trace['base_address']:08x} != 0x{cur_game_mode_expected_base:08x}"
-        )
-    if len(cur_game_mode_trace["data"]) < cur_game_mode_expected_size:
-        raise SystemExit(
-            f"Snapshot too short for {cur_game_mode_trace_path.name}: "
-            f"{len(cur_game_mode_trace['data'])} < {cur_game_mode_expected_size}"
-        )
+ensure_trace_layout(
+    cur_game_mode_trace,
+    cur_game_mode_expected_base,
+    cur_game_mode_expected_size,
+    cur_game_mode_trace_path.name,
+)
 
 transition_trace = load_trace(transition_trace_path)
-if transition_trace is not None:
-    if transition_trace["base_address"] != transition_expected_base:
-        raise SystemExit(
-            f"Unexpected base address for {transition_trace_path.name}: "
-            f"0x{transition_trace['base_address']:08x} != 0x{transition_expected_base:08x}"
-        )
-    if len(transition_trace["data"]) < transition_expected_size:
-        raise SystemExit(
-            f"Snapshot too short for {transition_trace_path.name}: "
-            f"{len(transition_trace['data'])} < {transition_expected_size}"
-        )
+ensure_trace_layout(
+    transition_trace,
+    transition_expected_base,
+    transition_expected_size,
+    transition_trace_path.name,
+)
+filemenu_current_menu_trace = load_trace(filemenu_current_menu_trace_path)
+ensure_trace_layout(
+    filemenu_current_menu_trace,
+    filemenu_current_menu_expected_base,
+    filemenu_current_menu_expected_size,
+    filemenu_current_menu_trace_path.name,
+)
+filemenu_main_panel_trace = load_trace(filemenu_main_panel_trace_path)
+ensure_trace_layout(
+    filemenu_main_panel_trace,
+    filemenu_main_panel_expected_base,
+    filemenu_main_panel_expected_size,
+    filemenu_main_panel_trace_path.name,
+)
+filemenu_confirm_panel_trace = load_trace(filemenu_confirm_panel_trace_path)
+ensure_trace_layout(
+    filemenu_confirm_panel_trace,
+    filemenu_confirm_panel_expected_base,
+    filemenu_confirm_panel_expected_size,
+    filemenu_confirm_panel_trace_path.name,
+)
+filemenu_pressed_buttons_trace = load_trace(filemenu_pressed_buttons_trace_path)
+ensure_trace_layout(
+    filemenu_pressed_buttons_trace,
+    filemenu_pressed_buttons_expected_base,
+    filemenu_pressed_buttons_expected_size,
+    filemenu_pressed_buttons_trace_path.name,
+)
+filemenu_held_buttons_trace = load_trace(filemenu_held_buttons_trace_path)
+ensure_trace_layout(
+    filemenu_held_buttons_trace,
+    filemenu_held_buttons_expected_base,
+    filemenu_held_buttons_expected_size,
+    filemenu_held_buttons_trace_path.name,
+)
 
 result = {
     "sources": {
@@ -981,6 +1076,100 @@ if transition_trace is not None:
         "state_time": s16le(transition, 0x02),
         "loaded_from_file_select": s16le(transition, 0x04),
     }
+
+if any(
+    trace is not None
+    for trace in (
+        filemenu_current_menu_trace,
+        filemenu_main_panel_trace,
+        filemenu_confirm_panel_trace,
+        filemenu_pressed_buttons_trace,
+        filemenu_held_buttons_trace,
+    )
+):
+    result["sources"]["filemenu_runtime"] = {}
+    filemenu_result = result["paper_mario_us"].setdefault("filemenu", {})
+
+    if filemenu_current_menu_trace is not None:
+        filemenu_current_menu = s8(filemenu_current_menu_trace["data"], 0x00)
+        result["sources"]["filemenu_runtime"]["current_menu"] = {
+            "path": filemenu_current_menu_trace["path"],
+            "base_address": f"0x{filemenu_current_menu_trace['base_address']:08x}",
+            "window_size_bytes": len(filemenu_current_menu_trace["data"]),
+        }
+        filemenu_result["current_menu"] = filemenu_current_menu
+        filemenu_result["current_menu_name"] = FILE_MENU_NAMES.get(filemenu_current_menu)
+
+    if filemenu_main_panel_trace is not None:
+        main_panel = filemenu_main_panel_trace["data"]
+        result["sources"]["filemenu_runtime"]["main_panel"] = {
+            "path": filemenu_main_panel_trace["path"],
+            "base_address": f"0x{filemenu_main_panel_trace['base_address']:08x}",
+            "window_size_bytes": len(main_panel),
+            "window_sha256": hashlib.sha256(main_panel).hexdigest(),
+        }
+        filemenu_result["main_panel"] = decode_menu_panel(
+            main_panel,
+            state_names=FILE_MENU_MAIN_STATE_NAMES,
+            selected_names=FILE_MENU_MAIN_SELECTED_NAMES,
+        )
+
+    if filemenu_confirm_panel_trace is not None:
+        confirm_panel = filemenu_confirm_panel_trace["data"]
+        result["sources"]["filemenu_runtime"]["confirm_panel"] = {
+            "path": filemenu_confirm_panel_trace["path"],
+            "base_address": f"0x{filemenu_confirm_panel_trace['base_address']:08x}",
+            "window_size_bytes": len(confirm_panel),
+            "window_sha256": hashlib.sha256(confirm_panel).hexdigest(),
+        }
+        filemenu_result["confirm_panel"] = decode_menu_panel(
+            confirm_panel,
+            state_names=FILE_MENU_CONFIRM_STATE_NAMES,
+            selected_names=FILE_MENU_CONFIRM_SELECTED_NAMES,
+        )
+
+    if filemenu_pressed_buttons_trace is not None:
+        pressed_buttons = u32le(filemenu_pressed_buttons_trace["data"], 0x00)
+        result["sources"]["filemenu_runtime"]["pressed_buttons"] = {
+            "path": filemenu_pressed_buttons_trace["path"],
+            "base_address": f"0x{filemenu_pressed_buttons_trace['base_address']:08x}",
+            "window_size_bytes": len(filemenu_pressed_buttons_trace["data"]),
+        }
+        filemenu_result["pressed_buttons"] = {
+            "raw": pressed_buttons,
+            "raw_hex": f"0x{pressed_buttons:08x}",
+        }
+
+    if filemenu_held_buttons_trace is not None:
+        held_buttons = u32le(filemenu_held_buttons_trace["data"], 0x00)
+        result["sources"]["filemenu_runtime"]["held_buttons"] = {
+            "path": filemenu_held_buttons_trace["path"],
+            "base_address": f"0x{filemenu_held_buttons_trace['base_address']:08x}",
+            "window_size_bytes": len(filemenu_held_buttons_trace["data"]),
+        }
+        filemenu_result["held_buttons"] = {
+            "raw": held_buttons,
+            "raw_hex": f"0x{held_buttons:08x}",
+        }
+
+    main_panel_result = filemenu_result.get("main_panel")
+    confirm_panel_result = filemenu_result.get("confirm_panel")
+    panel_snapshots_valid = True
+    if main_panel_result is not None and confirm_panel_result is not None:
+        panel_snapshots_valid = not (
+            main_panel_result["grid_data_ptr"] == "0x00000000"
+            and main_panel_result["handle_input_ptr"] == "0x00000000"
+            and main_panel_result["update_ptr"] == "0x00000000"
+            and confirm_panel_result["grid_data_ptr"] == "0x00000000"
+            and confirm_panel_result["handle_input_ptr"] == "0x00000000"
+            and confirm_panel_result["update_ptr"] == "0x00000000"
+        )
+    filemenu_result["panel_snapshots_valid"] = panel_snapshots_valid
+    if not panel_snapshots_valid:
+        filemenu_result["warning"] = (
+            "Current filemenu panel addresses come from papermario-dx and are not yet "
+            "validated against the vanilla ROM. Treat these panel fields as non-authoritative."
+        )
 
 output_path.write_text(json.dumps(result, indent=2) + "\n")
 PY

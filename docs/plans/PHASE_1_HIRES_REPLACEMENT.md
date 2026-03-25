@@ -112,6 +112,16 @@
       - the first `right` probe adds a third CI family, `dd798ca8/fs258/28x16 -> 560x160`
       - that new family classifies cleanly as `compat-unique`, which is the first sign that deterministic imported selectors can grow beyond the original strict pair without widening runtime lookup heuristics
       - a deeper savefile-backed `START` branch is now deterministic too, but it still stays in `state_init_file_select` / `state_step_file_select` and lands on a deeper menu state (`entryID=11`) rather than gameplay
+      - later inspection showed `entryID=11` there is not trustworthy as world-entry evidence; DX file-select logic can inherit map/entry fields from save scanning while remaining inside `GAME_MODE_FILE_SELECT`
+      - a no-input settle back out to `frame=423` from the authoritative file-select state reproduces the canonical file-select hash instead of the deeper `89cb1b...` branch, so that branch is definitely input-caused and not an idle-delay artifact
+      - the first DX-backed attempt to snapshot filemenu panel globals is now explicitly treated as non-authoritative because the DX panel addresses do not line up with the vanilla ROM yet
+      - the current deterministic branch ladder is still useful even without valid panel addresses:
+        - direct one-frame `START` and `A` from the authoritative file-select state are both no-ops
+        - `START x120` yields the deeper branch `89cb1b...`
+        - `START x120 -> A` yields `674bbf...`
+        - `START x120 -> A -> A` and `START x120 -> A -> START` both yield `fece26...`
+        - `START x120 -> START -> START` yields `86d3d0...`
+        - all of those paths still remain inside file-select callbacks
       - `savefile-start -> right` and `savefile-start -> down` are now both verified in `on` mode, but they still expose the same three CI families as the shallower file-select neighborhood
     - caution: the current import-model evidence is still narrow
       - it now covers `3` distinct CI families instead of `2`

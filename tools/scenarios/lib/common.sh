@@ -872,18 +872,25 @@ WINDOW_UPDATE_VALUE_NAMES = {
     0x00000007: "WINDOW_UPDATE_SHOW_TRANSPARENT",
     0x00000008: "WINDOW_UPDATE_SHOW_DARKENED",
     0x00000009: "WINDOW_UPDATE_9",
+    0x80147650: "main_menu_window_update",
+    0x80243380: "filemenu_update_show_name_input",
     0x802433F4: "filemenu_update_show_options_left",
     0x80243468: "filemenu_update_show_options_right",
     0x802434DC: "filemenu_update_show_options_bottom",
     0x80243550: "filemenu_update_show_title",
+    0x80243628: "filemenu_update_hidden_name_input",
     0x8024381C: "filemenu_update_show_with_rotation",
     0x80243898: "filemenu_update_hidden_with_rotation",
     0x80243CCC: "filemenu_update_show_name_confirm",
     0x80243EEC: "filemenu_update_hidden_name_confirm",
+    0x80248170: "filemenu_update_change_layout",
 }
 FILE_MENU_WINDOW_IDS = {
     "title": 45,
     "confirm_prompt": 46,
+    "message": 47,
+    "input_field": 48,
+    "input_keyboard": 49,
     "confirm_options": 50,
     "slot2_body": 57,
 }
@@ -914,9 +921,15 @@ filemenu_pressed_buttons_expected_size = 0x04
 filemenu_held_buttons_trace_path = bundle_dir / "traces" / "paper-mario-filemenu-held-buttons.core-memory.txt"
 filemenu_held_buttons_expected_base = 0x8024C08C
 filemenu_held_buttons_expected_size = 0x04
+save_slot_has_data_trace_path = bundle_dir / "traces" / "paper-mario-save-slot-has-data.core-memory.txt"
+save_slot_has_data_expected_base = 0x80077A24
+save_slot_has_data_expected_size = 0x04
 window_trace_specs = [
     ("title", bundle_dir / "traces" / "paper-mario-window-files-title.core-memory.txt", 0x80159D50 + 45 * 0x20),
     ("confirm_prompt", bundle_dir / "traces" / "paper-mario-window-files-confirm-prompt.core-memory.txt", 0x80159D50 + 46 * 0x20),
+    ("message", bundle_dir / "traces" / "paper-mario-window-files-message.core-memory.txt", 0x80159D50 + 47 * 0x20),
+    ("input_field", bundle_dir / "traces" / "paper-mario-window-files-input-field.core-memory.txt", 0x80159D50 + 48 * 0x20),
+    ("input_keyboard", bundle_dir / "traces" / "paper-mario-window-files-input-keyboard.core-memory.txt", 0x80159D50 + 49 * 0x20),
     ("confirm_options", bundle_dir / "traces" / "paper-mario-window-files-confirm-options.core-memory.txt", 0x80159D50 + 50 * 0x20),
     ("slot2_body", bundle_dir / "traces" / "paper-mario-window-files-slot2-body.core-memory.txt", 0x80159D50 + 57 * 0x20),
 ]
@@ -1088,6 +1101,13 @@ ensure_trace_layout(
     filemenu_held_buttons_expected_base,
     filemenu_held_buttons_expected_size,
     filemenu_held_buttons_trace_path.name,
+)
+save_slot_has_data_trace = load_trace(save_slot_has_data_trace_path)
+ensure_trace_layout(
+    save_slot_has_data_trace,
+    save_slot_has_data_expected_base,
+    save_slot_has_data_expected_size,
+    save_slot_has_data_trace_path.name,
 )
 window_traces = {}
 for window_name, window_path, window_expected_base in window_trace_specs:
@@ -1266,6 +1286,15 @@ if any(
             "raw_hex": f"0x{held_buttons:08x}",
         }
 
+    if save_slot_has_data_trace is not None:
+        save_slot_has_data = [bool(u8(save_slot_has_data_trace["data"], i)) for i in range(4)]
+        result["sources"]["filemenu_runtime"]["save_slot_has_data"] = {
+            "path": save_slot_has_data_trace["path"],
+            "base_address": f"0x{save_slot_has_data_trace['base_address']:08x}",
+            "window_size_bytes": len(save_slot_has_data_trace["data"]),
+        }
+        filemenu_result["save_slot_has_data"] = save_slot_has_data
+
     main_panel_result = filemenu_result.get("main_panel")
     confirm_panel_result = filemenu_result.get("confirm_panel")
     current_menu = filemenu_result.get("current_menu")
@@ -1300,6 +1329,13 @@ if any(
             exit_mode_guess = 1
         filemenu_result["exit_mode_guess"] = exit_mode_guess
         filemenu_result["exit_mode_guess_name"] = FILE_MENU_EXIT_MODE_NAMES.get(exit_mode_guess)
+        selected_slot = main_panel_result["selected"]
+        if (
+            filemenu_result.get("save_slot_has_data") is not None
+            and isinstance(selected_slot, int)
+            and 0 <= selected_slot < len(filemenu_result["save_slot_has_data"])
+        ):
+            filemenu_result["selected_slot_has_data"] = filemenu_result["save_slot_has_data"][selected_slot]
 
 if window_traces:
     result["sources"]["filemenu_windows"] = {}

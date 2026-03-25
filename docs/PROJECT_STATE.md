@@ -53,6 +53,12 @@
     - `WIN_FILES_TITLE.fp_update = filemenu_update_show_title`
     - `WIN_FILES_SLOT2_BODY.fp_update = filemenu_update_show_options_right`
   - the first deeper `authority + A` branch flips both of those to `filemenu_update_hidden_with_rotation` while the top-level filemenu panel predicates stay unchanged
+- The tracked file-select authority is now also proven to be an empty-slot authority:
+  - `gSaveSlotHasData` currently decodes as `[false, false, false, false]`
+  - selected file `2` therefore has `selected_slot_has_data = false`
+  - the immediate `authority + A` branch now also flips `WIN_FILES_INPUT_FIELD` and `WIN_FILES_INPUT_KEYBOARD` onto `filemenu_update_show_name_input`
+  - while `WIN_FILES_CONFIRM_OPTIONS` stays on `WINDOW_UPDATE_HIDE`
+  - so the hidden branch is now best interpreted as create-file / input-name flow, not start-game confirm flow
 - The first bounded `A` settle sweep across `1, 2, 3, 5, 10, 20` frames now confirms that the current safe file-select panel predicates do not change across that first deeper visual branch:
   - `FILE_MENU_MAIN`
   - `FM_MAIN_SELECT_FILE`
@@ -65,6 +71,8 @@
 - A one-frame button sweep across `A`, `B`, `START`, `UP`, `DOWN`, `LEFT`, and `RIGHT`, plus `A` / `START` with `post-input-settle = 0`, now lands on that same decoded top-level file-select state as well
 - That means the next stronger discriminator does not live in the current filemenu globals.
 - The best currently proven discriminator is now window/animation-side state, not the panel globals.
+- A staged local `.srm` does not change that on the current authority state, because the loaded file-select savestate restores its own empty-slot RAM over the staged savefile.
+- That means the next real confirm/start probe requires a reminted save-backed file-select authority, not just savefile staging on the current one.
 - The current deterministic file-select branch ladder is clearer even without valid panel addresses:
   - direct one-frame `START` or `A` from the authoritative file-select state both collapse to the same first deeper branch after the current long settle
   - that first deeper branch is `89cb1bddd5c2dd2a62b063210af11c2324eca04d3060e746042edc0323b00e8e`

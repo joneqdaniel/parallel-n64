@@ -127,6 +127,22 @@
   - `WIN_FILES_CONFIRM_OPTIONS.fp_pending = WINDOW_UPDATE_HIDE`
   - So the current branch ladder is getting more structured, but we still do not have proof of an actual confirm/menu-mode transition.
 
+- The current authoritative file-select state is now proven to be an empty-slot authority, not a populated-save authority.
+  - `gSaveSlotHasData` at `0x80077A24` currently decodes as:
+    - `[false, false, false, false]`
+  - the selected slot is still file `2`, so:
+    - `selected_slot_has_data = false`
+  - immediate `authority + A` now also flips:
+    - `WIN_FILES_INPUT_FIELD.fp_update = filemenu_update_show_name_input`
+    - `WIN_FILES_INPUT_KEYBOARD.fp_update = filemenu_update_show_name_input`
+  - while `WIN_FILES_CONFIRM_OPTIONS` stays on `WINDOW_UPDATE_HIDE`
+  - That means the hidden branch is now best interpreted as create-file / input-name flow, not `FM_CONFIRM_START`.
+
+- Staging a local `.srm` after loading the current authoritative file-select savestate does not change that result.
+  - The save-slot array still decodes as all `false`.
+  - So the loaded savestate is restoring its own empty-slot RAM and overriding the staged savefile.
+  - Immediate implication: probing the true confirm/start path will require a reminted save-backed file-select authority, not just a staged `.srm` on the current empty-slot authority.
+
 - A no-input settle from the authoritative file-select state back to `frame=423` reproduces the canonical file-select hash:
   - `6fa8688b382fa1e6f0323f054861a85f593d2d47ca737bb78448e3f268ca63e3`
 

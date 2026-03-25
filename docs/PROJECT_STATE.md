@@ -47,13 +47,24 @@
 - Pointer-derived panel snapshots are now live in runtime bundles:
   - the authoritative file-select state decodes as `FILE_MENU_MAIN`, `FM_MAIN_SELECT_FILE`, selected file `2`, with `exit_mode_guess = selected_file`
   - the same path gives nonzero live `main_panel` / `confirm_panel` structs instead of the earlier zeroed DX-address snapshots
+- Vanilla-safe `gWindows` file-select snapshots are now live in runtime bundles as well:
+  - tracked windows are `WIN_FILES_TITLE`, `WIN_FILES_CONFIRM_PROMPT`, `WIN_FILES_CONFIRM_OPTIONS`, and `WIN_FILES_SLOT2_BODY`
+  - the authoritative file-select state currently shows:
+    - `WIN_FILES_TITLE.fp_update = filemenu_update_show_title`
+    - `WIN_FILES_SLOT2_BODY.fp_update = filemenu_update_show_options_right`
+  - the first deeper `authority + A` branch flips both of those to `filemenu_update_hidden_with_rotation` while the top-level filemenu panel predicates stay unchanged
 - The first bounded `A` settle sweep across `1, 2, 3, 5, 10, 20` frames now confirms that the current safe file-select panel predicates do not change across that first deeper visual branch:
   - `FILE_MENU_MAIN`
   - `FM_MAIN_SELECT_FILE`
   - `FM_MAIN_OPT_FILE_2`
   - `exit_mode_guess = selected_file`
+- A bounded `A` settle sweep across `0, 1, 2, 3, 5, 10, 20` frames now confirms the opposite on the window side:
+  - `WIN_FILES_TITLE.fp_update` stays on `filemenu_update_hidden_with_rotation`
+  - `WIN_FILES_SLOT2_BODY.fp_update` stays on `filemenu_update_hidden_with_rotation`
+  - `WIN_FILES_CONFIRM_OPTIONS.fp_pending` stays on `WINDOW_UPDATE_HIDE`
 - A one-frame button sweep across `A`, `B`, `START`, `UP`, `DOWN`, `LEFT`, and `RIGHT`, plus `A` / `START` with `post-input-settle = 0`, now lands on that same decoded top-level file-select state as well
-- That means the next stronger discriminator probably does not live in the current filemenu globals; the next likely candidates are window/animation-side state or another file-select subsystem
+- That means the next stronger discriminator does not live in the current filemenu globals.
+- The best currently proven discriminator is now window/animation-side state, not the panel globals.
 - The current deterministic file-select branch ladder is clearer even without valid panel addresses:
   - direct one-frame `START` or `A` from the authoritative file-select state both collapse to the same first deeper branch after the current long settle
   - that first deeper branch is `89cb1bddd5c2dd2a62b063210af11c2324eca04d3060e746042edc0323b00e8e`
@@ -61,7 +72,7 @@
   - from that branch, `A -> A` and `A -> START` both collapse to `fece26f3ac694b9cbf9c395c10a4cb0543499cdc8eb2aa9beaacb896c2acd1ad`
   - from that branch, `START -> START` collapses to `86d3d0a9f7db600bdc0f0f4b8ec29d9c7ff1418a7e7c7ac346dc9a710c2dd3a7`
   - all currently observed branches still report `filemenu_currentMenu = FILE_MENU_MAIN`
-  - the first deeper `authority + A` branch currently preserves the same safe top-level panel predicates as the authority state, so it is still not distinguished by the current vanilla-safe signal set
+  - the first deeper `authority + A` branch currently preserves the same safe top-level panel predicates as the authority state, but it is now distinguished by the tracked `gWindows` update-function snapshots
   - none of those paths leave `state_init_file_select` / `state_step_file_select` yet
 - The input-probe scenario now supports explicit `--step-chunk-frames`, and the savefile-backed branch reproduces byte-identically with `30`-frame chunks instead of one-frame stepping
 - On the heavier hi-res path, `WAIT_STATUS_FRAME` is now the authoritative progress signal for chunked probe steps; missing `STEP_FRAME` log acknowledgements are downgraded to warnings because they can lag or disappear without breaking the fixture-relative frame clock

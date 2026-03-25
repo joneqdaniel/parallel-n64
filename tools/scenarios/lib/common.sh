@@ -852,6 +852,41 @@ FILE_MENU_EXIT_MODE_NAMES = {
     1: "selected_file",
     2: "confirm_start_yes",
 }
+WINDOW_FLAG_NAMES = {
+    0x01: "WINDOW_FLAG_INITIALIZED",
+    0x02: "WINDOW_FLAG_FPUPDATE_CHANGED",
+    0x04: "WINDOW_FLAG_HIDDEN",
+    0x08: "WINDOW_FLAG_INITIAL_ANIMATION",
+    0x10: "WINDOW_FLAG_HAS_CHILDREN",
+    0x20: "WINDOW_FLAG_DISABLED",
+    0x40: "WINDOW_FLAG_40",
+}
+WINDOW_UPDATE_VALUE_NAMES = {
+    0x00000000: "WINDOW_UPDATE_NONE",
+    0x00000001: "WINDOW_UPDATE_SHOW",
+    0x00000002: "WINDOW_UPDATE_HIDE",
+    0x00000003: "WINDOW_UPDATE_HIER_UPDATE",
+    0x00000004: "WINDOW_UPDATE_DARKENED",
+    0x00000005: "WINDOW_UPDATE_TRANSPARENT",
+    0x00000006: "WINDOW_UPDATE_OPAQUE",
+    0x00000007: "WINDOW_UPDATE_SHOW_TRANSPARENT",
+    0x00000008: "WINDOW_UPDATE_SHOW_DARKENED",
+    0x00000009: "WINDOW_UPDATE_9",
+    0x802433F4: "filemenu_update_show_options_left",
+    0x80243468: "filemenu_update_show_options_right",
+    0x802434DC: "filemenu_update_show_options_bottom",
+    0x80243550: "filemenu_update_show_title",
+    0x8024381C: "filemenu_update_show_with_rotation",
+    0x80243898: "filemenu_update_hidden_with_rotation",
+    0x80243CCC: "filemenu_update_show_name_confirm",
+    0x80243EEC: "filemenu_update_hidden_name_confirm",
+}
+FILE_MENU_WINDOW_IDS = {
+    "title": 45,
+    "confirm_prompt": 46,
+    "confirm_options": 50,
+    "slot2_body": 57,
+}
 trace_path = bundle_dir / "traces" / "paper-mario-gamestatus.core-memory.txt"
 expected_base = 0x800740AA
 expected_size = 0xE6
@@ -879,6 +914,13 @@ filemenu_pressed_buttons_expected_size = 0x04
 filemenu_held_buttons_trace_path = bundle_dir / "traces" / "paper-mario-filemenu-held-buttons.core-memory.txt"
 filemenu_held_buttons_expected_base = 0x8024C08C
 filemenu_held_buttons_expected_size = 0x04
+window_trace_specs = [
+    ("title", bundle_dir / "traces" / "paper-mario-window-files-title.core-memory.txt", 0x80159D50 + 45 * 0x20),
+    ("confirm_prompt", bundle_dir / "traces" / "paper-mario-window-files-confirm-prompt.core-memory.txt", 0x80159D50 + 46 * 0x20),
+    ("confirm_options", bundle_dir / "traces" / "paper-mario-window-files-confirm-options.core-memory.txt", 0x80159D50 + 50 * 0x20),
+    ("slot2_body", bundle_dir / "traces" / "paper-mario-window-files-slot2-body.core-memory.txt", 0x80159D50 + 57 * 0x20),
+]
+window_expected_size = 0x20
 
 def load_trace(path: Path):
     if not path.is_file():
@@ -943,6 +985,37 @@ def decode_menu_panel(buf, *, state_names, selected_names=None):
         "grid_data_ptr": f"0x{u32le(buf, 0x08):08x}",
         "handle_input_ptr": f"0x{u32le(buf, 0x10):08x}",
         "update_ptr": f"0x{u32le(buf, 0x14):08x}",
+    }
+
+def decode_window_flags(flags):
+    return [name for bit, name in WINDOW_FLAG_NAMES.items() if flags & bit]
+
+def decode_window_update(value):
+    return WINDOW_UPDATE_VALUE_NAMES.get(value)
+
+def decode_window(buf):
+    flags = u8(buf, 0x00)
+    fp_update = u32le(buf, 0x04)
+    fp_pending = u32le(buf, 0x08)
+    return {
+        "flags": flags,
+        "flag_names": decode_window_flags(flags),
+        "priority": u8(buf, 0x01),
+        "original_priority": u8(buf, 0x02),
+        "parent": s8(buf, 0x03),
+        "fp_update": f"0x{fp_update:08x}",
+        "fp_update_name": decode_window_update(fp_update),
+        "fp_pending": f"0x{fp_pending:08x}",
+        "fp_pending_name": decode_window_update(fp_pending),
+        "pos": {
+            "x": s16le(buf, 0x0C),
+            "y": s16le(buf, 0x0E),
+        },
+        "width": s16le(buf, 0x10),
+        "height": s16le(buf, 0x12),
+        "draw_contents_ptr": f"0x{u32le(buf, 0x14):08x}",
+        "draw_contents_arg0_ptr": f"0x{u32le(buf, 0x18):08x}",
+        "update_counter": u8(buf, 0x1C),
     }
 
 trace = load_trace(trace_path)
@@ -1016,6 +1089,17 @@ ensure_trace_layout(
     filemenu_held_buttons_expected_size,
     filemenu_held_buttons_trace_path.name,
 )
+window_traces = {}
+for window_name, window_path, window_expected_base in window_trace_specs:
+    window_trace = load_trace(window_path)
+    ensure_trace_layout(
+        window_trace,
+        window_expected_base,
+        window_expected_size,
+        window_path.name,
+    )
+    if window_trace is not None:
+        window_traces[window_name] = window_trace
 
 result = {
     "sources": {
@@ -1216,6 +1300,20 @@ if any(
             exit_mode_guess = 1
         filemenu_result["exit_mode_guess"] = exit_mode_guess
         filemenu_result["exit_mode_guess_name"] = FILE_MENU_EXIT_MODE_NAMES.get(exit_mode_guess)
+
+if window_traces:
+    result["sources"]["filemenu_windows"] = {}
+    windows_result = result["paper_mario_us"].setdefault("windows", {})
+    for window_name, window_trace in window_traces.items():
+        window_data = window_trace["data"]
+        result["sources"]["filemenu_windows"][window_name] = {
+            "path": window_trace["path"],
+            "base_address": f"0x{window_trace['base_address']:08x}",
+            "window_size_bytes": len(window_data),
+            "window_sha256": hashlib.sha256(window_data).hexdigest(),
+            "window_id": FILE_MENU_WINDOW_IDS[window_name],
+        }
+        windows_result[window_name] = decode_window(window_data)
 
 output_path.write_text(json.dumps(result, indent=2) + "\n")
 PY

@@ -116,6 +116,7 @@
       - a no-input settle back out to `frame=423` from the authoritative file-select state reproduces the canonical file-select hash instead of the deeper `89cb1b...` branch, so that branch is definitely input-caused and not an idle-delay artifact
       - the old DX-style fixed panel-address path is now retired; runtime panel snapshots are now derived through the vanilla-safe `filemenu_menus` pointer table instead
       - upstream `papermario` and `papermario-dx` now agree on the best vanilla-safe file-select signal addresses (`CurGameMode` callback pair, `filemenu_menus`, `filemenu_currentMenu`, `filemenu_pressedButtons`, `filemenu_heldButtons`), and that split is now recorded in [PAPER_MARIO_SIGNAL_TABLE.md](/home/auro/code/parallel-n64/docs/plans/PAPER_MARIO_SIGNAL_TABLE.md)
+      - the tracked runtime path now also snapshots the relevant vanilla `gWindows` entries for file-select, and those window update callbacks are now the best current discriminator for the hidden `authority + A` branch
       - the current deterministic branch ladder is still useful even without valid panel addresses:
         - direct one-frame `START` and `A` from the authoritative file-select state both collapse to the same first deeper branch after the current long settle
         - that first deeper branch is `89cb1b...`
@@ -124,6 +125,7 @@
         - `START x120 -> START -> START` yields `86d3d0...`
         - all of those paths still remain inside file-select callbacks and keep `filemenu_currentMenu = FILE_MENU_MAIN`
         - the authoritative file-select state now decodes as `main_panel.state = FM_MAIN_SELECT_FILE`, `main_panel.selected = FM_MAIN_OPT_FILE_2`, `exit_mode_guess = selected_file`
+        - the first deeper `authority + A` branch now keeps those same panel predicates but flips `WIN_FILES_TITLE` and `WIN_FILES_SLOT2_BODY` onto `filemenu_update_hidden_with_rotation`, which gives us a stronger vanilla-safe branch signal without yet proving a real exit from file select
         - the first deeper `authority + A` branch still decodes to the same safe top-level panel predicates as the authority state
       - `savefile-start -> right` and `savefile-start -> down` are now both verified in `on` mode, but they still expose the same three CI families as the shallower file-select neighborhood
     - caution: the current import-model evidence is still narrow

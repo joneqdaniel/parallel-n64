@@ -50,6 +50,22 @@
   - Limitation: they are sample-time sensitive and can legitimately be zero by the time a settled branch is captured.
   - Rule: use them for immediate input-delivery debugging, not for settled-state identity.
 
+- `gWindows` file-select window snapshots at `0x80159D50 + windowID * 0x20`
+  - Current tracked windows:
+    - `WIN_FILES_TITLE = 45`
+    - `WIN_FILES_CONFIRM_PROMPT = 46`
+    - `WIN_FILES_CONFIRM_OPTIONS = 50`
+    - `WIN_FILES_SLOT2_BODY = 57`
+  - Why: upstream vanilla window layout and window IDs are stable, and file-select logic uses `set_window_update()` on these windows during branch transitions.
+  - Current useful fields:
+    - `fp_update`
+    - `fp_pending`
+    - `flag_names`
+    - `update_counter`
+  - Current proven signal:
+    - the first deeper `authority + A` branch flips `WIN_FILES_TITLE` and `WIN_FILES_SLOT2_BODY` from their authority-state update callbacks onto `filemenu_update_hidden_with_rotation`, while the filemenu panel globals stay unchanged
+  - Rule: treat these as the strongest current advisory discriminator for the hidden branch, but not yet as proof of an actual exit from file select.
+
 - `areaID`, `mapID`, `entryID` while `CurGameMode` still reports file-select callbacks
   - Why: upstream/DX file-select logic can populate save-derived map state before leaving file-select.
   - Rule: these are useful hints only after a stronger non-file-select signal exists.
@@ -81,7 +97,17 @@
 
 - A bounded one-frame button sweep across `A`, `B`, `START`, `UP`, `DOWN`, `LEFT`, and `RIGHT` also stays on that same decoded top-level state.
 - `A` and `START` with `post-input-settle = 0` still stay on that same decoded top-level state.
-  - Immediate implication: the next useful discriminator probably lives outside the current filemenu globals, most likely in window/animation state or another file-select-side subsystem.
+  - Immediate implication: the next useful discriminator lives outside the current filemenu globals.
+
+- Window-side state now gives that stronger discriminator.
+  - Authority state:
+    - `WIN_FILES_TITLE.fp_update = filemenu_update_show_title`
+    - `WIN_FILES_SLOT2_BODY.fp_update = filemenu_update_show_options_right`
+  - Immediate `authority + A` branch, sampled at settles `0`, `1`, `2`, `3`, `5`, `10`, and `20`:
+    - `WIN_FILES_TITLE.fp_update = filemenu_update_hidden_with_rotation`
+    - `WIN_FILES_SLOT2_BODY.fp_update = filemenu_update_hidden_with_rotation`
+  - `WIN_FILES_CONFIRM_OPTIONS` stays on `WINDOW_UPDATE_HIDE` across that same sweep.
+  - So the hidden branch is now distinguishable in a vanilla-safe way, even though it still remains inside `state_init_file_select` / `state_step_file_select` and keeps the same top-level filemenu panel predicates.
 
 - A no-input settle from the authoritative file-select state back to `frame=423` reproduces the canonical file-select hash:
   - `6fa8688b382fa1e6f0323f054861a85f593d2d47ca737bb78448e3f268ca63e3`
@@ -111,5 +137,6 @@
 ## Immediate Implication
 
 - Keep using callback pairs, `filemenu_currentMenu`, frame, and screenshot hash as the current safe bundle semantics.
-- Keep panel snapshots in the bundle only as explicitly non-authoritative research traces.
+- Keep panel snapshots in the bundle as advisory research traces.
+- Keep the `gWindows` file-select snapshots in the bundle as the current strongest branch discriminator short of an actual mode/menu transition.
 - Use the branch ladder as a bounded search tree until a stronger vanilla-safe substate signal is found.

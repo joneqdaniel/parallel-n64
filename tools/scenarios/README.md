@@ -69,12 +69,28 @@ Current Paper Mario runtime note:
   - `main_panel.selected = FM_MAIN_OPT_FILE_2`
   - `exit_mode_guess = selected_file`
 - the first deeper `authority + A` branch still decodes to the same safe top-level file-select panel predicates as the authority state
+- tracked file-select bundles now also snapshot the relevant vanilla `gWindows` entries:
+  - `WIN_FILES_TITLE`
+  - `WIN_FILES_CONFIRM_PROMPT`
+  - `WIN_FILES_CONFIRM_OPTIONS`
+  - `WIN_FILES_SLOT2_BODY`
+- those window snapshots are now the strongest current discriminator for the hidden `authority + A` branch:
+  - authority state:
+    - `WIN_FILES_TITLE.fp_update = filemenu_update_show_title`
+    - `WIN_FILES_SLOT2_BODY.fp_update = filemenu_update_show_options_right`
+  - hidden `authority + A` branch:
+    - `WIN_FILES_TITLE.fp_update = filemenu_update_hidden_with_rotation`
+    - `WIN_FILES_SLOT2_BODY.fp_update = filemenu_update_hidden_with_rotation`
 - there is now a dedicated [paper-mario-file-select-signal-sweep.sh](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-file-select-signal-sweep.sh) helper for bounded settle sweeps using the safe file-select signal set
 - the first `A` settle sweep across `1,2,3,5,10,20` frames stayed on the same decoded top-level file-select predicates for every sample:
   - `FILE_MENU_MAIN`
   - `FM_MAIN_SELECT_FILE`
   - `FM_MAIN_OPT_FILE_2`
   - `exit_mode_guess = selected_file`
+- extending that same sweep to `0,1,2,3,5,10,20` frames shows the window-side signal is stable too:
+  - `WIN_FILES_TITLE.fp_update = filemenu_update_hidden_with_rotation`
+  - `WIN_FILES_SLOT2_BODY.fp_update = filemenu_update_hidden_with_rotation`
+  - `WIN_FILES_CONFIRM_OPTIONS.fp_pending = WINDOW_UPDATE_HIDE`
 - a one-frame button sweep across `A`, `B`, `START`, `UP`, `DOWN`, `LEFT`, and `RIGHT`, plus `A` / `START` with `post-input-settle = 0`, stayed on that same decoded top-level file-select state too
 - the current trusted-vs-advisory Paper Mario runtime signals are documented in [PAPER_MARIO_SIGNAL_TABLE.md](/home/auro/code/parallel-n64/docs/plans/PAPER_MARIO_SIGNAL_TABLE.md)
 - deeper `savefile-start` menu probes now have two verified `on` branches:

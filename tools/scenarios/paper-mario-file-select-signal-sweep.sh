@@ -71,7 +71,7 @@ if [[ -z "$INPUT_MASK" ]]; then
   exit 2
 fi
 
-printf 'settle\tcurrent_menu\tmain_state\tmain_selected\tconfirm_selected\texit_mode_guess\n'
+printf 'settle\tcurrent_menu\tmain_state\tmain_selected\tconfirm_selected\texit_mode_guess\tconfirm_options_flags\tconfirm_options_fp_pending\tslot2_body_flags\tslot2_body_fp_pending\n'
 
 IFS=',' read -r -a settle_values <<< "$SETTLES"
 for settle in "${settle_values[@]}"; do
@@ -93,7 +93,11 @@ for settle in "${settle_values[@]}"; do
       (.paper_mario_us.filemenu.main_panel.state_name // "null"),
       (.paper_mario_us.filemenu.main_panel.selected_name // "null"),
       (.paper_mario_us.filemenu.confirm_panel.selected_name // "null"),
-      (.paper_mario_us.filemenu.exit_mode_guess_name // "null")
+      (.paper_mario_us.filemenu.exit_mode_guess_name // "null"),
+      ((.paper_mario_us.windows.confirm_options.flag_names // []) | join(",")),
+      (.paper_mario_us.windows.confirm_options.fp_pending_name // .paper_mario_us.windows.confirm_options.fp_pending // "null"),
+      ((.paper_mario_us.windows.slot2_body.flag_names // []) | join(",")),
+      (.paper_mario_us.windows.slot2_body.fp_pending_name // .paper_mario_us.windows.slot2_body.fp_pending // "null")
     ] | @tsv
   ' "$json"
 done

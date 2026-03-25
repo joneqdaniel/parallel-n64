@@ -47,6 +47,11 @@
 - Pointer-derived panel snapshots are now live in runtime bundles:
   - the authoritative file-select state decodes as `FILE_MENU_MAIN`, `FM_MAIN_SELECT_FILE`, selected file `2`, with `exit_mode_guess = selected_file`
   - the same path gives nonzero live `main_panel` / `confirm_panel` structs instead of the earlier zeroed DX-address snapshots
+- The first bounded `A` settle sweep across `1, 2, 3, 5, 10, 20` frames now confirms that the current safe file-select panel predicates do not change across that first deeper visual branch:
+  - `FILE_MENU_MAIN`
+  - `FM_MAIN_SELECT_FILE`
+  - `FM_MAIN_OPT_FILE_2`
+  - `exit_mode_guess = selected_file`
 - The current deterministic file-select branch ladder is clearer even without valid panel addresses:
   - direct one-frame `START` or `A` from the authoritative file-select state both collapse to the same first deeper branch after the current long settle
   - that first deeper branch is `89cb1bddd5c2dd2a62b063210af11c2324eca04d3060e746042edc0323b00e8e`

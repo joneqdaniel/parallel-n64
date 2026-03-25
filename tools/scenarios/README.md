@@ -69,6 +69,12 @@ Current Paper Mario runtime note:
   - `main_panel.selected = FM_MAIN_OPT_FILE_2`
   - `exit_mode_guess = selected_file`
 - the first deeper `authority + A` branch still decodes to the same safe top-level file-select panel predicates as the authority state
+- there is now a dedicated [paper-mario-file-select-signal-sweep.sh](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-file-select-signal-sweep.sh) helper for bounded settle sweeps using the safe file-select signal set
+- the first `A` settle sweep across `1,2,3,5,10,20` frames stayed on the same decoded top-level file-select predicates for every sample:
+  - `FILE_MENU_MAIN`
+  - `FM_MAIN_SELECT_FILE`
+  - `FM_MAIN_OPT_FILE_2`
+  - `exit_mode_guess = selected_file`
 - the current trusted-vs-advisory Paper Mario runtime signals are documented in [PAPER_MARIO_SIGNAL_TABLE.md](/home/auro/code/parallel-n64/docs/plans/PAPER_MARIO_SIGNAL_TABLE.md)
 - deeper `savefile-start` menu probes now have two verified `on` branches:
   - `savefile-start -> right` produces screenshot hash `0302c029e4a221359158486baa7cfbda5984bb0dfc8eb51f9f68fd98f18a305c`

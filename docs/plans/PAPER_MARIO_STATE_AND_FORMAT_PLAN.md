@@ -196,6 +196,7 @@ Do next:
   - file-select main menu
   - confirm menu
   - post-confirm transition
+- use [paper-mario-file-select-signal-sweep.sh](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-file-select-signal-sweep.sh) for bounded settle sweeps before inventing new one-off probe paths
 
 Why second:
 - one good signal is better than ten more screenshots

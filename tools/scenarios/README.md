@@ -75,6 +75,7 @@ Current Paper Mario runtime note:
   - `FM_MAIN_SELECT_FILE`
   - `FM_MAIN_OPT_FILE_2`
   - `exit_mode_guess = selected_file`
+- a one-frame button sweep across `A`, `B`, `START`, `UP`, `DOWN`, `LEFT`, and `RIGHT`, plus `A` / `START` with `post-input-settle = 0`, stayed on that same decoded top-level file-select state too
 - the current trusted-vs-advisory Paper Mario runtime signals are documented in [PAPER_MARIO_SIGNAL_TABLE.md](/home/auro/code/parallel-n64/docs/plans/PAPER_MARIO_SIGNAL_TABLE.md)
 - deeper `savefile-start` menu probes now have two verified `on` branches:
   - `savefile-start -> right` produces screenshot hash `0302c029e4a221359158486baa7cfbda5984bb0dfc8eb51f9f68fd98f18a305c`

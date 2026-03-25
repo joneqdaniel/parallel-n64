@@ -79,6 +79,10 @@
 - A bounded `A` settle sweep across `1`, `2`, `3`, `5`, `10`, and `20` frames stays on that same decoded top-level state for every sample.
   - Immediate implication: the missing discriminator is probably not “the same panel fields but sampled slightly earlier” within that small window.
 
+- A bounded one-frame button sweep across `A`, `B`, `START`, `UP`, `DOWN`, `LEFT`, and `RIGHT` also stays on that same decoded top-level state.
+- `A` and `START` with `post-input-settle = 0` still stay on that same decoded top-level state.
+  - Immediate implication: the next useful discriminator probably lives outside the current filemenu globals, most likely in window/animation state or another file-select-side subsystem.
+
 - A no-input settle from the authoritative file-select state back to `frame=423` reproduces the canonical file-select hash:
   - `6fa8688b382fa1e6f0323f054861a85f593d2d47ca737bb78448e3f268ca63e3`
 

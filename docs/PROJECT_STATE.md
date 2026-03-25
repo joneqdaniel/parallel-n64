@@ -52,6 +52,8 @@
   - `FM_MAIN_SELECT_FILE`
   - `FM_MAIN_OPT_FILE_2`
   - `exit_mode_guess = selected_file`
+- A one-frame button sweep across `A`, `B`, `START`, `UP`, `DOWN`, `LEFT`, and `RIGHT`, plus `A` / `START` with `post-input-settle = 0`, now lands on that same decoded top-level file-select state as well
+- That means the next stronger discriminator probably does not live in the current filemenu globals; the next likely candidates are window/animation-side state or another file-select subsystem
 - The current deterministic file-select branch ladder is clearer even without valid panel addresses:
   - direct one-frame `START` or `A` from the authoritative file-select state both collapse to the same first deeper branch after the current long settle
   - that first deeper branch is `89cb1bddd5c2dd2a62b063210af11c2324eca04d3060e746042edc0323b00e8e`

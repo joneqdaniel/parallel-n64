@@ -132,6 +132,11 @@ Current Paper Mario runtime note:
   - both still expose the same three CI families, so this deeper branch point is giving us distinct menu states but not broader replacement-family coverage yet
 - paired `on` runs now also emit machine-readable hi-res capability evidence, including the resolved cache path, the coarse disable reason, and the descriptor-indexing feature bits seen at runtime
 - paired `on` runs now also collapse raw hi-res hit/miss/TLUT lines into stable bucket summaries in `traces/hires-evidence.json`, so repeated uncovered classes can be compared across runs without diffing the whole RetroArch log
+- the same `hires-evidence.json` trace now also records per-lookup provenance summaries, including source class, provenance class, cycle/copy state, TLUT state, TMEM line/address context, and framebuffer-overlap classification
+- the first strict file-select provenance pass already narrows the current problem materially:
+  - all current strict file-select lookups classify as `authored-rdram`
+  - the dominant `64x1 fs514` miss classifies as `loadblock`
+  - the major visible `296x6 fs258` driver classifies as `copy-cycle`
 - the same `hires-evidence.json` trace now also cross-checks miss keys against the active `.hts`/`.htc` index, so bundle evidence can distinguish “unmatched in the local pack index under the current checksum generation” from “lookup present under another formatsize”
 - CI palette probe runs now also record `ci_palette_probe.families` in `traces/hires-evidence.json`, so representative CI misses can report whether their low-32 pack family is exact/generic, dimension-uniform, or structurally ambiguous without changing the default lookup path
 - the same CI probe now also records `ci_palette_probe.usages` and `ci_palette_probe.emulated_tmem`, so strict bundles can show how many palette indices were actually sampled and whether raw-shadow versus emulated-TMEM palette views produce any pack-backed candidate at all

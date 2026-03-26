@@ -153,6 +153,9 @@ Add bundle-visible evidence for:
 Success:
 - strict fixture misses can be bucketed by provenance class
 
+Current artifact:
+- `traces/hires-evidence.json` provenance summaries on strict bundles
+
 ### Ticket 2: Exact Key Delta Sheet
 
 Write down:
@@ -162,6 +165,9 @@ Write down:
 
 Success:
 - one short actionable delta sheet exists in docs
+
+Current artifact:
+- [N64 Exact Key Delta Sheet](/home/auro/code/parallel-n64/docs/plans/N64_EXACT_KEY_DELTA_SHEET.md)
 
 ### Ticket 3: Logical TLUT Diagnostic Path
 

@@ -109,6 +109,66 @@ static uint32_t compute_hires_texture_total_bytes(uint32_t width, uint32_t heigh
 	return compute_hires_texture_row_bytes(width, size) * height;
 }
 
+static uint32_t compute_hires_texture_source_span_bytes(uint32_t row_stride_bytes, uint32_t row_bytes, uint32_t height)
+{
+	if (row_bytes == 0 || height == 0)
+		return 0;
+
+	if (height == 1)
+		return row_bytes;
+
+	return row_stride_bytes * (height - 1) + row_bytes;
+}
+
+static bool ranges_overlap_u32(uint32_t a_addr, uint32_t a_size, uint32_t b_addr, uint32_t b_size)
+{
+	if (a_size == 0 || b_size == 0)
+		return false;
+
+	const uint64_t a_begin = a_addr;
+	const uint64_t a_end = a_begin + a_size;
+	const uint64_t b_begin = b_addr;
+	const uint64_t b_end = b_begin + b_size;
+	return a_begin < b_end && b_begin < a_end;
+}
+
+static const char *get_hires_cycle_class(StaticRasterizationFlags flags)
+{
+	if ((flags & RASTERIZATION_COPY_BIT) != 0)
+		return "copy";
+	if ((flags & RASTERIZATION_FILL_BIT) != 0)
+		return "fill";
+	if ((flags & RASTERIZATION_MULTI_CYCLE_BIT) != 0)
+		return "2cycle";
+	return "1cycle";
+}
+
+static const char *get_hires_source_class(bool overlaps_color_fb, bool overlaps_depth_fb)
+{
+	return (overlaps_color_fb || overlaps_depth_fb) ? "framebuffer-derived" : "authored-rdram";
+}
+
+static const char *get_hires_provenance_class(bool overlaps_color_fb, bool overlaps_depth_fb,
+                                              StaticRasterizationFlags flags, UploadMode mode)
+{
+	if (overlaps_color_fb || overlaps_depth_fb)
+		return "framebuffer-derived";
+	if ((flags & RASTERIZATION_COPY_BIT) != 0)
+		return "copy-cycle";
+
+	switch (mode)
+	{
+	case UploadMode::Block:
+		return "loadblock";
+	case UploadMode::Tile:
+		return "loadtile";
+	case UploadMode::TLUT:
+		return "tlut";
+	default:
+		return "unknown";
+	}
+}
+
 static uint16_t emulate_load_tlut_entry_word(const uint8_t *rdram, size_t rdram_size, uint32_t addr)
 {
 	const uint32_t mapped_addr = addr ^ 2u;
@@ -3669,6 +3729,20 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 				                                          uint32_t(info.size), row_stride_bytes);
 				uint32_t palette_crc = 0;
 				uint32_t ci_palette_entries = 0;
+				const auto raster_flags = stream.static_raster_state.flags;
+				const bool tlut_enabled = (raster_flags & RASTERIZATION_TLUT_BIT) != 0;
+				const bool tlut_type = (raster_flags & RASTERIZATION_TLUT_TYPE_BIT) != 0;
+				const bool copy_cycle = (raster_flags & RASTERIZATION_COPY_BIT) != 0;
+				const uint32_t source_row_bytes = compute_hires_texture_row_bytes(key_width_pixels, info.size);
+				const uint32_t source_span_bytes = compute_hires_texture_source_span_bytes(
+						row_stride_bytes, source_row_bytes, key_height_pixels);
+				const bool overlaps_color_fb = ranges_overlap_u32(
+						src_base_addr, source_span_bytes, fb.addr, get_byte_size_for_bound_color_framebuffer());
+				const bool overlaps_depth_fb = ranges_overlap_u32(
+						src_base_addr, source_span_bytes, fb.depth_addr, get_byte_size_for_bound_depth_framebuffer());
+				const char *source_class = get_hires_source_class(overlaps_color_fb, overlaps_depth_fb);
+				const char *provenance_class = get_hires_provenance_class(
+						overlaps_color_fb, overlaps_depth_fb, raster_flags, info.mode);
 
 				if (meta.fmt == TextureFormat::CI && tlut_shadow_valid)
 				{
@@ -3868,6 +3942,33 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 					     palette_crc,
 					     unsigned(formatsize),
 					     hit ? 1 : 0);
+					LOGI("Hi-res keying provenance: outcome=%s source_class=%s provenance_class=%s mode=%s addr=0x%06x tile=%u fmt=%u siz=%u pal=%u wh=%ux%u key=%016llx pcrc=%08x fs=%u upload=%s cycle=%s copy=%u tlut=%u tlut_type=%u framebuffer=%u color_fb=%u depth_fb=%u tmem=0x%03x line=%u key_xy=%ux%u.\n",
+					     filter_reason ? "filtered" : (hit ? "hit" : "miss"),
+					     source_class,
+					     provenance_class,
+					     load_mode_to_string(info.mode),
+					     src_base_addr & 0x00ffffffu,
+					     tile,
+					     unsigned(meta.fmt),
+					     unsigned(meta.size),
+					     meta.palette,
+					     key_width_pixels,
+					     key_height_pixels,
+					     static_cast<unsigned long long>(resolved_checksum64),
+					     palette_crc,
+					     unsigned(formatsize),
+					     load_mode_to_string(info.mode),
+					     get_hires_cycle_class(raster_flags),
+					     copy_cycle ? 1 : 0,
+					     tlut_enabled ? 1 : 0,
+					     tlut_type ? 1 : 0,
+					     (overlaps_color_fb || overlaps_depth_fb) ? 1 : 0,
+					     overlaps_color_fb ? 1 : 0,
+					     overlaps_depth_fb ? 1 : 0,
+					     unsigned(upload.tmem_offset) & 0xfff,
+					     unsigned(meta.stride),
+					     key_start_x,
+					     key_start_y);
 					if (hit && ci_lookup_resolution_reason)
 					{
 						LOGI("Hi-res keying compatibility: reason=%s mode=%s addr=0x%06x wh=%ux%u resolved_key=%016llx.\n",

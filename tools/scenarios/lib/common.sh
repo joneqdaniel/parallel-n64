@@ -158,6 +158,14 @@ result = {
         "top_exact_or_generic_present_buckets": [],
     },
     "sample_events": [],
+    "provenance": {
+        "available": False,
+        "line_count": 0,
+        "outcome_counts": {},
+        "source_class_counts": {},
+        "provenance_class_counts": {},
+        "top_buckets": [],
+    },
     "ci_palette_probe": {
         "families": [],
         "usages": [],
@@ -184,6 +192,7 @@ filter_config_re = re.compile(r"Hi-res debug filter: allow_tile=(\d+) allow_bloc
 ci_family_re = re.compile(r"Hi-res CI palette probe family: (.+)")
 ci_usage_re = re.compile(r"Hi-res CI palette probe usage: (.+)")
 ci_emulated_tmem_re = re.compile(r"Hi-res CI palette probe emulated-tmem: (.+)")
+provenance_re = re.compile(r"Hi-res keying provenance: (.+)")
 field_re = re.compile(r"(\w+)=([^\s]+)")
 
 bucket_maps = {
@@ -193,6 +202,7 @@ bucket_maps = {
     "tlut_update": {},
 }
 miss_records = []
+provenance_buckets = {}
 
 def parse_fields(detail):
     fields = {}
@@ -255,6 +265,24 @@ def finalize_bucket_summary(kind):
         "unique_bucket_count": len(raw_buckets),
         "top_buckets": raw_buckets[:10],
     }
+
+def increment_counter(counter_map, key):
+    if not key:
+        return
+    counter_map[key] = counter_map.get(key, 0) + 1
+
+def finalize_provenance_summary():
+    items = [
+        {
+            "signature": signature,
+            "count": payload["count"],
+            "fields": payload["fields"],
+            "sample_detail": payload["sample_detail"],
+        }
+        for signature, payload in provenance_buckets.items()
+    ]
+    items.sort(key=lambda item: (-item["count"], item["signature"]))
+    result["provenance"]["top_buckets"] = items[:10]
 
 def parse_hts_cache_index(cache_path):
     data = cache_path.read_bytes()
@@ -534,6 +562,67 @@ for line in log_path.read_text(errors="replace").splitlines():
             result["ci_palette_probe"]["emulated_tmem"].append(fields)
         continue
 
+    m = provenance_re.search(line)
+    if m:
+        result["available"] = True
+        result["provenance"]["available"] = True
+        result["provenance"]["line_count"] += 1
+        detail = m.group(1).strip()
+        fields = parse_fields(detail)
+        increment_counter(result["provenance"]["outcome_counts"], fields.get("outcome"))
+        increment_counter(result["provenance"]["source_class_counts"], fields.get("source_class"))
+        increment_counter(result["provenance"]["provenance_class_counts"], fields.get("provenance_class"))
+        signature = " ".join(
+            f"{key}={fields.get(key)}"
+            for key in (
+                "outcome",
+                "source_class",
+                "provenance_class",
+                "mode",
+                "fmt",
+                "siz",
+                "wh",
+                "fs",
+                "cycle",
+                "copy",
+                "tlut",
+                "tlut_type",
+                "framebuffer",
+            )
+            if fields.get(key) is not None
+        )
+        bucket = provenance_buckets.setdefault(
+            signature,
+            {
+                "count": 0,
+                "fields": {
+                    key: fields.get(key)
+                    for key in (
+                        "outcome",
+                        "source_class",
+                        "provenance_class",
+                        "mode",
+                        "fmt",
+                        "siz",
+                        "wh",
+                        "fs",
+                        "cycle",
+                        "copy",
+                        "tlut",
+                        "tlut_type",
+                        "framebuffer",
+                        "color_fb",
+                        "depth_fb",
+                        "upload",
+                    )
+                    if fields.get(key) is not None
+                },
+                "sample_detail": detail,
+            },
+        )
+        bucket["count"] += 1
+        continue
+
     m = hit_miss_re.search(line)
     if m:
         result["available"] = True
@@ -592,6 +681,7 @@ for line in log_path.read_text(errors="replace").splitlines():
 
 for kind in ("hit", "miss", "filtered", "tlut_update"):
     finalize_bucket_summary(kind)
+finalize_provenance_summary()
 finalize_pack_crosscheck()
 
 output_path.write_text(json.dumps(result, indent=2) + "\n")

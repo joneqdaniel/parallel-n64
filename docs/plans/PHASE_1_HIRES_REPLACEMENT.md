@@ -36,9 +36,15 @@
 - the replacement path is now visibly active on both strict targets, and `on` / `off` no longer match at the raw-pixel level
 - the current Phase 1 blocker is no longer wiring; it is correctness: decide whether the visible deltas are the expected hi-res result or corruption, then tighten texel mapping / alias behavior until the strict fixtures are clean
 - the active exact-identity / provenance execution path is now spelled out in [N64 Identity Breakthrough Plan](/home/auro/code/parallel-n64/docs/plans/N64_IDENTITY_BREAKTHROUGH_PLAN.md)
+- the current exact-key audit artifact is [N64 Exact Key Delta Sheet](/home/auro/code/parallel-n64/docs/plans/N64_EXACT_KEY_DELTA_SHEET.md)
 - current strict-fixture evidence:
   - title screen: `lookups=196 hits=178 misses=18 provider=on`, `AE=3412580`, `RMSE=0.267821`
   - file select: `lookups=165 hits=82 misses=83 provider=on`, `AE=1289800`, `RMSE=0.0928543`
+  - the first provenance-backed strict file-select `on` bundle (`20260326-provenance-check`) now makes the miss/hit classes more concrete:
+    - all `165` lookups classify as `authored-rdram`, not framebuffer-derived
+    - provenance splits into `34` `copy-cycle`, `75` `loadblock`, and `56` `loadtile` events
+    - the dominant unresolved `64x1 fs514` miss is explicitly an authored-RDRAM `loadblock`
+    - the major visible `296x6 fs258` hit class is explicitly an authored-RDRAM `copy-cycle` tile path
   - hi-res traces now also expose stable bucket summaries, which collapse title misses to 5 unique classes and file-select misses to 6 unique classes
   - the current dominant unresolved file-select class is `mode=block fmt=2 siz=2 wh=64x1 fs=514 tile=7` with 70 repeated misses in the last verified strict `on` bundle
   - the new pack cross-check in `hires-evidence.json` shows those current strict-fixture misses are unmatched in the active local Paper Mario `.hts` index under our current checksum generation, not mismatched under another `formatsize`

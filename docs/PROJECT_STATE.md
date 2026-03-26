@@ -253,6 +253,13 @@
   - CI4/CI8 and TLUT handling need a more logical palette view than the current raw/expanded shadow path
   - copy / texrect / BG-copy / framebuffer-derived content should be treated as explicit provenance classes, not silently folded into authored replacement lookup
 - The concrete next-step execution plan from that research is now tracked in [N64 Identity Breakthrough Plan](/home/auro/code/parallel-n64/docs/plans/N64_IDENTITY_BREAKTHROUGH_PLAN.md).
+- The first provenance-evidence pass is now live in strict hi-res bundles:
+  - `traces/hires-evidence.json` now records per-lookup provenance classes, source classes, and cycle/TLUT/framebuffer context
+  - the first verified strict file-select `on` bundle (`20260326-provenance-check`) shows all `165` hi-res lookups as `authored-rdram`, not framebuffer-derived
+  - that same bundle splits into `34` `copy-cycle`, `75` `loadblock`, and `56` `loadtile` provenance-class events
+  - the dominant unresolved `64x1 fs514` miss is now explicitly classified as authored-RDRAM `loadblock`, which narrows it away from copy/framebuffer confusion
+  - the major visible `296x6 fs258` replacement driver is now explicitly classified as authored-RDRAM `copy-cycle`, which is a more concrete target than “tile hit” alone
+- The current exact-key audit artifact is now [N64 Exact Key Delta Sheet](/home/auro/code/parallel-n64/docs/plans/N64_EXACT_KEY_DELTA_SHEET.md).
 - That makes legacy pack transport a real implementation path instead of only a planning statement
 - The new block-shape probe is now wired through the tracked file-select scenario and keeps the strict hash intact while logging alternate-shape diagnostics
 - That probe has already ruled out the dominant file-select miss as a simple hidden multi-line reinterpretation: `mode=block fmt=2 siz=2 wh=64x1 fs=514 tile=7` stays a plain `64x1` upload (`tmem_stride_words=0`) and finds no alternate-shape pack hit

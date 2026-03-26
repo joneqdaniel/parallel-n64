@@ -173,6 +173,11 @@ result = {
         "copy_counts": {},
         "top_buckets": [],
     },
+    "sampler_usage": {
+        "available": False,
+        "line_count": 0,
+        "top_buckets": [],
+    },
     "ci_palette_probe": {
         "families": [],
         "usages": [],
@@ -214,6 +219,7 @@ bucket_maps = {
 miss_records = []
 provenance_buckets = {}
 draw_usage_buckets = {}
+sampler_usage_buckets = {}
 
 def parse_fields(detail):
     fields = {}
@@ -307,6 +313,19 @@ def finalize_draw_usage_summary():
     ]
     items.sort(key=lambda item: (-item["count"], item["signature"]))
     result["draw_usage"]["top_buckets"] = items[:10]
+
+def finalize_sampler_usage_summary():
+    items = [
+        {
+            "signature": signature,
+            "count": payload["count"],
+            "fields": payload["fields"],
+            "sample_detail": payload["sample_detail"],
+        }
+        for signature, payload in sampler_usage_buckets.items()
+    ]
+    items.sort(key=lambda item: (-item["count"], item["signature"]))
+    result["sampler_usage"]["top_buckets"] = items[:10]
 
 def parse_hts_cache_index(cache_path):
     data = cache_path.read_bytes()
@@ -660,6 +679,8 @@ for line in log_path.read_text(errors="replace").splitlines():
         result["available"] = True
         result["draw_usage"]["available"] = True
         result["draw_usage"]["line_count"] += 1
+        result["sampler_usage"]["available"] = True
+        result["sampler_usage"]["line_count"] += 1
         detail = m.group(1).strip()
         fields = parse_fields(detail)
         increment_counter(result["draw_usage"]["draw_class_counts"], fields.get("draw_class"))
@@ -682,6 +703,72 @@ for line in log_path.read_text(errors="replace").splitlines():
             },
         )
         bucket["count"] += 1
+
+        sampler_signature = " ".join(
+            f"{key}={fields.get(key)}"
+            for key in (
+                "draw_class",
+                "cycle",
+                "copy",
+                "fmt",
+                "siz",
+                "pal",
+                "offset",
+                "stride",
+                "sl",
+                "tl",
+                "sh",
+                "th",
+                "mask_s",
+                "shift_s",
+                "mask_t",
+                "shift_t",
+                "clamp_s",
+                "mirror_s",
+                "clamp_t",
+                "mirror_t",
+                "texel0_hit",
+                "texel1_hit",
+            )
+            if fields.get(key) is not None
+        )
+        sampler_bucket = sampler_usage_buckets.setdefault(
+            sampler_signature,
+            {
+                "count": 0,
+                "fields": {
+                    key: fields.get(key)
+                    for key in (
+                        "draw_class",
+                        "cycle",
+                        "copy",
+                        "base_tile",
+                        "fmt",
+                        "siz",
+                        "pal",
+                        "offset",
+                        "stride",
+                        "sl",
+                        "tl",
+                        "sh",
+                        "th",
+                        "mask_s",
+                        "shift_s",
+                        "mask_t",
+                        "shift_t",
+                        "clamp_s",
+                        "mirror_s",
+                        "clamp_t",
+                        "mirror_t",
+                        "texel0_hit",
+                        "texel1_hit",
+                    )
+                    if fields.get(key) is not None
+                },
+                "sample_detail": detail,
+            },
+        )
+        sampler_bucket["count"] += 1
         continue
 
     m = hit_miss_re.search(line)
@@ -744,6 +831,7 @@ for kind in ("hit", "miss", "filtered", "tlut_update"):
     finalize_bucket_summary(kind)
 finalize_provenance_summary()
 finalize_draw_usage_summary()
+finalize_sampler_usage_summary()
 finalize_pack_crosscheck()
 
 output_path.write_text(json.dumps(result, indent=2) + "\n")

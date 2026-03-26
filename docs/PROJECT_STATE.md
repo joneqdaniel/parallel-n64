@@ -273,6 +273,22 @@
     - `10` `fill-rect`
     - strongest bucket: the same copy-mode texrect hit pattern with `136` events
   - current implication: the visible early-scene hi-res path is not just “tile replacement”; it is strongly texrect-driven, especially in copy mode
+- The first sampler-state pass is now live in strict bundles as well:
+  - `traces/hires-evidence.json` now records `sampler_usage`, which groups draw-time tile state into repeated sampled-object regimes
+  - the verified strict file-select sampler bundle (`20260326-sampler-check-2`) shows the top visible copy-mode texrect bucket collapsing to one repeated regime:
+    - `fmt=2 siz=1 stride=296 sl=0 tl=0 sh=1180 th=20`
+    - `mask_s/t=0`, `shift_s/t=0`
+    - `clamp_s/t=1`, `mirror_s/t=0`
+    - `66` events
+  - the verified strict title-screen sampler bundle (`20260326-sampler-check`) shows that same copy-mode texrect regime even more strongly:
+    - same `fmt=2 siz=1 stride=296 sl=0 tl=0 sh=1180 th=20`
+    - same clamp/mirror/mask/shift state
+    - `132` events
+  - title screen also has a second large non-copy texrect regime:
+    - `fmt=0 siz=3 stride=400 sl=0 tl=0 sh=796 th=4`
+    - same fully clamped, unmasked window style
+    - `106` events
+  - current implication: the early visible path is concentrated in a few repeated texrect sampler windows rather than a broad spread of sampler-state variants
 - The current exact-key audit artifact is now [N64 Exact Key Delta Sheet](/home/auro/code/parallel-n64/docs/plans/N64_EXACT_KEY_DELTA_SHEET.md).
 - The first logical-TLUT diagnostic pass is now live in strict CI probe bundles:
   - `traces/hires-evidence.json` now records `ci_palette_probe.logical_views`

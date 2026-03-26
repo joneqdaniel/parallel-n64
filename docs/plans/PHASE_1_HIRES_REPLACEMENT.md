@@ -51,6 +51,21 @@
     - strict title screen (`20260326-draw-class-check`) shows the same pattern more strongly: `370` draw-usage lines, with `254` `texrect`, `106` `triangle`, and `10` `fill-rect`
     - its leading visible replacement bucket is the same copy-mode texrect hit class with `136` events
     - practical implication: the current visible strict-fixture hi-res path is strongly texrect-driven, especially on copy-mode UI/background draws
+  - the first sampler-state bundles now narrow that one level further:
+    - strict file select (`20260326-sampler-check-2`) shows the top visible copy-mode texrect bucket repeatedly sampling the same base-tile regime:
+      - `fmt=2 siz=1 stride=296 sl=0 tl=0 sh=1180 th=20`
+      - `mask_s/t=0`, `shift_s/t=0`
+      - `clamp_s/t=1`, `mirror_s/t=0`
+      - `66` events
+    - strict title screen (`20260326-sampler-check`) shows the same copy-mode texrect sampler regime even more strongly:
+      - same `fmt=2 siz=1 stride=296 sl=0 tl=0 sh=1180 th=20`
+      - same clamp/mirror/mask/shift state
+      - `132` events
+    - title screen also has a second major non-copy texrect regime:
+      - `fmt=0 siz=3 stride=400 sl=0 tl=0 sh=796 th=4`
+      - same fully clamped, unmasked window style
+      - `106` events
+    - practical implication: the early visible path is concentrated in a few repeated texrect sampler windows, not a wide spread of unrelated sampling states
   - hi-res traces now also expose stable bucket summaries, which collapse title misses to 5 unique classes and file-select misses to 6 unique classes
   - the current dominant unresolved file-select class is `mode=block fmt=2 siz=2 wh=64x1 fs=514 tile=7` with 70 repeated misses in the last verified strict `on` bundle
   - the new pack cross-check in `hires-evidence.json` shows those current strict-fixture misses are unmatched in the active local Paper Mario `.hts` index under our current checksum generation, not mismatched under another `formatsize`

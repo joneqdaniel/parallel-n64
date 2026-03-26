@@ -1693,9 +1693,11 @@ void Renderer::draw_shaded_primitive(const TriangleSetup &setup, const Attribute
 		                         (raster_flags & RASTERIZATION_USES_PIPELINED_TEXEL1_BIT) != 0;
 		const unsigned base_tile = setup.tile & 7u;
 		const unsigned texel1_tile = (base_tile + 1u) & 7u;
+		const auto &base_meta = tiles[base_tile].meta;
+		const auto &base_size = tiles[base_tile].size;
 		const auto &texel0_state = replacement_tiles[base_tile];
 		const auto &texel1_state = replacement_tiles[texel1_tile];
-		LOGI("Hi-res draw usage: draw_class=%s cycle=%s copy=%u base_tile=%u uses_texel0=%u uses_texel1=%u texel0_hit=%u texel0_key=%016llx texel1_tile=%u texel1_hit=%u texel1_key=%016llx.\n",
+		LOGI("Hi-res draw usage: draw_class=%s cycle=%s copy=%u base_tile=%u uses_texel0=%u uses_texel1=%u texel0_hit=%u texel0_key=%016llx texel1_tile=%u texel1_hit=%u texel1_key=%016llx fmt=%u siz=%u pal=%u offset=%u stride=%u sl=%u tl=%u sh=%u th=%u mask_s=%u shift_s=%u mask_t=%u shift_t=%u clamp_s=%u mirror_s=%u clamp_t=%u mirror_t=%u.\n",
 		     get_hires_draw_class(draw_class),
 		     get_hires_cycle_class(raster_flags),
 		     (raster_flags & RASTERIZATION_COPY_BIT) != 0 ? 1 : 0,
@@ -1706,7 +1708,24 @@ void Renderer::draw_shaded_primitive(const TriangleSetup &setup, const Attribute
 		     static_cast<unsigned long long>(texel0_state.checksum64),
 		     texel1_tile,
 		     texel1_state.hit ? 1 : 0,
-		     static_cast<unsigned long long>(texel1_state.checksum64));
+		     static_cast<unsigned long long>(texel1_state.checksum64),
+		     unsigned(base_meta.fmt),
+		     unsigned(base_meta.size),
+		     unsigned(base_meta.palette),
+		     unsigned(base_meta.offset),
+		     unsigned(base_meta.stride),
+		     unsigned(base_size.slo),
+		     unsigned(base_size.tlo),
+		     unsigned(base_size.shi),
+		     unsigned(base_size.thi),
+		     unsigned(base_meta.mask_s),
+		     unsigned(base_meta.shift_s),
+		     unsigned(base_meta.mask_t),
+		     unsigned(base_meta.shift_t),
+		     (base_meta.flags & TILE_INFO_CLAMP_S_BIT) != 0 ? 1u : 0u,
+		     (base_meta.flags & TILE_INFO_MIRROR_S_BIT) != 0 ? 1u : 0u,
+		     (base_meta.flags & TILE_INFO_CLAMP_T_BIT) != 0 ? 1u : 0u,
+		     (base_meta.flags & TILE_INFO_MIRROR_T_BIT) != 0 ? 1u : 0u);
 	}
 
 	InstanceIndices indices = {};

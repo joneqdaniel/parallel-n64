@@ -143,6 +143,19 @@ Current Paper Mario runtime note:
   - title screen (`20260326-draw-class-check`) records `370` hi-res draw-usage lines, again dominated by `texrect` (`254`)
   - in both fixtures, the leading visible replacement bucket is `draw_class=texrect cycle=copy copy=1 ... texel0_hit=1 texel1_hit=1`
   - practical implication: the visible strict-fixture hi-res path is strongly texrect/copy-mode driven, not just generic textured triangle traffic
+- the same `hires-evidence.json` trace now also records `sampler_usage`, so strict bundles can group draw-time tile state into repeated sampled-object regimes
+- the first verified sampler passes narrow that early-scene path further:
+  - file select (`20260326-sampler-check-2`) top visible copy-mode texrect regime:
+    - `fmt=2 siz=1 stride=296 sl=0 tl=0 sh=1180 th=20`
+    - `mask_s/t=0`, `shift_s/t=0`
+    - `clamp_s/t=1`, `mirror_s/t=0`
+    - `66` events
+  - title screen (`20260326-sampler-check`) shows the same top copy-mode texrect regime with `132` events
+  - title screen also has a second large non-copy texrect regime:
+    - `fmt=0 siz=3 stride=400 sl=0 tl=0 sh=796 th=4`
+    - same fully clamped, unmasked window style
+    - `106` events
+  - practical implication: the visible early path is concentrated in a few repeated texrect sampler windows, not a broad sampler-state explosion
 - the same `hires-evidence.json` trace now also cross-checks miss keys against the active `.hts`/`.htc` index, so bundle evidence can distinguish “unmatched in the local pack index under the current checksum generation” from “lookup present under another formatsize”
 - CI palette probe runs now also record `ci_palette_probe.families` in `traces/hires-evidence.json`, so representative CI misses can report whether their low-32 pack family is exact/generic, dimension-uniform, or structurally ambiguous without changing the default lookup path
 - the same CI probe now also records `ci_palette_probe.usages` and `ci_palette_probe.emulated_tmem`, so strict bundles can show how many palette indices were actually sampled and whether raw-shadow versus emulated-TMEM palette views produce any pack-backed candidate at all

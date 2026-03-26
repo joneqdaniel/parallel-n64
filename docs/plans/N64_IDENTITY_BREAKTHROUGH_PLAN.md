@@ -107,6 +107,24 @@ Immediate deliverables:
   - preserved with caveats
   - not yet preserved
 
+Current artifact:
+- `traces/hires-evidence.json` now records `sampler_usage` from draw-time tile state
+- verified early-fixture result:
+  - file select (`20260326-sampler-check-2`) top visible copy-mode bucket is a repeated texrect sampler regime:
+    - `fmt=2 siz=1 stride=296 sl=0 tl=0 sh=1180 th=20`
+    - `mask_s/t=0`, `shift_s/t=0`
+    - `clamp_s/t=1`, `mirror_s/t=0`
+    - `66` events
+  - title screen (`20260326-sampler-check`) shows the same top copy-mode texrect regime even more strongly:
+    - same `fmt=2 siz=1 stride=296 sl=0 tl=0 sh=1180 th=20`
+    - same clamp/mirror/mask/shift state
+    - `132` events
+  - title screen also has a second large non-copy texrect regime:
+    - `fmt=0 siz=3 stride=400 sl=0 tl=0 sh=796 th=4`
+    - same fully clamped, unmasked window style
+    - `106` events
+  - practical implication: the current early-scene visible path collapses to a few repeated sampled-object regimes rather than a broad sampler-state explosion
+
 Exit signal:
 - we know whether “same texel source, different visible result” is happening because of identity or because the replacement path is not preserving draw-time sampling behavior
 

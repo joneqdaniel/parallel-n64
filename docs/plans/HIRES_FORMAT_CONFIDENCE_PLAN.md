@@ -204,6 +204,46 @@ The first explicit research pass across local N64 docs and emulator references a
 - CI/TLUT compatibility should stay explicit and named; it should not be allowed to blur the exact identity model.
 - Block-class reinterpretation should stay diagnostic until it has clear N64-side justification.
 
+### Latest Research Synthesis
+
+The newest full-docs research pass across `/home/auro/code/n64_docs` sharpens what “exact identity” likely needs to mean for ParaLLEl:
+
+- The authoritative object is the post-load sampled tile, not the raw upload blob.
+- `SetTile` state is part of texture meaning:
+  - `fmt/siz`
+  - TMEM `address`
+  - TMEM `line`
+  - CI4 `palette`
+  - clamp / mirror / mask / shift
+- `SetTileSize` and `LoadTile` also change meaning because the sampler shifts coordinates, subtracts the tile upper-left, and then applies clamp/mirror/mask.
+- `LoadBlock` provenance matters:
+  - `dxt`
+  - odd-line word swapping
+  - 64-bit padding requirements
+  - possible wrap/corruption cases
+  - render-useless tile-size side effects during the load itself
+- `LoadTLUT` is not a raw byte copy:
+  - entries are expanded in high TMEM
+  - CI4 and CI8 have different palette semantics
+  - `tlut_type` changes final sampled meaning
+  - CI4 palette-bank selection is identity-relevant
+- Copy / texrect / BG-copy paths are first-class identity/provenance concerns:
+  - copy mode has different sampling rules
+  - copy mode ignores some normal-texture semantics
+  - many UI paths may be running through copy-style behavior rather than “normal textured draw” behavior
+- Framebuffer-derived textures are normal N64 behavior and should not be treated as authored replacement-authority by default.
+
+The practical implication is that many apparent misses may not be “wrong texture pack data” in the simple sense. Some are likely:
+- CI/TLUT identity mismatches
+- copy-mode / texrect provenance mismatches
+- non-authoritative framebuffer / streaming / upload-side artifacts
+- source-side low32 families that the legacy format collapses too aggressively
+
+So the breakthrough direction is not “widen heuristics until more hits appear.” It is:
+- make exact identity more faithful to the sampled N64 object
+- explicitly classify non-authoritative source classes
+- keep imported compatibility policy separate and reviewable
+
 ### Workstream A: Broaden The Observed Family Set
 
 Goal:

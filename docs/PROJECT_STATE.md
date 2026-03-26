@@ -290,6 +290,17 @@
   - after the corrected filter-isolation runs, the active visible-design choice is narrower still:
     - the immediate strict-fixture work is the tile/CI path, especially the ambiguous `8x16` family and the more exact CI/TLUT identity behind it
     - the still-unmatched block classes remain a separate later track until a fixture proves they materially affect visible output
+- The latest full-docs N64 research pass materially strengthens that narrowing:
+  - the authoritative identity object appears to be the post-load sampled tile, not the raw upload blob
+  - `SetTile`, `SetTileSize`, and sampler-state fields are part of texture meaning, not just metadata
+  - CI/TLUT identity is more sampler-visible than a raw palette-upload view:
+    - CI4 and CI8 differ
+    - CI4 palette-bank selection matters
+    - `tlut_type` matters
+    - `LoadTLUT` expansion means logical palette entries matter more than expanded TMEM bytes
+  - copy / texrect / BG-copy paths are likely first-class provenance classes rather than normal texture draws
+  - framebuffer-derived textures are normal N64 behavior and should not be treated as authored replacement authority by default
+  - practical consequence: many apparent misses may be non-authoritative source classes or exact-identity mismatches rather than simple “missing pack data”
 - Cross-emulator research now gives the broad guardrails for that decision:
   - the strongest relevant local references are `PCSX2`, `Dolphin`, `PPSSPP`, and `Flycast`
   - the shared pattern is consistent: exact replacement identity remains authoritative, while broader compatibility matching lives in an explicit second tier with separate reporting and tighter constraints

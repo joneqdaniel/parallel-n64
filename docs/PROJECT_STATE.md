@@ -247,6 +247,12 @@
   - only the texel-side low32 identity and source address differ across those four cases
   - that means tile-state metadata is not the missing discriminator for this neighborhood on the strict file-select fixture
   - the current evidence therefore leans further toward per-low32 import/policy handling for this class, rather than one more tile-state-based runtime rule
+- The latest `n64_docs` research now points at a broader exact-identity gap than “one more CRC tweak”:
+  - the authoritative object is likely the post-load sampled tile, not the raw upload blob
+  - `SetTile`, `SetTileSize`, TMEM address/line, and load provenance are part of texture meaning
+  - CI4/CI8 and TLUT handling need a more logical palette view than the current raw/expanded shadow path
+  - copy / texrect / BG-copy / framebuffer-derived content should be treated as explicit provenance classes, not silently folded into authored replacement lookup
+- The concrete next-step execution plan from that research is now tracked in [N64 Identity Breakthrough Plan](/home/auro/code/parallel-n64/docs/plans/N64_IDENTITY_BREAKTHROUGH_PLAN.md).
 - That makes legacy pack transport a real implementation path instead of only a planning statement
 - The new block-shape probe is now wired through the tracked file-select scenario and keeps the strict hash intact while logging alternate-shape diagnostics
 - That probe has already ruled out the dominant file-select miss as a simple hidden multi-line reinterpretation: `mode=block fmt=2 siz=2 wh=64x1 fs=514 tile=7` stays a plain `64x1` upload (`tmem_stride_words=0`) and finds no alternate-shape pack hit

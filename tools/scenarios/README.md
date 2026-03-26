@@ -170,6 +170,8 @@ Current Paper Mario runtime note:
   - on the strict file-select authority it currently reproduces the same result as `PARALLEL_RDP_HIRES_CI_LOW32_FALLBACK=3`: `hits=86`, `misses=79`, hash `24274e62a18c436dc13570b6e51f7dc600b0de89d4aee56086cffd82248f797a`
   - on the strict title-screen authority it is a verified no-op and preserves the locked `on` hash `ba91ffce0cc7b6053568c0a7774bf0ae80825c95d95fce89ba4a9f79c62b9d16`
   - treat that as the current best tier-2 CI candidate, not as default behavior
+- use `tools/hires_miss_review.py --bundle <strict-on-bundle> --cache assets/PAPER MARIO_HIRESTEXTURES.hts` when you need a focused review of the remaining miss buckets after one of these experiments
+  - on the current strict file-select CI-compat bundle, that review confirms the unresolved gap is mostly the `64x1 fs514` block family, while the smaller `8x16 fs258` CI class remains on the import-policy track
 - the new CI family probe explains why those fallback results split the way they do:
   - the representative `32x16` family is generic-only but dimension-uniform (`2` generic entries, `1` replacement-dimension family), which matches the success of `replacement-dims-unique`
   - the representative `8x16` family is generic-only and structurally broad (`17` generic entries across `3` replacement-dimension families), which is exactly the kind of case that should stay out of the default path until a better discriminator exists

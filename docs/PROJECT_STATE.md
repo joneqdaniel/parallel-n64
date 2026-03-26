@@ -246,6 +246,10 @@
   - on the strict file-select authority, that compatibility tier reproduces the earlier `PARALLEL_RDP_HIRES_CI_LOW32_FALLBACK=3` result exactly: `hits=86`, `misses=79`, hash `24274e62a18c436dc13570b6e51f7dc600b0de89d4aee56086cffd82248f797a`
   - on the strict title-screen authority, the same compatibility tier is a no-op and preserves the locked `on` hash `ba91ffce0cc7b6053568c0a7774bf0ae80825c95d95fce89ba4a9f79c62b9d16`
   - that makes it the first production-shaped tier-2 CI candidate while keeping exact lookup as tier 1 and leaving the broader `any` mode debug-only
+  - a new focused review pass now makes the remaining strict file-select gap easier to reason about:
+    - `tools/hires_miss_review.py --bundle artifacts/paper-mario-file-select/on/20260325-ci-compat-repl-dims-unique --cache assets/PAPER MARIO_HIRESTEXTURES.hts`
+    - the dominant `mode=block fmt=2 siz=2 wh=64x1 fs=514 tile=7` class stays fully `absent-from-pack` across all `21` observed low-32 keys in the current pack index
+    - the remaining `8x16` CI class stays `present-generic-only` and `ambiguous-import-or-policy`, which confirms it belongs on the CI/import-policy track rather than the block track
   - the real remaining design choice is whether that constrained tier is acceptable enough to harden further, or whether we still need a better palette-side discriminator for the ambiguous `8x16` family, while separately solving the still-unmatched block classes
 - Cross-emulator research now gives the broad guardrails for that decision:
   - the strongest relevant local references are `PCSX2`, `Dolphin`, `PPSSPP`, and `Flycast`

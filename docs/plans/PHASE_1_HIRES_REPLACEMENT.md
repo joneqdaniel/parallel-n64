@@ -112,6 +112,12 @@
       - on the strict file-select fixture it reproduces the earlier `PARALLEL_RDP_HIRES_CI_LOW32_FALLBACK=3` result exactly: `hits=86`, `misses=79`, hash `24274e62a18c436dc13570b6e51f7dc600b0de89d4aee56086cffd82248f797a`
       - on the strict title-screen fixture it is a verified no-op and preserves the locked `on` hash `ba91ffce0cc7b6053568c0a7774bf0ae80825c95d95fce89ba4a9f79c62b9d16`
       - this is now the best current production-shaped candidate for tier-2 CI compatibility, while the broader `low32_any` path remains debug-only
+    - there is now a focused miss-review tool for the remaining strict-bundle gap:
+      - `tools/hires_miss_review.py --bundle <strict-on-bundle> --cache assets/PAPER MARIO_HIRESTEXTURES.hts`
+      - on the current strict file-select bundle with `PARALLEL_RDP_HIRES_CI_COMPAT=3`, it confirms the remaining gap splits cleanly:
+        - the dominant `64x1 fs514` block family is fully absent from the current pack index across all observed low-32 keys
+        - the remaining `8x16 fs258` CI family is still present only under generic legacy grouping and remains `ambiguous-import-or-policy`
+      - that makes the next implementation split clearer: block-class investigation is now a separate track from CI/import-policy cleanup
     - the new file-select input-probe scenario now expands that evidence base without changing the default strict fixtures:
       - it now supports explicit `--step-chunk-frames`, and the first savefile-backed deep branch reproduces byte-identically with `30`-frame chunks instead of one-frame stepping
       - on the heavier hi-res path, chunked probes now rely on `WAIT_STATUS_FRAME` rather than strict `STEP_FRAME` log acknowledgements, which made the fast deep probes reliable again

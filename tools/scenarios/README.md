@@ -168,6 +168,7 @@ Current Paper Mario runtime note:
   - `PARALLEL_RDP_HIRES_CI_COMPAT=3` enables the same constrained `replacement-dims-unique` rule as an opt-in runtime compatibility path
   - exact lookup still runs first; the compatibility tier only applies after exact CI lookup misses
   - on the strict file-select authority it currently reproduces the same result as `PARALLEL_RDP_HIRES_CI_LOW32_FALLBACK=3`: `hits=86`, `misses=79`, hash `24274e62a18c436dc13570b6e51f7dc600b0de89d4aee56086cffd82248f797a`
+  - on the strict title-screen authority it is a verified no-op and preserves the locked `on` hash `ba91ffce0cc7b6053568c0a7774bf0ae80825c95d95fce89ba4a9f79c62b9d16`
   - treat that as the current best tier-2 CI candidate, not as default behavior
 - the new CI family probe explains why those fallback results split the way they do:
   - the representative `32x16` family is generic-only but dimension-uniform (`2` generic entries, `1` replacement-dimension family), which matches the success of `replacement-dims-unique`

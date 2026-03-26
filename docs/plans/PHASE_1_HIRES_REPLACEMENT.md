@@ -110,6 +110,7 @@
       - exact lookup still runs first and remains authoritative
       - the compatibility tier only engages for CI misses after exact lookup fails
       - on the strict file-select fixture it reproduces the earlier `PARALLEL_RDP_HIRES_CI_LOW32_FALLBACK=3` result exactly: `hits=86`, `misses=79`, hash `24274e62a18c436dc13570b6e51f7dc600b0de89d4aee56086cffd82248f797a`
+      - on the strict title-screen fixture it is a verified no-op and preserves the locked `on` hash `ba91ffce0cc7b6053568c0a7774bf0ae80825c95d95fce89ba4a9f79c62b9d16`
       - this is now the best current production-shaped candidate for tier-2 CI compatibility, while the broader `low32_any` path remains debug-only
     - the new file-select input-probe scenario now expands that evidence base without changing the default strict fixtures:
       - it now supports explicit `--step-chunk-frames`, and the first savefile-backed deep branch reproduces byte-identically with `30`-frame chunks instead of one-frame stepping

@@ -84,6 +84,18 @@
   - future populated-slot probing should use either:
     - a newly generated known-good Paper Mario save source
     - or stronger state-driven fixtures instead of this local `.srm`
+- The strongest current non-save deeper-state path now comes from the title-screen authority, not file select.
+  - a bounded title-timeout sweep now proves the authority can deterministically leave `state_init_title_screen` / `state_step_title_screen` without any savefile dependency
+  - current observed checkpoints from the authoritative title state are:
+    - `900` stepped frames -> `state_init_enter_demo` / `state_step_enter_world`
+    - `960` stepped frames -> `state_init_world` / `state_step_world`, `kmr_03`, `entry 5`
+    - `1020` stepped frames -> `state_init_world` / `state_step_world`, `kmr_03`, `entry 5`
+    - `1200` stepped frames -> `state_init_battle` / `state_step_battle`, `kmr_03`, `entry 0`
+    - `1500` stepped frames -> `state_init_world` / `state_step_world`, `kmr_06`, `entry 3`
+  - visually, those bundles are no longer menu-only:
+    - `960` frames lands on a Goomba scene
+    - `1500` frames lands on a Koopa flight scene
+  - immediate planning consequence: broader Paper Mario hi-res evidence no longer depends on populated-slot save data
 - The current deterministic file-select branch ladder is clearer even without valid panel addresses:
   - direct one-frame `START` or `A` from the authoritative file-select state both collapse to the same first deeper branch after the current long settle
   - that first deeper branch is `89cb1bddd5c2dd2a62b063210af11c2324eca04d3060e746042edc0323b00e8e`

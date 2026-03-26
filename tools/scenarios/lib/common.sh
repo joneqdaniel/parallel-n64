@@ -791,14 +791,19 @@ EMPIRICAL_PHASE_BY_WINDOW_SHA256 = {
 }
 CUR_GAME_MODE_PHASE_BY_POINTERS = {
     (0x80033E70, 0x800340A4): "logos_callbacks",
+    (0x800338D0, 0x800338E4): "battle_callbacks",
     (0x80035058, 0x800354EC): "file_select_callbacks",
     (0x80035660, 0x80035B40): "exit_file_select_callbacks",
+    (0x80035E00, 0x80035EEC): "enter_demo_callbacks",
     (0x80035E24, 0x80035EEC): "enter_world_callbacks",
     (0x80035D30, 0x80035D54): "world_callbacks",
     (0x80036650, 0x80036854): "intro_callbacks",
     (0x80036DF0, 0x800370B4): "title_screen_callbacks",
 }
 CUR_GAME_MODE_POINTER_NAMES = {
+    0x800338D0: "state_init_battle",
+    0x800338E4: "state_step_battle",
+    0x80033B54: "state_drawUI_battle",
     0x80033E70: "state_init_logos",
     0x800340A4: "state_step_logos",
     0x80035058: "state_init_file_select",
@@ -807,8 +812,10 @@ CUR_GAME_MODE_POINTER_NAMES = {
     0x80035B40: "state_step_exit_file_select",
     0x80035D30: "state_init_world",
     0x80035D54: "state_step_world",
+    0x80035E00: "state_init_enter_demo",
     0x80035E24: "state_init_enter_world",
     0x80035EEC: "state_step_enter_world",
+    0x800360FC: "state_drawUI_enter_world",
     0x80036650: "state_init_intro",
     0x80036854: "state_step_intro",
     0x80036DF0: "state_init_title_screen",

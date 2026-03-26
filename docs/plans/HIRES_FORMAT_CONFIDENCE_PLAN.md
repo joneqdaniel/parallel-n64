@@ -73,10 +73,15 @@ Minimum target breadth before format commitment:
 - title screen strict fixture
 - file select strict fixture
 - multiple deterministic file-select branch states
-- at least one deeper non-menu Paper Mario authority state once available
+- at least one deeper non-menu Paper Mario authority state
 - at least one representative block-dominated case
 
 The goal is not “many scenes.” The goal is “enough distinct runtime classes that the format is not menu-overfit.”
+
+Current positive direction:
+
+- a bounded title-screen timeout path now reaches non-menu callbacks without any populated savefile dependency
+- that path is currently the best candidate for the first deeper non-menu Paper Mario authority
 
 ### 4. Negative Data
 

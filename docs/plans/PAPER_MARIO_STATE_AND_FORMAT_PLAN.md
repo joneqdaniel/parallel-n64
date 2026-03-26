@@ -28,6 +28,10 @@ Now we can do something better:
 - use upstream Paper Mario for vanilla comparison
 - use runtime bundles as the authority for what actually happened in this emulator/core path
 
+The most important new correction is that deeper-state discovery does not need to be bottlenecked on save data.
+
+The current local `.srm` is low-value, but the authoritative title state now has a deterministic timeout path into non-menu callbacks and demo/world content.
+
 ## Core Findings To Build On
 
 ### 1. The file-select branch ladder is real and deterministic
@@ -78,6 +82,18 @@ That proves:
 
 - the deeper branch is input-caused
 - it is not just an idle-delay artifact
+
+### 5. The title-screen authority now provides a better non-save path than file select
+
+Current bounded title-timeout evidence from the authoritative title state:
+
+- `900` stepped frames -> `state_init_enter_demo` / `state_step_enter_world`
+- `960` stepped frames -> `state_init_world` / `state_step_world`, `kmr_03`, `entry 5`
+- `1020` stepped frames -> `state_init_world` / `state_step_world`, `kmr_03`, `entry 5`
+- `1200` stepped frames -> `state_init_battle` / `state_step_battle`, `kmr_03`, `entry 0`
+- `1500` stepped frames -> `state_init_world` / `state_step_world`, `kmr_06`, `entry 3`
+
+That path matters because it gives us non-menu Paper Mario content without relying on populated save slots.
 
 ## Strategy
 
@@ -145,11 +161,12 @@ Required work:
 - when a deeper state is found, mint it immediately as a new authority fixture
 
 Search order:
-1. authoritative file-select state
-2. `START x120` branch
-3. `START x120 -> A` branch
-4. `START x120 -> A -> A` / `A -> START` branch
-5. only then widen search if none of those exit file select
+1. authoritative title-screen timeout path
+2. authoritative file-select state
+3. `START x120` branch
+4. `START x120 -> A` branch
+5. `START x120 -> A -> A` / `A -> START` branch
+6. only then widen search if none of those produce the needed deeper authority
 
 Authority rule:
 - once a target branch is visually and semantically stable, mint a state so the canonical workflow stays `load -> settle 3 -> capture`
@@ -219,6 +236,17 @@ Do next:
 
 Why fourth:
 - that is the first real test of whether the format/import model is menu-overfit
+
+### Step 3a: Prefer Non-Save Title Timeout Probing First
+
+Do next:
+
+- use [paper-mario-title-timeout-probe.sh](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-title-timeout-probe.sh) to widen coverage from the authoritative title state
+- prioritize stable non-menu checkpoints from the title timeout path before spending more effort on empty-slot file-select branches
+
+Why:
+- it gives us deeper content without depending on populated saves
+- it broadens the format-evidence base faster than more file-select-only probing
 
 ## Decision Gates
 

@@ -128,9 +128,16 @@
         - the first deeper `authority + A` branch now keeps those same panel predicates but flips `WIN_FILES_TITLE` and `WIN_FILES_SLOT2_BODY` onto `filemenu_update_hidden_with_rotation`, which gives us a stronger vanilla-safe branch signal without yet proving a real exit from file select
         - the first deeper `authority + A` branch still decodes to the same safe top-level panel predicates as the authority state
       - `savefile-start -> right` and `savefile-start -> down` are now both verified in `on` mode, but they still expose the same three CI families as the shallower file-select neighborhood
+      - the stronger non-save widening path is now the title-timeout probe:
+        - `tools/scenarios/paper-mario-title-timeout-probe.sh --step-frames 960 --run` deterministically reaches `state_init_world` / `state_step_world` at `kmr_03`, `entry 5`
+        - bounded title-timeout checkpoints now also show:
+          - `900` frames -> `state_init_enter_demo` / `state_step_enter_world`
+          - `1200` frames -> `state_init_battle` / `state_step_battle`, `kmr_03`, `entry 0`
+          - `1500` frames -> `state_init_world` / `state_step_world`, `kmr_06`, `entry 3`
+        - immediate implication: broader Phase 1 family capture no longer depends on populated-slot save data
     - caution: the current import-model evidence is still narrow
       - it now covers `3` distinct CI families instead of `2`
-      - all three still come from file-select-state exploration rather than broader gameplay coverage
+      - the next widening pass should prioritize the title-timeout non-menu states rather than deeper empty-slot file-select work
     - this is the first concrete transport path from legacy Glide-era packs into a cleaner ParaLLEl-owned representation
   - the first TLUT-state correction is now in place: the shadow patches by TMEM offset instead of wiping the whole palette shadow on every 32-byte update
   - current result of that correction:

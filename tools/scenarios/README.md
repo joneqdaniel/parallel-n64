@@ -27,6 +27,7 @@ Current tracked scenario seeds:
 - [`paper-mario-file-select.sh`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-file-select.sh)
 - [`paper-mario-file-select.runtime.env`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-file-select.runtime.env)
 - [`paper-mario-file-select-input-probe.sh`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-file-select-input-probe.sh)
+- [`paper-mario-title-timeout-probe.sh`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-title-timeout-probe.sh)
 - [`paper-mario-savefile-start.runtime.env`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-savefile-start.runtime.env)
 - [`paper-mario-hos-05-entry-3.sh`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-hos-05-entry-3.sh)
 - [`paper-mario-hos-05-entry-3.runtime.env`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-hos-05-entry-3.runtime.env)
@@ -114,6 +115,14 @@ Current Paper Mario runtime note:
   - even the cold-boot save-backed file-select remint still verifies `selected_slot_has_data = false`
   - so this local `.srm` should not be treated as a tooling gate or a general save-ingestion verdict
   - use it only as a low-confidence research input, not as a correctness dependency
+- the strongest current non-save deeper-state path is now the title-timeout probe:
+  - [paper-mario-title-timeout-probe.sh](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-title-timeout-probe.sh) loads the authoritative title state, settles, advances a bounded number of frames, then captures semantic evidence and a screenshot
+  - currently observed title-timeout checkpoints include:
+    - `900` frames -> `state_init_enter_demo` / `state_step_enter_world`
+    - `960` frames -> `state_init_world` / `state_step_world`, `kmr_03`, `entry 5`
+    - `1200` frames -> `state_init_battle` / `state_step_battle`, `kmr_03`, `entry 0`
+    - `1500` frames -> `state_init_world` / `state_step_world`, `kmr_06`, `entry 3`
+  - this is now the preferred way to widen Paper Mario hi-res evidence beyond menu-heavy states without relying on save data
 - a one-frame button sweep across `A`, `B`, `START`, `UP`, `DOWN`, `LEFT`, and `RIGHT`, plus `A` / `START` with `post-input-settle = 0`, stayed on that same decoded top-level file-select state too
 - the current trusted-vs-advisory Paper Mario runtime signals are documented in [PAPER_MARIO_SIGNAL_TABLE.md](/home/auro/code/parallel-n64/docs/plans/PAPER_MARIO_SIGNAL_TABLE.md)
 - deeper `savefile-start` menu probes now have two verified `on` branches:

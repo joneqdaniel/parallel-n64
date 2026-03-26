@@ -189,6 +189,14 @@ Detect and report whether the current strict misses are normal textured draws or
 Success:
 - early UI misses stop being ambiguous between “identity bug” and “wrong provenance class”
 
+Current artifact:
+- `traces/hires-evidence.json` now records `draw_usage` summaries on strict bundles
+- verified early-fixture result:
+  - file select (`20260326-draw-class-check`) is draw-class dominated by `texrect` (`194/252` draw-usage lines)
+  - its strongest visible copy-mode replacement bucket is `draw_class=texrect cycle=copy copy=1 ... texel0_hit=1 texel1_hit=1` with `68` events
+  - title screen (`20260326-draw-class-check`) shows the same structure more strongly: `texrect` dominates (`254/370` draw-usage lines), and the leading bucket is the same copy-mode texrect hit pattern with `136` events
+  - practical implication: the visible early-scene hi-res path is not just “tile hits”; it is strongly texrect-driven, especially in copy mode
+
 ## What This Plan Explicitly Avoids
 
 - broadening low-32 fallback further

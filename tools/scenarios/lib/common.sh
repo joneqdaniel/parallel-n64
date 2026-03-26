@@ -166,6 +166,13 @@ result = {
         "provenance_class_counts": {},
         "top_buckets": [],
     },
+    "draw_usage": {
+        "available": False,
+        "line_count": 0,
+        "draw_class_counts": {},
+        "copy_counts": {},
+        "top_buckets": [],
+    },
     "ci_palette_probe": {
         "families": [],
         "usages": [],
@@ -195,6 +202,7 @@ ci_usage_re = re.compile(r"Hi-res CI palette probe usage: (.+)")
 ci_emulated_tmem_re = re.compile(r"Hi-res CI palette probe emulated-tmem: (.+)")
 ci_logical_view_re = re.compile(r"Hi-res CI palette probe logical-view: (.+)")
 provenance_re = re.compile(r"Hi-res keying provenance: (.+)")
+draw_usage_re = re.compile(r"Hi-res draw usage: (.+)")
 field_re = re.compile(r"(\w+)=([^\s]+)")
 
 bucket_maps = {
@@ -205,6 +213,7 @@ bucket_maps = {
 }
 miss_records = []
 provenance_buckets = {}
+draw_usage_buckets = {}
 
 def parse_fields(detail):
     fields = {}
@@ -285,6 +294,19 @@ def finalize_provenance_summary():
     ]
     items.sort(key=lambda item: (-item["count"], item["signature"]))
     result["provenance"]["top_buckets"] = items[:10]
+
+def finalize_draw_usage_summary():
+    items = [
+        {
+            "signature": signature,
+            "count": payload["count"],
+            "fields": payload["fields"],
+            "sample_detail": payload["sample_detail"],
+        }
+        for signature, payload in draw_usage_buckets.items()
+    ]
+    items.sort(key=lambda item: (-item["count"], item["signature"]))
+    result["draw_usage"]["top_buckets"] = items[:10]
 
 def parse_hts_cache_index(cache_path):
     data = cache_path.read_bytes()
@@ -633,6 +655,35 @@ for line in log_path.read_text(errors="replace").splitlines():
         bucket["count"] += 1
         continue
 
+    m = draw_usage_re.search(line)
+    if m:
+        result["available"] = True
+        result["draw_usage"]["available"] = True
+        result["draw_usage"]["line_count"] += 1
+        detail = m.group(1).strip()
+        fields = parse_fields(detail)
+        increment_counter(result["draw_usage"]["draw_class_counts"], fields.get("draw_class"))
+        increment_counter(result["draw_usage"]["copy_counts"], fields.get("copy"))
+        signature = " ".join(
+            f"{key}={fields.get(key)}"
+            for key in ("draw_class", "cycle", "copy", "base_tile", "texel0_hit", "texel1_hit")
+            if fields.get(key) is not None
+        )
+        bucket = draw_usage_buckets.setdefault(
+            signature,
+            {
+                "count": 0,
+                "fields": {
+                    key: fields.get(key)
+                    for key in ("draw_class", "cycle", "copy", "base_tile", "uses_texel0", "uses_texel1", "texel0_hit", "texel1_hit")
+                    if fields.get(key) is not None
+                },
+                "sample_detail": detail,
+            },
+        )
+        bucket["count"] += 1
+        continue
+
     m = hit_miss_re.search(line)
     if m:
         result["available"] = True
@@ -692,6 +743,7 @@ for line in log_path.read_text(errors="replace").splitlines():
 for kind in ("hit", "miss", "filtered", "tlut_update"):
     finalize_bucket_summary(kind)
 finalize_provenance_summary()
+finalize_draw_usage_summary()
 finalize_pack_crosscheck()
 
 output_path.write_text(json.dumps(result, indent=2) + "\n")

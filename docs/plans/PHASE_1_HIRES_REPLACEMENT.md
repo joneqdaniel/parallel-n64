@@ -45,6 +45,12 @@
     - provenance splits into `34` `copy-cycle`, `75` `loadblock`, and `56` `loadtile` events
     - the dominant unresolved `64x1 fs514` miss is explicitly an authored-RDRAM `loadblock`
     - the major visible `296x6 fs258` hit class is explicitly an authored-RDRAM `copy-cycle` tile path
+  - the first draw-class bundles now make that visible early-scene path more specific:
+    - strict file select (`20260326-draw-class-check`) records `252` hi-res draw-usage lines, with `194` `texrect`, `53` `triangle`, and `5` `fill-rect`
+    - its strongest visible replacement bucket is `draw_class=texrect cycle=copy copy=1 ... texel0_hit=1 texel1_hit=1` with `68` events
+    - strict title screen (`20260326-draw-class-check`) shows the same pattern more strongly: `370` draw-usage lines, with `254` `texrect`, `106` `triangle`, and `10` `fill-rect`
+    - its leading visible replacement bucket is the same copy-mode texrect hit class with `136` events
+    - practical implication: the current visible strict-fixture hi-res path is strongly texrect-driven, especially on copy-mode UI/background draws
   - hi-res traces now also expose stable bucket summaries, which collapse title misses to 5 unique classes and file-select misses to 6 unique classes
   - the current dominant unresolved file-select class is `mode=block fmt=2 siz=2 wh=64x1 fs=514 tile=7` with 70 repeated misses in the last verified strict `on` bundle
   - the new pack cross-check in `hires-evidence.json` shows those current strict-fixture misses are unmatched in the active local Paper Mario `.hts` index under our current checksum generation, not mismatched under another `formatsize`

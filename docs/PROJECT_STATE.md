@@ -259,6 +259,20 @@
   - that same bundle splits into `34` `copy-cycle`, `75` `loadblock`, and `56` `loadtile` provenance-class events
   - the dominant unresolved `64x1 fs514` miss is now explicitly classified as authored-RDRAM `loadblock`, which narrows it away from copy/framebuffer confusion
   - the major visible `296x6 fs258` replacement driver is now explicitly classified as authored-RDRAM `copy-cycle`, which is a more concrete target than “tile hit” alone
+- The next draw-side pass is now live in strict bundles too:
+  - `traces/hires-evidence.json` now records `draw_usage`, so per-draw hi-res activity is classified by `triangle`, `texrect`, `texrect-flip`, `fill-rect`, and `fill-triangle`
+  - the verified strict file-select `on` draw-class bundle (`20260326-draw-class-check`) records `252` hi-res draw-usage lines:
+    - `194` `texrect`
+    - `53` `triangle`
+    - `5` `fill-rect`
+  - its strongest visible replacement bucket is `draw_class=texrect cycle=copy copy=1 ... texel0_hit=1 texel1_hit=1` with `68` events
+  - the matching strict title-screen draw-class bundle shows the same structure more strongly:
+    - `370` hi-res draw-usage lines
+    - `254` `texrect`
+    - `106` `triangle`
+    - `10` `fill-rect`
+    - strongest bucket: the same copy-mode texrect hit pattern with `136` events
+  - current implication: the visible early-scene hi-res path is not just “tile replacement”; it is strongly texrect-driven, especially in copy mode
 - The current exact-key audit artifact is now [N64 Exact Key Delta Sheet](/home/auro/code/parallel-n64/docs/plans/N64_EXACT_KEY_DELTA_SHEET.md).
 - The first logical-TLUT diagnostic pass is now live in strict CI probe bundles:
   - `traces/hires-evidence.json` now records `ci_palette_probe.logical_views`

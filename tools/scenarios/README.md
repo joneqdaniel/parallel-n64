@@ -137,6 +137,12 @@ Current Paper Mario runtime note:
   - all current strict file-select lookups classify as `authored-rdram`
   - the dominant `64x1 fs514` miss classifies as `loadblock`
   - the major visible `296x6 fs258` driver classifies as `copy-cycle`
+- the same `hires-evidence.json` trace now also records `draw_usage`, so strict bundles can classify hi-res activity by actual draw type instead of upload provenance alone
+- the first verified draw-class passes sharpen the current early-scene conclusion:
+  - file select (`20260326-draw-class-check`) records `252` hi-res draw-usage lines, dominated by `texrect` (`194`)
+  - title screen (`20260326-draw-class-check`) records `370` hi-res draw-usage lines, again dominated by `texrect` (`254`)
+  - in both fixtures, the leading visible replacement bucket is `draw_class=texrect cycle=copy copy=1 ... texel0_hit=1 texel1_hit=1`
+  - practical implication: the visible strict-fixture hi-res path is strongly texrect/copy-mode driven, not just generic textured triangle traffic
 - the same `hires-evidence.json` trace now also cross-checks miss keys against the active `.hts`/`.htc` index, so bundle evidence can distinguish “unmatched in the local pack index under the current checksum generation” from “lookup present under another formatsize”
 - CI palette probe runs now also record `ci_palette_probe.families` in `traces/hires-evidence.json`, so representative CI misses can report whether their low-32 pack family is exact/generic, dimension-uniform, or structurally ambiguous without changing the default lookup path
 - the same CI probe now also records `ci_palette_probe.usages` and `ci_palette_probe.emulated_tmem`, so strict bundles can show how many palette indices were actually sampled and whether raw-shadow versus emulated-TMEM palette views produce any pack-backed candidate at all

@@ -432,7 +432,7 @@ void CommandProcessor::op_fill_triangle(const uint32_t *words)
 {
 	TriangleSetup setup = {};
 	decode_triangle_setup(setup, words);
-	renderer.draw_flat_primitive(setup);
+	renderer.draw_flat_primitive(setup, HiresDrawClass::FillTriangle);
 }
 
 void CommandProcessor::op_shade_triangle(const uint32_t *words)
@@ -441,7 +441,7 @@ void CommandProcessor::op_shade_triangle(const uint32_t *words)
 	AttributeSetup attr = {};
 	decode_triangle_setup(setup, words);
 	decode_rgba_setup(attr, words + 8);
-	renderer.draw_shaded_primitive(setup, attr);
+	renderer.draw_shaded_primitive(setup, attr, HiresDrawClass::Triangle);
 }
 
 void CommandProcessor::op_shade_z_buffer_triangle(const uint32_t *words)
@@ -451,7 +451,7 @@ void CommandProcessor::op_shade_z_buffer_triangle(const uint32_t *words)
 	decode_triangle_setup(setup, words);
 	decode_rgba_setup(attr, words + 8);
 	decode_z_setup(attr, words + 24);
-	renderer.draw_shaded_primitive(setup, attr);
+	renderer.draw_shaded_primitive(setup, attr, HiresDrawClass::Triangle);
 }
 
 void CommandProcessor::op_shade_texture_z_buffer_triangle(const uint32_t *words)
@@ -462,7 +462,7 @@ void CommandProcessor::op_shade_texture_z_buffer_triangle(const uint32_t *words)
 	decode_rgba_setup(attr, words + 8);
 	decode_tex_setup(attr, words + 24);
 	decode_z_setup(attr, words + 40);
-	renderer.draw_shaded_primitive(setup, attr);
+	renderer.draw_shaded_primitive(setup, attr, HiresDrawClass::Triangle);
 }
 
 void CommandProcessor::op_fill_z_buffer_triangle(const uint32_t *words)
@@ -471,7 +471,7 @@ void CommandProcessor::op_fill_z_buffer_triangle(const uint32_t *words)
 	AttributeSetup attr = {};
 	decode_triangle_setup(setup, words);
 	decode_z_setup(attr, words + 8);
-	renderer.draw_shaded_primitive(setup, attr);
+	renderer.draw_shaded_primitive(setup, attr, HiresDrawClass::Triangle);
 }
 
 void CommandProcessor::op_texture_triangle(const uint32_t *words)
@@ -480,7 +480,7 @@ void CommandProcessor::op_texture_triangle(const uint32_t *words)
 	AttributeSetup attr = {};
 	decode_triangle_setup(setup, words);
 	decode_tex_setup(attr, words + 8);
-	renderer.draw_shaded_primitive(setup, attr);
+	renderer.draw_shaded_primitive(setup, attr, HiresDrawClass::Triangle);
 }
 
 void CommandProcessor::op_texture_z_buffer_triangle(const uint32_t *words)
@@ -490,7 +490,7 @@ void CommandProcessor::op_texture_z_buffer_triangle(const uint32_t *words)
 	decode_triangle_setup(setup, words);
 	decode_tex_setup(attr, words + 8);
 	decode_z_setup(attr, words + 24);
-	renderer.draw_shaded_primitive(setup, attr);
+	renderer.draw_shaded_primitive(setup, attr, HiresDrawClass::Triangle);
 }
 
 void CommandProcessor::op_shade_texture_triangle(const uint32_t *words)
@@ -500,7 +500,7 @@ void CommandProcessor::op_shade_texture_triangle(const uint32_t *words)
 	decode_triangle_setup(setup, words);
 	decode_rgba_setup(attr, words + 8);
 	decode_tex_setup(attr, words + 24);
-	renderer.draw_shaded_primitive(setup, attr);
+	renderer.draw_shaded_primitive(setup, attr, HiresDrawClass::Triangle);
 }
 
 void CommandProcessor::op_set_color_image(const uint32_t *words)
@@ -738,7 +738,7 @@ void CommandProcessor::op_fill_rectangle(const uint32_t *words)
 {
 	auto rect = detail::decode_rectangle_coordinates(words[0], words[1]);
 	rect = detail::apply_copy_fill_y_adjust(rect, static_state.flags);
-	renderer.draw_flat_primitive(detail::build_fill_rectangle_setup(rect));
+	renderer.draw_flat_primitive(detail::build_fill_rectangle_setup(rect), HiresDrawClass::FillRect);
 }
 
 void CommandProcessor::op_texture_rectangle(const uint32_t *words)
@@ -757,7 +757,7 @@ void CommandProcessor::op_texture_rectangle(const uint32_t *words)
 	input.native_texture_lod = quirks.u.options.native_texture_lod;
 
 	auto policy = detail::build_texture_rectangle_policy(input);
-	renderer.draw_shaded_primitive(policy.setup, policy.attr);
+	renderer.draw_shaded_primitive(policy.setup, policy.attr, HiresDrawClass::TexRect);
 }
 
 void CommandProcessor::op_texture_rectangle_flip(const uint32_t *words)
@@ -776,7 +776,7 @@ void CommandProcessor::op_texture_rectangle_flip(const uint32_t *words)
 	input.native_texture_lod = quirks.u.options.native_texture_lod;
 
 	auto policy = detail::build_texture_rectangle_policy(input);
-	renderer.draw_shaded_primitive(policy.setup, policy.attr);
+	renderer.draw_shaded_primitive(policy.setup, policy.attr, HiresDrawClass::TexRectFlip);
 }
 
 void CommandProcessor::op_set_prim_depth(const uint32_t *words)

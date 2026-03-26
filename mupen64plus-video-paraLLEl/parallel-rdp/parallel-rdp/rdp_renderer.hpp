@@ -97,6 +97,15 @@ enum class HiresCICompatibilityMode : uint8_t
 	ReplacementDimsUnique
 };
 
+enum class HiresDrawClass : uint8_t
+{
+	Triangle = 0,
+	TexRect,
+	TexRectFlip,
+	FillRect,
+	FillTriangle
+};
+
 class Renderer : public Vulkan::DebugChannelInterface
 {
 	struct ReplacementTileState;
@@ -115,8 +124,9 @@ public:
 
 	bool init_renderer(const RendererOptions &options);
 
-	void draw_flat_primitive(const TriangleSetup &setup);
-	void draw_shaded_primitive(const TriangleSetup &setup, const AttributeSetup &attr);
+	void draw_flat_primitive(const TriangleSetup &setup, HiresDrawClass draw_class = HiresDrawClass::Triangle);
+	void draw_shaded_primitive(const TriangleSetup &setup, const AttributeSetup &attr,
+	                          HiresDrawClass draw_class = HiresDrawClass::Triangle);
 
 	void set_color_framebuffer(uint32_t addr, uint32_t width, FBFormat fmt);
 	void set_depth_framebuffer(uint32_t addr);

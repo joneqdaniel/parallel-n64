@@ -143,6 +143,25 @@ static const char *get_hires_cycle_class(StaticRasterizationFlags flags)
 	return "1cycle";
 }
 
+static const char *get_hires_draw_class(HiresDrawClass draw_class)
+{
+	switch (draw_class)
+	{
+	case HiresDrawClass::Triangle:
+		return "triangle";
+	case HiresDrawClass::TexRect:
+		return "texrect";
+	case HiresDrawClass::TexRectFlip:
+		return "texrect-flip";
+	case HiresDrawClass::FillRect:
+		return "fill-rect";
+	case HiresDrawClass::FillTriangle:
+		return "fill-triangle";
+	default:
+		return "unknown";
+	}
+}
+
 static const char *get_hires_source_class(bool overlaps_color_fb, bool overlaps_depth_fb)
 {
 	return (overlaps_color_fb || overlaps_depth_fb) ? "framebuffer-derived" : "authored-rdram";
@@ -964,9 +983,9 @@ void Renderer::set_depth_blend_state(const DepthBlendState &state)
 	stream.depth_blend_state = state;
 }
 
-void Renderer::draw_flat_primitive(const TriangleSetup &setup)
+void Renderer::draw_flat_primitive(const TriangleSetup &setup, HiresDrawClass draw_class)
 {
-	draw_shaded_primitive(setup, {});
+	draw_shaded_primitive(setup, {}, draw_class);
 }
 
 static int normalize_dzpix(int dz)
@@ -1618,7 +1637,7 @@ void Renderer::deduce_static_texture_state(unsigned tile, unsigned max_lod_level
 	state.texture_size = uint32_t(siz);
 }
 
-void Renderer::draw_shaded_primitive(const TriangleSetup &setup, const AttributeSetup &attr)
+void Renderer::draw_shaded_primitive(const TriangleSetup &setup, const AttributeSetup &attr, HiresDrawClass draw_class)
 {
 	unsigned num_tiles = compute_conservative_max_num_tiles(setup);
 
@@ -1665,6 +1684,30 @@ void Renderer::draw_shaded_primitive(const TriangleSetup &setup, const Attribute
 
 	deduce_static_texture_state(setup.tile & 7, setup.tile >> 3);
 	deduce_noise_state();
+
+	if (hires_debug)
+	{
+		const auto raster_flags = stream.static_raster_state.flags;
+		const bool uses_texel0 = (raster_flags & RASTERIZATION_USES_TEXEL0_BIT) != 0;
+		const bool uses_texel1 = (raster_flags & RASTERIZATION_USES_TEXEL1_BIT) != 0 ||
+		                         (raster_flags & RASTERIZATION_USES_PIPELINED_TEXEL1_BIT) != 0;
+		const unsigned base_tile = setup.tile & 7u;
+		const unsigned texel1_tile = (base_tile + 1u) & 7u;
+		const auto &texel0_state = replacement_tiles[base_tile];
+		const auto &texel1_state = replacement_tiles[texel1_tile];
+		LOGI("Hi-res draw usage: draw_class=%s cycle=%s copy=%u base_tile=%u uses_texel0=%u uses_texel1=%u texel0_hit=%u texel0_key=%016llx texel1_tile=%u texel1_hit=%u texel1_key=%016llx.\n",
+		     get_hires_draw_class(draw_class),
+		     get_hires_cycle_class(raster_flags),
+		     (raster_flags & RASTERIZATION_COPY_BIT) != 0 ? 1 : 0,
+		     base_tile,
+		     uses_texel0 ? 1 : 0,
+		     uses_texel1 ? 1 : 0,
+		     texel0_state.hit ? 1 : 0,
+		     static_cast<unsigned long long>(texel0_state.checksum64),
+		     texel1_tile,
+		     texel1_state.hit ? 1 : 0,
+		     static_cast<unsigned long long>(texel1_state.checksum64));
+	}
 
 	InstanceIndices indices = {};
 	indices.static_index = stream.static_raster_state_cache.add(normalize_static_state(stream.static_raster_state));

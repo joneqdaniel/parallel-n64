@@ -143,6 +143,15 @@
   - So the loaded savestate is restoring its own empty-slot RAM and overriding the staged savefile.
   - Immediate implication: probing the true confirm/start path will require a reminted save-backed file-select authority, not just a staged `.srm` on the current empty-slot authority.
 
+- Save-backed reminting is now a dedicated workstream, but the current local `.srm` still is not visible in Paper Mario runtime semantics.
+  - The new cold-boot save-backed file-select remint avoids loading any old savestate during bootstrap.
+  - Even there, verification still lands on:
+    - `selected_slot_has_data = false`
+    - `FILE_MENU_MAIN`
+    - `state_init_file_select` / `state_step_file_select`
+  - So the current next question is no longer “how do we reach the populated-slot confirm flow?”
+  - It is “why is the staged savefile not being reflected in Paper Mario’s file-select state?”
+
 - A no-input settle from the authoritative file-select state back to `frame=423` reproduces the canonical file-select hash:
   - `6fa8688b382fa1e6f0323f054861a85f593d2d47ca737bb78448e3f268ca63e3`
 

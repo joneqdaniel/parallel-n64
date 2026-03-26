@@ -73,6 +73,13 @@
 - The best currently proven discriminator is now window/animation-side state, not the panel globals.
 - A staged local `.srm` does not change that on the current authority state, because the loaded file-select savestate restores its own empty-slot RAM over the staged savefile.
 - That means the next real confirm/start probe requires a reminted save-backed file-select authority, not just savefile staging on the current one.
+- The save-backed remint tooling now exists for both title screen and file select, including a cold-boot file-select remint path that avoids loading any preexisting savestate during bootstrap.
+- Current blocker on that path: the local staged Paper Mario `.srm` still does not surface as populated slots in runtime semantics.
+  - repeated save-backed remint attempts still verify:
+    - `selected_slot_has_data = false`
+    - `FILE_MENU_MAIN`
+    - `state_init_file_select` / `state_step_file_select`
+  - so the next debugging target is savefile ingestion or format/load semantics, not more file-select branch hunting on the empty-slot authority
 - The current deterministic file-select branch ladder is clearer even without valid panel addresses:
   - direct one-frame `START` or `A` from the authoritative file-select state both collapse to the same first deeper branch after the current long settle
   - that first deeper branch is `89cb1bddd5c2dd2a62b063210af11c2324eca04d3060e746042edc0323b00e8e`

@@ -106,6 +106,12 @@ Current Paper Mario runtime note:
   all converge to the same semantic window hash `d118c7cf5dbe96413ffe53150084c70a6c3f2bf4b7e8d96959735bb466d48576` while still staying in `FILE_MENU_MAIN`
 - staging the local Paper Mario `.srm` on top of the current file-select authority does not change that, because the loaded savestate restores its own empty-slot RAM
 - the next meaningful file-select probe is therefore a reminted save-backed authority state, not more button work on the current empty-slot authority
+- there are now dedicated save-backed remint helpers for this:
+  - [remint-paper-mario-title-screen-authority.sh](/home/auro/code/parallel-n64/tools/scenarios/remint-paper-mario-title-screen-authority.sh) can run with [paper-mario-title-screen-save-backed.runtime.env](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-title-screen-save-backed.runtime.env)
+  - [remint-paper-mario-file-select-save-backed-authority.sh](/home/auro/code/parallel-n64/tools/scenarios/remint-paper-mario-file-select-save-backed-authority.sh) cold boots directly to file select with a staged savefile
+- current blocker:
+  - even the cold-boot save-backed file-select remint still verifies `selected_slot_has_data = false`
+  - so the next debug target is savefile ingestion / format semantics, not more button branching
 - a one-frame button sweep across `A`, `B`, `START`, `UP`, `DOWN`, `LEFT`, and `RIGHT`, plus `A` / `START` with `post-input-settle = 0`, stayed on that same decoded top-level file-select state too
 - the current trusted-vs-advisory Paper Mario runtime signals are documented in [PAPER_MARIO_SIGNAL_TABLE.md](/home/auro/code/parallel-n64/docs/plans/PAPER_MARIO_SIGNAL_TABLE.md)
 - deeper `savefile-start` menu probes now have two verified `on` branches:

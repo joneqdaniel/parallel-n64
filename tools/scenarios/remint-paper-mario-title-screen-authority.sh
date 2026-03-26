@@ -4,7 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "$SCRIPT_DIR/../.." && pwd)"
 source "$SCRIPT_DIR/lib/common.sh"
-RUNTIME_ENV="$SCRIPT_DIR/paper-mario-title-screen.runtime.env"
+RUNTIME_ENV="${RUNTIME_ENV_OVERRIDE:-$SCRIPT_DIR/paper-mario-title-screen.runtime.env}"
 
 EXPECTED_SCREENSHOT_SHA256="42e501afb2548a5067bc034578c5bcebf0bf2a40f612bbcc94972af716ad6ff2"
 OUTPUT_PATH="$REPO_ROOT/assets/states/paper-mario-title-screen/ParaLLEl N64/Paper Mario (USA).state"
@@ -60,6 +60,13 @@ done
 
 scenario_source_runtime_env "$RUNTIME_ENV"
 
+SAVEFILE_PRESENT=0
+SAVEFILE_SHA256="missing"
+if [[ -n "${SAVEFILE_PATH:-}" && -f "${SAVEFILE_PATH:-}" ]]; then
+  SAVEFILE_PRESENT=1
+  SAVEFILE_SHA256="$(scenario_sha256_file "$SAVEFILE_PATH")"
+fi
+
 if [[ -z "$BUNDLE_ROOT" ]]; then
   timestamp="$(date +"%Y%m%d-%H%M%S")"
   BUNDLE_ROOT="$REPO_ROOT/artifacts/paper-mario-title-screen/remint/$timestamp"
@@ -71,6 +78,11 @@ VERIFY_BUNDLE="$BUNDLE_ROOT/verify"
 echo "[remint] bootstrap bundle: $BOOTSTRAP_BUNDLE"
 echo "[remint] verify bundle: $VERIFY_BUNDLE"
 echo "[remint] output path: $OUTPUT_PATH"
+if (( SAVEFILE_PRESENT )); then
+  echo "[remint] staged savefile: $SAVEFILE_PATH"
+  echo "[remint] staged savefile sha256: $SAVEFILE_SHA256"
+  scenario_stage_optional_savefile "$SAVEFILE_PATH" "$BOOTSTRAP_BUNDLE" "Paper Mario (USA)"
+fi
 
 PARALLEL_N64_GFX_PLUGIN_OVERRIDE="parallel" \
 "$REPO_ROOT/tools/adapters/retroarch_stdin_session.sh" \
@@ -96,6 +108,9 @@ cp "$BOOTSTRAP_BUNDLE/states/ParaLLEl N64/Paper Mario (USA).state" "$OUTPUT_PATH
 
 mkdir -p "$VERIFY_BUNDLE/states/ParaLLEl N64"
 cp "$OUTPUT_PATH" "$VERIFY_BUNDLE/states/ParaLLEl N64/Paper Mario (USA).state"
+if (( SAVEFILE_PRESENT )); then
+  scenario_stage_optional_savefile "$SAVEFILE_PATH" "$VERIFY_BUNDLE" "Paper Mario (USA)"
+fi
 
 PARALLEL_N64_GFX_PLUGIN_OVERRIDE="parallel" \
 "$REPO_ROOT/tools/adapters/retroarch_stdin_session.sh" \

@@ -197,6 +197,14 @@ CommandProcessor::CommandProcessor(Vulkan::Device &device_, void *rdram_ptr,
 		renderer.set_hires_debug_block_shape_probe(strtol(env, nullptr, 0) > 0);
 	if (const char *env = getenv("PARALLEL_RDP_HIRES_CI_PALETTE_PROBE"))
 		renderer.set_hires_debug_ci_palette_probe(strtol(env, nullptr, 0) > 0);
+	if (const char *env = getenv("PARALLEL_RDP_HIRES_CI_COMPAT"))
+	{
+		const long value = strtol(env, nullptr, 0);
+		if (value == 3)
+			renderer.set_hires_ci_compatibility_mode(HiresCICompatibilityMode::ReplacementDimsUnique);
+		else
+			renderer.set_hires_ci_compatibility_mode(HiresCICompatibilityMode::Off);
+	}
 	if (const char *env = getenv("PARALLEL_RDP_HIRES_CI_LOW32_FALLBACK"))
 	{
 		const long value = strtol(env, nullptr, 0);

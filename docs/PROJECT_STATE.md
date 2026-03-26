@@ -242,7 +242,10 @@
 - The current Phase 1 question is therefore narrower again:
   - CI low-32 fallback is directionally capable of recovering pack-backed file-select replacements
   - `replacement-dims-unique` is now the first concrete tighter candidate rule worth considering
-  - the real remaining design choice is whether that rule is acceptable enough to harden, or whether we still need a better palette-side discriminator for the ambiguous `8x16` family, while separately solving the still-unmatched block classes
+  - that rule has now also been promoted into an explicit opt-in compatibility tier: `PARALLEL_RDP_HIRES_CI_COMPAT=3`
+  - on the strict file-select authority, that compatibility tier reproduces the earlier `PARALLEL_RDP_HIRES_CI_LOW32_FALLBACK=3` result exactly: `hits=86`, `misses=79`, hash `24274e62a18c436dc13570b6e51f7dc600b0de89d4aee56086cffd82248f797a`
+  - that makes it the first production-shaped tier-2 CI candidate while keeping exact lookup as tier 1 and leaving the broader `any` mode debug-only
+  - the real remaining design choice is whether that constrained tier is acceptable enough to harden further, or whether we still need a better palette-side discriminator for the ambiguous `8x16` family, while separately solving the still-unmatched block classes
 - Cross-emulator research now gives the broad guardrails for that decision:
   - the strongest relevant local references are `PCSX2`, `Dolphin`, `PPSSPP`, and `Flycast`
   - the shared pattern is consistent: exact replacement identity remains authoritative, while broader compatibility matching lives in an explicit second tier with separate reporting and tighter constraints

@@ -89,6 +89,12 @@ enum class HiresDebugCILow32FallbackMode : uint8_t
 	ReplacementDimsUnique
 };
 
+enum class HiresCICompatibilityMode : uint8_t
+{
+	Off = 0,
+	ReplacementDimsUnique
+};
+
 class Renderer : public Vulkan::DebugChannelInterface
 {
 	struct ReplacementTileState;
@@ -128,6 +134,7 @@ public:
 	                           std::unordered_set<std::string> &&blocked_signatures);
 	void set_hires_debug_block_shape_probe(bool enable);
 	void set_hires_debug_ci_palette_probe(bool enable);
+	void set_hires_ci_compatibility_mode(HiresCICompatibilityMode mode);
 	void set_hires_debug_ci_low32_fallback(HiresDebugCILow32FallbackMode mode);
 	void log_hires_summary() const;
 
@@ -194,6 +201,7 @@ private:
 	HiresDebugFilterState hires_debug_filter;
 	bool hires_debug_block_shape_probe = false;
 	bool hires_debug_ci_palette_probe = false;
+	HiresCICompatibilityMode hires_ci_compatibility_mode = HiresCICompatibilityMode::Off;
 	HiresDebugCILow32FallbackMode hires_debug_ci_low32_fallback = HiresDebugCILow32FallbackMode::Off;
 
 	bool init_caps();

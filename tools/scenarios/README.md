@@ -164,6 +164,11 @@ Current Paper Mario runtime note:
   - `PARALLEL_RDP_HIRES_CI_LOW32_FALLBACK=3` is a tighter middle-ground experiment that only accepts low-32 fallback when all candidate pack entries agree on replacement dimensions; on strict file select it recovers the unambiguous `32x16` class and the single truly unique `8x16` case
   - `PARALLEL_RDP_HIRES_CI_LOW32_FALLBACK=2` recovers the current CI tile palette-class misses broadly on strict file select, leaving only the block classes unresolved
   - these are debug-only direction-finding experiments, not accepted runtime policy
+- there is now a separate explicit CI compatibility-tier candidate:
+  - `PARALLEL_RDP_HIRES_CI_COMPAT=3` enables the same constrained `replacement-dims-unique` rule as an opt-in runtime compatibility path
+  - exact lookup still runs first; the compatibility tier only applies after exact CI lookup misses
+  - on the strict file-select authority it currently reproduces the same result as `PARALLEL_RDP_HIRES_CI_LOW32_FALLBACK=3`: `hits=86`, `misses=79`, hash `24274e62a18c436dc13570b6e51f7dc600b0de89d4aee56086cffd82248f797a`
+  - treat that as the current best tier-2 CI candidate, not as default behavior
 - the new CI family probe explains why those fallback results split the way they do:
   - the representative `32x16` family is generic-only but dimension-uniform (`2` generic entries, `1` replacement-dimension family), which matches the success of `replacement-dims-unique`
   - the representative `8x16` family is generic-only and structurally broad (`17` generic entries across `3` replacement-dimension families), which is exactly the kind of case that should stay out of the default path until a better discriminator exists

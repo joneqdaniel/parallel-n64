@@ -105,6 +105,12 @@
         - `120x120`: `7` records / `12576` bytes
         - `144x144`: `1` record / `2054` bytes
         - `64x64`: `9` records / `16034` bytes
+    - the constrained CI rule is now also wired as an explicit compatibility-tier candidate:
+      - `PARALLEL_RDP_HIRES_CI_COMPAT=3` enables the same `replacement-dims-unique` rule as an opt-in runtime compatibility path
+      - exact lookup still runs first and remains authoritative
+      - the compatibility tier only engages for CI misses after exact lookup fails
+      - on the strict file-select fixture it reproduces the earlier `PARALLEL_RDP_HIRES_CI_LOW32_FALLBACK=3` result exactly: `hits=86`, `misses=79`, hash `24274e62a18c436dc13570b6e51f7dc600b0de89d4aee56086cffd82248f797a`
+      - this is now the best current production-shaped candidate for tier-2 CI compatibility, while the broader `low32_any` path remains debug-only
     - the new file-select input-probe scenario now expands that evidence base without changing the default strict fixtures:
       - it now supports explicit `--step-chunk-frames`, and the first savefile-backed deep branch reproduces byte-identically with `30`-frame chunks instead of one-frame stepping
       - on the heavier hi-res path, chunked probes now rely on `WAIT_STATUS_FRAME` rather than strict `STEP_FRAME` log acknowledgements, which made the fast deep probes reliable again

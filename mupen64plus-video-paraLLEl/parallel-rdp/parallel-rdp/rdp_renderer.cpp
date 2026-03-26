@@ -825,6 +825,13 @@ void Renderer::set_hires_debug_ci_palette_probe(bool enable)
 		LOGI("Hi-res debug CI palette probe enabled.\n");
 }
 
+void Renderer::set_hires_ci_compatibility_mode(HiresCICompatibilityMode mode)
+{
+	hires_ci_compatibility_mode = mode;
+	if (hires_ci_compatibility_mode == HiresCICompatibilityMode::ReplacementDimsUnique)
+		LOGI("Hi-res CI compatibility enabled: replacement-dims-unique.\n");
+}
+
 void Renderer::set_hires_debug_ci_low32_fallback(HiresDebugCILow32FallbackMode mode)
 {
 	hires_debug_ci_low32_fallback = mode;
@@ -3694,7 +3701,27 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 				if (!resolve_hires_replacement_descriptor(resolved_checksum64, formatsize, repl_meta))
 					hit = false;
 			}
-			const char *ci_low32_fallback_reason = nullptr;
+			const char *ci_lookup_resolution_reason = nullptr;
+			if (!hit &&
+			    meta.fmt == TextureFormat::CI &&
+			    hires_ci_compatibility_mode == HiresCICompatibilityMode::ReplacementDimsUnique)
+			{
+				ReplacementMeta compat_meta = {};
+				uint64_t compat_checksum64 = 0;
+				if (replacement_provider->lookup_ci_low32_repl_dims_unique(
+						    texture_crc, formatsize, &compat_meta, &compat_checksum64))
+				{
+					compat_meta.orig_w = key_width_pixels;
+					compat_meta.orig_h = key_height_pixels;
+					if (resolve_hires_replacement_descriptor(compat_checksum64, formatsize, compat_meta))
+					{
+						repl_meta = compat_meta;
+						resolved_checksum64 = compat_checksum64;
+						hit = true;
+						ci_lookup_resolution_reason = "ci-compat-repl-dims-unique";
+					}
+				}
+			}
 			if (!hit &&
 			    meta.fmt == TextureFormat::CI &&
 			    hires_debug_ci_low32_fallback != HiresDebugCILow32FallbackMode::Off)
@@ -3707,13 +3734,13 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 				{
 					fallback_hit = replacement_provider->lookup_ci_low32_unique(
 							texture_crc, formatsize, &fallback_meta, &fallback_checksum64);
-					ci_low32_fallback_reason = "ci-low32-unique";
+					ci_lookup_resolution_reason = "ci-low32-unique";
 				}
 				else if (hires_debug_ci_low32_fallback == HiresDebugCILow32FallbackMode::ReplacementDimsUnique)
 				{
 					fallback_hit = replacement_provider->lookup_ci_low32_repl_dims_unique(
 							texture_crc, formatsize, &fallback_meta, &fallback_checksum64);
-					ci_low32_fallback_reason = "ci-low32-repl-dims-unique";
+					ci_lookup_resolution_reason = "ci-low32-repl-dims-unique";
 				}
 				else if (hires_debug_ci_low32_fallback == HiresDebugCILow32FallbackMode::Any)
 				{
@@ -3724,7 +3751,7 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 							&fallback_meta,
 							&fallback_checksum64,
 							&matched_preferred_palette);
-					ci_low32_fallback_reason = matched_preferred_palette ? "ci-low32-any-preferred" : "ci-low32-any";
+					ci_lookup_resolution_reason = matched_preferred_palette ? "ci-low32-any-preferred" : "ci-low32-any";
 				}
 
 				if (fallback_hit)
@@ -3802,10 +3829,10 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 					     palette_crc,
 					     unsigned(formatsize),
 					     hit ? 1 : 0);
-					if (hit && ci_low32_fallback_reason)
+					if (hit && ci_lookup_resolution_reason)
 					{
-						LOGI("Hi-res keying fallback: reason=%s mode=%s addr=0x%06x wh=%ux%u resolved_key=%016llx.\n",
-						     ci_low32_fallback_reason,
+						LOGI("Hi-res keying compatibility: reason=%s mode=%s addr=0x%06x wh=%ux%u resolved_key=%016llx.\n",
+						     ci_lookup_resolution_reason,
 						     load_mode_to_string(info.mode),
 						     src_base_addr & 0x00ffffffu,
 						     key_width_pixels,

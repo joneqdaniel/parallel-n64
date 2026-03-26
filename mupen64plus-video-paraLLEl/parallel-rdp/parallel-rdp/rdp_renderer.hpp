@@ -29,11 +29,13 @@
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
+#include <vector>
 
 namespace RDP
 {
 struct CoherencyOperation;
 struct ReplacementMeta;
+struct CILow32DimsSelector;
 class ReplacementProvider;
 
 struct SyncObject
@@ -135,6 +137,7 @@ public:
 	void set_hires_debug_block_shape_probe(bool enable);
 	void set_hires_debug_ci_palette_probe(bool enable);
 	void set_hires_ci_compatibility_mode(HiresCICompatibilityMode mode);
+	void set_hires_debug_ci_selectors(std::vector<CILow32DimsSelector> selectors);
 	void set_hires_debug_ci_low32_fallback(HiresDebugCILow32FallbackMode mode);
 	void log_hires_summary() const;
 
@@ -202,6 +205,7 @@ private:
 	bool hires_debug_block_shape_probe = false;
 	bool hires_debug_ci_palette_probe = false;
 	HiresCICompatibilityMode hires_ci_compatibility_mode = HiresCICompatibilityMode::Off;
+	std::vector<CILow32DimsSelector> hires_debug_ci_selectors;
 	HiresDebugCILow32FallbackMode hires_debug_ci_low32_fallback = HiresDebugCILow32FallbackMode::Off;
 
 	bool init_caps();

@@ -22,10 +22,12 @@
     "legacy-low32-42779bdd-fs258": {
       "status": "manual-review-required",
       "suggested_variant_group_id": "legacy-low32-42779bdd-fs258-120x120",
-      "justification": "Matches the current strict file-select sample_replacement_dims observation (120x120), but remains non-binding until validated against imported output and future fixture evidence.",
+      "justification": "Matches the current strict file-select sample_replacement_dims observation (120x120) and is the strongest live runtime preview candidate so far, but remains non-binding until validated against imported output and future fixture evidence.",
       "supporting_notes": [
         "Observed sample_replacement_dims is 120x120 on the strict file-select fixture.",
-        "Current review scoring ranks 120x120 above the other candidate variant groups for this family."
+        "Current review scoring ranks 120x120 above the other candidate variant groups for this family.",
+        "Applying the 120x120 variant across all four strict file-select 8x16 low32 keys reproduces the broader low32-any hit count (90 hits / 75 misses).",
+        "That same all-family 120x120 runtime preview lands much closer to the low32-any control (AE 6214) than all-family 144x144 (AE 11560) or all-family 64x64 (AE 15054)."
       ],
       "overturn_conditions": [
         "A new strict fixture or imported-output comparison shows the correct visual result tracks 64x64 or 144x144 instead of 120x120.",
@@ -37,7 +39,8 @@
           "variant_group_id": "legacy-low32-42779bdd-fs258-144x144",
           "reasons": [
             "Does not match observed sample_replacement_dims.",
-            "Not the current policy suggestion."
+            "Not the current policy suggestion.",
+            "Its all-family runtime preview is materially farther from the low32-any control than 120x120."
           ]
         },
         {
@@ -45,7 +48,8 @@
           "reasons": [
             "Does not match observed sample_replacement_dims.",
             "Not the current policy suggestion.",
-            "Carries the broadest candidate pool and palette spread of the three groups."
+            "Carries the broadest candidate pool and palette spread of the three groups.",
+            "Its all-family runtime preview only reaches 88 hits / 77 misses, weaker than the 120x120 and 144x144 previews."
           ]
         }
       ]

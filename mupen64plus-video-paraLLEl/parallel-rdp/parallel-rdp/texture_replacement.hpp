@@ -41,6 +41,14 @@ struct CILow32FamilyDiagnostics
 	bool active_repl_dims_uniform = false;
 };
 
+struct CILow32DimsSelector
+{
+	uint32_t checksum_low32 = 0;
+	uint16_t formatsize = 0;
+	uint32_t repl_w = 0;
+	uint32_t repl_h = 0;
+};
+
 class ReplacementProvider
 {
 public:
@@ -50,6 +58,12 @@ public:
 	bool lookup(uint64_t checksum64, uint16_t formatsize, ReplacementMeta *out) const;
 	bool lookup_ci_low32_unique(uint32_t checksum_low32, uint16_t formatsize, ReplacementMeta *out, uint64_t *resolved_checksum64 = nullptr) const;
 	bool lookup_ci_low32_repl_dims_unique(uint32_t checksum_low32, uint16_t formatsize, ReplacementMeta *out, uint64_t *resolved_checksum64 = nullptr) const;
+	bool lookup_ci_low32_selected_dims(uint32_t checksum_low32,
+	                                   uint16_t formatsize,
+	                                   uint32_t repl_w,
+	                                   uint32_t repl_h,
+	                                   ReplacementMeta *out,
+	                                   uint64_t *resolved_checksum64 = nullptr) const;
 	bool lookup_ci_low32_any(uint32_t checksum_low32,
 	                         uint16_t formatsize,
 	                         uint32_t preferred_palette_crc,

@@ -105,6 +105,14 @@
         - `120x120`: `7` records / `12576` bytes
         - `144x144`: `1` record / `2054` bytes
         - `64x64`: `9` records / `16034` bytes
+    - there is now a debug-only runtime selector path for ambiguous CI families:
+      - `PARALLEL_RDP_HIRES_CI_SELECT=low32:formatsize:widthxheight[;...]`
+      - keep it strictly experimental; it exists to preview candidate variant groups on strict fixtures without changing default runtime policy
+      - current full-family runtime preview for the strict file-select `8x16` set:
+        - `all-120x120`: `90 hits / 75 misses`, `AE_vs_any=6214`
+        - `all-144x144`: `90 hits / 75 misses`, `AE_vs_any=11560`
+        - `all-64x64`: `88 hits / 77 misses`, `AE_vs_any=15054`
+      - that is the strongest current live evidence for the policy suggestion: `120x120` now behaves materially closer to the broad `low32_any` control than the other candidate groups
     - the constrained CI rule is now also wired as an explicit compatibility-tier candidate:
       - `PARALLEL_RDP_HIRES_CI_COMPAT=3` enables the same `replacement-dims-unique` rule as an opt-in runtime compatibility path
       - exact lookup still runs first and remains authoritative

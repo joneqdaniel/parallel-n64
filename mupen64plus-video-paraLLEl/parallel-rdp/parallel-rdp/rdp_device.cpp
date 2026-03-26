@@ -84,6 +84,51 @@ static std::unordered_set<std::string> parse_hires_filter_signatures_env(const c
 
 	return signatures;
 }
+
+static std::vector<CILow32DimsSelector> parse_hires_ci_selector_env(const char *env)
+{
+	std::vector<CILow32DimsSelector> selectors;
+	if (!env || !*env)
+		return selectors;
+
+	const std::string raw(env);
+	size_t start = 0;
+	while (start < raw.size())
+	{
+		size_t end = raw.find(';', start);
+		if (end == std::string::npos)
+			end = raw.size();
+
+		std::string token = raw.substr(start, end - start);
+		size_t first = token.find_first_not_of(" \t\r\n");
+		size_t last = token.find_last_not_of(" \t\r\n");
+		if (first != std::string::npos && last != std::string::npos)
+			token = token.substr(first, last - first + 1);
+		else
+			token.clear();
+
+		if (!token.empty())
+		{
+			size_t colon0 = token.find(':');
+			size_t colon1 = colon0 == std::string::npos ? std::string::npos : token.find(':', colon0 + 1);
+			size_t x_pos = colon1 == std::string::npos ? std::string::npos : token.find('x', colon1 + 1);
+			if (colon0 != std::string::npos && colon1 != std::string::npos && x_pos != std::string::npos)
+			{
+				CILow32DimsSelector selector = {};
+				selector.checksum_low32 = uint32_t(strtoul(token.substr(0, colon0).c_str(), nullptr, 16));
+				selector.formatsize = uint16_t(strtoul(token.substr(colon0 + 1, colon1 - colon0 - 1).c_str(), nullptr, 0));
+				selector.repl_w = uint32_t(strtoul(token.substr(colon1 + 1, x_pos - colon1 - 1).c_str(), nullptr, 0));
+				selector.repl_h = uint32_t(strtoul(token.substr(x_pos + 1).c_str(), nullptr, 0));
+				if (selector.checksum_low32 != 0 && selector.repl_w != 0 && selector.repl_h != 0)
+					selectors.push_back(selector);
+			}
+		}
+
+		start = end + 1;
+	}
+
+	return selectors;
+}
 }
 
 CommandProcessor::CommandProcessor(Vulkan::Device &device_, void *rdram_ptr,
@@ -205,6 +250,7 @@ CommandProcessor::CommandProcessor(Vulkan::Device &device_, void *rdram_ptr,
 		else
 			renderer.set_hires_ci_compatibility_mode(HiresCICompatibilityMode::Off);
 	}
+	renderer.set_hires_debug_ci_selectors(parse_hires_ci_selector_env(getenv("PARALLEL_RDP_HIRES_CI_SELECT")));
 	if (const char *env = getenv("PARALLEL_RDP_HIRES_CI_LOW32_FALLBACK"))
 	{
 		const long value = strtol(env, nullptr, 0);

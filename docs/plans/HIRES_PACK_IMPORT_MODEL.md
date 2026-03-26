@@ -211,6 +211,10 @@ The first file-select input-probe expansion now adds a third useful case as well
     - manual-review-required
     - suggested variant group: `legacy-low32-42779bdd-fs258-120x120`
     - suggestion is intentionally non-binding until validated
+    - live runtime preview now strengthens `120x120`:
+      - applying `120x120` across the strict file-select `8x16` low32 set reproduces the broader `low32_any` hit count and lands closest to the `low32_any` control
+      - `144x144` remains plausible but is materially weaker by image similarity
+      - `64x64` is currently the weakest runtime candidate of the three
 
 ## Review Artifact
 

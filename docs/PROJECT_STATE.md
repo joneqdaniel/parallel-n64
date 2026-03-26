@@ -197,6 +197,14 @@
   - `120x120`: `7` records, total `12576` bytes, matches current runtime `sample_replacement_dims`
   - `144x144`: `1` record, total `2054` bytes, smallest artifact but no positive match to current runtime evidence
   - `64x64`: `9` records, total `16034` bytes, broadest artifact and no positive match to current runtime evidence
+- There is now also a debug-only runtime selector path for ambiguous CI families:
+  - `PARALLEL_RDP_HIRES_CI_SELECT=low32:formatsize:widthxheight[;...]`
+  - it exists only to preview candidate variant groups on strict fixtures without changing default runtime policy
+  - applying each candidate across the full strict file-select `8x16` low32 set now differentiates the three options materially:
+    - `all-120x120`: `90 hits / 75 misses`, `AE_vs_any=6214`
+    - `all-144x144`: `90 hits / 75 misses`, `AE_vs_any=11560`
+    - `all-64x64`: `88 hits / 77 misses`, `AE_vs_any=15054`
+  - that is still not enough to finalize the imported format, but it materially strengthens `120x120` as the best current live preview candidate for `legacy-low32-42779bdd-fs258`
 - The current CI import-model evidence is still narrow, but it is broader than the original strict pair:
   - the strict file-select authority still surfaces two families:
     - `2a1be0a4/fs258/32x16 -> 640x160`

@@ -832,6 +832,13 @@ void Renderer::set_hires_ci_compatibility_mode(HiresCICompatibilityMode mode)
 		LOGI("Hi-res CI compatibility enabled: replacement-dims-unique.\n");
 }
 
+void Renderer::set_hires_debug_ci_selectors(std::vector<CILow32DimsSelector> selectors)
+{
+	hires_debug_ci_selectors = std::move(selectors);
+	if (!hires_debug_ci_selectors.empty())
+		LOGI("Hi-res debug CI selector count: %u.\n", unsigned(hires_debug_ci_selectors.size()));
+}
+
 void Renderer::set_hires_debug_ci_low32_fallback(HiresDebugCILow32FallbackMode mode)
 {
 	hires_debug_ci_low32_fallback = mode;
@@ -3702,6 +3709,38 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 					hit = false;
 			}
 			const char *ci_lookup_resolution_reason = nullptr;
+			if (!hit &&
+			    meta.fmt == TextureFormat::CI &&
+			    !hires_debug_ci_selectors.empty())
+			{
+				for (const auto &selector : hires_debug_ci_selectors)
+				{
+					if (selector.checksum_low32 != texture_crc || selector.formatsize != formatsize)
+						continue;
+
+					ReplacementMeta selected_meta = {};
+					uint64_t selected_checksum64 = 0;
+					if (replacement_provider->lookup_ci_low32_selected_dims(
+							    texture_crc,
+							    formatsize,
+							    selector.repl_w,
+							    selector.repl_h,
+							    &selected_meta,
+							    &selected_checksum64))
+					{
+						selected_meta.orig_w = key_width_pixels;
+						selected_meta.orig_h = key_height_pixels;
+						if (resolve_hires_replacement_descriptor(selected_checksum64, formatsize, selected_meta))
+						{
+							repl_meta = selected_meta;
+							resolved_checksum64 = selected_checksum64;
+							hit = true;
+							ci_lookup_resolution_reason = "ci-debug-selected-dims";
+							break;
+						}
+					}
+				}
+			}
 			if (!hit &&
 			    meta.fmt == TextureFormat::CI &&
 			    hires_ci_compatibility_mode == HiresCICompatibilityMode::ReplacementDimsUnique)

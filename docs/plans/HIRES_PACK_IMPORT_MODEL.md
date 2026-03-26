@@ -209,12 +209,17 @@ The first file-select input-probe expansion now adds a third useful case as well
     - explicit selected variant group: `legacy-low32-dd798ca8-fs258-560x160`
   - `legacy-low32-42779bdd-fs258`
     - manual-review-required
-    - suggested variant group: `legacy-low32-42779bdd-fs258-120x120`
+    - suggested variant group: `legacy-low32-42779bdd-fs258-64x64`
     - suggestion is intentionally non-binding until validated
-    - live runtime preview now strengthens `120x120`:
-      - applying `120x120` across the strict file-select `8x16` low32 set reproduces the broader `low32_any` hit count and lands closest to the `low32_any` control
-      - `144x144` remains plausible but is materially weaker by image similarity
-      - `64x64` is currently the weakest runtime candidate of the three
+    - the earlier family-wide `120x120` suggestion was overturned by stronger mixed low32-specific runtime evidence
+    - current mixed selector preview that reproduces the strict file-select `low32_any` control exactly:
+      - `42779bdd:258:64x64`
+      - `469bad6f:258:120x120`
+      - `5464fdf1:258:384x512`
+      - `53302ad5:258:120x120`
+      - hash `2f00a7eb6c0c592a363fca987981d6eb6e6d5a43c9cac0d337c8f444282b18c8`
+      - `AE_vs_any=0`
+    - design implication: this neighborhood now looks like a per-low32 selector problem, not a single shared variant-group decision
 
 ## Review Artifact
 

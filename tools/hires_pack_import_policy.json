@@ -21,37 +21,59 @@
     },
     "legacy-low32-42779bdd-fs258": {
       "status": "manual-review-required",
-      "suggested_variant_group_id": "legacy-low32-42779bdd-fs258-120x120",
-      "justification": "Matches the current strict file-select sample_replacement_dims observation (120x120) and is the strongest live runtime preview candidate so far, but remains non-binding until validated against imported output and future fixture evidence.",
+      "suggested_variant_group_id": "legacy-low32-42779bdd-fs258-64x64",
+      "justification": "The current mixed low32-specific runtime preview reproduces the strict file-select low32-any control exactly only when 42779bdd selects 64x64, so the earlier family-wide 120x120 suggestion is overturned.",
       "supporting_notes": [
-        "Observed sample_replacement_dims is 120x120 on the strict file-select fixture.",
-        "Current review scoring ranks 120x120 above the other candidate variant groups for this family.",
-        "Applying the 120x120 variant across all four strict file-select 8x16 low32 keys reproduces the broader low32-any hit count (90 hits / 75 misses).",
-        "That same all-family 120x120 runtime preview lands much closer to the low32-any control (AE 6214) than all-family 144x144 (AE 11560) or all-family 64x64 (AE 15054)."
+        "The low32-any control resolves 42779bdd to checksum fefa56e542779bdd, which is a 64x64 generic entry.",
+        "A mixed selector using 42779bdd->64x64, 469bad6f->120x120, 5464fdf1->384x512, and 53302ad5->120x120 reproduces the strict file-select low32-any image exactly.",
+        "This family should now be treated as a per-low32 policy decision, not as part of a single shared 120x120 family-wide rule."
       ],
       "overturn_conditions": [
-        "A new strict fixture or imported-output comparison shows the correct visual result tracks 64x64 or 144x144 instead of 120x120.",
+        "A new strict fixture or imported-output comparison shows 42779bdd tracks another variant group more accurately than 64x64.",
         "A stronger selector field becomes available and points consistently at another variant group.",
-        "Imported-output validation shows 120x120 produces placement, sharpness, or corruption problems that another candidate avoids."
+        "Imported-output validation shows 64x64 causes placement, sharpness, or corruption problems that another candidate avoids."
+      ]
+    },
+    "legacy-low32-469bad6f-fs258": {
+      "status": "manual-review-required",
+      "suggested_variant_group_id": "legacy-low32-469bad6f-fs258-120x120",
+      "justification": "The current mixed low32-specific runtime preview reproduces the strict file-select low32-any control when 469bad6f selects 120x120.",
+      "supporting_notes": [
+        "The low32-any control resolves 469bad6f to checksum af028e08469bad6f, which is a 120x120 generic entry.",
+        "This family does not share the same candidate-set shape as 42779bdd, so it needs its own per-low32 selector decision."
       ],
-      "weaker_variant_groups": [
-        {
-          "variant_group_id": "legacy-low32-42779bdd-fs258-144x144",
-          "reasons": [
-            "Does not match observed sample_replacement_dims.",
-            "Not the current policy suggestion.",
-            "Its all-family runtime preview is materially farther from the low32-any control than 120x120."
-          ]
-        },
-        {
-          "variant_group_id": "legacy-low32-42779bdd-fs258-64x64",
-          "reasons": [
-            "Does not match observed sample_replacement_dims.",
-            "Not the current policy suggestion.",
-            "Carries the broadest candidate pool and palette spread of the three groups.",
-            "Its all-family runtime preview only reaches 88 hits / 77 misses, weaker than the 120x120 and 144x144 previews."
-          ]
-        }
+      "overturn_conditions": [
+        "A new strict fixture or imported-output comparison shows 469bad6f tracks another variant group more accurately than 120x120.",
+        "A stronger selector field becomes available and points consistently at another variant group.",
+        "Imported-output validation shows 120x120 causes placement, sharpness, or corruption problems that another candidate avoids."
+      ]
+    },
+    "legacy-low32-5464fdf1-fs258": {
+      "status": "manual-review-required",
+      "suggested_variant_group_id": "legacy-low32-5464fdf1-fs258-384x512",
+      "justification": "The current mixed low32-specific runtime preview reproduces the strict file-select low32-any control when 5464fdf1 selects 384x512.",
+      "supporting_notes": [
+        "The low32-any control resolves 5464fdf1 to checksum e33148725464fdf1, which is a 384x512 generic entry.",
+        "This family has a materially different candidate set from the earlier 42779bdd-based assumption, which is why a family-wide rule was too coarse."
+      ],
+      "overturn_conditions": [
+        "A new strict fixture or imported-output comparison shows 5464fdf1 tracks another variant group more accurately than 384x512.",
+        "A stronger selector field becomes available and points consistently at another variant group.",
+        "Imported-output validation shows 384x512 causes placement, sharpness, or corruption problems that another candidate avoids."
+      ]
+    },
+    "legacy-low32-53302ad5-fs258": {
+      "status": "manual-review-required",
+      "suggested_variant_group_id": "legacy-low32-53302ad5-fs258-120x120",
+      "justification": "The current mixed low32-specific runtime preview reproduces the strict file-select low32-any control when 53302ad5 selects 120x120.",
+      "supporting_notes": [
+        "The low32-any control resolves 53302ad5 to checksum fa12dda553302ad5, which is a 120x120 generic entry.",
+        "This family still has alternate groups, but the current live preview points at 120x120 rather than a shared family-wide rule."
+      ],
+      "overturn_conditions": [
+        "A new strict fixture or imported-output comparison shows 53302ad5 tracks another variant group more accurately than 120x120.",
+        "A stronger selector field becomes available and points consistently at another variant group.",
+        "Imported-output validation shows 120x120 causes placement, sharpness, or corruption problems that another candidate avoids."
       ]
     }
   }

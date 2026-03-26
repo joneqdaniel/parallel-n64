@@ -180,9 +180,14 @@
 - There is now a first explicit import-policy layer at [hires_pack_import_policy.json](/home/auro/code/parallel-n64/tools/hires_pack_import_policy.json), which currently:
   - locks the deterministic `2a1be0a4/fs258 -> 640x160` case
   - locks the deterministic probe-backed `dd798ca8/fs258 -> 560x160` case
-  - records a non-binding `120x120` suggestion for the ambiguous `42779bdd/fs258` family
-  - records why `120x120` is currently stronger than `64x64` / `144x144` on the strict file-select evidence
-  - records what new evidence would overturn that `120x120` suggestion
+  - treats the broader `8x16/fs258` neighborhood as a per-low32 policy problem, not a single family-wide dimension choice
+  - now records non-binding low32-specific suggestions for the currently observed strict file-select set:
+    - `42779bdd -> 64x64`
+    - `469bad6f -> 120x120`
+    - `5464fdf1 -> 384x512`
+    - `53302ad5 -> 120x120`
+  - records why the earlier family-wide `120x120` suggestion was overturned by stronger mixed-selector evidence
+  - records what new evidence would overturn each of the current low32-specific suggestions
 - There is now a first non-committal review path at [hires_pack_review.py](/home/auro/code/parallel-n64/tools/hires_pack_review.py), so strict import slices can be inspected as review artifacts before we treat the imported index as a settled format
 - That review path now also ranks candidate variant groups against the current observed runtime context and attached policy, so we can state why one ambiguous candidate looks stronger or weaker without turning that into runtime behavior
 - The review tool can now also emit a focused side-by-side decision sheet for one ambiguous family via `--focus-policy-key`
@@ -193,18 +198,28 @@
   - `144x144` subset: `1` record
   - `64x64` subset: `9` records
 - There is now a first subset-comparison tool at [hires_pack_compare_subsets.py](/home/auro/code/parallel-n64/tools/hires_pack_compare_subsets.py), so those review-only variants can be summarized side by side instead of inspected one JSON file at a time
-- The first local subset comparison now makes the current trade space explicit for `legacy-low32-42779bdd-fs258`:
-  - `120x120`: `7` records, total `12576` bytes, matches current runtime `sample_replacement_dims`
-  - `144x144`: `1` record, total `2054` bytes, smallest artifact but no positive match to current runtime evidence
-  - `64x64`: `9` records, total `16034` bytes, broadest artifact and no positive match to current runtime evidence
+- The first local subset comparison still usefully describes the trade space for `legacy-low32-42779bdd-fs258`:
+  - `120x120`: `7` records, total `12576` bytes
+  - `144x144`: `1` record, total `2054` bytes
+  - `64x64`: `9` records, total `16034` bytes
+  - but that comparison is now secondary to stronger live mixed-selector evidence across the full strict `8x16` low32 set
 - There is now also a debug-only runtime selector path for ambiguous CI families:
   - `PARALLEL_RDP_HIRES_CI_SELECT=low32:formatsize:widthxheight[;...]`
   - it exists only to preview candidate variant groups on strict fixtures without changing default runtime policy
-  - applying each candidate across the full strict file-select `8x16` low32 set now differentiates the three options materially:
+  - applying one shared candidate across the full strict file-select `8x16` low32 set still differentiates the simple family-wide options materially:
     - `all-120x120`: `90 hits / 75 misses`, `AE_vs_any=6214`
     - `all-144x144`: `90 hits / 75 misses`, `AE_vs_any=11560`
     - `all-64x64`: `88 hits / 77 misses`, `AE_vs_any=15054`
-  - that is still not enough to finalize the imported format, but it materially strengthens `120x120` as the best current live preview candidate for `legacy-low32-42779bdd-fs258`
+  - but the stronger result now comes from a mixed low32-specific preview, not a shared family-wide choice:
+    - `42779bdd:258:64x64`
+    - `469bad6f:258:120x120`
+    - `5464fdf1:258:384x512`
+    - `53302ad5:258:120x120`
+  - that mixed selector reproduces the broad `low32_any` control exactly on the strict file-select fixture:
+    - hash `2f00a7eb6c0c592a363fca987981d6eb6e6d5a43c9cac0d337c8f444282b18c8`
+    - `hits=90 / misses=75`
+    - `AE_vs_any=0`
+  - the design implication is now explicit: the imported selector model likely needs per-low32 granularity for this neighborhood instead of a single shared dimension rule
 - The current CI import-model evidence is still narrow, but it is broader than the original strict pair:
   - the strict file-select authority still surfaces two families:
     - `2a1be0a4/fs258/32x16 -> 640x160`

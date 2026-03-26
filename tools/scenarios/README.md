@@ -173,10 +173,15 @@ Current Paper Mario runtime note:
 - there is now also a debug-only ambiguous-family preview path:
   - `PARALLEL_RDP_HIRES_CI_SELECT=low32:formatsize:widthxheight[;...]`
   - use it to preview imported-selector candidates on top of the strict fixture path without changing default runtime behavior
-  - current strict file-select result for the unresolved `8x16` family:
-    - applying `120x120` across all four unresolved `8x16` low32 keys is the strongest live preview so far
-    - `144x144` remains plausible but is materially weaker by image similarity to the broader `low32_any` control
-    - `64x64` is weaker by both hit count and image similarity
+  - current strict file-select result for the unresolved `8x16` neighborhood:
+    - a family-wide `120x120` preview is still stronger than family-wide `144x144` or `64x64`
+    - but the stronger result now comes from a mixed low32-specific selector set:
+      - `42779bdd:258:64x64`
+      - `469bad6f:258:120x120`
+      - `5464fdf1:258:384x512`
+      - `53302ad5:258:120x120`
+    - that mixed selector reproduces the broader `low32_any` control exactly on the strict file-select fixture
+  - treat that as evidence that imported selector policy for this neighborhood likely needs per-low32 granularity, not one shared family-wide dimension rule
 - use `tools/hires_miss_review.py --bundle <strict-on-bundle> --cache assets/PAPER MARIO_HIRESTEXTURES.hts` when you need a focused review of the remaining miss buckets after one of these experiments
   - on the current strict file-select CI-compat bundle, that review confirms the unresolved gap is mostly the `64x1 fs514` block family, while the smaller `8x16 fs258` CI class remains on the import-policy track
 - the new CI family probe explains why those fallback results split the way they do:

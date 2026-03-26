@@ -3956,7 +3956,13 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 						}
 					};
 
-					const bool first_context_log = hires_ci_palette_probe_logged_contexts.insert(hires_signature).second;
+					char context_key[256] = {};
+					std::snprintf(context_key, sizeof(context_key),
+					              "%s low32=%08x pcrc=%08x",
+					              hires_signature.c_str(),
+					              texture_crc,
+					              palette_crc);
+					const bool first_context_log = hires_ci_palette_probe_logged_contexts.insert(context_key).second;
 					if (hires_debug && first_context_log)
 					{
 						LOGI("Hi-res CI palette probe context: mode=%s addr=0x%06x wh=%ux%u pal=%u entries=%u key=%016llx pcrc=%08x fs=%u.\n",
@@ -3969,6 +3975,21 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 						     static_cast<unsigned long long>(checksum64),
 						     palette_crc,
 						     unsigned(formatsize));
+						LOGI("Hi-res CI palette probe tile: tile=%u off=%u stride=%u key_xy=%ux%u mask_s=%u shift_s=%u mask_t=%u shift_t=%u flags=%u clamp_s=%u mirror_s=%u clamp_t=%u mirror_t=%u.\n",
+						     tile,
+						     meta.offset,
+						     meta.stride,
+						     key_start_x,
+						     key_start_y,
+						     meta.mask_s,
+						     meta.shift_s,
+						     meta.mask_t,
+						     meta.shift_t,
+						     meta.flags,
+						     (meta.flags & TILE_INFO_CLAMP_S_BIT) != 0 ? 1 : 0,
+						     (meta.flags & TILE_INFO_MIRROR_S_BIT) != 0 ? 1 : 0,
+						     (meta.flags & TILE_INFO_CLAMP_T_BIT) != 0 ? 1 : 0,
+						     (meta.flags & TILE_INFO_MIRROR_T_BIT) != 0 ? 1 : 0);
 						LOGI("Hi-res CI palette probe candidates: legacy-bank-hash=%08x legacy-bank-crc32=%08x legacy-tmem-hash=%08x.\n",
 						     detail::compute_hires_ci_palette_crc_legacy_bank_hash(
 								meta.size,
@@ -4036,7 +4057,7 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 						if (replacement_provider->describe_ci_low32_family(texture_crc, formatsize, palette_crc, &family_diag) &&
 						    family_diag.available)
 						{
-							LOGI("Hi-res CI palette probe family: mode=%s addr=0x%06x wh=%ux%u fs=%u low32=%08x pcrc=%08x active_pool=%s exact_entries=%u generic_entries=%u active_entries=%u unique_checksums=%u unique_palettes=%u unique_repl_dims=%u preferred_palette_matches=%u uniform_repl_dims=%d sample_repl=%ux%u.\n",
+							LOGI("Hi-res CI palette probe family: mode=%s addr=0x%06x wh=%ux%u fs=%u low32=%08x pcrc=%08x tile=%u off=%u stride=%u key_xy=%ux%u mask_s=%u shift_s=%u mask_t=%u shift_t=%u flags=%u clamp_s=%u mirror_s=%u clamp_t=%u mirror_t=%u active_pool=%s exact_entries=%u generic_entries=%u active_entries=%u unique_checksums=%u unique_palettes=%u unique_repl_dims=%u preferred_palette_matches=%u uniform_repl_dims=%d sample_repl=%ux%u.\n",
 							     load_mode_to_string(info.mode),
 							     src_base_addr & 0x00ffffffu,
 							     key_width_pixels,
@@ -4044,6 +4065,20 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 							     unsigned(formatsize),
 							     texture_crc,
 							     palette_crc,
+							     tile,
+							     meta.offset,
+							     meta.stride,
+							     key_start_x,
+							     key_start_y,
+							     meta.mask_s,
+							     meta.shift_s,
+							     meta.mask_t,
+							     meta.shift_t,
+							     meta.flags,
+							     (meta.flags & TILE_INFO_CLAMP_S_BIT) != 0 ? 1 : 0,
+							     (meta.flags & TILE_INFO_MIRROR_S_BIT) != 0 ? 1 : 0,
+							     (meta.flags & TILE_INFO_CLAMP_T_BIT) != 0 ? 1 : 0,
+							     (meta.flags & TILE_INFO_MIRROR_T_BIT) != 0 ? 1 : 0,
 							     family_diag.prefer_exact_formatsize ? "exact" : "generic",
 							     family_diag.exact_formatsize_entries,
 							     family_diag.generic_formatsize_entries,

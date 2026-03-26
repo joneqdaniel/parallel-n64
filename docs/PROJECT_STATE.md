@@ -240,6 +240,13 @@
     - both still stay in `state_init_file_select` / `state_step_file_select` with `entryID=11`
     - both still expose the same three CI families (`42779bdd`, `2a1be0a4`, `dd798ca8`)
   - so the current import evidence is no longer “only two families,” but it is still entirely tied to file-select-state exploration rather than broader game coverage
+- The richer strict file-select CI probe now also logs tile-state provenance per low32/palette context instead of collapsing all `8x16` cases under one coarse signature
+- That probe adds an important negative result for the ambiguous `8x16` strict file-select neighborhood:
+  - `42779bdd`, `469bad6f`, `5464fdf1`, and `53302ad5` all share the same observed tile-state shape
+  - they all log as `tile=7 off=0 stride=8 key_xy=0x0 mask_s=0 shift_s=0 mask_t=0 shift_t=0 flags=5 clamp_s=1 clamp_t=1`
+  - only the texel-side low32 identity and source address differ across those four cases
+  - that means tile-state metadata is not the missing discriminator for this neighborhood on the strict file-select fixture
+  - the current evidence therefore leans further toward per-low32 import/policy handling for this class, rather than one more tile-state-based runtime rule
 - That makes legacy pack transport a real implementation path instead of only a planning statement
 - The new block-shape probe is now wired through the tracked file-select scenario and keeps the strict hash intact while logging alternate-shape diagnostics
 - That probe has already ruled out the dominant file-select miss as a simple hidden multi-line reinterpretation: `mode=block fmt=2 siz=2 wh=64x1 fs=514 tile=7` stays a plain `64x1` upload (`tmem_stride_words=0`) and finds no alternate-shape pack hit

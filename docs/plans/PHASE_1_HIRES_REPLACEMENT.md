@@ -122,6 +122,11 @@
         - `hits=90 / misses=75`
         - `AE_vs_any=0`
       - that supersedes the earlier “shared 120x120” conclusion and points instead to a per-low32 imported selector policy for this neighborhood
+      - a richer strict file-select CI probe now logs tile-state provenance per low32/palette context, and the current ambiguous `8x16` set is a useful negative result:
+        - `42779bdd`, `469bad6f`, `5464fdf1`, and `53302ad5` all share the same observed tile-state shape
+        - they all log as `tile=7 off=0 stride=8 key_xy=0x0 mask_s=0 shift_s=0 mask_t=0 shift_t=0 flags=5 clamp_s=1 clamp_t=1`
+        - only the texel-side low32 identity and source address differ across those four cases
+      - that means tile-state metadata is not the missing discriminator for this strict `8x16` neighborhood, which further strengthens the current per-low32 import-policy direction
     - the constrained CI rule is now also wired as an explicit compatibility-tier candidate:
       - `PARALLEL_RDP_HIRES_CI_COMPAT=3` enables the same `replacement-dims-unique` rule as an opt-in runtime compatibility path
       - exact lookup still runs first and remains authoritative

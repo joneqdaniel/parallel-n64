@@ -4066,13 +4066,15 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 					const bool first_context_log = hires_ci_palette_probe_logged_contexts.insert(context_key).second;
 					if (hires_debug && first_context_log)
 					{
-						LOGI("Hi-res CI palette probe context: mode=%s addr=0x%06x wh=%ux%u pal=%u entries=%u key=%016llx pcrc=%08x fs=%u.\n",
+						LOGI("Hi-res CI palette probe context: mode=%s addr=0x%06x wh=%ux%u pal=%u entries=%u tlut=%u tlut_type=%u key=%016llx pcrc=%08x fs=%u.\n",
 						     load_mode_to_string(info.mode),
 						     src_base_addr & 0x00ffffffu,
 						     key_width_pixels,
 						     key_height_pixels,
 						     meta.palette,
 						     ci_palette_entries,
+						     tlut_enabled ? 1 : 0,
+						     tlut_type ? 1 : 0,
 						     static_cast<unsigned long long>(checksum64),
 						     palette_crc,
 						     unsigned(formatsize));
@@ -4135,6 +4137,45 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 								sizeof(tlut_tmem_shadow),
 								tlut_shadow_valid,
 								ci_palette_usage);
+						const uint32_t logical_active_entry_crc = detail::compute_hires_ci_palette_crc_for_entries_logical(
+								meta.size,
+								meta.palette,
+								tlut_shadow,
+								sizeof(tlut_shadow),
+								tlut_shadow_valid,
+								ci_palette_entries,
+								tlut_type);
+						const uint32_t logical_active_sparse_crc = detail::compute_hires_ci_palette_crc_for_used_indices_logical(
+								meta.size,
+								meta.palette,
+								tlut_shadow,
+								sizeof(tlut_shadow),
+								tlut_shadow_valid,
+								ci_palette_usage,
+								tlut_type);
+						const uint32_t logical_alt_entry_crc = detail::compute_hires_ci_palette_crc_for_entries_logical(
+								meta.size,
+								meta.palette,
+								tlut_shadow,
+								sizeof(tlut_shadow),
+								tlut_shadow_valid,
+								ci_palette_entries,
+								!tlut_type);
+						const uint32_t logical_alt_sparse_crc = detail::compute_hires_ci_palette_crc_for_used_indices_logical(
+								meta.size,
+								meta.palette,
+								tlut_shadow,
+								sizeof(tlut_shadow),
+								tlut_shadow_valid,
+								ci_palette_usage,
+								!tlut_type);
+						auto logical_candidate_hit = [&](uint32_t candidate_palette_crc) {
+							if (candidate_palette_crc == 0 || !replacement_provider)
+								return false;
+							ReplacementMeta candidate_meta = {};
+							const uint64_t candidate_checksum64 = detail::compose_hires_checksum64(texture_crc, candidate_palette_crc);
+							return replacement_provider->lookup(candidate_checksum64, formatsize, &candidate_meta);
+						};
 						LOGI("Hi-res CI palette probe usage: mode=%s addr=0x%06x wh=%ux%u fs=%u used_count=%u used_min=%u used_max=%u mask_crc=%08x sparse_pcrc=%08x.\n",
 						     load_mode_to_string(info.mode),
 						     src_base_addr & 0x00ffffffu,
@@ -4154,6 +4195,22 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 						     unsigned(formatsize),
 						     emulated_entry_crc,
 						     emulated_sparse_crc);
+						LOGI("Hi-res CI palette probe logical-view: mode=%s addr=0x%06x wh=%ux%u fs=%u active_tlut_type=%u active_entry_pcrc=%08x active_sparse_pcrc=%08x active_entry_hit=%u active_sparse_hit=%u alt_tlut_type=%u alt_entry_pcrc=%08x alt_sparse_pcrc=%08x alt_entry_hit=%u alt_sparse_hit=%u.\n",
+						     load_mode_to_string(info.mode),
+						     src_base_addr & 0x00ffffffu,
+						     key_width_pixels,
+						     key_height_pixels,
+						     unsigned(formatsize),
+						     tlut_type ? 1 : 0,
+						     logical_active_entry_crc,
+						     logical_active_sparse_crc,
+						     logical_candidate_hit(logical_active_entry_crc) ? 1 : 0,
+						     logical_candidate_hit(logical_active_sparse_crc) ? 1 : 0,
+						     tlut_type ? 0 : 1,
+						     logical_alt_entry_crc,
+						     logical_alt_sparse_crc,
+						     logical_candidate_hit(logical_alt_entry_crc) ? 1 : 0,
+						     logical_candidate_hit(logical_alt_sparse_crc) ? 1 : 0);
 						CILow32FamilyDiagnostics family_diag = {};
 						if (replacement_provider->describe_ci_low32_family(texture_crc, formatsize, palette_crc, &family_diag) &&
 						    family_diag.available)

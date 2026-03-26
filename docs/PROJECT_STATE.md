@@ -260,6 +260,11 @@
   - the dominant unresolved `64x1 fs514` miss is now explicitly classified as authored-RDRAM `loadblock`, which narrows it away from copy/framebuffer confusion
   - the major visible `296x6 fs258` replacement driver is now explicitly classified as authored-RDRAM `copy-cycle`, which is a more concrete target than “tile hit” alone
 - The current exact-key audit artifact is now [N64 Exact Key Delta Sheet](/home/auro/code/parallel-n64/docs/plans/N64_EXACT_KEY_DELTA_SHEET.md).
+- The first logical-TLUT diagnostic pass is now live in strict CI probe bundles:
+  - `traces/hires-evidence.json` now records `ci_palette_probe.logical_views`
+  - on the verified strict file-select probe bundle (`20260326-logical-tlut-probe-2`), the ambiguous `8x16` CI families produce distinct active/alternate logical palette CRCs when `tlut_type` flips
+  - but neither the active nor alternate logical-view CRCs hit the current pack on that strict fixture
+  - current implication: the remaining CI gap is not explained by ignoring `tlut_type` alone
 - That makes legacy pack transport a real implementation path instead of only a planning statement
 - The new block-shape probe is now wired through the tracked file-select scenario and keeps the strict hash intact while logging alternate-shape diagnostics
 - That probe has already ruled out the dominant file-select miss as a simple hidden multi-line reinterpretation: `mode=block fmt=2 siz=2 wh=64x1 fs=514 tile=7` stays a plain `64x1` upload (`tmem_stride_words=0`) and finds no alternate-shape pack hit

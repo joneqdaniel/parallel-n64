@@ -355,6 +355,130 @@ inline uint32_t compute_hires_ci_palette_crc_for_entries(TextureSize size,
 	return 0;
 }
 
+inline void decode_hires_tlut_word_logical_rgba8(uint16_t word, bool tlut_type, uint8_t *rgba8)
+{
+	if (!rgba8)
+		return;
+
+	if (tlut_type)
+	{
+		const uint8_t intensity = uint8_t(word >> 8);
+		const uint8_t alpha = uint8_t(word & 0xff);
+		rgba8[0] = intensity;
+		rgba8[1] = intensity;
+		rgba8[2] = intensity;
+		rgba8[3] = alpha;
+	}
+	else
+	{
+		const uint8_t r5 = uint8_t((word >> 11) & 31u);
+		const uint8_t g5 = uint8_t((word >> 6) & 31u);
+		const uint8_t b5 = uint8_t((word >> 1) & 31u);
+		rgba8[0] = uint8_t((r5 << 3u) | (r5 >> 2u));
+		rgba8[1] = uint8_t((g5 << 3u) | (g5 >> 2u));
+		rgba8[2] = uint8_t((b5 << 3u) | (b5 >> 2u));
+		rgba8[3] = (word & 1u) ? 0xffu : 0x00u;
+	}
+}
+
+inline uint32_t compute_hires_ci_palette_crc_for_entries_logical(TextureSize size,
+                                                                 uint32_t palette,
+                                                                 const uint8_t *tlut_shadow,
+                                                                 size_t tlut_shadow_size,
+                                                                 bool tlut_shadow_valid,
+                                                                 uint32_t entries,
+                                                                 bool tlut_type)
+{
+	if (!tlut_shadow_valid || !tlut_shadow || tlut_shadow_size < 512)
+		return 0;
+
+	std::array<uint8_t, 1024> packed = {};
+	uint32_t packed_entries = 0;
+
+	if (size == TextureSize::Bpp8)
+	{
+		entries = std::min<uint32_t>(entries, 256u);
+		for (uint32_t index = 0; index < entries; index++)
+		{
+			const uint32_t src = index * 2u;
+			const uint16_t word = uint16_t(tlut_shadow[src + 0u]) | (uint16_t(tlut_shadow[src + 1u]) << 8u);
+			decode_hires_tlut_word_logical_rgba8(word, tlut_type, packed.data() + packed_entries * 4u);
+			packed_entries++;
+		}
+	}
+	else if (size == TextureSize::Bpp4)
+	{
+		entries = std::min<uint32_t>(entries, 16u);
+		const uint32_t bank = std::min<uint32_t>(palette, 15u);
+		const uint32_t bank_base = bank * 32u;
+		for (uint32_t index = 0; index < entries; index++)
+		{
+			const uint32_t src = bank_base + index * 2u;
+			const uint16_t word = uint16_t(tlut_shadow[src + 0u]) | (uint16_t(tlut_shadow[src + 1u]) << 8u);
+			decode_hires_tlut_word_logical_rgba8(word, tlut_type, packed.data() + packed_entries * 4u);
+			packed_entries++;
+		}
+	}
+	else
+		return 0;
+
+	if (packed_entries == 0)
+		return 0;
+
+	return rice_crc32_wrapped(packed.data(), packed.size(), 0, packed_entries, 1, 3, packed_entries * 4u);
+}
+
+inline uint32_t compute_hires_ci_palette_crc_for_used_indices_logical(TextureSize size,
+                                                                      uint32_t palette,
+                                                                      const uint8_t *tlut_shadow,
+                                                                      size_t tlut_shadow_size,
+                                                                      bool tlut_shadow_valid,
+                                                                      const HiresCIPaletteUsage &usage,
+                                                                      bool tlut_type)
+{
+	if (!usage.valid || usage.used_count == 0)
+		return 0;
+	if (!tlut_shadow_valid || !tlut_shadow || tlut_shadow_size < 512)
+		return 0;
+
+	std::array<uint8_t, 1024> packed = {};
+	uint32_t packed_entries = 0;
+
+	if (size == TextureSize::Bpp8)
+	{
+		for (uint32_t index = 0; index < 256; index++)
+		{
+			if ((usage.used_mask[index >> 3] & (1u << (index & 7u))) == 0)
+				continue;
+			const uint32_t src = index * 2u;
+			const uint16_t word = uint16_t(tlut_shadow[src + 0u]) | (uint16_t(tlut_shadow[src + 1u]) << 8u);
+			decode_hires_tlut_word_logical_rgba8(word, tlut_type, packed.data() + packed_entries * 4u);
+			packed_entries++;
+		}
+	}
+	else if (size == TextureSize::Bpp4)
+	{
+		const uint32_t bank = std::min<uint32_t>(palette, 15u);
+		const uint32_t bank_base = bank * 32u;
+		for (uint32_t index = 0; index < 16; index++)
+		{
+			if ((usage.used_mask[index >> 3] & (1u << (index & 7u))) == 0)
+				continue;
+			const uint32_t src = bank_base + index * 2u;
+			const uint16_t word = uint16_t(tlut_shadow[src + 0u]) | (uint16_t(tlut_shadow[src + 1u]) << 8u);
+			decode_hires_tlut_word_logical_rgba8(word, tlut_type, packed.data() + packed_entries * 4u);
+			packed_entries++;
+		}
+	}
+	else
+		return 0;
+
+	if (packed_entries == 0)
+		return 0;
+
+	return rice_crc32_wrapped(packed.data(), packed.size(), 0, packed_entries, 1, 3, packed_entries * 4u);
+}
+
 inline uint32_t compute_hires_ci_palette_crc(TextureSize size,
                                              uint32_t palette,
                                              const uint8_t *cpu_rdram,

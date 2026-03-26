@@ -170,6 +170,7 @@ result = {
         "families": [],
         "usages": [],
         "emulated_tmem": [],
+        "logical_views": [],
     },
 }
 
@@ -192,6 +193,7 @@ filter_config_re = re.compile(r"Hi-res debug filter: allow_tile=(\d+) allow_bloc
 ci_family_re = re.compile(r"Hi-res CI palette probe family: (.+)")
 ci_usage_re = re.compile(r"Hi-res CI palette probe usage: (.+)")
 ci_emulated_tmem_re = re.compile(r"Hi-res CI palette probe emulated-tmem: (.+)")
+ci_logical_view_re = re.compile(r"Hi-res CI palette probe logical-view: (.+)")
 provenance_re = re.compile(r"Hi-res keying provenance: (.+)")
 field_re = re.compile(r"(\w+)=([^\s]+)")
 
@@ -560,6 +562,14 @@ for line in log_path.read_text(errors="replace").splitlines():
         fields = parse_fields(m.group(1).strip())
         if len(result["ci_palette_probe"]["emulated_tmem"]) < 20:
             result["ci_palette_probe"]["emulated_tmem"].append(fields)
+        continue
+
+    m = ci_logical_view_re.search(line)
+    if m:
+        result["available"] = True
+        fields = parse_fields(m.group(1).strip())
+        if len(result["ci_palette_probe"]["logical_views"]) < 20:
+            result["ci_palette_probe"]["logical_views"].append(fields)
         continue
 
     m = provenance_re.search(line)

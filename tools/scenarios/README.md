@@ -140,6 +140,10 @@ Current Paper Mario runtime note:
 - the same `hires-evidence.json` trace now also cross-checks miss keys against the active `.hts`/`.htc` index, so bundle evidence can distinguish “unmatched in the local pack index under the current checksum generation” from “lookup present under another formatsize”
 - CI palette probe runs now also record `ci_palette_probe.families` in `traces/hires-evidence.json`, so representative CI misses can report whether their low-32 pack family is exact/generic, dimension-uniform, or structurally ambiguous without changing the default lookup path
 - the same CI probe now also records `ci_palette_probe.usages` and `ci_palette_probe.emulated_tmem`, so strict bundles can show how many palette indices were actually sampled and whether raw-shadow versus emulated-TMEM palette views produce any pack-backed candidate at all
+- the same CI probe now also records `ci_palette_probe.logical_views`, so strict bundles can compare active and alternate logical TLUT interpretations against the current raw-shadow path
+- the first strict file-select logical-view probe shows a useful negative result:
+  - the ambiguous `8x16` CI families do get distinct logical CRCs when `tlut_type` flips
+  - but neither logical view hits the current pack on that fixture
 - for offline pack-format work, use [hires_pack_family_report.py](/home/auro/code/parallel-n64/tools/hires_pack_family_report.py) against a strict bundle and cache path to classify low32 families into constrained-compatibility candidates versus ambiguous/import-required families
 - for migration-oriented pack work, use [hires_pack_migrate.py](/home/auro/code/parallel-n64/tools/hires_pack_migrate.py) to turn selected low32 families into a machine-readable import plan grouped by recommended tier
 - add `--emit-import-index` to [hires_pack_migrate.py](/home/auro/code/parallel-n64/tools/hires_pack_migrate.py) when you want the imported-index scaffold rather than just the tier report

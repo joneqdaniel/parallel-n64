@@ -67,6 +67,11 @@
     - legacy per-bank hash / CRC32 candidates also fail to produce pack hits
     - the representative current and candidate palette CRCs still do not line up with the active pack's stored high-32 variants for the same low-32 texture CRCs
     - that pushes the next likely bug boundary from “pick a different CRC formula” to “verify whether the current `LoadTLUT` shadow/update path is even hashing the right palette bytes/layout”
+    - the new logical-TLUT diagnostic pass sharpens that again:
+      - strict CI probe bundles now record `ci_palette_probe.logical_views`
+      - on the verified strict file-select probe bundle (`20260326-logical-tlut-probe-2`), the ambiguous `8x16` CI families do produce distinct active/alternate logical palette CRCs when `tlut_type` flips
+      - but neither logical interpretation produces a pack hit on that strict fixture
+      - so the remaining CI gap is not explained by `tlut_type` alone
   - the CI probe now also records low-32 pack-family structure without changing lookup behavior:
     - the representative `32x16` file-select family (`low32=2a1be0a4`) is generic-only and dimension-uniform: `2` generic entries, `2` palette variants, `1` replacement-dimension family (`640x160`)
     - the representative ambiguous `8x16` family (`low32=42779bdd`) is also generic-only but structurally broad: `17` generic entries, `17` palette variants, `3` replacement-dimension families, and no entry matching the current exact palette CRC

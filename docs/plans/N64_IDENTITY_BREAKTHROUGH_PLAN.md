@@ -179,6 +179,9 @@ Add a diagnostic view that models:
 Success:
 - strict bundle diagnostics can compare current shadow-based CRCs against a logical-palette view
 
+Current artifact:
+- `ci_palette_probe.logical_views` in strict `hires-evidence.json` bundles
+
 ### Ticket 4: Copy / Texrect Classification
 
 Detect and report whether the current strict misses are normal textured draws or copy/texrect-style draws.

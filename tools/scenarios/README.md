@@ -152,6 +152,12 @@ Current Paper Mario runtime note:
 - use [hires_pack_compare_subsets.py](/home/auro/code/parallel-n64/tools/hires_pack_compare_subsets.py) when you want a side-by-side summary of several review-only subset artifacts
 - tracked Paper Mario scenarios now also support `RUNTIME_ENV_OVERRIDE` for temporary experimental runs, and `DISABLE_SCREENSHOT_VERIFY=1` when a controlled debug run is expected to diverge from the locked strict hashes
 - runtime env files are now auto-exported while sourcing, so temporary `PARALLEL_RDP_*` debug toggles in a `RUNTIME_ENV_OVERRIDE` file actually reach the RetroArch/core child process
+- the tracked scenarios now forward the real `PARALLEL_RDP_HIRES_FILTER_*` variable names from those runtime env files; the older shorthand `HIRES_FILTER_*` names are only compatibility fallbacks
+- corrected filter-isolation result on the tracked strict fixtures:
+  - file select `allow_block=0` is a verified no-op and still lands on the locked `on` hash
+  - file select `allow_tile=0` collapses to the baseline `off` hash
+  - title screen `allow_tile=0` also collapses to the baseline `off` hash
+  - so the current visible hi-res path on those fixtures is tile-only
 - the ParaLLEl runtime path now supports temporary hi-res debug filters through `PARALLEL_RDP_HIRES_FILTER_ALLOW_TILE`, `PARALLEL_RDP_HIRES_FILTER_ALLOW_BLOCK`, and `PARALLEL_RDP_HIRES_FILTER_SIGNATURES`; filtered events are recorded in `traces/hires-evidence.json`
 - tracked file-select runs also forward `PARALLEL_RDP_HIRES_BLOCK_SHAPE_PROBE=1` into the ParaLLEl runtime for debug-only block reinterpretation evidence; this keeps the strict screenshot hash locked while logging alternate-shape hits and block upload context
 - the current Phase 1 experimental pattern is: keep the strict authority state fixed, suppress one bucket or one mode, and compare the filtered frame against the locked `off` / `on` captures to identify which replacement classes actually drive the visible change

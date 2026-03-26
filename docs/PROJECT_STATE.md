@@ -244,6 +244,13 @@
 - The new block-shape probe is now wired through the tracked file-select scenario and keeps the strict hash intact while logging alternate-shape diagnostics
 - That probe has already ruled out the dominant file-select miss as a simple hidden multi-line reinterpretation: `mode=block fmt=2 siz=2 wh=64x1 fs=514 tile=7` stays a plain `64x1` upload (`tmem_stride_words=0`) and finds no alternate-shape pack hit
 - The same probe does find alternate-shape hits for smaller non-dominant block misses, including `mode=block fmt=4 siz=2 wh=128x1 fs=516 tile=7 -> 4x32` and `mode=block fmt=0 siz=3 wh=1024x1 fs=768 tile=7 -> 32x32`
+- The tracked scenario filter path had a forwarding bug: runtime override files were setting the real `PARALLEL_RDP_HIRES_FILTER_*` names, but the scenario wrappers were only forwarding the older shorthand `HIRES_FILTER_*` aliases
+- That forwarding path is now fixed, and the corrected isolation runs materially narrow the current visible Phase 1 problem:
+  - strict file select with `allow_block=0` still reproduces the locked `on` hash `8a90f7874bd797a186ff85d488033dc332b2a75f5bec91ad33ca8246e6be7730` exactly, with `hits=82`, `misses=83`, `filtered=0`
+  - strict file select with `allow_tile=0` collapses to the baseline `off` hash `6fa8688b382fa1e6f0323f054861a85f593d2d47ca737bb78448e3f268ca63e3`, with `hits=0`, `misses=83`, `filtered=82`
+  - title screen with `allow_tile=0` still reproduces the baseline `off` hash `42e501afb2548a5067bc034578c5bcebf0bf2a40f612bbcc94972af716ad6ff2`, with `hits=0`, `misses=18`, `filtered=178`
+  - so the currently visible hi-res output on the tracked strict fixtures is tile-only
+  - the unresolved block misses are still real bookkeeping/identity gaps, but they are not contributing to the current strict file-select image
 - The current TLUT tracking path is correspondingly suspicious: `tlut_shadow` is still populated as a raw contiguous RDRAM copy on `LoadTLUT`, so the next correctness step is to verify whether that shadow actually matches the palette bytes/layout the replacement pack identity expects
 - `tlut_shadow` now patches the palette-shadow range by TMEM offset instead of overwriting and zeroing the whole 512-byte shadow on every partial `LoadTLUT`; on the strict file-select fixture that changes the CI palette CRCs materially but does not yet change the final frame or recover new pack hits
 - A blunt follow-up experiment, copying TLUT entries into the shadow with a naive 16-bit byte swap, regressed the strict file-select `on` result badly (`hits=48`, `misses=117`, hash `948a4fad87bba561d40cf683915c9d52d6273f1a15017f17885fd1a808a2afdd`), so the remaining issue is not solved by simply swapping palette bytes at the current shadow layer
@@ -273,7 +280,9 @@
     - `tools/hires_miss_review.py --bundle artifacts/paper-mario-file-select/on/20260325-ci-compat-repl-dims-unique --cache assets/PAPER MARIO_HIRESTEXTURES.hts`
     - the dominant `mode=block fmt=2 siz=2 wh=64x1 fs=514 tile=7` class stays fully `absent-from-pack` across all `21` observed low-32 keys in the current pack index
     - the remaining `8x16` CI class stays `present-generic-only` and `ambiguous-import-or-policy`, which confirms it belongs on the CI/import-policy track rather than the block track
-  - the real remaining design choice is whether that constrained tier is acceptable enough to harden further, or whether we still need a better palette-side discriminator for the ambiguous `8x16` family, while separately solving the still-unmatched block classes
+  - after the corrected filter-isolation runs, the active visible-design choice is narrower still:
+    - the immediate strict-fixture work is the tile/CI path, especially the ambiguous `8x16` family and the more exact CI/TLUT identity behind it
+    - the still-unmatched block classes remain a separate later track until a fixture proves they materially affect visible output
 - Cross-emulator research now gives the broad guardrails for that decision:
   - the strongest relevant local references are `PCSX2`, `Dolphin`, `PPSSPP`, and `Flycast`
   - the shared pattern is consistent: exact replacement identity remains authoritative, while broader compatibility matching lives in an explicit second tier with separate reporting and tighter constraints

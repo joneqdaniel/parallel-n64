@@ -135,6 +135,13 @@
         - the dominant `64x1 fs514` block family is fully absent from the current pack index across all observed low-32 keys
         - the remaining `8x16 fs258` CI family is still present only under generic legacy grouping and remains `ambiguous-import-or-policy`
       - that makes the next implementation split clearer: block-class investigation is now a separate track from CI/import-policy cleanup
+    - the tracked scenario filter path had a forwarding bug, so the older `allow_tile` / `allow_block` isolation runs were not authoritative until the wrappers were fixed to forward the real `PARALLEL_RDP_HIRES_FILTER_*` names
+    - after fixing that wrapper bug, the corrected isolation runs materially narrow the active visible problem:
+      - strict file select with `allow_block=0` is a verified no-op and still lands on the locked `on` hash `8a90f7874bd797a186ff85d488033dc332b2a75f5bec91ad33ca8246e6be7730`
+      - strict file select with `allow_tile=0` collapses to the baseline `off` hash `6fa8688b382fa1e6f0323f054861a85f593d2d47ca737bb78448e3f268ca63e3`
+      - title screen with `allow_tile=0` still collapses to the baseline `off` hash `42e501afb2548a5067bc034578c5bcebf0bf2a40f612bbcc94972af716ad6ff2`
+      - so the currently visible hi-res output on the strict fixtures is tile-only
+      - the unresolved block families remain real identity/coverage gaps, but they are not part of the current strict file-select image
     - the new file-select input-probe scenario now expands that evidence base without changing the default strict fixtures:
       - it now supports explicit `--step-chunk-frames`, and the first savefile-backed deep branch reproduces byte-identically with `30`-frame chunks instead of one-frame stepping
       - on the heavier hi-res path, chunked probes now rely on `WAIT_STATUS_FRAME` rather than strict `STEP_FRAME` log acknowledgements, which made the fast deep probes reliable again

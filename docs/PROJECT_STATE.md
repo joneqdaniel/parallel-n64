@@ -289,6 +289,23 @@
     - same fully clamped, unmasked window style
     - `106` events
   - current implication: the early visible path is concentrated in a few repeated texrect sampler windows rather than a broad spread of sampler-state variants
+- The next link is now explicit on strict file select: those sampler regimes can be tied back to concrete lookup families
+  - the verified texel-link bundle (`20260326-texel-link-check`) shows the dominant no-hit texrect regime is not abstract:
+    - `draw_class=texrect cycle=1cycle`
+    - same `60x60` clamped window as before
+    - `texel0_fs=514`, `texel0_w=64`, `texel0_h=1`
+    - `70` events
+    - this is the dominant `64x1 fs514` block miss family showing up directly in a repeated texrect draw regime
+  - the same bundle also shows a smaller mixed texrect regime:
+    - `draw_class=texrect cycle=2cycle`
+    - same `60x60` clamped window
+    - `texel0_fs=258`, `texel0_w=8`, `texel0_h=16` with `texel0_hit=0`
+    - `texel1_fs=259`, `texel1_w=16`, `texel1_h=8` with `texel1_hit=1`
+    - `16` events
+    - this is the ambiguous `8x16 fs258` CI family surfacing directly in the same early menu neighborhood
+  - practical implication: the remaining early missing-texture problem is no longer “some texrect issue”; it is concretely split between:
+    - the dominant `64x1 fs514` block family in a repeated texrect regime
+    - the smaller ambiguous `8x16 fs258` CI family in another repeated texrect regime
 - The current exact-key audit artifact is now [N64 Exact Key Delta Sheet](/home/auro/code/parallel-n64/docs/plans/N64_EXACT_KEY_DELTA_SHEET.md).
 - The first logical-TLUT diagnostic pass is now live in strict CI probe bundles:
   - `traces/hires-evidence.json` now records `ci_palette_probe.logical_views`

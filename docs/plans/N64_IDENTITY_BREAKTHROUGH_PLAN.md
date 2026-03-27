@@ -214,6 +214,10 @@ Current artifact:
   - its strongest visible copy-mode replacement bucket is `draw_class=texrect cycle=copy copy=1 ... texel0_hit=1 texel1_hit=1` with `68` events
   - title screen (`20260326-draw-class-check`) shows the same structure more strongly: `texrect` dominates (`254/370` draw-usage lines), and the leading bucket is the same copy-mode texrect hit pattern with `136` events
   - practical implication: the visible early-scene hi-res path is not just “tile hits”; it is strongly texrect-driven, especially in copy mode
+  - the stricter texel-linked follow-up on file select (`20260326-texel-link-check`) narrows the miss side too:
+    - the dominant no-hit texrect regime is the `64x1 fs514` block family directly
+    - a smaller repeated mixed texrect regime carries the ambiguous `8x16 fs258` CI family
+    - so the remaining early texrect work is now concretely split between those two lookup families rather than one vague texrect bucket
 
 ## What This Plan Explicitly Avoids
 

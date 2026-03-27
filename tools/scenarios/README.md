@@ -156,6 +156,19 @@ Current Paper Mario runtime note:
     - same fully clamped, unmasked window style
     - `106` events
   - practical implication: the visible early path is concentrated in a few repeated texrect sampler windows, not a broad sampler-state explosion
+- the next strict file-select pass now links those sampler regimes back to concrete texel families:
+  - `20260326-texel-link-check` shows the dominant no-hit texrect regime is the `64x1 fs514` block family directly:
+    - `draw_class=texrect cycle=1cycle`
+    - same `60x60` clamped texrect window
+    - `texel0_fs=514`, `texel0_w=64`, `texel0_h=1`
+    - `70` events
+  - the same bundle shows the ambiguous `8x16 fs258` CI family as a smaller mixed texrect regime:
+    - `draw_class=texrect cycle=2cycle`
+    - same `60x60` clamped texrect window
+    - `texel0_fs=258`, `texel0_w=8`, `texel0_h=16`, `texel0_hit=0`
+    - `texel1_fs=259`, `texel1_w=16`, `texel1_h=8`, `texel1_hit=1`
+    - `16` events
+  - practical implication: the remaining early missing-texture work is now concretely split between the dominant `64x1 fs514` block family and the smaller ambiguous `8x16 fs258` CI family, not a generic texrect bucket
 - the same `hires-evidence.json` trace now also cross-checks miss keys against the active `.hts`/`.htc` index, so bundle evidence can distinguish “unmatched in the local pack index under the current checksum generation” from “lookup present under another formatsize”
 - CI palette probe runs now also record `ci_palette_probe.families` in `traces/hires-evidence.json`, so representative CI misses can report whether their low-32 pack family is exact/generic, dimension-uniform, or structurally ambiguous without changing the default lookup path
 - the same CI probe now also records `ci_palette_probe.usages` and `ci_palette_probe.emulated_tmem`, so strict bundles can show how many palette indices were actually sampled and whether raw-shadow versus emulated-TMEM palette views produce any pack-backed candidate at all

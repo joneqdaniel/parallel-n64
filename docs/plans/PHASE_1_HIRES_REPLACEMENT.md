@@ -66,6 +66,19 @@
       - same fully clamped, unmasked window style
       - `106` events
     - practical implication: the early visible path is concentrated in a few repeated texrect sampler windows, not a wide spread of unrelated sampling states
+  - the first texel-linked sampler pass now ties those regimes back to concrete lookup families on strict file select:
+    - the verified `20260326-texel-link-check` bundle shows the dominant no-hit texrect regime is the `64x1 fs514` block family directly:
+      - `draw_class=texrect cycle=1cycle`
+      - same `60x60` clamped texrect window
+      - `texel0_fs=514`, `texel0_w=64`, `texel0_h=1`
+      - `70` events
+    - the same bundle shows the ambiguous `8x16 fs258` CI family as a smaller mixed texrect regime:
+      - `draw_class=texrect cycle=2cycle`
+      - same `60x60` clamped texrect window
+      - `texel0_fs=258`, `texel0_w=8`, `texel0_h=16`, `texel0_hit=0`
+      - `texel1_fs=259`, `texel1_w=16`, `texel1_h=8`, `texel1_hit=1`
+      - `16` events
+    - practical implication: the remaining early-scene missing-texture problem is now concretely split between the dominant `64x1 fs514` block family and the smaller ambiguous `8x16 fs258` CI family, both inside repeated texrect regimes
   - hi-res traces now also expose stable bucket summaries, which collapse title misses to 5 unique classes and file-select misses to 6 unique classes
   - the current dominant unresolved file-select class is `mode=block fmt=2 siz=2 wh=64x1 fs=514 tile=7` with 70 repeated misses in the last verified strict `on` bundle
   - the new pack cross-check in `hires-evidence.json` shows those current strict-fixture misses are unmatched in the active local Paper Mario `.hts` index under our current checksum generation, not mismatched under another `formatsize`

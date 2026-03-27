@@ -99,6 +99,8 @@ This document describes the shape of the import model itself. The evidence thres
   - compares multiple review-only subset artifacts so candidate imported-family choices can be summarized side by side
 - [`tools/hires_pack_compare_views.py`](/home/auro/code/parallel-n64/tools/hires_pack_compare_views.py)
   - compares the legacy-family view against the canonical sampled-object view for one emitted subset
+- [`tools/hires_pack_emit_bindings.py`](/home/auro/code/parallel-n64/tools/hires_pack_emit_bindings.py)
+  - emits deterministic canonical sampled-object bindings and separates unresolved transport cases for future importer work
 
 ## Imported Index v1
 
@@ -114,6 +116,7 @@ This document describes the shape of the import model itself. The evidence thres
 - `canonical_records`
   - one record per sampled-object canonical identity observed in the imported slice
   - links canonical sampled object IDs to the legacy replacement records that currently transport into them
+  - now also carries concrete `transport_candidates` with imported replacement payload metadata for each linked legacy replacement
 - `legacy_transport_aliases`
   - one record per legacy family-to-canonical transport edge
   - explicit bridge between upload-family inputs and sampled-object runtime identity
@@ -225,6 +228,8 @@ The migration tool now emits that bridge when sampled-object bundle data is avai
 - the review and subset tools can now be driven directly from the sampled strict bundle with explicit `--low32/--formatsize` seeds, which is how [20260327-sampled-review.md](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260327-sampled-review.md) and [20260327-sampled-subset.json](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260327-sampled-subset.json) were emitted
 - the canonical transport view for that same slice is now explicit too:
   - the imported index itself now carries `canonical_records` and `legacy_transport_aliases`
+  - `canonical_records[*].transport_candidates` now makes the deterministic sampled-object path concrete by embedding the transported replacement payload metadata directly in the canonical record
+- the next narrowing step is now explicit too: deterministic canonical bindings can be emitted directly from a sampled subset via [`tools/hires_pack_emit_bindings.py`](/home/auro/code/parallel-n64/tools/hires_pack_emit_bindings.py), while unresolved transport cases stay separate
   - markdown: [20260327-sampled-legacy-vs-canonical.md](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260327-sampled-legacy-vs-canonical.md)
   - json: [20260327-sampled-canonical-projection.json](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260327-sampled-canonical-projection.json)
 

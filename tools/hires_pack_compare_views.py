@@ -56,6 +56,16 @@ def format_markdown(data):
         )
         lines.append(f"  - linked_policy_keys: `{', '.join(record.get('linked_policy_keys', [])) or 'none'}`")
         lines.append(f"  - linked_replacement_ids: `{', '.join(record.get('linked_replacement_ids', [])) or 'none'}`")
+        transport_candidates = record.get('transport_candidates', [])
+        lines.append(f"  - transport_candidate_count: `{len(transport_candidates)}`")
+        if transport_candidates:
+            for candidate in transport_candidates:
+                asset = candidate.get('replacement_asset', {})
+                dims = f"{asset.get('width')}x{asset.get('height')}" if asset else 'unknown'
+                palette_crc = (candidate.get('source') or {}).get('legacy_palette_crc') or 'unknown'
+                lines.append(
+                    f"    - `{candidate.get('replacement_id')}` palette=`{palette_crc}` dims=`{dims}` variant_group=`{candidate.get('variant_group_id')}`"
+                )
         upload_low32s = ', '.join(f"{item['value']}x{item['count']}" for item in record.get('upload_low32s', [])) or 'none'
         upload_pcrcs = ', '.join(f"{item['value']}x{item['count']}" for item in record.get('upload_pcrcs', [])) or 'none'
         lines.append(f"  - upload_low32s: `{upload_low32s}`")

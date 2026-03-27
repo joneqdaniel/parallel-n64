@@ -123,6 +123,18 @@ def collect_requested_pairs(bundle_path, low32_args, formatsize_args):
 
 
 def build_canonical_projection(imported_subset):
+    canonical_records = imported_subset.get("canonical_records")
+    legacy_links = imported_subset.get("legacy_transport_aliases")
+    if canonical_records is not None and legacy_links is not None:
+        canonical_list = sorted(canonical_records, key=lambda item: item["sampled_object_id"])
+        link_list = sorted(legacy_links, key=lambda item: item["policy_key"] or "")
+        return {
+            "canonical_record_count": len(canonical_list),
+            "legacy_link_count": len(link_list),
+            "canonical_records": canonical_list,
+            "legacy_links": link_list,
+        }
+
     canonical_records = {}
     legacy_links = []
 

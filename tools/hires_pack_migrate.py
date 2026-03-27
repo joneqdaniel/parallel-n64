@@ -105,9 +105,23 @@ def build_selector_policy(texture_crc, formatsize, observation, variant_group_li
     return policy
 
 
-def build_canonical_transport(compatibility_aliases, unresolved_families):
+def build_canonical_transport(compatibility_aliases, unresolved_families, record_index):
     canonical_records = {}
     legacy_transport_aliases = []
+
+    def make_transport_candidate(replacement_id):
+        source_record = record_index.get(replacement_id)
+        if not source_record:
+            return {
+                "replacement_id": replacement_id,
+            }
+        return {
+            "replacement_id": replacement_id,
+            "source": dict(source_record.get("source", {})),
+            "match": dict(source_record.get("match", {})),
+            "replacement_asset": dict(source_record.get("replacement_asset", {})),
+            "variant_group_id": source_record.get("diagnostics", {}).get("variant_group_id"),
+        }
 
     def ingest_family(family, family_type):
         policy_key = family.get("policy_key") or family.get("alias_id")
@@ -152,6 +166,7 @@ def build_canonical_transport(compatibility_aliases, unresolved_families):
                     "sample_replacement_dims": obj.get("sample_replacement_dims"),
                     "linked_policy_keys": [],
                     "linked_replacement_ids": [],
+                    "transport_candidates": [],
                     "upload_low32s": [],
                     "upload_pcrcs": [],
                 },
@@ -161,6 +176,8 @@ def build_canonical_transport(compatibility_aliases, unresolved_families):
             for replacement_id in family.get("candidate_replacement_ids", []):
                 if replacement_id not in record["linked_replacement_ids"]:
                     record["linked_replacement_ids"].append(replacement_id)
+                if not any(candidate.get("replacement_id") == replacement_id for candidate in record["transport_candidates"]):
+                    record["transport_candidates"].append(make_transport_candidate(replacement_id))
             for upload in obj.get("upload_low32s", []):
                 if upload not in record["upload_low32s"]:
                     record["upload_low32s"].append(upload)
@@ -174,6 +191,8 @@ def build_canonical_transport(compatibility_aliases, unresolved_families):
         ingest_family(family, "unresolved")
 
     legacy_transport_aliases.sort(key=lambda item: item["policy_key"] or "")
+    for record in canonical_records.values():
+        record["transport_candidates"].sort(key=lambda item: item.get("replacement_id") or "")
     return {
         "canonical_records": sorted(canonical_records.values(), key=lambda item: item["sampled_object_id"]),
         "legacy_transport_aliases": legacy_transport_aliases,
@@ -340,7 +359,8 @@ def build_imported_index(entries, requested_pairs, source_cache_path, bundle_con
                 }
             )
 
-    transport = build_canonical_transport(compatibility_aliases, unresolved_families)
+    record_index = {record["replacement_id"]: record for record in records}
+    transport = build_canonical_transport(compatibility_aliases, unresolved_families, record_index)
 
     return {
         "schema_version": 1,

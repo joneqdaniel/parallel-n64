@@ -350,6 +350,7 @@
   - both sampled objects use only `2` palette indices, and neither sampled key exists anywhere in the current pack index
   - practical implication: the pack and runtime are still speaking legacy upload-family identity, while the more accurate ParaLLEl exact object is the sampled TMEM/tile object; legacy pack transport now needs an explicit alias path from upload families to sampled-object canonical IDs
   - the migration tooling now carries that bridge explicitly when sampled bundle data exists: [20260327-sampled-import-index.json](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260327-sampled-import-index.json) records `canonical_sampled_objects` for the deterministic `2a1be0a4/fs2` family
+  - that same emitted index now preserves the dominant missing upload family as a first-class unresolved transport case: `legacy-low32-ab53409b-fs2`, reason `missing-active-pool`, with canonical sampled object `sampled-fmt2-siz0-off0-stride8-wh16x16-fs2-low327064585c`
 - The current exact-key audit artifact is now [N64 Exact Key Delta Sheet](/home/auro/code/parallel-n64/docs/plans/N64_EXACT_KEY_DELTA_SHEET.md).
 - The first logical-TLUT diagnostic pass is now live in strict CI probe bundles:
   - `traces/hires-evidence.json` now records `ci_palette_probe.logical_views`

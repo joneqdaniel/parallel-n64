@@ -80,6 +80,15 @@ def build_selector_policy(texture_crc, formatsize, observation, variant_group_li
             ]
         )
 
+    if tier == "missing-active-pool":
+        return {
+            "status": "manual-disambiguation-required",
+            "selector_basis": base_selector,
+            "candidate_variant_group_ids": [],
+            "disambiguation_inputs": disambiguation_inputs,
+            "selection_reason": "missing-active-pool",
+        }
+
     policy = {
         "status": "deterministic" if tier in ("compat-unique", "compat-repl-dims-unique") else "manual-disambiguation-required",
         "selector_basis": base_selector,
@@ -233,13 +242,17 @@ def build_imported_index(entries, requested_pairs, source_cache_path, bundle_con
                     },
                 }
             )
-        elif family_summary["recommended_tier"] == "ambiguous-import-or-policy":
+        elif family_summary["recommended_tier"] in ("ambiguous-import-or-policy", "missing-active-pool"):
             unresolved_families.append(
                 {
                     "policy_key": family_policy_key,
                     "family_low32": f"{texture_crc:08x}",
                     "formatsize": formatsize,
-                    "reason": "legacy-family-ambiguous",
+                    "reason": (
+                        "legacy-family-ambiguous"
+                        if family_summary["recommended_tier"] == "ambiguous-import-or-policy"
+                        else "missing-active-pool"
+                    ),
                     "active_pool": family_summary["active_pool"],
                     "active_unique_palette_count": family_summary["active_unique_palette_count"],
                     "active_unique_repl_dim_count": family_summary["active_unique_repl_dim_count"],

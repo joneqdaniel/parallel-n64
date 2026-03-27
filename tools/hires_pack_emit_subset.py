@@ -4,7 +4,7 @@ import json
 import sys
 from pathlib import Path
 
-from hires_pack_common import parse_cache_entries, parse_bundle_ci_context, parse_bundle_families
+from hires_pack_common import parse_cache_entries, parse_bundle_ci_context, parse_bundle_families, parse_bundle_sampled_object_context
 from hires_pack_migrate import build_imported_index, load_import_policy
 
 
@@ -85,11 +85,33 @@ def filter_imported_index(imported_index, policy_keys, variant_selections=None):
     }
 
 
+def collect_requested_pairs(bundle_path, low32_args, formatsize_args):
+    requested_pairs = list(parse_bundle_families(bundle_path))
+    if low32_args:
+        formatsizes = formatsize_args or []
+        if formatsizes and len(formatsizes) != len(low32_args):
+            raise SystemExit("--formatsize must either be omitted or match the number of --low32 arguments.")
+        for index, low32 in enumerate(low32_args):
+            formatsize = formatsizes[index] if formatsizes else 0
+            requested_pairs.append((int(low32, 16), formatsize))
+
+    deduped_pairs = []
+    seen = set()
+    for pair in requested_pairs:
+        if pair in seen:
+            continue
+        seen.add(pair)
+        deduped_pairs.append(pair)
+    return deduped_pairs
+
+
 def main():
     parser = argparse.ArgumentParser(description="Emit a tiny imported hi-res subset for selected strict families.")
     parser.add_argument("--cache", required=True, help="Path to .hts or .htc pack.")
     parser.add_argument("--bundle", required=True, help="Strict bundle path.")
     parser.add_argument("--policy", help="Optional import policy JSON.")
+    parser.add_argument("--low32", action="append", default=[], help="Optional low32 texture CRC in hex for explicit review/subset seeds.")
+    parser.add_argument("--formatsize", action="append", type=int, default=[], help="Formatsize values paired with --low32 in order.")
     parser.add_argument("--policy-key", action="append", default=[], help="Optional policy key(s) to keep in the emitted subset.")
     parser.add_argument("--variant-selection", action="append", default=[], help="Optional policy_key=variant_group_id override for review-only subset emission.")
     parser.add_argument("--output", help="Optional output JSON path.")
@@ -98,8 +120,9 @@ def main():
     cache_path = Path(args.cache)
     bundle_path = Path(args.bundle)
     entries = parse_cache_entries(cache_path)
-    requested_pairs = parse_bundle_families(bundle_path)
+    requested_pairs = collect_requested_pairs(bundle_path, args.low32, args.formatsize)
     bundle_context = parse_bundle_ci_context(bundle_path)
+    bundle_sampled_context = parse_bundle_sampled_object_context(bundle_path)
 
     import_policy = {"families": {}}
     if args.policy:
@@ -110,6 +133,7 @@ def main():
         requested_pairs,
         cache_path,
         bundle_context=bundle_context,
+        bundle_sampled_context=bundle_sampled_context,
         import_policy=import_policy,
     )
     subset = filter_imported_index(

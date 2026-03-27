@@ -4,7 +4,7 @@ import json
 import sys
 from pathlib import Path
 
-from hires_pack_common import parse_cache_entries, parse_bundle_ci_context, parse_bundle_families
+from hires_pack_common import parse_cache_entries, parse_bundle_ci_context, parse_bundle_families, parse_bundle_sampled_object_context
 from hires_pack_migrate import build_imported_index, load_import_policy
 
 
@@ -89,6 +89,7 @@ def summarize_family(record, family_type):
         "selected_variant_group_id": selector_policy.get("selected_variant_group_id"),
         "candidate_variant_group_ids": selector_policy.get("candidate_variant_group_ids", []),
         "applied_policy": selector_policy.get("applied_policy"),
+        "canonical_sampled_objects": record.get("canonical_sampled_objects", []),
         "runtime_context": {
             "mode": observed.get("mode"),
             "runtime_wh": observed.get("runtime_wh"),
@@ -108,10 +109,11 @@ def summarize_family(record, family_type):
     return summary
 
 
-def build_review_report(cache_path, bundle_path, policy_path=None):
+def build_review_report(cache_path, bundle_path, policy_path=None, low32_args=None, formatsize_args=None):
     entries = parse_cache_entries(cache_path)
-    requested_pairs = parse_bundle_families(bundle_path)
+    requested_pairs = collect_requested_pairs(bundle_path, low32_args or [], formatsize_args or [])
     bundle_context = parse_bundle_ci_context(bundle_path)
+    bundle_sampled_context = parse_bundle_sampled_object_context(bundle_path)
     import_policy = {"families": {}}
     if policy_path:
         import_policy = load_import_policy(policy_path)
@@ -121,6 +123,7 @@ def build_review_report(cache_path, bundle_path, policy_path=None):
         requested_pairs,
         cache_path,
         bundle_context=bundle_context,
+        bundle_sampled_context=bundle_sampled_context,
         import_policy=import_policy,
     )
 
@@ -171,6 +174,12 @@ def append_family_markdown(lines, family):
     lines.append(
         f"  - runtime: mode=`{runtime.get('mode')}` wh=`{runtime.get('runtime_wh')}` pcrc=`{runtime.get('observed_runtime_pcrc')}` sample_repl=`{runtime.get('sample_replacement_dims')}`"
     )
+    sampled_objects = family.get("canonical_sampled_objects") or []
+    lines.append(f"  - canonical_sampled_object_count: `{len(sampled_objects)}`")
+    for sampled in sampled_objects[:3]:
+        lines.append(
+            f"    - sampled_object `{sampled.get('sampled_object_id')}` draw=`{sampled.get('draw_class')}` cycle=`{sampled.get('cycle')}` wh=`{sampled.get('wh')}` low32=`{sampled.get('sampled_low32')}`"
+        )
     if family.get("applied_policy"):
         lines.append(f"  - applied_policy: `{json.dumps(family['applied_policy'], sort_keys=True)}`")
         for note in family["applied_policy"].get("selection_notes", []):
@@ -246,17 +255,39 @@ def format_markdown(report, focus_policy_key=None):
     return "\n".join(lines) + "\n"
 
 
+def collect_requested_pairs(bundle_path, low32_args, formatsize_args):
+    requested_pairs = list(parse_bundle_families(bundle_path))
+    if low32_args:
+        formatsizes = formatsize_args or []
+        if formatsizes and len(formatsizes) != len(low32_args):
+            raise SystemExit("--formatsize must either be omitted or match the number of --low32 arguments.")
+        for index, low32 in enumerate(low32_args):
+            formatsize = formatsizes[index] if formatsizes else 0
+            requested_pairs.append((int(low32, 16), formatsize))
+
+    deduped_pairs = []
+    seen = set()
+    for pair in requested_pairs:
+        if pair in seen:
+            continue
+        seen.add(pair)
+        deduped_pairs.append(pair)
+    return deduped_pairs
+
+
 def main():
     parser = argparse.ArgumentParser(description="Review a bundle-backed hi-res import slice without committing to a final format.")
     parser.add_argument("--cache", required=True, help="Path to .hts or .htc pack.")
     parser.add_argument("--bundle", required=True, help="Strict bundle path.")
     parser.add_argument("--policy", help="Optional import policy JSON.")
+    parser.add_argument("--low32", action="append", default=[], help="Optional low32 texture CRC in hex for explicit review/subset seeds.")
+    parser.add_argument("--formatsize", action="append", type=int, default=[], help="Formatsize values paired with --low32 in order.")
     parser.add_argument("--format", choices=("json", "markdown"), default="json")
     parser.add_argument("--focus-policy-key", help="Optional family policy key to render as a focused side-by-side review.")
     parser.add_argument("--output", help="Optional output path.")
     args = parser.parse_args()
 
-    report = build_review_report(Path(args.cache), Path(args.bundle), Path(args.policy) if args.policy else None)
+    report = build_review_report(Path(args.cache), Path(args.bundle), Path(args.policy) if args.policy else None, args.low32, args.formatsize)
     if args.format == "markdown":
         serialized = format_markdown(report, args.focus_policy_key)
     else:

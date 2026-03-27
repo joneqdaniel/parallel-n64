@@ -275,3 +275,4 @@ Current Paper Mario runtime note:
 
 - `traces/hires-evidence.json` now carries `sampled_object_probe` when `PARALLEL_RDP_HIRES_SAMPLED_OBJECT_PROBE=1` is enabled.
 - Use [hires_sampled_object_review.py](/home/auro/code/parallel-n64/tools/hires_sampled_object_review.py) to turn that structured bundle data into a focused markdown/json review artifact.
+- The import-side review/subset tools can now consume sampled strict bundles directly when you provide explicit `--low32/--formatsize` seeds for the upload families you want to transport.

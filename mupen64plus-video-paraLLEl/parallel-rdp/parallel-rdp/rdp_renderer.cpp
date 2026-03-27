@@ -4279,6 +4279,50 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 						     logical_alt_sparse_crc,
 						     logical_candidate_hit(logical_alt_entry_crc) ? 1 : 0,
 						     logical_candidate_hit(logical_alt_sparse_crc) ? 1 : 0);
+						if (tlut_enabled && meta.size == TextureSize::Bpp16)
+						{
+							const auto ci32_usage = detail::compute_hires_ci32_tlut_usage(
+									cpu_rdram,
+									rdram_size,
+									src_base_addr,
+									key_width_pixels,
+									key_height_pixels,
+									row_stride_bytes);
+							const uint32_t ci32_group_texture_crc = detail::compute_hires_ci32_tlut_group_texture_crc(
+									cpu_rdram,
+									rdram_size,
+									src_base_addr,
+									key_width_pixels,
+									key_height_pixels,
+									row_stride_bytes);
+							const uint32_t ci32_group_palette_crc = detail::compute_hires_ci32_tlut_group_palette_crc(
+									tlut_tmem_shadow,
+									sizeof(tlut_tmem_shadow),
+									tlut_shadow_valid,
+									ci32_usage);
+							const uint64_t ci32_group_checksum64 =
+									detail::compose_hires_checksum64(ci32_group_texture_crc, ci32_group_palette_crc);
+							ReplacementMeta ci32_group_meta = {};
+							const bool ci32_group_hit =
+									replacement_provider &&
+									ci32_group_texture_crc != 0 &&
+									ci32_group_palette_crc != 0 &&
+									replacement_provider->lookup(ci32_group_checksum64, formatsize, &ci32_group_meta);
+							LOGI("Hi-res CI palette probe ci32-tlut: mode=%s addr=0x%06x wh=%ux%u fs=%u used_count=%u used_min=%u used_max=%u group_low32=%08x group_pcrc=%08x group_hit=%u repl=%ux%u.\n",
+							     load_mode_to_string(info.mode),
+							     src_base_addr & 0x00ffffffu,
+							     key_width_pixels,
+							     key_height_pixels,
+							     unsigned(formatsize),
+							     ci32_usage.used_count,
+							     ci32_usage.valid ? ci32_usage.min_entry : 0u,
+							     ci32_usage.valid ? ci32_usage.max_entry : 0u,
+							     ci32_group_texture_crc,
+							     ci32_group_palette_crc,
+							     ci32_group_hit ? 1 : 0,
+							     ci32_group_hit ? ci32_group_meta.repl_w : 0u,
+							     ci32_group_hit ? ci32_group_meta.repl_h : 0u);
+						}
 						CILow32FamilyDiagnostics family_diag = {};
 						if (replacement_provider->describe_ci_low32_family(texture_crc, formatsize, palette_crc, &family_diag) &&
 						    family_diag.available)

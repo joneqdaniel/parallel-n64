@@ -314,7 +314,21 @@
   - there are no exact duplicate row payloads among the captured rows
   - every captured row has the same broad envelope: long zero padding at the front and back, with active bytes concentrated roughly in the `0x18..0x6b` range
   - reconstructing those exact row runs as larger `64xN` surfaces still produces no pack-backed low-32 families, and neither do the simple area-preserving reinterpretations of those runs
-  - current implication: this looks more like repeated row slices from a larger authored surface or sheet than random transient strip noise, which strengthens the current direction to model `loadblock` sampled-object provenance more faithfully rather than widening generic fallback
+  - the analyzer now also ties those same miss keys back to two repeated draw-side texrect regimes:
+    - `70` events in `draw=texrect cycle=1cycle fmt=2 siz=0 stride=8 sl=0 tl=0 sh=60 th=60 ...`
+    - `24` events in `draw=texrect cycle=2cycle fmt=2 siz=0 stride=8 sl=0 tl=0 sh=60 th=60 ...`
+  - practical implication: the dominant miss is not just “a `64x1` block upload with no pack hit”; it is a `64x1 fs514` loadblock upload feeding a sampled draw-side `CI4` texrect object, which makes the current raw-upload exact key visibly misaligned with the sampled N64 object
+- The first focused `CI16/CI32 + TLUT` diagnostic pass is now live in the strict file-select probe bundle at [20260326-ci32-tlut-probe](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260326-ci32-tlut-probe):
+  - the old CI palette path effectively had no view of this family:
+    - `entries=0`
+    - `pcrc=00000000`
+    - logical-view palette candidates also stay `0`
+  - the new `ci32-tlut` probe now derives a normalized sampled-object candidate for that class:
+    - example dominant family at `addr=0x2effd0`: `group_low32=a1b60295`, `group_pcrc=0440c3f1`
+    - broader `64x1` families now show nonzero `group_low32` / `group_pcrc` pairs and nonzero used-entry ranges, instead of the old dead `pcrc=0` path
+  - none of those normalized `ci32-tlut` candidates hit the current pack yet
+  - an offline pack-index cross-check now shows those normalized `ci32-tlut` low-32 candidates are absent across all formatsizes in the active pack, not just absent under `fs=514`
+  - practical implication: this family is still unresolved, but we now have direct proof that the current exact path was hashing ignored or non-authoritative bits for this class, and that the next keying experiment should target the sampled-object view rather than raw upload bytes
 - The current exact-key audit artifact is now [N64 Exact Key Delta Sheet](/home/auro/code/parallel-n64/docs/plans/N64_EXACT_KEY_DELTA_SHEET.md).
 - The first logical-TLUT diagnostic pass is now live in strict CI probe bundles:
   - `traces/hires-evidence.json` now records `ci_palette_probe.logical_views`

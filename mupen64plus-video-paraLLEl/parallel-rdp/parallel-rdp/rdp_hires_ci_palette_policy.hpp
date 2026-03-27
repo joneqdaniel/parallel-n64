@@ -4,6 +4,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <vector>
 
 #include "rdp_common.hpp"
 #include "texture_keying.hpp"
@@ -18,6 +19,15 @@ struct HiresCIPaletteUsage
 	uint32_t used_count = 0;
 	uint32_t min_index = 0;
 	uint32_t max_index = 0;
+	bool valid = false;
+};
+
+struct HiresCI32TLUTUsage
+{
+	std::array<uint8_t, 128> used_mask = {};
+	uint32_t used_count = 0;
+	uint32_t min_entry = 0;
+	uint32_t max_entry = 0;
 	bool valid = false;
 };
 
@@ -177,6 +187,123 @@ inline HiresCIPaletteUsage compute_hires_ci_palette_usage(TextureSize size,
 	}
 
 	return usage;
+}
+
+inline HiresCI32TLUTUsage compute_hires_ci32_tlut_usage(const uint8_t *cpu_rdram,
+                                                        size_t rdram_size,
+                                                        uint32_t src_base_addr,
+                                                        uint32_t key_width_pixels,
+                                                        uint32_t key_height_pixels,
+                                                        uint32_t row_stride_bytes)
+{
+	HiresCI32TLUTUsage usage = {};
+	if (!cpu_rdram || rdram_size == 0)
+		return usage;
+
+	auto mark_entry = [&](uint32_t entry) {
+		entry &= 0x3ffu;
+		const uint32_t byte_index = entry >> 3;
+		const uint8_t bit = uint8_t(1u << (entry & 7u));
+		if ((usage.used_mask[byte_index] & bit) != 0)
+			return;
+
+		usage.used_mask[byte_index] |= bit;
+		if (!usage.valid)
+		{
+			usage.min_entry = entry;
+			usage.max_entry = entry;
+			usage.valid = true;
+		}
+		else
+		{
+			usage.min_entry = std::min(usage.min_entry, entry);
+			usage.max_entry = std::max(usage.max_entry, entry);
+		}
+		usage.used_count++;
+	};
+
+	for (uint32_t y = 0; y < key_height_pixels; y++)
+	{
+		const uint32_t row_addr = (src_base_addr + y * row_stride_bytes) & uint32_t(rdram_size - 1);
+		for (uint32_t x = 0; x < key_width_pixels; x++)
+		{
+			const uint32_t texel_addr = (row_addr + x * 2u) & uint32_t(rdram_size - 1);
+			const uint16_t word =
+					uint16_t(wrapped_read_u8(cpu_rdram, rdram_size, texel_addr + 0u)) |
+					(uint16_t(wrapped_read_u8(cpu_rdram, rdram_size, texel_addr + 1u)) << 8u);
+			const uint32_t base_entry = (uint32_t(word >> 6u) & ~3u) & 0x3ffu;
+			for (uint32_t i = 0; i < 4u; i++)
+				mark_entry(base_entry + i);
+		}
+	}
+
+	return usage;
+}
+
+inline uint32_t compute_hires_ci32_tlut_group_texture_crc(const uint8_t *cpu_rdram,
+                                                          size_t rdram_size,
+                                                          uint32_t src_base_addr,
+                                                          uint32_t key_width_pixels,
+                                                          uint32_t key_height_pixels,
+                                                          uint32_t row_stride_bytes)
+{
+	if (!cpu_rdram || rdram_size == 0 || key_width_pixels == 0 || key_height_pixels == 0)
+		return 0;
+
+	std::vector<uint8_t> packed(size_t(key_width_pixels) * size_t(key_height_pixels) * 2u);
+	for (uint32_t y = 0; y < key_height_pixels; y++)
+	{
+		const uint32_t row_addr = (src_base_addr + y * row_stride_bytes) & uint32_t(rdram_size - 1);
+		for (uint32_t x = 0; x < key_width_pixels; x++)
+		{
+			const uint32_t texel_addr = (row_addr + x * 2u) & uint32_t(rdram_size - 1);
+			const uint16_t word =
+					uint16_t(wrapped_read_u8(cpu_rdram, rdram_size, texel_addr + 0u)) |
+					(uint16_t(wrapped_read_u8(cpu_rdram, rdram_size, texel_addr + 1u)) << 8u);
+			const uint16_t group_word = uint16_t((uint32_t(word >> 6u) & ~3u) & 0x3ffu);
+			const size_t dst = (size_t(y) * size_t(key_width_pixels) + size_t(x)) * 2u;
+			packed[dst + 0u] = uint8_t(group_word & 0xffu);
+			packed[dst + 1u] = uint8_t(group_word >> 8u);
+		}
+	}
+
+	return rice_crc32_wrapped(
+			packed.data(),
+			packed.size(),
+			0,
+			key_width_pixels,
+			key_height_pixels,
+			2,
+			key_width_pixels * 2u);
+}
+
+inline uint32_t compute_hires_ci32_tlut_group_palette_crc(const uint8_t *tlut_tmem_shadow,
+                                                          size_t tlut_tmem_shadow_size,
+                                                          bool tlut_shadow_valid,
+                                                          const HiresCI32TLUTUsage &usage)
+{
+	if (!usage.valid || usage.used_count == 0)
+		return 0;
+	if (!tlut_shadow_valid || !tlut_tmem_shadow || tlut_tmem_shadow_size < 2048)
+		return 0;
+
+	std::array<uint8_t, 2048> packed = {};
+	uint32_t packed_entries = 0;
+	for (uint32_t entry = 0; entry < 1024u; entry++)
+	{
+		if ((usage.used_mask[entry >> 3] & (1u << (entry & 7u))) == 0)
+			continue;
+
+		const uint32_t src = entry * 8u;
+		packed[packed_entries * 2u + 0u] = tlut_tmem_shadow[src + 0u];
+		packed[packed_entries * 2u + 1u] = tlut_tmem_shadow[src + 1u];
+		packed_entries++;
+	}
+
+	if (packed_entries == 0)
+		return 0;
+
+	return rice_crc32_wrapped(packed.data(), packed.size(), 0, packed_entries, 1, 2, packed_entries * 2u);
 }
 
 inline uint32_t compute_hires_ci_palette_crc_for_used_indices(TextureSize size,

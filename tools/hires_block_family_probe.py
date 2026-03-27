@@ -39,6 +39,45 @@ PROVENANCE_RE = re.compile(
     re.IGNORECASE,
 )
 
+DRAW_USAGE_RE = re.compile(
+    r"Hi-res draw usage: "
+    r"draw_class=(?P<draw_class>[\w-]+) "
+    r"cycle=(?P<cycle>[\w-]+) "
+    r"copy=(?P<copy>\d+) "
+    r"base_tile=(?P<base_tile>\d+) "
+    r"uses_texel0=(?P<uses_texel0>\d+) "
+    r"uses_texel1=(?P<uses_texel1>\d+) "
+    r"texel0_hit=(?P<texel0_hit>\d+) "
+    r"texel0_key=(?P<texel0_key>[0-9a-f]+) "
+    r"texel0_fs=(?P<texel0_fs>\d+) "
+    r"texel0_w=(?P<texel0_w>\d+) "
+    r"texel0_h=(?P<texel0_h>\d+) "
+    r"texel1_tile=(?P<texel1_tile>\d+) "
+    r"texel1_hit=(?P<texel1_hit>\d+) "
+    r"texel1_key=(?P<texel1_key>[0-9a-f]+) "
+    r"texel1_fs=(?P<texel1_fs>\d+) "
+    r"texel1_w=(?P<texel1_w>\d+) "
+    r"texel1_h=(?P<texel1_h>\d+) "
+    r"fmt=(?P<fmt>\d+) "
+    r"siz=(?P<siz>\d+) "
+    r"pal=(?P<pal>\d+) "
+    r"offset=(?P<offset>\d+) "
+    r"stride=(?P<stride>\d+) "
+    r"sl=(?P<sl>\d+) "
+    r"tl=(?P<tl>\d+) "
+    r"sh=(?P<sh>\d+) "
+    r"th=(?P<th>\d+) "
+    r"mask_s=(?P<mask_s>\d+) "
+    r"shift_s=(?P<shift_s>\d+) "
+    r"mask_t=(?P<mask_t>\d+) "
+    r"shift_t=(?P<shift_t>\d+) "
+    r"clamp_s=(?P<clamp_s>\d+) "
+    r"mirror_s=(?P<mirror_s>\d+) "
+    r"clamp_t=(?P<clamp_t>\d+) "
+    r"mirror_t=(?P<mirror_t>\d+)\.",
+    re.IGNORECASE,
+)
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Plan and analyze targeted hi-res block-family probes.")
@@ -97,6 +136,50 @@ def parse_provenance_rows(log_path: Path) -> list[dict]:
         ):
             base = 16 if key in ("addr", "tmem") else 10
             row[key] = int(row[key], base)
+        rows.append(row)
+    return rows
+
+
+def parse_draw_usage_rows(log_path: Path) -> list[dict]:
+    rows: list[dict] = []
+    for line in log_path.read_text(errors="replace").splitlines():
+        match = DRAW_USAGE_RE.search(line)
+        if not match:
+            continue
+        row = match.groupdict()
+        for key in (
+            "copy",
+            "base_tile",
+            "uses_texel0",
+            "uses_texel1",
+            "texel0_hit",
+            "texel0_fs",
+            "texel0_w",
+            "texel0_h",
+            "texel1_tile",
+            "texel1_hit",
+            "texel1_fs",
+            "texel1_w",
+            "texel1_h",
+            "fmt",
+            "siz",
+            "pal",
+            "offset",
+            "stride",
+            "sl",
+            "tl",
+            "sh",
+            "th",
+            "mask_s",
+            "shift_s",
+            "mask_t",
+            "shift_t",
+            "clamp_s",
+            "mirror_s",
+            "clamp_t",
+            "mirror_t",
+        ):
+            row[key] = int(row[key], 10)
         rows.append(row)
     return rows
 
@@ -316,6 +399,42 @@ def analyze_plan(plan: dict, snapshot_trace: Path, cache_path: Path | None = Non
     ]
     duplicate_groups.sort(key=lambda group: (-len(group["addresses"]), group["addresses"][0]))
 
+    family_keys = {item["key"].lower() for item in plan["address_counter"]}
+    draw_usage_rows = parse_draw_usage_rows(Path(plan["log_path"]))
+    matching_draw_usage = []
+    for row in draw_usage_rows:
+        if row["texel0_key"].lower() not in family_keys:
+            continue
+        if row["texel0_fs"] != int(plan["family"]["formatsize"]):
+            continue
+        if row["texel0_w"] != int(plan["family"]["width"]) or row["texel0_h"] != int(plan["family"]["height"]):
+            continue
+        matching_draw_usage.append(row)
+
+    draw_signature_counts = Counter()
+    draw_samples = {}
+    for row in matching_draw_usage:
+        signature = (
+            f"draw={row['draw_class']} cycle={row['cycle']} copy={row['copy']} "
+            f"fmt={row['fmt']} siz={row['siz']} stride={row['stride']} "
+            f"sl={row['sl']} tl={row['tl']} sh={row['sh']} th={row['th']} "
+            f"mask_s={row['mask_s']} shift_s={row['shift_s']} "
+            f"mask_t={row['mask_t']} shift_t={row['shift_t']} "
+            f"clamp_s={row['clamp_s']} mirror_s={row['mirror_s']} "
+            f"clamp_t={row['clamp_t']} mirror_t={row['mirror_t']}"
+        )
+        draw_signature_counts[signature] += 1
+        draw_samples.setdefault(signature, row)
+
+    draw_usage_summary = [
+        {
+            "signature": signature,
+            "count": count,
+            "sample": draw_samples[signature],
+        }
+        for signature, count in draw_signature_counts.most_common()
+    ]
+
     exact_row_run_pack_checks = []
     if cache_path is not None:
         cache_entries = parse_cache_entries(cache_path)
@@ -394,6 +513,7 @@ def analyze_plan(plan: dict, snapshot_trace: Path, cache_path: Path | None = Non
         },
         "rows": rows,
         "duplicate_row_groups": duplicate_groups,
+        "draw_usage_summary": draw_usage_summary,
         "exact_row_run_pack_checks": exact_row_run_pack_checks,
         "delta_vs_row_bytes": {
             "row_bytes": row_size_bytes,
@@ -447,6 +567,17 @@ def analyze_plan(plan: dict, snapshot_trace: Path, cache_path: Path | None = Non
             )
     else:
         md.append("- None")
+    if draw_usage_summary:
+        md.append("\n## Matched Draw-Side Regimes\n")
+        for item in draw_usage_summary[:8]:
+            sample = item["sample"]
+            md.append(f"- count=`{item['count']}` `{item['signature']}`")
+            md.append(
+                f"  - sample key=`{sample['texel0_key']}` "
+                f"draw_fmt_siz=`{sample['fmt']}/{sample['siz']}` "
+                f"upload_family=`{plan['family']['mode']} fs={plan['family']['formatsize']} "
+                f"wh={plan['family']['width']}x{plan['family']['height']}`"
+            )
     if exact_row_run_pack_checks:
         md.append("\n## Exact Row Run Pack Checks\n")
         for item in exact_row_run_pack_checks:

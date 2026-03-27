@@ -86,7 +86,17 @@
     - every captured row has the same broad zero-padded envelope, with active bytes concentrated roughly in the `0x18..0x6b` range
     - there are no exact duplicate row payloads across the captured set
     - reconstructing those exact row runs as larger `64xN` surfaces still produces no pack-backed low-32 families, and neither do the simple area-preserving reinterpretations of those runs
-    - practical implication: the dominant family looks more like repeated row slices from a larger authored surface or sheet than random transient strip noise, but the obvious “we just keyed too small a `64xN` surface” theory is now ruled out on the active pack; the likely fix path is a better `loadblock` sampled-object model rather than more generic fallback
+    - those same miss keys now also map back to two repeated draw-side texrect regimes:
+      - `70` events in `draw=texrect cycle=1cycle fmt=2 siz=0 stride=8 sl=0 tl=0 sh=60 th=60 ...`
+      - `24` events in `draw=texrect cycle=2cycle fmt=2 siz=0 stride=8 sl=0 tl=0 sh=60 th=60 ...`
+    - practical implication: the dominant family is not just “a bigger hidden `64xN` upload”; it is a `64x1 fs514` loadblock upload feeding a sampled draw-side `CI4` texrect object, so the next exact-key experiment needs to target the sampled-object view rather than the raw upload bytes
+  - the first focused `CI16/CI32 + TLUT` diagnostic pass is now live on the strict file-select bundle at [20260326-ci32-tlut-probe](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260326-ci32-tlut-probe):
+    - the old CI path had no meaningful view of that family: `entries=0`, `pcrc=00000000`, and logical-view palette probes also stayed `0`
+    - the new normalized `ci32-tlut` candidate path now produces nonzero sampled-object candidates for the same families:
+      - example dominant family at `addr=0x2effd0`: `group_low32=a1b60295`, `group_pcrc=0440c3f1`
+    - none of those normalized `ci32-tlut` candidates hit the current pack yet
+    - an offline pack-index cross-check shows those normalized `ci32-tlut` low-32 candidates are absent across all formatsizes in the active pack, not just absent under `fs=514`
+    - practical implication: this class is still unresolved, but we now have direct proof that the old exact path was hashing ignored or non-authoritative bits for it
   - hi-res traces now also expose stable bucket summaries, which collapse title misses to 5 unique classes and file-select misses to 6 unique classes
   - the current dominant unresolved file-select class is `mode=block fmt=2 siz=2 wh=64x1 fs=514 tile=7` with 70 repeated misses in the last verified strict `on` bundle
   - the new pack cross-check in `hires-evidence.json` shows those current strict-fixture misses are unmatched in the active local Paper Mario `.hts` index under our current checksum generation, not mismatched under another `formatsize`

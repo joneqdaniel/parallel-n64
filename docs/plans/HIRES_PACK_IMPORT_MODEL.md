@@ -97,6 +97,8 @@ This document describes the shape of the import model itself. The evidence thres
   - emits a tiny imported subset for selected family policy keys so we can inspect a concrete ParaLLEl-owned slice without committing to the full format
 - [`tools/hires_pack_compare_subsets.py`](/home/auro/code/parallel-n64/tools/hires_pack_compare_subsets.py)
   - compares multiple review-only subset artifacts so candidate imported-family choices can be summarized side by side
+- [`tools/hires_pack_compare_views.py`](/home/auro/code/parallel-n64/tools/hires_pack_compare_views.py)
+  - compares the legacy-family view against the canonical sampled-object view for one emitted subset
 
 ## Imported Index v1
 
@@ -213,6 +215,9 @@ The migration tool now emits that bridge when sampled-object bundle data is avai
 - verified example: the emitted sampled import index at [20260327-sampled-import-index.json](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260327-sampled-import-index.json) carries `2a1be0a4/fs2 -> sampled-fmt2-siz0-off0-stride32-wh64x16-fs2-low32c139c1c0`
 - the same emitted index now also keeps the dominant missing family alive as an unresolved transport record: `legacy-low32-ab53409b-fs2` with canonical sampled object `sampled-fmt2-siz0-off0-stride8-wh16x16-fs2-low327064585c` and reason `missing-active-pool`
 - the review and subset tools can now be driven directly from the sampled strict bundle with explicit `--low32/--formatsize` seeds, which is how [20260327-sampled-review.md](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260327-sampled-review.md) and [20260327-sampled-subset.json](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260327-sampled-subset.json) were emitted
+- the canonical transport view for that same slice is now explicit too:
+  - markdown: [20260327-sampled-legacy-vs-canonical.md](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260327-sampled-legacy-vs-canonical.md)
+  - json: [20260327-sampled-canonical-projection.json](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260327-sampled-canonical-projection.json)
 
 
 ## Policy Layer

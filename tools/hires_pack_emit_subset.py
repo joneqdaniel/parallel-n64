@@ -105,6 +105,79 @@ def collect_requested_pairs(bundle_path, low32_args, formatsize_args):
     return deduped_pairs
 
 
+def build_canonical_projection(imported_subset):
+    canonical_records = {}
+    legacy_links = []
+
+    def ingest_family(family, family_type):
+        policy_key = family.get("policy_key") or family.get("alias_id")
+        canonical_objects = family.get("canonical_sampled_objects") or []
+        link = {
+            "family_type": family_type,
+            "policy_key": policy_key,
+            "reason": family.get("reason"),
+            "kind": family.get("kind"),
+            "status": (family.get("selector_policy") or {}).get("status"),
+            "selection_reason": (family.get("selector_policy") or {}).get("selection_reason"),
+            "candidate_replacement_ids": family.get("candidate_replacement_ids", []),
+            "canonical_sampled_object_ids": [obj.get("sampled_object_id") for obj in canonical_objects],
+        }
+        legacy_links.append(link)
+        for obj in canonical_objects:
+            sampled_object_id = obj.get("sampled_object_id")
+            if not sampled_object_id:
+                continue
+            record = canonical_records.setdefault(
+                sampled_object_id,
+                {
+                    "sampled_object_id": sampled_object_id,
+                    "draw_class": obj.get("draw_class"),
+                    "cycle": obj.get("cycle"),
+                    "fmt": obj.get("fmt"),
+                    "siz": obj.get("siz"),
+                    "off": obj.get("off"),
+                    "stride": obj.get("stride"),
+                    "wh": obj.get("wh"),
+                    "formatsize": obj.get("formatsize"),
+                    "sampled_low32": obj.get("sampled_low32"),
+                    "sampled_entry_pcrc": obj.get("sampled_entry_pcrc"),
+                    "sampled_sparse_pcrc": obj.get("sampled_sparse_pcrc"),
+                    "pack_exact_entry_hit": obj.get("pack_exact_entry_hit"),
+                    "pack_exact_sparse_hit": obj.get("pack_exact_sparse_hit"),
+                    "pack_family_available": obj.get("pack_family_available"),
+                    "linked_policy_keys": [],
+                    "linked_replacement_ids": [],
+                    "upload_low32s": [],
+                    "upload_pcrcs": [],
+                },
+            )
+            if policy_key and policy_key not in record["linked_policy_keys"]:
+                record["linked_policy_keys"].append(policy_key)
+            for replacement_id in family.get("candidate_replacement_ids", []):
+                if replacement_id not in record["linked_replacement_ids"]:
+                    record["linked_replacement_ids"].append(replacement_id)
+            for upload in obj.get("upload_low32s", []):
+                if upload not in record["upload_low32s"]:
+                    record["upload_low32s"].append(upload)
+            for upload in obj.get("upload_pcrcs", []):
+                if upload not in record["upload_pcrcs"]:
+                    record["upload_pcrcs"].append(upload)
+
+    for family in imported_subset.get("compatibility_aliases", []):
+        ingest_family(family, "compatibility")
+    for family in imported_subset.get("unresolved_families", []):
+        ingest_family(family, "unresolved")
+
+    canonical_list = sorted(canonical_records.values(), key=lambda item: item["sampled_object_id"])
+    legacy_links.sort(key=lambda item: item["policy_key"] or "")
+    return {
+        "canonical_record_count": len(canonical_list),
+        "legacy_link_count": len(legacy_links),
+        "canonical_records": canonical_list,
+        "legacy_links": legacy_links,
+    }
+
+
 def main():
     parser = argparse.ArgumentParser(description="Emit a tiny imported hi-res subset for selected strict families.")
     parser.add_argument("--cache", required=True, help="Path to .hts or .htc pack.")
@@ -147,6 +220,7 @@ def main():
         "requested_policy_keys": args.policy_key,
         "requested_variant_selections": args.variant_selection,
         "imported_subset": subset,
+        "canonical_projection": build_canonical_projection(subset),
     }
 
     serialized = json.dumps(result, indent=2) + "\n"

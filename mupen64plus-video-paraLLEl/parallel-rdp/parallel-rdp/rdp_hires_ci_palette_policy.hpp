@@ -189,6 +189,100 @@ inline HiresCIPaletteUsage compute_hires_ci_palette_usage(TextureSize size,
 	return usage;
 }
 
+inline HiresCIPaletteUsage compute_hires_ci_palette_usage_tmem(TextureSize size,
+                                                               const uint8_t *tmem,
+                                                               size_t tmem_size,
+                                                               uint32_t src_base_addr,
+                                                               uint32_t key_width_pixels,
+                                                               uint32_t key_height_pixels,
+                                                               uint32_t row_stride_bytes)
+{
+	HiresCIPaletteUsage usage = {};
+	if (!tmem || tmem_size == 0)
+		return usage;
+
+	auto mark_index = [&](uint32_t index) {
+		if (size == TextureSize::Bpp4)
+			index &= 0xfu;
+		else if (size == TextureSize::Bpp8)
+			index &= 0xffu;
+		else
+			return;
+
+		const uint32_t byte_index = index >> 3;
+		const uint8_t bit = uint8_t(1u << (index & 7u));
+		if ((usage.used_mask[byte_index] & bit) == 0)
+		{
+			usage.used_mask[byte_index] |= bit;
+			if (!usage.valid)
+			{
+				usage.min_index = index;
+				usage.max_index = index;
+				usage.valid = true;
+			}
+			else
+			{
+				usage.min_index = std::min(usage.min_index, index);
+				usage.max_index = std::max(usage.max_index, index);
+			}
+			usage.used_count++;
+		}
+	};
+
+	if (size == TextureSize::Bpp8)
+	{
+		for (uint32_t y = 0; y < key_height_pixels; y++)
+		{
+			const uint32_t row_addr = (src_base_addr + y * row_stride_bytes) & uint32_t(tmem_size - 1);
+			for (uint32_t x = 0; x < key_width_pixels; x++)
+				mark_index(wrapped_read_u8(tmem, tmem_size, row_addr + x));
+		}
+	}
+	else if (size == TextureSize::Bpp4)
+	{
+		const uint32_t row_bytes = (key_width_pixels + 1) >> 1;
+		for (uint32_t y = 0; y < key_height_pixels; y++)
+		{
+			const uint32_t row_addr = (src_base_addr + y * row_stride_bytes) & uint32_t(tmem_size - 1);
+			for (uint32_t x = 0; x < row_bytes; x++)
+			{
+				const uint8_t v = wrapped_read_u8(tmem, tmem_size, row_addr + x);
+				mark_index((v >> 4) & 0xfu);
+				mark_index(v & 0xfu);
+			}
+		}
+	}
+
+	return usage;
+}
+
+inline uint32_t compute_hires_ci_palette_entry_count_tmem(TextureSize size,
+                                                          const uint8_t *tmem,
+                                                          size_t tmem_size,
+                                                          uint32_t src_base_addr,
+                                                          uint32_t key_width_pixels,
+                                                          uint32_t key_height_pixels,
+                                                          uint32_t row_stride_bytes)
+{
+	const auto usage = compute_hires_ci_palette_usage_tmem(
+			size,
+			tmem,
+			tmem_size,
+			src_base_addr,
+			key_width_pixels,
+			key_height_pixels,
+			row_stride_bytes);
+	if (!usage.valid)
+		return 0;
+
+	if (size == TextureSize::Bpp8)
+		return std::min<uint32_t>(usage.max_index + 1u, 256u);
+	else if (size == TextureSize::Bpp4)
+		return std::min<uint32_t>(usage.max_index + 1u, 16u);
+	else
+		return 0;
+}
+
 inline HiresCI32TLUTUsage compute_hires_ci32_tlut_usage(const uint8_t *cpu_rdram,
                                                         size_t rdram_size,
                                                         uint32_t src_base_addr,

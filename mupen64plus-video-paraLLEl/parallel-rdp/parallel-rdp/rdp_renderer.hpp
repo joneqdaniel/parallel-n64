@@ -141,11 +141,13 @@ public:
 	void load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint32_t tmem_offset);
 	void set_replacement_provider(const ReplacementProvider *provider);
 	void set_hires_debug(bool enable);
+	void set_cpu_tmem(uint8_t *host_tmem);
 	void set_hires_debug_filter(bool allow_tile,
 	                           bool allow_block,
 	                           std::unordered_set<std::string> &&blocked_signatures);
 	void set_hires_debug_block_shape_probe(bool enable);
 	void set_hires_debug_ci_palette_probe(bool enable);
+	void set_hires_debug_sampled_object_probe(bool enable);
 	void set_hires_ci_compatibility_mode(HiresCICompatibilityMode mode);
 	void set_hires_debug_ci_selectors(std::vector<CILow32DimsSelector> selectors);
 	void set_hires_debug_ci_low32_fallback(HiresDebugCILow32FallbackMode mode);
@@ -208,12 +210,14 @@ private:
 	Vulkan::Buffer *hidden_rdram = nullptr;
 	Vulkan::Buffer *tmem = nullptr;
 	uint8_t *cpu_rdram = nullptr;
+	uint8_t *cpu_tmem = nullptr;
 	const ShaderBank *shader_bank = nullptr;
 	const ReplacementProvider *replacement_provider = nullptr;
 	bool hires_debug = false;
 	HiresDebugFilterState hires_debug_filter;
 	bool hires_debug_block_shape_probe = false;
 	bool hires_debug_ci_palette_probe = false;
+	bool hires_debug_sampled_object_probe = false;
 	HiresCICompatibilityMode hires_ci_compatibility_mode = HiresCICompatibilityMode::Off;
 	std::vector<CILow32DimsSelector> hires_debug_ci_selectors;
 	HiresDebugCILow32FallbackMode hires_debug_ci_low32_fallback = HiresDebugCILow32FallbackMode::Off;
@@ -289,6 +293,7 @@ private:
 	std::unordered_set<std::string> hires_block_shape_probe_logged_contexts;
 	std::unordered_set<std::string> hires_ci_palette_probe_logged_hits;
 	std::unordered_set<std::string> hires_ci_palette_probe_logged_contexts;
+	std::unordered_set<std::string> hires_sampled_object_probe_logged_contexts;
 	Vulkan::BufferHandle tmem_instances;
 	Vulkan::BufferHandle span_setups;
 	Vulkan::BufferHandle blender_divider_lut_buffer;

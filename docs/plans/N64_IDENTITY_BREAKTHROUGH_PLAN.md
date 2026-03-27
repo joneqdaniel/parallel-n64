@@ -179,6 +179,11 @@ Current artifact:
   - consistent zero-padded row envelope with active bytes clustered in the middle
   - no exact duplicate row payloads
   - current implication: the dominant miss family behaves more like contiguous row slices from a larger authored surface than random transient data
+- the first sampled-object confirmation pass now exists at [20260327-sampled-object-probe](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260327-sampled-object-probe)
+  - the reviewed artifact is [hires-sampled-object-review.md](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260327-sampled-object-probe/traces/hires-sampled-object-review.md)
+  - dominant upload-side families collapse into two sampled draw-side CI4 texrect objects (`16x16@stride8` and `64x16@stride32`)
+  - neither sampled key exists in the active legacy pack index
+  - current implication: the new-format/import problem is now concrete, not hypothetical; ParaLLEl needs canonical sampled-object IDs plus explicit legacy alias transport
 
 ### Ticket 2: Exact Key Delta Sheet
 

@@ -10,6 +10,7 @@ from hires_pack_common import (
     collect_family_entries,
     parse_bundle_ci_context,
     parse_bundle_families,
+    parse_bundle_sampled_object_context,
     parse_cache_entries,
 )
 
@@ -95,17 +96,19 @@ def build_selector_policy(texture_crc, formatsize, observation, variant_group_li
     return policy
 
 
-def build_imported_index(entries, requested_pairs, source_cache_path, bundle_context=None, import_policy=None):
+def build_imported_index(entries, requested_pairs, source_cache_path, bundle_context=None, bundle_sampled_context=None, import_policy=None):
     records = []
     compatibility_aliases = []
     unresolved_families = []
     bundle_context = bundle_context or {}
+    bundle_sampled_context = bundle_sampled_context or {}
     import_policy = import_policy or {"families": {}}
 
     for texture_crc, formatsize in requested_pairs:
         family_summary = build_family_summary(entries, texture_crc, formatsize)
         family_entries = collect_family_entries(entries, texture_crc)
         observation = bundle_context.get((texture_crc, formatsize))
+        sampled_candidates = bundle_sampled_context.get((texture_crc, formatsize), [])
         family_policy_key = make_family_policy_key(texture_crc, formatsize)
         family_policy = import_policy["families"].get(family_policy_key)
         active_entries = [
@@ -180,6 +183,7 @@ def build_imported_index(entries, requested_pairs, source_cache_path, bundle_con
                         "family_tier": family_summary["recommended_tier"],
                         "active_pool": family_summary["active_pool"],
                         "variant_group_id": variant_group_id,
+                        "canonical_sampled_objects": sampled_candidates,
                     },
                 }
             )
@@ -217,6 +221,7 @@ def build_imported_index(entries, requested_pairs, source_cache_path, bundle_con
                     },
                     "policy_key": family_policy_key,
                     "observed_runtime_context": observation,
+                    "canonical_sampled_objects": sampled_candidates,
                     "selector_policy": selector_policy,
                     "candidate_replacement_ids": replacement_ids,
                     "candidate_variant_group_ids": [group["variant_group_id"] for group in variant_group_list],
@@ -240,6 +245,7 @@ def build_imported_index(entries, requested_pairs, source_cache_path, bundle_con
                     "active_unique_repl_dim_count": family_summary["active_unique_repl_dim_count"],
                     "active_replacement_dims": family_summary["active_replacement_dims"],
                     "observed_runtime_context": observation,
+                    "canonical_sampled_objects": sampled_candidates,
                     "selector_policy": selector_policy,
                     "candidate_replacement_ids": replacement_ids,
                     "variant_groups": variant_group_list,
@@ -276,6 +282,7 @@ def main():
     cache_path = Path(args.cache)
     entries = parse_cache_entries(cache_path)
     bundle_context = {}
+    bundle_sampled_context = {}
     import_policy = {"families": {}}
     if args.policy:
         import_policy = load_import_policy(args.policy)
@@ -285,6 +292,7 @@ def main():
         bundle_path = Path(args.bundle)
         requested_pairs.extend(parse_bundle_families(bundle_path))
         bundle_context = parse_bundle_ci_context(bundle_path)
+        bundle_sampled_context = parse_bundle_sampled_object_context(bundle_path)
 
     if args.low32:
         formatsizes = args.formatsize or []
@@ -312,7 +320,7 @@ def main():
         "plan": build_migration_plan(entries, deduped_pairs),
     }
     if args.emit_import_index:
-        result["imported_index"] = build_imported_index(entries, deduped_pairs, cache_path, bundle_context, import_policy)
+        result["imported_index"] = build_imported_index(entries, deduped_pairs, cache_path, bundle_context, bundle_sampled_context, import_policy)
 
     serialized = json.dumps(result, indent=2) + "\n"
     if args.output:

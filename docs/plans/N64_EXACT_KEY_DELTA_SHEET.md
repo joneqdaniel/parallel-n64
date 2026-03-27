@@ -142,8 +142,27 @@ It is:
 3. move exact lookup closer to the sampled N64 object
 4. keep compatibility/import policy explicit for the remaining ambiguous families
 
+## Direct Sampled-Object Evidence
+
+The latest strict file-select sampled-object probe turns the abstract delta into a concrete mismatch:
+
+- dominant upload-side miss family:
+  - upload family `ab53409b` / `pcrc=00000000`
+  - sampled draw-side object `fmt=2 siz=0 off=0 stride=8 wh=16x16 fs=2`
+  - sampled key `7064585c`
+  - sampled palette CRCs `a1c4a352` / `7ff0e39c`
+- representative visible upload-side CI family:
+  - upload family `2a1be0a4` / `pcrc=5c7e801a`
+  - sampled draw-side object `fmt=2 siz=0 off=0 stride=32 wh=64x16 fs=2`
+  - sampled key `c139c1c0`
+  - sampled palette CRCs `80038dc8` / `7ff2e39c`
+- neither sampled key exists in the current legacy pack index even though the upload-side low-32 keys do
+
+That means the missing field set is not just “one more palette tweak.” The canonical identity object has shifted.
+
 ## Immediate Follow-On Work
 
-- use the new provenance logging on strict title/file fixtures
-- add a logical TLUT diagnostic view that includes `tlut_type`
+- keep the new provenance logging on strict title/file fixtures
+- keep the logical TLUT diagnostic view that includes `tlut_type`
 - compare the current exact key against one sampler-aware candidate model before changing default runtime behavior
+- design imported records around sampled-object canonical IDs with explicit legacy upload-family aliases

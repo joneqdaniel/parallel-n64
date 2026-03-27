@@ -270,3 +270,8 @@ Current Paper Mario runtime note:
 - controller scripts remain in the repo as bootstrap paths for minting or replacing authoritative savestates
 - the file-select remint helper intentionally rebuilds the authoritative state from the bootstrap path and verifies it against the canonical capture hash
 - planned ladder steps should still get scenario and remint-script stubs so future work extends the model instead of bypassing it
+
+## Hi-Res Sampled-Object Probe
+
+- `traces/hires-evidence.json` now carries `sampled_object_probe` when `PARALLEL_RDP_HIRES_SAMPLED_OBJECT_PROBE=1` is enabled.
+- Use [hires_sampled_object_review.py](/home/auro/code/parallel-n64/tools/hires_sampled_object_review.py) to turn that structured bundle data into a focused markdown/json review artifact.

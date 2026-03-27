@@ -120,6 +120,20 @@ static uint32_t compute_hires_texture_source_span_bytes(uint32_t row_stride_byte
 	return row_stride_bytes * (height - 1) + row_bytes;
 }
 
+static bool compute_hires_tile_size_pixels(const TileSize &size, uint32_t &width_pixels, uint32_t &height_pixels)
+{
+	const uint32_t sl = size.slo >> 2;
+	const uint32_t sh = size.shi >> 2;
+	const uint32_t tl = size.tlo >> 2;
+	const uint32_t th = size.thi >> 2;
+	if (sh < sl || th < tl)
+		return false;
+
+	width_pixels = ((sh - sl) + 1u) & 0xfffu;
+	height_pixels = (th - tl) + 1u;
+	return width_pixels != 0 && height_pixels != 0;
+}
+
 static bool ranges_overlap_u32(uint32_t a_addr, uint32_t a_size, uint32_t b_addr, uint32_t b_size)
 {
 	if (a_size == 0 || b_size == 0)
@@ -858,6 +872,7 @@ void Renderer::set_replacement_provider(const ReplacementProvider *provider)
 	hires_block_shape_probe_logged_contexts.clear();
 	hires_ci_palette_probe_logged_hits.clear();
 	hires_ci_palette_probe_logged_contexts.clear();
+	hires_sampled_object_probe_logged_contexts.clear();
 
 	if (caps.hires_replacement_shader)
 	{
@@ -871,6 +886,11 @@ void Renderer::set_replacement_provider(const ReplacementProvider *provider)
 void Renderer::set_hires_debug(bool enable)
 {
 	hires_debug = enable;
+}
+
+void Renderer::set_cpu_tmem(uint8_t *host_tmem)
+{
+	cpu_tmem = host_tmem;
 }
 
 void Renderer::set_hires_debug_filter(bool allow_tile,
@@ -902,6 +922,13 @@ void Renderer::set_hires_debug_ci_palette_probe(bool enable)
 	hires_debug_ci_palette_probe = enable;
 	if (hires_debug_ci_palette_probe)
 		LOGI("Hi-res debug CI palette probe enabled.\n");
+}
+
+void Renderer::set_hires_debug_sampled_object_probe(bool enable)
+{
+	hires_debug_sampled_object_probe = enable;
+	if (hires_debug_sampled_object_probe)
+		LOGI("Hi-res debug sampled-object probe enabled.\n");
 }
 
 void Renderer::set_hires_ci_compatibility_mode(HiresCICompatibilityMode mode)
@@ -1685,18 +1712,19 @@ void Renderer::draw_shaded_primitive(const TriangleSetup &setup, const Attribute
 	deduce_static_texture_state(setup.tile & 7, setup.tile >> 3);
 	deduce_noise_state();
 
+	const auto raster_flags = stream.static_raster_state.flags;
+	const bool uses_texel0 = (raster_flags & RASTERIZATION_USES_TEXEL0_BIT) != 0;
+	const bool uses_texel1 = (raster_flags & RASTERIZATION_USES_TEXEL1_BIT) != 0 ||
+	                         (raster_flags & RASTERIZATION_USES_PIPELINED_TEXEL1_BIT) != 0;
+	const unsigned base_tile = setup.tile & 7u;
+	const unsigned texel1_tile = (base_tile + 1u) & 7u;
+	const auto &base_meta = tiles[base_tile].meta;
+	const auto &base_size = tiles[base_tile].size;
+	const auto &texel0_state = replacement_tiles[base_tile];
+	const auto &texel1_state = replacement_tiles[texel1_tile];
+
 	if (hires_debug)
 	{
-		const auto raster_flags = stream.static_raster_state.flags;
-		const bool uses_texel0 = (raster_flags & RASTERIZATION_USES_TEXEL0_BIT) != 0;
-		const bool uses_texel1 = (raster_flags & RASTERIZATION_USES_TEXEL1_BIT) != 0 ||
-		                         (raster_flags & RASTERIZATION_USES_PIPELINED_TEXEL1_BIT) != 0;
-		const unsigned base_tile = setup.tile & 7u;
-		const unsigned texel1_tile = (base_tile + 1u) & 7u;
-		const auto &base_meta = tiles[base_tile].meta;
-		const auto &base_size = tiles[base_tile].size;
-		const auto &texel0_state = replacement_tiles[base_tile];
-		const auto &texel1_state = replacement_tiles[texel1_tile];
 		LOGI("Hi-res draw usage: draw_class=%s cycle=%s copy=%u base_tile=%u uses_texel0=%u uses_texel1=%u texel0_hit=%u texel0_key=%016llx texel0_fs=%u texel0_w=%u texel0_h=%u texel1_tile=%u texel1_hit=%u texel1_key=%016llx texel1_fs=%u texel1_w=%u texel1_h=%u fmt=%u siz=%u pal=%u offset=%u stride=%u sl=%u tl=%u sh=%u th=%u mask_s=%u shift_s=%u mask_t=%u shift_t=%u clamp_s=%u mirror_s=%u clamp_t=%u mirror_t=%u.\n",
 		     get_hires_draw_class(draw_class),
 		     get_hires_cycle_class(raster_flags),
@@ -1732,6 +1760,124 @@ void Renderer::draw_shaded_primitive(const TriangleSetup &setup, const Attribute
 		     (base_meta.flags & TILE_INFO_MIRROR_S_BIT) != 0 ? 1u : 0u,
 		     (base_meta.flags & TILE_INFO_CLAMP_T_BIT) != 0 ? 1u : 0u,
 		     (base_meta.flags & TILE_INFO_MIRROR_T_BIT) != 0 ? 1u : 0u);
+	}
+
+	if (hires_debug_sampled_object_probe &&
+	    replacement_provider &&
+	    cpu_tmem &&
+	    tlut_shadow_valid &&
+	    uses_texel0 &&
+	    !texel0_state.hit &&
+	    base_meta.fmt == TextureFormat::CI &&
+	    (draw_class == HiresDrawClass::TexRect || draw_class == HiresDrawClass::TexRectFlip))
+	{
+		uint32_t sampled_width_pixels = 0;
+		uint32_t sampled_height_pixels = 0;
+		if (compute_hires_tile_size_pixels(base_size, sampled_width_pixels, sampled_height_pixels))
+		{
+			const uint32_t sampled_row_stride_bytes = base_meta.stride != 0 ? base_meta.stride : compute_hires_texture_row_bytes(sampled_width_pixels, base_meta.size);
+			if (sampled_row_stride_bytes != 0)
+			{
+				char probe_key[256] = {};
+				std::snprintf(probe_key, sizeof(probe_key),
+				              "draw=%s cycle=%s tile=%u fmt=%u siz=%u pal=%u off=%u stride=%u sl=%u tl=%u sh=%u th=%u",
+				              get_hires_draw_class(draw_class),
+				              get_hires_cycle_class(raster_flags),
+				              base_tile,
+				              unsigned(base_meta.fmt),
+				              unsigned(base_meta.size),
+				              unsigned(base_meta.palette),
+				              unsigned(base_meta.offset),
+				              unsigned(base_meta.stride),
+				              unsigned(base_size.slo),
+				              unsigned(base_size.tlo),
+				              unsigned(base_size.shi),
+				              unsigned(base_size.thi));
+				if (hires_sampled_object_probe_logged_contexts.insert(probe_key).second)
+				{
+					const uint32_t sampled_texture_crc = rice_crc32_wrapped(
+						cpu_tmem,
+						0x1000,
+						base_meta.offset,
+						sampled_width_pixels,
+						sampled_height_pixels,
+						uint32_t(base_meta.size),
+						sampled_row_stride_bytes);
+					const auto sampled_usage = detail::compute_hires_ci_palette_usage_tmem(
+						base_meta.size,
+						cpu_tmem,
+						0x1000,
+						base_meta.offset,
+						sampled_width_pixels,
+						sampled_height_pixels,
+						sampled_row_stride_bytes);
+					const uint32_t sampled_entry_count = detail::compute_hires_ci_palette_entry_count_tmem(
+						base_meta.size,
+						cpu_tmem,
+						0x1000,
+						base_meta.offset,
+						sampled_width_pixels,
+						sampled_height_pixels,
+						sampled_row_stride_bytes);
+					const uint32_t sampled_entry_crc = detail::compute_hires_ci_palette_crc_for_entries_tmem(
+						base_meta.size,
+						base_meta.palette,
+						tlut_tmem_shadow,
+						sizeof(tlut_tmem_shadow),
+						tlut_shadow_valid,
+						sampled_entry_count);
+					const uint32_t sampled_sparse_crc = detail::compute_hires_ci_palette_crc_for_used_indices_tmem(
+						base_meta.size,
+						base_meta.palette,
+						tlut_tmem_shadow,
+						sizeof(tlut_tmem_shadow),
+						tlut_shadow_valid,
+						sampled_usage);
+					const uint16_t sampled_formatsize = formatsize_key(base_meta.fmt, base_meta.size);
+					ReplacementMeta sampled_entry_meta = {};
+					ReplacementMeta sampled_sparse_meta = {};
+					const bool sampled_entry_hit = sampled_entry_crc != 0 && replacement_provider->lookup(
+						detail::compose_hires_checksum64(sampled_texture_crc, sampled_entry_crc),
+						sampled_formatsize,
+						&sampled_entry_meta);
+					const bool sampled_sparse_hit = sampled_sparse_crc != 0 && replacement_provider->lookup(
+						detail::compose_hires_checksum64(sampled_texture_crc, sampled_sparse_crc),
+						sampled_formatsize,
+						&sampled_sparse_meta);
+					CILow32FamilyDiagnostics sampled_family = {};
+					const bool sampled_family_available = replacement_provider->describe_ci_low32_family(
+						sampled_texture_crc,
+						sampled_formatsize,
+						sampled_sparse_crc,
+						&sampled_family) && sampled_family.available;
+					LOGI("Hi-res sampled-object probe: draw_class=%s cycle=%s tile=%u fmt=%u siz=%u pal=%u off=%u stride=%u wh=%ux%u upload_low32=%08x upload_pcrc=%08x sampled_low32=%08x sampled_entry_pcrc=%08x sampled_sparse_pcrc=%08x sampled_entry_count=%u sampled_used_count=%u fs=%u entry_hit=%u sparse_hit=%u family=%u unique_repl_dims=%u sample_repl=%ux%u.\n",
+					     get_hires_draw_class(draw_class),
+					     get_hires_cycle_class(raster_flags),
+					     base_tile,
+					     unsigned(base_meta.fmt),
+					     unsigned(base_meta.size),
+					     unsigned(base_meta.palette),
+					     unsigned(base_meta.offset),
+					     unsigned(base_meta.stride),
+					     sampled_width_pixels,
+					     sampled_height_pixels,
+					     uint32_t(texel0_state.checksum64 & 0xffffffffu),
+					     uint32_t((texel0_state.checksum64 >> 32) & 0xffffffffu),
+					     sampled_texture_crc,
+					     sampled_entry_crc,
+					     sampled_sparse_crc,
+					     sampled_entry_count,
+					     sampled_usage.used_count,
+					     unsigned(sampled_formatsize),
+					     sampled_entry_hit ? 1 : 0,
+					     sampled_sparse_hit ? 1 : 0,
+					     sampled_family_available ? 1 : 0,
+					     sampled_family_available ? sampled_family.active_unique_repl_dim_count : 0u,
+					     sampled_family_available ? sampled_family.sample_repl_w : 0u,
+					     sampled_family_available ? sampled_family.sample_repl_h : 0u);
+				}
+			}
+		}
 	}
 
 	InstanceIndices indices = {};

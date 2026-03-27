@@ -196,6 +196,23 @@ The first file-select input-probe expansion now adds a third useful case as well
 - that family lands on a single `560x160` variant group and currently classifies as `compat-unique`
 - that matters because it shows the imported selector model can grow from real bundle-backed exploration without forcing us to treat every newly exposed CI family as ambiguous by default
 
+## Sampled-Object Canonicalization
+
+The new strict sampled-object probe changes the transport model materially:
+- legacy upload-side low-32 families are not necessarily the canonical identity ParaLLEl should match at runtime
+- on the strict file-select bundle, upload families like `ab53409b` and `2a1be0a4` collapse into sampled draw-side CI4 texrect objects with canonical keys `7064585c` and `c139c1c0`
+- those sampled canonical keys do not exist in the active legacy pack index, which means imported transport must preserve both:
+  - a canonical sampled-object identity for ParaLLEl-owned exact lookup
+  - one or more legacy upload-family aliases that explain how old packs map onto that canonical object
+- practical implication: imported records should gain an explicit canonical sampled-object section, while compatibility aliases become a legacy-to-canonical transport layer instead of the primary identity model
+
+The migration tool now emits that bridge when sampled-object bundle data is available:
+- `records[*].diagnostics.canonical_sampled_objects`
+- `compatibility_aliases[*].canonical_sampled_objects`
+- `unresolved_families[*].canonical_sampled_objects`
+- verified example: the emitted sampled import index at [20260327-sampled-import-index.json](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260327-sampled-import-index.json) carries `2a1be0a4/fs2 -> sampled-fmt2-siz0-off0-stride32-wh64x16-fs2-low32c139c1c0`
+
+
 ## Policy Layer
 
 - Use [`tools/hires_pack_import_policy.json`](/home/auro/code/parallel-n64/tools/hires_pack_import_policy.json) to record explicit import decisions or non-binding suggestions.

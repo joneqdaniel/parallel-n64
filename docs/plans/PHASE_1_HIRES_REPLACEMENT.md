@@ -101,6 +101,13 @@
     - upload-side keying still treats it as `fmt=2 siz=1`
     - the repeated draw-side texrect regime sampling it is `fmt=2 siz=0 stride=8 sl=0 tl=0 sh=60 th=60 ...`
     - practical implication: the repeated early Paper Mario misses are increasingly pointing at one architectural problem, not isolated family quirks: exact replacement identity needs to target the sampled TMEM/tile object, not just the upload blob
+  - the first direct sampled-TMEM/tile exact-key probe now confirms that on the strict file-select authority at [20260327-sampled-object-probe](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260327-sampled-object-probe):
+    - the diagnostic gate is `PARALLEL_RDP_HIRES_SAMPLED_OBJECT_PROBE=1`
+    - it preserves the strict `on` screenshot hash while logging sampled draw-side CI texrect objects
+    - the dominant `64x1 fs514` upload family collapses to one sampled `16x16 CI4` object at `off=0 stride=8 fs=2`, with sampled key `7064585c` and palette CRCs `a1c4a352` / `7ff0e39c`
+    - the visible `32x16 fs258` neighborhood collapses to one sampled `64x16 CI4` object at `off=0 stride=32 fs=2`, with sampled key `c139c1c0` and palette CRCs `80038dc8` / `7ff2e39c`
+    - neither sampled key exists anywhere in the current active pack index, even though the corresponding upload-side low-32 families do
+    - practical implication: exact runtime identity should move toward the sampled TMEM/tile object, while imported pack transport must learn explicit legacy-upload-family aliases instead of hiding that mismatch behind runtime heuristics
   - hi-res traces now also expose stable bucket summaries, which collapse title misses to 5 unique classes and file-select misses to 6 unique classes
   - the current dominant unresolved file-select class is `mode=block fmt=2 siz=2 wh=64x1 fs=514 tile=7` with 70 repeated misses in the last verified strict `on` bundle
   - the new pack cross-check in `hires-evidence.json` shows those current strict-fixture misses are unmatched in the active local Paper Mario `.hts` index under our current checksum generation, not mismatched under another `formatsize`

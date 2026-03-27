@@ -214,6 +214,49 @@ def parse_bundle_ci_context(bundle_path: Path):
     return context
 
 
+
+def parse_bundle_sampled_object_context(bundle_path: Path):
+    hires_path = bundle_path / "traces" / "hires-evidence.json"
+    data = json.loads(hires_path.read_text())
+    sampled_probe = data.get("sampled_object_probe", {})
+
+    context = {}
+    for group in sampled_probe.get("top_groups", []):
+        fields = group.get("fields", {})
+        formatsize = int(fields.get("fs", "0"))
+        sampled_object = {
+            "sampled_object_id": (
+                f"sampled-fmt{fields.get('fmt')}-siz{fields.get('siz')}-"
+                f"off{fields.get('off')}-stride{fields.get('stride')}-"
+                f"wh{fields.get('wh')}-fs{fields.get('fs')}-low32{fields.get('sampled_low32')}"
+            ),
+            "draw_class": fields.get("draw_class"),
+            "cycle": fields.get("cycle"),
+            "fmt": fields.get("fmt"),
+            "siz": fields.get("siz"),
+            "off": fields.get("off"),
+            "stride": fields.get("stride"),
+            "wh": fields.get("wh"),
+            "formatsize": formatsize,
+            "sampled_low32": fields.get("sampled_low32"),
+            "sampled_entry_pcrc": fields.get("sampled_entry_pcrc"),
+            "sampled_sparse_pcrc": fields.get("sampled_sparse_pcrc"),
+            "sampled_entry_count": fields.get("sampled_entry_count"),
+            "sampled_used_count": fields.get("sampled_used_count"),
+            "pack_exact_entry_hit": fields.get("entry_hit") == "1",
+            "pack_exact_sparse_hit": fields.get("sparse_hit") == "1",
+            "pack_family_available": fields.get("family") == "1",
+            "unique_replacement_dims": int(fields.get("unique_repl_dims", "0")),
+            "sample_replacement_dims": fields.get("sample_repl"),
+            "upload_low32s": group.get("upload_low32s", []),
+            "upload_pcrcs": group.get("upload_pcrcs", []),
+        }
+        for upload in group.get("upload_low32s", []):
+            key = (int(upload.get("value"), 16), formatsize)
+            context.setdefault(key, []).append(sampled_object)
+
+    return context
+
 def classify_family(summary):
     if summary["active_pool"] == "exact":
         return "exact-authoritative"

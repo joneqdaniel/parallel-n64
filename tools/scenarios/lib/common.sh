@@ -184,6 +184,13 @@ result = {
         "emulated_tmem": [],
         "logical_views": [],
     },
+    "sampled_object_probe": {
+        "available": False,
+        "line_count": 0,
+        "unique_group_count": 0,
+        "groups": [],
+        "top_groups": [],
+    },
 }
 
 if not log_path.is_file():
@@ -208,6 +215,7 @@ ci_emulated_tmem_re = re.compile(r"Hi-res CI palette probe emulated-tmem: (.+)")
 ci_logical_view_re = re.compile(r"Hi-res CI palette probe logical-view: (.+)")
 provenance_re = re.compile(r"Hi-res keying provenance: (.+)")
 draw_usage_re = re.compile(r"Hi-res draw usage: (.+)")
+sampled_object_re = re.compile(r"Hi-res sampled-object probe: (.+)")
 field_re = re.compile(r"(\w+)=([^\s]+)")
 
 bucket_maps = {
@@ -220,6 +228,7 @@ miss_records = []
 provenance_buckets = {}
 draw_usage_buckets = {}
 sampler_usage_buckets = {}
+sampled_object_buckets = {}
 
 def parse_fields(detail):
     fields = {}
@@ -326,6 +335,29 @@ def finalize_sampler_usage_summary():
     ]
     items.sort(key=lambda item: (-item["count"], item["signature"]))
     result["sampler_usage"]["top_buckets"] = items[:10]
+
+def finalize_sampled_object_summary():
+    items = []
+    for signature, payload in sampled_object_buckets.items():
+        items.append(
+            {
+                "signature": signature,
+                "count": payload["count"],
+                "fields": payload["fields"],
+                "sample_detail": payload["sample_detail"],
+                "upload_low32s": [
+                    {"value": value, "count": count}
+                    for value, count in sorted(payload["upload_low32s"].items(), key=lambda item: (-item[1], item[0]))
+                ],
+                "upload_pcrcs": [
+                    {"value": value, "count": count}
+                    for value, count in sorted(payload["upload_pcrcs"].items(), key=lambda item: (-item[1], item[0]))
+                ],
+            }
+        )
+    items.sort(key=lambda item: (-item["count"], item["signature"]))
+    result["sampled_object_probe"]["unique_group_count"] = len(items)
+    result["sampled_object_probe"]["top_groups"] = items[:10]
 
 def parse_hts_cache_index(cache_path):
     data = cache_path.read_bytes()
@@ -613,6 +645,75 @@ for line in log_path.read_text(errors="replace").splitlines():
             result["ci_palette_probe"]["logical_views"].append(fields)
         continue
 
+    m = sampled_object_re.search(line)
+    if m:
+        result["available"] = True
+        result["sampled_object_probe"]["available"] = True
+        result["sampled_object_probe"]["line_count"] += 1
+        detail = m.group(1).strip()
+        fields = parse_fields(detail)
+        if len(result["sampled_object_probe"]["groups"]) < 20:
+            result["sampled_object_probe"]["groups"].append(fields)
+        signature = " ".join(
+            f"{key}={fields.get(key)}"
+            for key in (
+                "draw_class",
+                "cycle",
+                "fmt",
+                "siz",
+                "off",
+                "stride",
+                "wh",
+                "fs",
+                "sampled_low32",
+                "sampled_sparse_pcrc",
+            )
+            if fields.get(key) is not None
+        )
+        bucket = sampled_object_buckets.setdefault(
+            signature,
+            {
+                "count": 0,
+                "fields": {
+                    key: fields.get(key)
+                    for key in (
+                        "draw_class",
+                        "cycle",
+                        "tile",
+                        "fmt",
+                        "siz",
+                        "pal",
+                        "off",
+                        "stride",
+                        "wh",
+                        "fs",
+                        "sampled_low32",
+                        "sampled_entry_pcrc",
+                        "sampled_sparse_pcrc",
+                        "sampled_entry_count",
+                        "sampled_used_count",
+                        "entry_hit",
+                        "sparse_hit",
+                        "family",
+                        "unique_repl_dims",
+                        "sample_repl",
+                    )
+                    if fields.get(key) is not None
+                },
+                "sample_detail": detail,
+                "upload_low32s": {},
+                "upload_pcrcs": {},
+            },
+        )
+        bucket["count"] += 1
+        upload_low32 = fields.get("upload_low32")
+        if upload_low32 is not None:
+            bucket["upload_low32s"][upload_low32] = bucket["upload_low32s"].get(upload_low32, 0) + 1
+        upload_pcrc = fields.get("upload_pcrc")
+        if upload_pcrc is not None:
+            bucket["upload_pcrcs"][upload_pcrc] = bucket["upload_pcrcs"].get(upload_pcrc, 0) + 1
+        continue
+
     m = provenance_re.search(line)
     if m:
         result["available"] = True
@@ -844,6 +945,7 @@ for kind in ("hit", "miss", "filtered", "tlut_update"):
 finalize_provenance_summary()
 finalize_draw_usage_summary()
 finalize_sampler_usage_summary()
+finalize_sampled_object_summary()
 finalize_pack_crosscheck()
 
 output_path.write_text(json.dumps(result, indent=2) + "\n")

@@ -194,6 +194,14 @@ bool init()
 	}
 
 	CommandProcessorFlags flags = 0;
+	if (const char *env = getenv("PARALLEL_RDP_HIRES_SAMPLED_OBJECT_PROBE"))
+	{
+		if (strtol(env, nullptr, 0) > 0)
+		{
+			flags |= COMMAND_PROCESSOR_FLAG_HOST_VISIBLE_TMEM_BIT;
+			log_cb(RETRO_LOG_INFO, "Enabling host-visible TMEM for hi-res sampled-object probing.\n");
+		}
+	}
 	switch (upscaling)
 	{
 		case 2:

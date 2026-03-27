@@ -333,6 +333,23 @@
   - the visible ambiguous `8x16 fs258` CI family still keys on upload as `fmt=2 siz=1`
   - but its repeated draw-side texrect regime samples it through `fmt=2 siz=0 stride=8 sl=0 tl=0 sh=60 th=60 ...`
   - practical implication: the current exact-key problem is broader than one `CI16/CI32` edge case; the repeated early Paper Mario texrect misses are likely telling us that ParaLLEl replacement identity needs to be centered on the sampled TMEM/tile object, not just the upload blob
+- The first direct sampled-TMEM/tile exact-key probe is now live on the strict file-select bundle at [20260327-sampled-object-probe](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260327-sampled-object-probe):
+  - the new env gate is `PARALLEL_RDP_HIRES_SAMPLED_OBJECT_PROBE=1`
+  - it enables host-visible TMEM and logs draw-time sampled-object candidates for texrect CI misses without changing the strict `on` frame hash (`8a90f7874bd797a186ff85d488033dc332b2a75f5bec91ad33ca8246e6be7730`)
+  - the new structured artifact is [hires-sampled-object-review.md](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260327-sampled-object-probe/traces/hires-sampled-object-review.md), produced by [hires_sampled_object_review.py](/home/auro/code/parallel-n64/tools/hires_sampled_object_review.py)
+  - the dominant `64x1 fs514` upload family now collapses to one sampled draw-side object:
+    - `draw=texrect cycle=1cycle fmt=2 siz=0 off=0 stride=8 wh=16x16 fs=2`
+    - upload family: `ab53409b` / `pcrc=00000000`
+    - sampled key: `7064585c`
+    - sampled entry/sparse palette CRCs: `a1c4a352` / `7ff0e39c`
+  - the visible `32x16 fs258` CI neighborhood also collapses to one sampled draw-side object:
+    - `draw=texrect cycle=1cycle fmt=2 siz=0 off=0 stride=32 wh=64x16 fs=2`
+    - upload family: `2a1be0a4` / `pcrc=5c7e801a`
+    - sampled key: `c139c1c0`
+    - sampled entry/sparse palette CRCs: `80038dc8` / `7ff2e39c`
+  - both sampled objects use only `2` palette indices, and neither sampled key exists anywhere in the current pack index
+  - practical implication: the pack and runtime are still speaking legacy upload-family identity, while the more accurate ParaLLEl exact object is the sampled TMEM/tile object; legacy pack transport now needs an explicit alias path from upload families to sampled-object canonical IDs
+  - the migration tooling now carries that bridge explicitly when sampled bundle data exists: [20260327-sampled-import-index.json](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260327-sampled-import-index.json) records `canonical_sampled_objects` for the deterministic `2a1be0a4/fs2` family
 - The current exact-key audit artifact is now [N64 Exact Key Delta Sheet](/home/auro/code/parallel-n64/docs/plans/N64_EXACT_KEY_DELTA_SHEET.md).
 - The first logical-TLUT diagnostic pass is now live in strict CI probe bundles:
   - `traces/hires-evidence.json` now records `ci_palette_probe.logical_views`

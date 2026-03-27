@@ -8,6 +8,7 @@ import re
 from collections import Counter
 from pathlib import Path
 
+from hires_pack_common import build_family_summary, parse_cache_entries
 
 PROVENANCE_RE = re.compile(
     r"Hi-res keying provenance: "
@@ -56,6 +57,7 @@ def parse_args() -> argparse.Namespace:
     analyze = subparsers.add_parser("analyze", help="Analyze a probe bundle using a saved probe plan.")
     analyze.add_argument("--plan", required=True)
     analyze.add_argument("--snapshot-trace", required=True)
+    analyze.add_argument("--cache")
     analyze.add_argument("--output-json", required=True)
     analyze.add_argument("--output-markdown", required=True)
 
@@ -229,7 +231,36 @@ def nibble_counter(data: bytes) -> Counter:
     return counts
 
 
-def analyze_plan(plan: dict, snapshot_trace: Path) -> tuple[dict, str]:
+def rice_crc32_wrapped(data: bytes, base_off: int, width: int, height: int, size: int, row_stride: int) -> int:
+    bytes_per_line = (width << size) >> 1
+    if width == 0 or height == 0 or bytes_per_line < 4:
+        return 0
+
+    crc = 0
+    line = 0
+    for y in range(height - 1, -1, -1):
+        esi = 0
+        row_off = base_off + line * row_stride
+        for x in range(bytes_per_line - 4, -1, -4):
+            esi = int.from_bytes(data[row_off + x : row_off + x + 4], "little")
+            esi ^= x
+            crc = ((crc << 4) & 0xFFFFFFFF) + ((crc >> 28) & 15)
+            crc = (crc + esi) & 0xFFFFFFFF
+        esi ^= y
+        crc = (crc + esi) & 0xFFFFFFFF
+        line += 1
+    return crc
+
+
+def candidate_widths_for_area(total_pixels: int) -> list[int]:
+    widths = []
+    for width in range(4, total_pixels + 1):
+        if total_pixels % width == 0:
+            widths.append(width)
+    return widths
+
+
+def analyze_plan(plan: dict, snapshot_trace: Path, cache_path: Path | None = None) -> tuple[dict, str]:
     base_addr, data = parse_snapshot_trace(snapshot_trace)
     min_addr = int(plan["snapshot"]["min_addr"], 16)
     row_size_bytes = int(plan["family"]["row_bytes"])
@@ -285,9 +316,77 @@ def analyze_plan(plan: dict, snapshot_trace: Path) -> tuple[dict, str]:
     ]
     duplicate_groups.sort(key=lambda group: (-len(group["addresses"]), group["addresses"][0]))
 
+    exact_row_run_pack_checks = []
+    if cache_path is not None:
+        cache_entries = parse_cache_entries(cache_path)
+        observed_width = int(plan["family"]["width"])
+        observed_size = int(plan["family"]["observed_siz"])
+        formatsize = int(plan["family"]["formatsize"])
+        for run in plan.get("exact_row_runs", []):
+            row_count = int(run["row_count"])
+            if row_count < 2:
+                continue
+            start_addr = int(run["start_addr"], 16)
+            run_bytes = row_size_bytes * row_count
+            total_pixels = (run_bytes * 2) >> observed_size
+            exact_low32 = rice_crc32_wrapped(
+                data,
+                start_addr - base_addr,
+                observed_width,
+                row_count,
+                observed_size,
+                row_size_bytes,
+            )
+            exact_summary = build_family_summary(cache_entries, exact_low32, formatsize)
+            reinterpretation_hits = []
+            for width in candidate_widths_for_area(total_pixels):
+                height = total_pixels // width
+                if width == observed_width and height == row_count:
+                    continue
+                candidate_row_bytes = (width << observed_size) >> 1
+                if candidate_row_bytes * height != run_bytes or candidate_row_bytes < 4:
+                    continue
+                low32 = rice_crc32_wrapped(
+                    data,
+                    start_addr - base_addr,
+                    width,
+                    height,
+                    observed_size,
+                    candidate_row_bytes,
+                )
+                summary = build_family_summary(cache_entries, low32, formatsize)
+                if summary["family_entry_count"] == 0:
+                    continue
+                reinterpretation_hits.append(
+                    {
+                        "width": width,
+                        "height": height,
+                        "low32": f"{low32:08x}",
+                        "family_entry_count": summary["family_entry_count"],
+                        "exact_formatsize_entries": summary["exact_formatsize_entries"],
+                        "generic_formatsize_entries": summary["generic_formatsize_entries"],
+                        "recommended_tier": summary["recommended_tier"],
+                        "active_replacement_dims": summary["active_replacement_dims"][:5],
+                    }
+                )
+            exact_row_run_pack_checks.append(
+                {
+                    "start_addr": run["start_addr"],
+                    "end_addr": run["end_addr"],
+                    "candidate_surface": run["candidate_surface"],
+                    "exact_surface_low32": f"{exact_low32:08x}",
+                    "exact_surface_family_entry_count": exact_summary["family_entry_count"],
+                    "exact_surface_exact_formatsize_entries": exact_summary["exact_formatsize_entries"],
+                    "exact_surface_generic_formatsize_entries": exact_summary["generic_formatsize_entries"],
+                    "exact_surface_recommended_tier": exact_summary["recommended_tier"],
+                    "reinterpretation_hits": reinterpretation_hits,
+                }
+            )
+
     report = {
         "plan_source_bundle": plan["source_bundle"],
         "snapshot_trace": str(snapshot_trace),
+        "cache_path": None if cache_path is None else str(cache_path),
         "family": plan["family"],
         "snapshot": {
             "base_addr": f"0x{base_addr:06x}",
@@ -295,6 +394,7 @@ def analyze_plan(plan: dict, snapshot_trace: Path) -> tuple[dict, str]:
         },
         "rows": rows,
         "duplicate_row_groups": duplicate_groups,
+        "exact_row_run_pack_checks": exact_row_run_pack_checks,
         "delta_vs_row_bytes": {
             "row_bytes": row_size_bytes,
             "matching_delta_event_count": sum(
@@ -347,6 +447,25 @@ def analyze_plan(plan: dict, snapshot_trace: Path) -> tuple[dict, str]:
             )
     else:
         md.append("- None")
+    if exact_row_run_pack_checks:
+        md.append("\n## Exact Row Run Pack Checks\n")
+        for item in exact_row_run_pack_checks:
+            md.append(
+                f"- `{item['start_addr']} .. {item['end_addr']}` "
+                f"`{item['candidate_surface']}` "
+                f"low32=`{item['exact_surface_low32']}` "
+                f"family_entries=`{item['exact_surface_family_entry_count']}` "
+                f"tier=`{item['exact_surface_recommended_tier']}`"
+            )
+            if item["reinterpretation_hits"]:
+                for hit in item["reinterpretation_hits"][:8]:
+                    md.append(
+                        f"  - reinterpretation `{hit['width']}x{hit['height']}` "
+                        f"low32=`{hit['low32']}` family_entries=`{hit['family_entry_count']}` "
+                        f"tier=`{hit['recommended_tier']}`"
+                    )
+            else:
+                md.append("  - no area-preserving reinterpretation hits in the active pack")
     md.append("\n## Row Preview\n")
     md.append("| addr | count | key | first16 | last16 | active span | top nibbles |")
     md.append("|---|---:|---|---|---|---|---|")
@@ -375,7 +494,11 @@ def main() -> None:
         return
 
     plan = json.loads(Path(args.plan).read_text())
-    report, markdown = analyze_plan(plan, Path(args.snapshot_trace))
+    report, markdown = analyze_plan(
+        plan,
+        Path(args.snapshot_trace),
+        None if not args.cache else Path(args.cache),
+    )
     Path(args.output_json).write_text(json.dumps(report, indent=2) + "\n")
     Path(args.output_markdown).write_text(markdown)
 

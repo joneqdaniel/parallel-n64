@@ -210,6 +210,7 @@ scenario_verify_paper_mario_fixture \
 python3 "$REPO_ROOT/tools/hires_block_family_probe.py" analyze \
   --plan "$PLAN_JSON" \
   --snapshot-trace "$BUNDLE_DIR/traces/paper-mario-block-family-span.core-memory.txt" \
+  --cache "$PACK_PATH" \
   --output-json "$REPORT_JSON" \
   --output-markdown "$REPORT_MD"
 

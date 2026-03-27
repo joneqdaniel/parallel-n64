@@ -310,8 +310,10 @@
   - it is produced by the new [paper-mario-file-select-block-family-probe.sh](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-file-select-block-family-probe.sh) scenario and [hires_block_family_probe.py](/home/auro/code/parallel-n64/tools/hires_block_family_probe.py) analyzer
   - `70` miss events collapse to `21` unique low-32 keys and `21` unique RDRAM addresses
   - the dominant address delta is `0x80`, which exactly matches the observed row span of `128` bytes for this family
+  - those addresses also form exact contiguous `64x2`, `64x3`, and `64x4` row runs
   - there are no exact duplicate row payloads among the captured rows
   - every captured row has the same broad envelope: long zero padding at the front and back, with active bytes concentrated roughly in the `0x18..0x6b` range
+  - reconstructing those exact row runs as larger `64xN` surfaces still produces no pack-backed low-32 families, and neither do the simple area-preserving reinterpretations of those runs
   - current implication: this looks more like repeated row slices from a larger authored surface or sheet than random transient strip noise, which strengthens the current direction to model `loadblock` sampled-object provenance more faithfully rather than widening generic fallback
 - The current exact-key audit artifact is now [N64 Exact Key Delta Sheet](/home/auro/code/parallel-n64/docs/plans/N64_EXACT_KEY_DELTA_SHEET.md).
 - The first logical-TLUT diagnostic pass is now live in strict CI probe bundles:

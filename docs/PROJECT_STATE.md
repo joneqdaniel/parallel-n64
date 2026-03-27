@@ -329,6 +329,10 @@
   - none of those normalized `ci32-tlut` candidates hit the current pack yet
   - an offline pack-index cross-check now shows those normalized `ci32-tlut` low-32 candidates are absent across all formatsizes in the active pack, not just absent under `fs=514`
   - practical implication: this family is still unresolved, but we now have direct proof that the current exact path was hashing ignored or non-authoritative bits for this class, and that the next keying experiment should target the sampled-object view rather than raw upload bytes
+- That same upload-vs-sampled-object mismatch now appears to generalize beyond the block class:
+  - the visible ambiguous `8x16 fs258` CI family still keys on upload as `fmt=2 siz=1`
+  - but its repeated draw-side texrect regime samples it through `fmt=2 siz=0 stride=8 sl=0 tl=0 sh=60 th=60 ...`
+  - practical implication: the current exact-key problem is broader than one `CI16/CI32` edge case; the repeated early Paper Mario texrect misses are likely telling us that ParaLLEl replacement identity needs to be centered on the sampled TMEM/tile object, not just the upload blob
 - The current exact-key audit artifact is now [N64 Exact Key Delta Sheet](/home/auro/code/parallel-n64/docs/plans/N64_EXACT_KEY_DELTA_SHEET.md).
 - The first logical-TLUT diagnostic pass is now live in strict CI probe bundles:
   - `traces/hires-evidence.json` now records `ci_palette_probe.logical_views`

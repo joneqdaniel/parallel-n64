@@ -97,6 +97,10 @@
     - none of those normalized `ci32-tlut` candidates hit the current pack yet
     - an offline pack-index cross-check shows those normalized `ci32-tlut` low-32 candidates are absent across all formatsizes in the active pack, not just absent under `fs=514`
     - practical implication: this class is still unresolved, but we now have direct proof that the old exact path was hashing ignored or non-authoritative bits for it
+  - the same broader mismatch now appears on the visible ambiguous `8x16 fs258` CI family:
+    - upload-side keying still treats it as `fmt=2 siz=1`
+    - the repeated draw-side texrect regime sampling it is `fmt=2 siz=0 stride=8 sl=0 tl=0 sh=60 th=60 ...`
+    - practical implication: the repeated early Paper Mario misses are increasingly pointing at one architectural problem, not isolated family quirks: exact replacement identity needs to target the sampled TMEM/tile object, not just the upload blob
   - hi-res traces now also expose stable bucket summaries, which collapse title misses to 5 unique classes and file-select misses to 6 unique classes
   - the current dominant unresolved file-select class is `mode=block fmt=2 siz=2 wh=64x1 fs=514 tile=7` with 70 repeated misses in the last verified strict `on` bundle
   - the new pack cross-check in `hires-evidence.json` shows those current strict-fixture misses are unmatched in the active local Paper Mario `.hts` index under our current checksum generation, not mismatched under another `formatsize`

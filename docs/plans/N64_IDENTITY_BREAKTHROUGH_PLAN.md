@@ -173,6 +173,12 @@ Success:
 
 Current artifact:
 - `traces/hires-evidence.json` provenance summaries on strict bundles
+- the focused `64x1 fs514` row probe is now captured in [hires-block-family-report.md](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select-block-family-probe/on/20260326-live-1/traces/hires-block-family-report.md)
+  - `21` unique addresses
+  - dominant address delta `0x80`, matching the observed `128`-byte row span
+  - consistent zero-padded row envelope with active bytes clustered in the middle
+  - no exact duplicate row payloads
+  - current implication: the dominant miss family behaves more like contiguous row slices from a larger authored surface than random transient data
 
 ### Ticket 2: Exact Key Delta Sheet
 

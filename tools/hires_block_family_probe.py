@@ -1,0 +1,384 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import re
+from collections import Counter
+from pathlib import Path
+
+
+PROVENANCE_RE = re.compile(
+    r"Hi-res keying provenance: "
+    r"outcome=(?P<outcome>\w+) "
+    r"source_class=(?P<source_class>[\w-]+) "
+    r"provenance_class=(?P<provenance_class>[\w-]+) "
+    r"mode=(?P<mode>\w+) "
+    r"addr=0x(?P<addr>[0-9a-f]+) "
+    r"tile=(?P<tile>\d+) "
+    r"fmt=(?P<fmt>\d+) "
+    r"siz=(?P<siz>\d+) "
+    r"pal=(?P<pal>\d+) "
+    r"wh=(?P<width>\d+)x(?P<height>\d+) "
+    r"key=(?P<key>[0-9a-f]+) "
+    r"pcrc=(?P<pcrc>[0-9a-f]+) "
+    r"fs=(?P<formatsize>\d+) "
+    r"upload=(?P<upload>\w+) "
+    r"cycle=(?P<cycle>[\w-]+) "
+    r"copy=(?P<copy>\d+) "
+    r"tlut=(?P<tlut>\d+) "
+    r"tlut_type=(?P<tlut_type>\d+) "
+    r"framebuffer=(?P<framebuffer>\d+) "
+    r"color_fb=(?P<color_fb>\d+) "
+    r"depth_fb=(?P<depth_fb>\d+) "
+    r"tmem=0x(?P<tmem>[0-9a-f]+) "
+    r"line=(?P<line>\d+) "
+    r"key_xy=(?P<key_x>\d+)x(?P<key_y>\d+)",
+    re.IGNORECASE,
+)
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Plan and analyze targeted hi-res block-family probes.")
+    subparsers = parser.add_subparsers(dest="command", required=True)
+
+    plan = subparsers.add_parser("plan", help="Extract a probe plan from a bundle log.")
+    plan.add_argument("--source-bundle", required=True)
+    plan.add_argument("--mode", default="block")
+    plan.add_argument("--outcome", default="miss")
+    plan.add_argument("--formatsize", type=int, required=True)
+    plan.add_argument("--width", type=int, required=True)
+    plan.add_argument("--height", type=int, required=True)
+    plan.add_argument("--tile", type=int, default=None)
+    plan.add_argument("--output", required=True)
+
+    analyze = subparsers.add_parser("analyze", help="Analyze a probe bundle using a saved probe plan.")
+    analyze.add_argument("--plan", required=True)
+    analyze.add_argument("--snapshot-trace", required=True)
+    analyze.add_argument("--output-json", required=True)
+    analyze.add_argument("--output-markdown", required=True)
+
+    return parser.parse_args()
+
+
+def row_bytes(width: int, siz: int) -> int:
+    return (width << siz) >> 1
+
+
+def parse_provenance_rows(log_path: Path) -> list[dict]:
+    rows: list[dict] = []
+    for line in log_path.read_text(errors="replace").splitlines():
+        match = PROVENANCE_RE.search(line)
+        if not match:
+            continue
+        row = match.groupdict()
+        for key in (
+            "addr",
+            "tile",
+            "fmt",
+            "siz",
+            "pal",
+            "width",
+            "height",
+            "formatsize",
+            "copy",
+            "tlut",
+            "tlut_type",
+            "framebuffer",
+            "color_fb",
+            "depth_fb",
+            "tmem",
+            "line",
+            "key_x",
+            "key_y",
+        ):
+            base = 16 if key in ("addr", "tmem") else 10
+            row[key] = int(row[key], base)
+        rows.append(row)
+    return rows
+
+
+def build_plan(args: argparse.Namespace) -> dict:
+    source_bundle = Path(args.source_bundle)
+    log_path = source_bundle / "logs" / "retroarch.log"
+    rows = parse_provenance_rows(log_path)
+    filtered = [
+        row
+        for row in rows
+        if row["mode"] == args.mode
+        and row["outcome"] == args.outcome
+        and row["formatsize"] == args.formatsize
+        and row["width"] == args.width
+        and row["height"] == args.height
+        and (args.tile is None or row["tile"] == args.tile)
+    ]
+    if not filtered:
+        raise SystemExit("No matching provenance rows found for requested family.")
+
+    addr_counter = Counter(row["addr"] for row in filtered)
+    key_counter = Counter(row["key"] for row in filtered)
+    addr_to_key = {}
+    for row in filtered:
+        addr_to_key.setdefault(row["addr"], row["key"])
+
+    unique_addrs = sorted(addr_counter)
+    min_addr = unique_addrs[0]
+    max_addr = unique_addrs[-1]
+    observed_siz = Counter(row["siz"] for row in filtered).most_common(1)[0][0]
+    observed_fmt = Counter(row["fmt"] for row in filtered).most_common(1)[0][0]
+    row_size_bytes = row_bytes(args.width, observed_siz)
+    span_bytes = (max_addr - min_addr) + 0x80
+    delta_counts = Counter(b - a for a, b in zip(unique_addrs, unique_addrs[1:]))
+
+    clusters = []
+    current_cluster = [unique_addrs[0]]
+    for addr in unique_addrs[1:]:
+        if addr - current_cluster[-1] <= 0x100:
+            current_cluster.append(addr)
+        else:
+            clusters.append(current_cluster)
+            current_cluster = [addr]
+    clusters.append(current_cluster)
+
+    exact_row_runs = []
+    current_run = [unique_addrs[0]]
+    for addr in unique_addrs[1:]:
+        if addr - current_run[-1] == row_size_bytes:
+            current_run.append(addr)
+        else:
+            exact_row_runs.append(current_run)
+            current_run = [addr]
+    exact_row_runs.append(current_run)
+
+    plan = {
+        "source_bundle": str(source_bundle),
+        "log_path": str(log_path),
+        "family": {
+            "mode": args.mode,
+            "outcome": args.outcome,
+            "tile": args.tile,
+            "formatsize": args.formatsize,
+            "width": args.width,
+            "height": args.height,
+            "observed_fmt": observed_fmt,
+            "observed_siz": observed_siz,
+            "row_bytes": row_size_bytes,
+        },
+        "event_count": len(filtered),
+        "unique_low32_keys": len(key_counter),
+        "unique_addresses": len(unique_addrs),
+        "address_counter": [
+            {
+                "addr": f"0x{addr:06x}",
+                "count": count,
+                "key": addr_to_key[addr],
+            }
+            for addr, count in addr_counter.most_common()
+        ],
+        "top_keys": [
+            {"key": key, "count": count}
+            for key, count in key_counter.most_common()
+        ],
+        "snapshot": {
+            "min_addr": f"0x{min_addr:06x}",
+            "max_addr": f"0x{max_addr:06x}",
+            "span_bytes": span_bytes,
+        },
+        "address_delta_counts": [
+            {"delta": f"0x{delta:x}", "count": count}
+            for delta, count in delta_counts.most_common()
+        ],
+        "clusters": [
+            {
+                "start_addr": f"0x{cluster[0]:06x}",
+                "end_addr": f"0x{cluster[-1]:06x}",
+                "count": len(cluster),
+                "addresses": [f"0x{addr:06x}" for addr in cluster],
+            }
+            for cluster in clusters
+        ],
+        "exact_row_runs": [
+            {
+                "start_addr": f"0x{run[0]:06x}",
+                "end_addr": f"0x{run[-1]:06x}",
+                "row_count": len(run),
+                "candidate_surface": f"{args.width}x{len(run)}",
+                "addresses": [f"0x{addr:06x}" for addr in run],
+            }
+            for run in exact_row_runs
+        ],
+    }
+    return plan
+
+
+def parse_snapshot_trace(path: Path) -> tuple[int, bytes]:
+    fields = path.read_text().split()
+    if not fields or fields[0] != "READ_CORE_MEMORY":
+        raise SystemExit(f"Unexpected snapshot format: {path}")
+    base_addr = int(fields[1], 16)
+    data = bytes(int(field, 16) for field in fields[2:])
+    return base_addr, data
+
+
+def nibble_counter(data: bytes) -> Counter:
+    counts: Counter = Counter()
+    for byte in data:
+        counts[(byte >> 4) & 0xF] += 1
+        counts[byte & 0xF] += 1
+    return counts
+
+
+def analyze_plan(plan: dict, snapshot_trace: Path) -> tuple[dict, str]:
+    base_addr, data = parse_snapshot_trace(snapshot_trace)
+    min_addr = int(plan["snapshot"]["min_addr"], 16)
+    row_size_bytes = int(plan["family"]["row_bytes"])
+    expected_span = int(plan["snapshot"]["span_bytes"])
+    if base_addr != min_addr:
+        raise SystemExit(
+            f"Snapshot base mismatch: expected {plan['snapshot']['min_addr']}, got 0x{base_addr:06x}"
+        )
+    if len(data) < expected_span:
+        raise SystemExit(
+            f"Snapshot shorter than expected span: {len(data)} < {expected_span}"
+        )
+
+    row_groups: dict[str, list[str]] = {}
+    rows = []
+    row_size_bytes = int(plan["family"]["row_bytes"])
+    for item in plan["address_counter"]:
+        addr = int(item["addr"], 16)
+        offset = addr - base_addr
+        row = data[offset : offset + row_size_bytes]
+        row_hash = hashlib.sha256(row).hexdigest()
+        row_hex = row.hex()
+        nibs = nibble_counter(row)
+        nonzero_offsets = [index for index, value in enumerate(row) if value != 0]
+        first_nonzero = nonzero_offsets[0] if nonzero_offsets else None
+        last_nonzero = nonzero_offsets[-1] if nonzero_offsets else None
+        row_groups.setdefault(row_hash, []).append(item["addr"])
+        rows.append(
+            {
+                "addr": item["addr"],
+                "count": item["count"],
+                "key": item["key"],
+                "offset": f"0x{offset:x}",
+                "row_sha256": row_hash,
+                "row_hex": row_hex,
+                "first_16_bytes_hex": row[:16].hex(),
+                "last_16_bytes_hex": row[-16:].hex(),
+                "leading_zero_bytes": first_nonzero if first_nonzero is not None else len(row),
+                "trailing_zero_bytes": (len(row) - 1 - last_nonzero) if last_nonzero is not None else len(row),
+                "first_nonzero_byte": None if first_nonzero is None else f"0x{first_nonzero:x}",
+                "last_nonzero_byte": None if last_nonzero is None else f"0x{last_nonzero:x}",
+                "top_nibbles": [
+                    {"index": f"{index:x}", "count": count}
+                    for index, count in nibs.most_common(6)
+                ],
+            }
+        )
+
+    duplicate_groups = [
+        {"row_sha256": row_hash, "addresses": addresses}
+        for row_hash, addresses in row_groups.items()
+        if len(addresses) > 1
+    ]
+    duplicate_groups.sort(key=lambda group: (-len(group["addresses"]), group["addresses"][0]))
+
+    report = {
+        "plan_source_bundle": plan["source_bundle"],
+        "snapshot_trace": str(snapshot_trace),
+        "family": plan["family"],
+        "snapshot": {
+            "base_addr": f"0x{base_addr:06x}",
+            "captured_bytes": len(data),
+        },
+        "rows": rows,
+        "duplicate_row_groups": duplicate_groups,
+        "delta_vs_row_bytes": {
+            "row_bytes": row_size_bytes,
+            "matching_delta_event_count": sum(
+                entry["count"] for entry in plan["address_delta_counts"] if int(entry["delta"], 16) == row_size_bytes
+            ),
+        },
+    }
+
+    md = []
+    md.append("# Hi-Res Block Family Probe\n")
+    md.append(f"- Source bundle: `{plan['source_bundle']}`")
+    md.append(f"- Snapshot trace: `{snapshot_trace}`")
+    md.append(
+        f"- Family: `mode={plan['family']['mode']} fs={plan['family']['formatsize']} "
+        f"wh={plan['family']['width']}x{plan['family']['height']} fmt={plan['family']['observed_fmt']} "
+        f"siz={plan['family']['observed_siz']}`"
+    )
+    md.append(f"- Events: `{plan['event_count']}`")
+    md.append(f"- Unique addresses: `{plan['unique_addresses']}`")
+    md.append(f"- Unique low32 keys: `{plan['unique_low32_keys']}`\n")
+    md.append(
+        f"- Observed row bytes: `{row_size_bytes}` (`0x{row_size_bytes:x}`)"
+    )
+    delta_matches = [
+        entry for entry in plan["address_delta_counts"] if int(entry["delta"], 16) == row_size_bytes
+    ]
+    if delta_matches:
+        md.append(
+            f"- `0x{row_size_bytes:x}` address delta occurs `{delta_matches[0]['count']}` times across unique addresses\n"
+        )
+    else:
+        md.append("- No address delta matches the observed row size\n")
+    md.append("## Address Clusters\n")
+    for cluster in plan["clusters"]:
+        md.append(
+            f"- `{cluster['start_addr']} .. {cluster['end_addr']}` "
+            f"count=`{cluster['count']}`"
+        )
+    md.append("\n## Exact Row Runs\n")
+    for run in plan.get("exact_row_runs", []):
+        md.append(
+            f"- `{run['start_addr']} .. {run['end_addr']}` "
+            f"rows=`{run['row_count']}` candidate_surface=`{run['candidate_surface']}`"
+        )
+    md.append("\n## Duplicate Row Groups\n")
+    if duplicate_groups:
+        for group in duplicate_groups[:10]:
+            md.append(
+                f"- `{group['row_sha256'][:12]}` -> {', '.join(group['addresses'])}"
+            )
+    else:
+        md.append("- None")
+    md.append("\n## Row Preview\n")
+    md.append("| addr | count | key | first16 | last16 | active span | top nibbles |")
+    md.append("|---|---:|---|---|---|---|---|")
+    for row in rows[:21]:
+        top_nibbles = ", ".join(f"{entry['index']}:{entry['count']}" for entry in row["top_nibbles"])
+        active_span = (
+            "all-zero"
+            if row["first_nonzero_byte"] is None
+            else f"{row['first_nonzero_byte']}..{row['last_nonzero_byte']}"
+        )
+        md.append(
+            f"| `{row['addr']}` | `{row['count']}` | `{row['key'][-8:]}` | "
+            f"`{row['first_16_bytes_hex']}` | `{row['last_16_bytes_hex']}` | "
+            f"`{active_span}` | `{top_nibbles}` |"
+        )
+    md.append("")
+
+    return report, "\n".join(md)
+
+
+def main() -> None:
+    args = parse_args()
+    if args.command == "plan":
+        plan = build_plan(args)
+        Path(args.output).write_text(json.dumps(plan, indent=2) + "\n")
+        return
+
+    plan = json.loads(Path(args.plan).read_text())
+    report, markdown = analyze_plan(plan, Path(args.snapshot_trace))
+    Path(args.output_json).write_text(json.dumps(report, indent=2) + "\n")
+    Path(args.output_markdown).write_text(markdown)
+
+
+if __name__ == "__main__":
+    main()

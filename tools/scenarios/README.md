@@ -27,6 +27,7 @@ Current tracked scenario seeds:
 - [`paper-mario-file-select.sh`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-file-select.sh)
 - [`paper-mario-file-select.runtime.env`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-file-select.runtime.env)
 - [`paper-mario-file-select-input-probe.sh`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-file-select-input-probe.sh)
+- [`paper-mario-file-select-block-family-probe.sh`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-file-select-block-family-probe.sh)
 - [`paper-mario-title-timeout-probe.sh`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-title-timeout-probe.sh)
 - [`paper-mario-savefile-start.runtime.env`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-savefile-start.runtime.env)
 - [`paper-mario-hos-05-entry-3.sh`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-hos-05-entry-3.sh)
@@ -169,6 +170,15 @@ Current Paper Mario runtime note:
     - `texel1_fs=259`, `texel1_w=16`, `texel1_h=8`, `texel1_hit=1`
     - `16` events
   - practical implication: the remaining early missing-texture work is now concretely split between the dominant `64x1 fs514` block family and the smaller ambiguous `8x16 fs258` CI family, not a generic texrect bucket
+- there is now a dedicated [paper-mario-file-select-block-family-probe.sh](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-file-select-block-family-probe.sh) runner for the dominant `64x1 fs514` family
+  - it derives a probe plan from a verified strict bundle, snapshots the whole source span directly from authoritative file-select RDRAM, and writes a review artifact through [hires_block_family_probe.py](/home/auro/code/parallel-n64/tools/hires_block_family_probe.py)
+  - current verified report: [20260326-live-1](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select-block-family-probe/on/20260326-live-1/traces/hires-block-family-report.md)
+  - current probe result:
+    - `21` unique addresses for the family
+    - dominant address delta `0x80`, exactly matching the observed `128`-byte row span
+    - no exact duplicate row payloads
+    - a consistent zero-padded row envelope with active bytes concentrated roughly in the `0x18..0x6b` range
+  - practical implication: the dominant family currently looks more like repeated row slices from a larger authored surface or sheet than random transient strip noise
 - the same `hires-evidence.json` trace now also cross-checks miss keys against the active `.hts`/`.htc` index, so bundle evidence can distinguish “unmatched in the local pack index under the current checksum generation” from “lookup present under another formatsize”
 - CI palette probe runs now also record `ci_palette_probe.families` in `traces/hires-evidence.json`, so representative CI misses can report whether their low-32 pack family is exact/generic, dimension-uniform, or structurally ambiguous without changing the default lookup path
 - the same CI probe now also records `ci_palette_probe.usages` and `ci_palette_probe.emulated_tmem`, so strict bundles can show how many palette indices were actually sampled and whether raw-shadow versus emulated-TMEM palette views produce any pack-backed candidate at all

@@ -79,6 +79,12 @@
       - `texel1_fs=259`, `texel1_w=16`, `texel1_h=8`, `texel1_hit=1`
       - `16` events
     - practical implication: the remaining early-scene missing-texture problem is now concretely split between the dominant `64x1 fs514` block family and the smaller ambiguous `8x16 fs258` CI family, both inside repeated texrect regimes
+  - the first direct strict-state RDRAM probe of the dominant `64x1 fs514` family now exists at [hires-block-family-report.md](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select-block-family-probe/on/20260326-live-1/traces/hires-block-family-report.md):
+    - `70` miss events collapse to `21` unique low-32 keys and `21` unique RDRAM addresses
+    - the dominant address delta is `0x80`, which exactly matches the observed row span of `128` bytes
+    - every captured row has the same broad zero-padded envelope, with active bytes concentrated roughly in the `0x18..0x6b` range
+    - there are no exact duplicate row payloads across the captured set
+    - practical implication: the dominant family looks more like repeated row slices from a larger authored surface or sheet than random transient strip noise, so the likely fix path is a better `loadblock` sampled-object model rather than more generic fallback
   - hi-res traces now also expose stable bucket summaries, which collapse title misses to 5 unique classes and file-select misses to 6 unique classes
   - the current dominant unresolved file-select class is `mode=block fmt=2 siz=2 wh=64x1 fs=514 tile=7` with 70 repeated misses in the last verified strict `on` bundle
   - the new pack cross-check in `hires-evidence.json` shows those current strict-fixture misses are unmatched in the active local Paper Mario `.hts` index under our current checksum generation, not mismatched under another `formatsize`

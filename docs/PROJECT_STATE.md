@@ -306,6 +306,13 @@
   - practical implication: the remaining early missing-texture problem is no longer “some texrect issue”; it is concretely split between:
     - the dominant `64x1 fs514` block family in a repeated texrect regime
     - the smaller ambiguous `8x16 fs258` CI family in another repeated texrect regime
+- The first direct RDRAM probe of that dominant `64x1 fs514` family is now captured in [hires-block-family-report.md](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select-block-family-probe/on/20260326-live-1/traces/hires-block-family-report.md):
+  - it is produced by the new [paper-mario-file-select-block-family-probe.sh](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-file-select-block-family-probe.sh) scenario and [hires_block_family_probe.py](/home/auro/code/parallel-n64/tools/hires_block_family_probe.py) analyzer
+  - `70` miss events collapse to `21` unique low-32 keys and `21` unique RDRAM addresses
+  - the dominant address delta is `0x80`, which exactly matches the observed row span of `128` bytes for this family
+  - there are no exact duplicate row payloads among the captured rows
+  - every captured row has the same broad envelope: long zero padding at the front and back, with active bytes concentrated roughly in the `0x18..0x6b` range
+  - current implication: this looks more like repeated row slices from a larger authored surface or sheet than random transient strip noise, which strengthens the current direction to model `loadblock` sampled-object provenance more faithfully rather than widening generic fallback
 - The current exact-key audit artifact is now [N64 Exact Key Delta Sheet](/home/auro/code/parallel-n64/docs/plans/N64_EXACT_KEY_DELTA_SHEET.md).
 - The first logical-TLUT diagnostic pass is now live in strict CI probe bundles:
   - `traces/hires-evidence.json` now records `ci_palette_probe.logical_views`

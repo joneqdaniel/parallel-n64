@@ -1,0 +1,24 @@
+fixture_id: paper-mario-file-select-block-family-probe
+game: paper-mario
+phase: phase-1
+mode_scope:
+  - off
+  - on
+authority:
+  type: authoritative-savestate
+  base_fixture: paper-mario-file-select
+target:
+  description: Snapshot the dominant file-select `64x1 fs514` authored-RDRAM loadblock family directly from RDRAM.
+runtime_rules:
+  internal_scale: 4x
+  serial_execution: true
+  display_required: true
+evidence:
+  required:
+    - screenshot
+    - retroarch_log
+    - semantic_trace
+    - hires_evidence
+    - block_family_probe_plan
+    - block_family_probe_span
+    - block_family_probe_report

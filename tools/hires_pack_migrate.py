@@ -105,6 +105,81 @@ def build_selector_policy(texture_crc, formatsize, observation, variant_group_li
     return policy
 
 
+def build_canonical_transport(compatibility_aliases, unresolved_families):
+    canonical_records = {}
+    legacy_transport_aliases = []
+
+    def ingest_family(family, family_type):
+        policy_key = family.get("policy_key") or family.get("alias_id")
+        canonical_objects = family.get("canonical_sampled_objects") or []
+        alias = {
+            "family_type": family_type,
+            "policy_key": policy_key,
+            "reason": family.get("reason"),
+            "kind": family.get("kind"),
+            "status": (family.get("selector_policy") or {}).get("status"),
+            "selection_reason": (family.get("selector_policy") or {}).get("selection_reason"),
+            "candidate_replacement_ids": family.get("candidate_replacement_ids", []),
+            "canonical_sampled_object_ids": [obj.get("sampled_object_id") for obj in canonical_objects],
+        }
+        legacy_transport_aliases.append(alias)
+
+        for obj in canonical_objects:
+            sampled_object_id = obj.get("sampled_object_id")
+            if not sampled_object_id:
+                continue
+            record = canonical_records.setdefault(
+                sampled_object_id,
+                {
+                    "sampled_object_id": sampled_object_id,
+                    "draw_class": obj.get("draw_class"),
+                    "cycle": obj.get("cycle"),
+                    "fmt": obj.get("fmt"),
+                    "siz": obj.get("siz"),
+                    "off": obj.get("off"),
+                    "stride": obj.get("stride"),
+                    "wh": obj.get("wh"),
+                    "formatsize": obj.get("formatsize"),
+                    "sampled_low32": obj.get("sampled_low32"),
+                    "sampled_entry_pcrc": obj.get("sampled_entry_pcrc"),
+                    "sampled_sparse_pcrc": obj.get("sampled_sparse_pcrc"),
+                    "sampled_entry_count": obj.get("sampled_entry_count"),
+                    "sampled_used_count": obj.get("sampled_used_count"),
+                    "pack_exact_entry_hit": obj.get("pack_exact_entry_hit"),
+                    "pack_exact_sparse_hit": obj.get("pack_exact_sparse_hit"),
+                    "pack_family_available": obj.get("pack_family_available"),
+                    "unique_replacement_dims": obj.get("unique_replacement_dims"),
+                    "sample_replacement_dims": obj.get("sample_replacement_dims"),
+                    "linked_policy_keys": [],
+                    "linked_replacement_ids": [],
+                    "upload_low32s": [],
+                    "upload_pcrcs": [],
+                },
+            )
+            if policy_key and policy_key not in record["linked_policy_keys"]:
+                record["linked_policy_keys"].append(policy_key)
+            for replacement_id in family.get("candidate_replacement_ids", []):
+                if replacement_id not in record["linked_replacement_ids"]:
+                    record["linked_replacement_ids"].append(replacement_id)
+            for upload in obj.get("upload_low32s", []):
+                if upload not in record["upload_low32s"]:
+                    record["upload_low32s"].append(upload)
+            for upload in obj.get("upload_pcrcs", []):
+                if upload not in record["upload_pcrcs"]:
+                    record["upload_pcrcs"].append(upload)
+
+    for family in compatibility_aliases:
+        ingest_family(family, "compatibility")
+    for family in unresolved_families:
+        ingest_family(family, "unresolved")
+
+    legacy_transport_aliases.sort(key=lambda item: item["policy_key"] or "")
+    return {
+        "canonical_records": sorted(canonical_records.values(), key=lambda item: item["sampled_object_id"]),
+        "legacy_transport_aliases": legacy_transport_aliases,
+    }
+
+
 def build_imported_index(entries, requested_pairs, source_cache_path, bundle_context=None, bundle_sampled_context=None, import_policy=None):
     records = []
     compatibility_aliases = []
@@ -265,6 +340,8 @@ def build_imported_index(entries, requested_pairs, source_cache_path, bundle_con
                 }
             )
 
+    transport = build_canonical_transport(compatibility_aliases, unresolved_families)
+
     return {
         "schema_version": 1,
         "source": {
@@ -278,6 +355,8 @@ def build_imported_index(entries, requested_pairs, source_cache_path, bundle_con
         "records": records,
         "compatibility_aliases": compatibility_aliases,
         "unresolved_families": unresolved_families,
+        "canonical_records": transport["canonical_records"],
+        "legacy_transport_aliases": transport["legacy_transport_aliases"],
     }
 
 

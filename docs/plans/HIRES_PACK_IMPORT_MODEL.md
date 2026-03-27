@@ -111,6 +111,12 @@ This document describes the shape of the import model itself. The evidence thres
 - `records`
   - one imported record per active legacy entry in the selected family set
   - preserves legacy checksum provenance and decoded asset metadata
+- `canonical_records`
+  - one record per sampled-object canonical identity observed in the imported slice
+  - links canonical sampled object IDs to the legacy replacement records that currently transport into them
+- `legacy_transport_aliases`
+  - one record per legacy family-to-canonical transport edge
+  - explicit bridge between upload-family inputs and sampled-object runtime identity
 - `compatibility_aliases`
   - explicit aliases for constrained compatibility tiers only
   - currently intended for `compat-unique` and `compat-repl-dims-unique`
@@ -120,12 +126,14 @@ This document describes the shape of the import model itself. The evidence thres
     - `policy_key`
     - `candidate_variant_group_ids`
     - `diagnostics.variant_groups`
+    - `canonical_sampled_objects`
 - `unresolved_families`
   - explicit ambiguous legacy families that should not become runtime fallback automatically
   - now grouped into explicit dimension-led `variant_groups` so import-time policy can reason about concrete ambiguous clusters instead of a flat legacy family
   - now also carries `observed_runtime_context` from the strict bundle that surfaced the family
   - now also carries `selector_policy`, even when that policy is only “manual disambiguation required”
   - now also carries `policy_key`
+  - now also carries `canonical_sampled_objects`
 
 ## Variant Groups
 
@@ -216,6 +224,7 @@ The migration tool now emits that bridge when sampled-object bundle data is avai
 - the same emitted index now also keeps the dominant missing family alive as an unresolved transport record: `legacy-low32-ab53409b-fs2` with canonical sampled object `sampled-fmt2-siz0-off0-stride8-wh16x16-fs2-low327064585c` and reason `missing-active-pool`
 - the review and subset tools can now be driven directly from the sampled strict bundle with explicit `--low32/--formatsize` seeds, which is how [20260327-sampled-review.md](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260327-sampled-review.md) and [20260327-sampled-subset.json](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260327-sampled-subset.json) were emitted
 - the canonical transport view for that same slice is now explicit too:
+  - the imported index itself now carries `canonical_records` and `legacy_transport_aliases`
   - markdown: [20260327-sampled-legacy-vs-canonical.md](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260327-sampled-legacy-vs-canonical.md)
   - json: [20260327-sampled-canonical-projection.json](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260327-sampled-canonical-projection.json)
 

@@ -74,6 +74,21 @@ def filter_imported_index(imported_index, policy_keys, variant_selections=None):
         if record.get("replacement_id") in candidate_ids
     ]
 
+    canonical_ids = set()
+    transport_aliases = []
+    for entry in compatibility + unresolved:
+        transport_key = entry.get("policy_key") or entry.get("alias_id")
+        for alias in imported_index.get("legacy_transport_aliases", []):
+            if alias.get("policy_key") == transport_key:
+                transport_aliases.append(alias)
+                canonical_ids.update(alias.get("canonical_sampled_object_ids", []))
+                break
+
+    canonical_records = [
+        record for record in imported_index.get("canonical_records", [])
+        if record.get("sampled_object_id") in canonical_ids
+    ]
+
     return {
         "schema_version": imported_index.get("schema_version"),
         "source": imported_index.get("source"),
@@ -82,6 +97,8 @@ def filter_imported_index(imported_index, policy_keys, variant_selections=None):
         "records": records,
         "compatibility_aliases": compatibility,
         "unresolved_families": unresolved,
+        "canonical_records": canonical_records,
+        "legacy_transport_aliases": transport_aliases,
     }
 
 

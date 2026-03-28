@@ -121,6 +121,10 @@
     - it also gives a direct title-screen source match: `kmr_21` explicitly loads and draws `200x2 RGBA32` texrect strips
     - and it records the filemenu copy-arrow display list as a negative control (`64x16 IA4`), so we stop conflating unrelated texrect sources with the active CI4 families
     - practical implication: Tier 2 is now beyond theory; the scanner is already recovering first native tile/TMEM hints from these callsites (`tmem_offset`, render-tile selection, line expressions, tile-size examples), and the next static resolver step is to compare those recovered fields against the runtime sampled-object probe
+    - that first field-comparison pass now splits the early families cleanly:
+      - the `64x1 -> 16x16 CI4` filemenu message bridge matches the recovered static native fields exactly on the strict file-select bundle
+      - the smaller `8x16` family still disagrees on sampled window width (`sh=28` statically versus `sh=60` at runtime)
+      - practical implication: the next Tier 2 resolver target is the `8x16` sampled-window mismatch, not the already-matched `64x1` bridge
   - hi-res traces now also expose stable bucket summaries, which collapse title misses to 5 unique classes and file-select misses to 6 unique classes
   - the current dominant unresolved file-select class is `mode=block fmt=2 siz=2 wh=64x1 fs=514 tile=7` with 70 repeated misses in the last verified strict `on` bundle
   - the new pack cross-check in `hires-evidence.json` shows those current strict-fixture misses are unmatched in the active local Paper Mario `.hts` index under our current checksum generation, not mismatched under another `formatsize`

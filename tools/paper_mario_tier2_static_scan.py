@@ -86,6 +86,51 @@ def sampler_bucket_index(bundle_data: dict[str, Any]) -> dict[tuple[str, str, st
     return index
 
 
+def compare_native_fields(static_shape: dict[str, Any], sampler_bucket: dict[str, Any]) -> dict[str, Any] | None:
+    hints = static_shape.get("native_field_hints")
+    if not isinstance(hints, dict):
+        return None
+    fields = sampler_bucket.get("fields", {})
+    comparisons = []
+
+    key_map = {
+        "tmem_offset": "offset",
+        "render_tile": "base_tile",
+    }
+    for static_key, runtime_key in key_map.items():
+        if static_key in hints and runtime_key in fields:
+            comparisons.append(
+                {
+                    "static_key": static_key,
+                    "runtime_key": runtime_key,
+                    "static_value": hints[static_key],
+                    "runtime_value": int(fields[runtime_key]),
+                    "match": hints[static_key] == int(fields[runtime_key]),
+                }
+            )
+
+    tile_size = hints.get("tile_size_example")
+    if isinstance(tile_size, dict):
+        for coord_key in ("sl", "tl", "sh", "th"):
+            if coord_key in tile_size and coord_key in fields:
+                comparisons.append(
+                    {
+                        "static_key": f"tile_size_example.{coord_key}",
+                        "runtime_key": coord_key,
+                        "static_value": tile_size[coord_key],
+                        "runtime_value": int(fields[coord_key]),
+                        "match": tile_size[coord_key] == int(fields[coord_key]),
+                    }
+                )
+
+    if not comparisons:
+        return None
+    return {
+        "all_match": all(item["match"] for item in comparisons),
+        "comparisons": comparisons,
+    }
+
+
 def static_findings(game_root: Path) -> list[dict[str, Any]]:
     gbi_path = game_root / "include" / "gbi_custom.h"
     filemenu_msg_path = game_root / "src" / "filemenu" / "filemenu_msg.c"
@@ -319,14 +364,16 @@ def compare_against_runtime(findings: list[dict[str, Any]], bundles: list[dict[s
                 )
                 bucket = sampler_idx.get(sampler_key)
                 if bucket:
-                    links.append(
-                        {
-                            "kind": "sampler_bucket",
-                            "signature": bucket["signature"],
-                            "count": bucket["count"],
-                            "sample_detail": bucket["sample_detail"],
-                        }
-                    )
+                    link = {
+                        "kind": "sampler_bucket",
+                        "signature": bucket["signature"],
+                        "count": bucket["count"],
+                        "sample_detail": bucket["sample_detail"],
+                    }
+                    field_comparison = compare_native_fields(finding["static_shape"], bucket)
+                    if field_comparison is not None:
+                        link["field_comparison"] = field_comparison
+                    links.append(link)
             sampled = expected.get("sampled_object")
             if sampled:
                 target_wh = sampled["wh"]
@@ -396,6 +443,16 @@ def render_markdown(report: dict[str, Any]) -> str:
                     suffix = f", count={link['count']}" if "count" in link else ""
                     lines.append(f"  - `{link['kind']}`: `{link['signature']}`{suffix}")
                     lines.append(f"    - {link['sample_detail']}")
+                    field_comparison = link.get("field_comparison")
+                    if field_comparison is not None:
+                        verdict = "match" if field_comparison["all_match"] else "mismatch"
+                        lines.append(f"    - native-field comparison: `{verdict}`")
+                        for item in field_comparison["comparisons"]:
+                            state = "ok" if item["match"] else "diff"
+                            lines.append(
+                                f"      - `{item['static_key']}` -> `{item['runtime_key']}`: "
+                                f"static=`{item['static_value']}` runtime=`{item['runtime_value']}` ({state})"
+                            )
         lines.append("")
     return "\n".join(lines)
 

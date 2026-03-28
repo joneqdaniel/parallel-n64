@@ -235,6 +235,10 @@ Current artifact:
   - `kmr_21` now gives a direct title-screen source match for the `200x2 RGBA32` texrect stripes
   - `filemenu_gfx.c` now gives a negative control too: the filemenu copy-arrow path is `64x16 IA4`, so it should not be mixed into the current CI/TLUT work
   - practical implication: the next Tier 2 ticket is not “more runtime probing”; the scanner is already recovering first tile/TMEM field hints from these callsites, and the next step is to check those recovered fields against the runtime sampled-object probe
+  - that comparison is now partially done:
+    - the `64x1 -> 16x16 CI4` bridge matches its recovered native fields exactly on the strict file-select bundle
+    - the `8x16` family still disagrees on `SetTileSize`-visible width (`sh=28` static, `sh=60` runtime)
+    - practical implication: Tier 2 is now pointing at one concrete unresolved native-field delta instead of a broad menu-texture mystery
 
 ## What This Plan Explicitly Avoids
 

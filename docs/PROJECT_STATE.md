@@ -368,6 +368,10 @@
   - it source-links the title-screen striped texrect path directly to `kmr_21`, where `200x2 RGBA32` strips are authored explicitly
   - it also records the filemenu copy-arrow display list as a useful negative control: `64x16 IA4`, not one of the active CI4 families
   - practical implication: the scanner is now also recovering first native-field hints from those exact callsites (`tmem_offset=0`, render tile `0`, macro-derived line/tile-size examples), so the next Tier 2 step is to compare those recovered fields against runtime rather than re-discovering them with more heuristics
+  - the first native-field comparison pass is now in the same Tier 2 artifact:
+    - the `64x1 -> 16x16 CI4` filemenu message family matches the recovered static fields exactly on the strict file-select bundle (`offset=0`, base tile `0`, `sl/tl/sh/th = 0/0/60/60`)
+    - the smaller `8x16` family does not: the static tiled path predicts `sh=28`, while the runtime bucket is still `sh=60`
+    - practical implication: the dominant block/CI4 bridge is now source-backed all the way through native-field comparison, while the `8x16` family still needs deeper `SetTileSize` / texel-combine-path explanation rather than looser fallback rules
 - The latest unstaged HLE-to-LLE conversion research in [hle-to-lle-conversion-plan.md](/home/auro/code/parallel-n64/docs/plans/hires-conversion-analysis/hle-to-lle-conversion-plan.md) and [palette-crc-transform-analysis.md](/home/auro/code/parallel-n64/docs/plans/hires-conversion-analysis/palette-crc-transform-analysis.md) is directionally useful, but it is now adopted in tracked planning with tighter guardrails:
   - adopt the three-tier conversion split:
     - pure-math bridge candidate generation

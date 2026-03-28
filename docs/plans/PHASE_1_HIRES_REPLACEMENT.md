@@ -141,7 +141,11 @@
     - every captured `8`-byte row at those source addresses is all-zero, including one duplicate-zero group spanning all five addresses
     - the family still maps back to the known draw-side texrect regimes, so the zero-row result is part of the transport mismatch rather than a missing-probe failure
     - the companion neighborhood scan at [hires-tile-family-neighborhood.md](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select-tile-family-probe/on/20260328-105848/traces/hires-tile-family-neighborhood.md) shows non-zero bytes consistently nearby those all-zero anchors, which strengthens the parent-surface/subrect-transport interpretation
-    - practical implication: the active `8x16` gap should not be modeled as meaningful row-local upload bytes, which makes parent-tile/subrect transport a stronger next resolver target than more row-byte reinterpretation
+    - the main family report now also includes explicit parent-surface checks:
+      - same-start `16x16 CI4` candidates reproduce the active low-32 families directly
+      - shifted starts at `-0x40`, `-0x20`, and `-0x10` all miss the active pack pool for those same families
+      - same-start parent transport is therefore the better next resolver target than shifted-start hunting
+    - practical implication: the active `8x16` gap should not be modeled as meaningful row-local upload bytes, which makes same-start parent-tile/subrect transport a stronger next resolver target than more row-byte reinterpretation
   - hi-res traces now also expose stable bucket summaries, which collapse title misses to 5 unique classes and file-select misses to 6 unique classes
   - the current dominant unresolved file-select class is `mode=block fmt=2 siz=2 wh=64x1 fs=514 tile=7` with 70 repeated misses in the last verified strict `on` bundle
   - the new pack cross-check in `hires-evidence.json` shows those current strict-fixture misses are unmatched in the active local Paper Mario `.hts` index under our current checksum generation, not mismatched under another `formatsize`

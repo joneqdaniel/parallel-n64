@@ -188,6 +188,7 @@ Current Paper Mario runtime note:
     - no address delta matches the observed `8`-byte row size
     - every captured `8`-byte row at those source addresses is all-zero, including one duplicate-zero group spanning all five addresses
     - the same family still maps back to the known draw-side texrect regimes (`2cycle` inactive-slot, `1cycle` active texel0, plus a smaller masked variant)
+    - the main report now also includes parent-surface checks showing that same-start `16x16 CI4` candidates reproduce the active low-32 families, while shifted starts at `-0x40`, `-0x20`, and `-0x10` do not
   - practical implication: the active `8x16` gap is not well modeled as literal row-local upload bytes; the next resolver step should stay on sampled-object/subrect transport rather than row-byte reinterpretation
 - the same `hires-evidence.json` trace now also cross-checks miss keys against the active `.hts`/`.htc` index, so bundle evidence can distinguish “unmatched in the local pack index under the current checksum generation” from “lookup present under another formatsize”
 - CI palette probe runs now also record `ci_palette_probe.families` in `traces/hires-evidence.json`, so representative CI misses can report whether their low-32 pack family is exact/generic, dimension-uniform, or structurally ambiguous without changing the default lookup path

@@ -253,7 +253,10 @@ Current artifact:
   - no address delta matches the observed `8`-byte row size
   - every captured `8`-byte row at those source addresses is all-zero, even though the same family still maps back to the known draw-side texrect regimes
   - the companion neighborhood scan at [hires-tile-family-neighborhood.md](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select-tile-family-probe/on/20260328-105848/traces/hires-tile-family-neighborhood.md) shows non-zero bytes consistently nearby those all-zero anchors, which strengthens the parent-surface/subrect-transport interpretation
-  - practical implication: the active `8x16` gap is not well represented by literal row-local upload bytes, which strengthens the sampled-object / parent-subrect transport direction for the next Tier 2 resolver slice
+  - the main report now includes parent-surface checks that narrow the next Tier 2 step:
+    - same-start `16x16 CI4` candidates reproduce the active low-32 families directly
+    - shifted starts at `-0x40`, `-0x20`, and `-0x10` miss the active pack pool for those same families
+    - practical implication: the active `8x16` gap is best treated as a same-start parent-subrect transport problem, not a shifted-start search
 
 ## What This Plan Explicitly Avoids
 

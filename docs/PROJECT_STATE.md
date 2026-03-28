@@ -393,7 +393,11 @@
   - every captured `8`-byte row at those source addresses is all-zero, including one duplicate-zero group spanning all five addresses
   - the same family still maps back to the known draw-side texrect regimes, so the zero-row result is not a missing-probe bug; it is part of the current transport mismatch
   - the companion neighborhood scan at [hires-tile-family-neighborhood.md](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select-tile-family-probe/on/20260328-105848/traces/hires-tile-family-neighborhood.md) shows non-zero bytes consistently nearby those all-zero anchors, which strengthens the parent-surface/subrect-transport interpretation
-  - practical implication: the active `8x16` strict gap should not be modeled as meaningful row-local upload bytes, which pushes the next resolver step further toward larger parent-tile/subrect transport and away from row-byte reinterpretation
+  - the upgraded parent-surface checks in the main report now narrow that further:
+    - same-start `16x16 CI4` candidates reproduce the active low-32 families directly (`42779bdd`, `469bad6f`, `5464fdf1`, `53302ad5`, `75fee641`)
+    - shifted starts at `-0x40`, `-0x20`, and `-0x10` all fall out of the active pack pool for those same families
+    - same-start parent transport is therefore the useful next canonicalization target, not a wider shifted-start search
+  - practical implication: the active `8x16` strict gap should not be modeled as meaningful row-local upload bytes, which pushes the next resolver step toward same-start parent-tile/subrect transport and away from row-byte reinterpretation
 - The latest unstaged HLE-to-LLE conversion research in [hle-to-lle-conversion-plan.md](/home/auro/code/parallel-n64/docs/plans/hires-conversion-analysis/hle-to-lle-conversion-plan.md) and [palette-crc-transform-analysis.md](/home/auro/code/parallel-n64/docs/plans/hires-conversion-analysis/palette-crc-transform-analysis.md) is directionally useful, but it is now adopted in tracked planning with tighter guardrails:
   - adopt the three-tier conversion split:
     - pure-math bridge candidate generation

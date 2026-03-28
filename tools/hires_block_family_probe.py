@@ -350,6 +350,13 @@ def candidate_widths_for_area(total_pixels: int) -> list[int]:
     return widths
 
 
+def parent_surface_start_deltas(row_bytes: int) -> list[int]:
+    deltas = [0]
+    for multiplier in (2, 4, 8):
+        deltas.append(-(row_bytes * multiplier))
+    return sorted(set(deltas))
+
+
 def analyze_plan(plan: dict, snapshot_trace: Path, cache_path: Path | None = None) -> tuple[dict, str]:
     base_addr, data = parse_snapshot_trace(snapshot_trace)
     min_addr = int(plan["snapshot"]["min_addr"], 16)
@@ -457,6 +464,7 @@ def analyze_plan(plan: dict, snapshot_trace: Path, cache_path: Path | None = Non
     ]
 
     exact_row_run_pack_checks = []
+    parent_surface_checks = []
     if cache_path is not None:
         cache_entries = parse_cache_entries(cache_path)
         observed_width = int(plan["family"]["width"])
@@ -523,6 +531,53 @@ def analyze_plan(plan: dict, snapshot_trace: Path, cache_path: Path | None = Non
                 }
             )
 
+        if plan["family"]["mode"] == "tile":
+            observed_height = int(plan["family"]["height"])
+            for item in rows:
+                addr = int(item["addr"], 16)
+                offset = addr - base_addr
+                variants = []
+                for sampled_size in range(max(observed_size - 1, 0), observed_size + 1):
+                    sampled_width = (row_size_bytes * 2) >> sampled_size
+                    if sampled_width <= 0:
+                        continue
+                    for delta in parent_surface_start_deltas(row_size_bytes):
+                        start_offset = offset + delta
+                        if start_offset < 0:
+                            continue
+                        surface_bytes = row_size_bytes * observed_height
+                        if start_offset + surface_bytes > len(data):
+                            continue
+                        low32 = rice_crc32_wrapped(
+                            data,
+                            start_offset,
+                            sampled_width,
+                            observed_height,
+                            sampled_size,
+                            row_size_bytes,
+                        )
+                        summary = build_family_summary(cache_entries, low32, formatsize)
+                        variants.append(
+                            {
+                                "start_addr": f"0x{base_addr + start_offset:06x}",
+                                "delta": delta,
+                                "sampled_width": sampled_width,
+                                "sampled_height": observed_height,
+                                "sampled_size": sampled_size,
+                                "low32": f"{low32:08x}",
+                                "family_entry_count": summary["family_entry_count"],
+                                "recommended_tier": summary["recommended_tier"],
+                                "active_replacement_dims": summary["active_replacement_dims"][:5],
+                            }
+                        )
+                parent_surface_checks.append(
+                    {
+                        "addr": item["addr"],
+                        "upload_key": item["key"][-8:],
+                        "variants": variants,
+                    }
+                )
+
     report = {
         "plan_source_bundle": plan["source_bundle"],
         "snapshot_trace": str(snapshot_trace),
@@ -536,6 +591,7 @@ def analyze_plan(plan: dict, snapshot_trace: Path, cache_path: Path | None = Non
         "duplicate_row_groups": duplicate_groups,
         "draw_usage_summary": draw_usage_summary,
         "exact_row_run_pack_checks": exact_row_run_pack_checks,
+        "parent_surface_checks": parent_surface_checks,
         "delta_vs_row_bytes": {
             "row_bytes": row_size_bytes,
             "matching_delta_event_count": sum(
@@ -618,6 +674,18 @@ def analyze_plan(plan: dict, snapshot_trace: Path, cache_path: Path | None = Non
                     )
             else:
                 md.append("  - no area-preserving reinterpretation hits in the active pack")
+    if parent_surface_checks:
+        md.append("\n## Parent-Surface Checks\n")
+        for item in parent_surface_checks[:12]:
+            md.append(f"- `{item['addr']}` upload_low32=`{item['upload_key']}`")
+            for variant in item["variants"]:
+                md.append(
+                    f"  - start=`{variant['start_addr']}` delta=`{variant['delta']}` "
+                    f"sampled=`{variant['sampled_width']}x{variant['sampled_height']}` "
+                    f"siz=`{variant['sampled_size']}` low32=`{variant['low32']}` "
+                    f"family_entries=`{variant['family_entry_count']}` "
+                    f"tier=`{variant['recommended_tier']}` dims=`{variant['active_replacement_dims']}`"
+                )
     md.append("\n## Row Preview\n")
     md.append("| addr | count | key | first16 | last16 | active span | nearby nz | top nibbles |")
     md.append("|---|---:|---|---|---|---|---|---|")

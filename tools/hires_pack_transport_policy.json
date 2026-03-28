@@ -59,21 +59,50 @@
       ]
     },
     "sampled-fmt2-siz0-off0-stride8-wh16x16-fs2-low327064585c": {
-      "status": "manual-review-required",
-      "justification": "Five same-start transport hints collapse onto this one real runtime sampled proxy, so transport selection must be made against the proxy object itself rather than the hint families.",
+      "status": "selected-provisional",
+      "justification": "Proxy-centered runtime review narrows the unresolved 7064585c choice to a near-tied top pair and af028e08 leads slightly against both the c139 baseline and the strict legacy-on bridge frame.",
       "supporting_notes": [
         "The tile-parent slice is review-only because the hint identities mismatch the real runtime sampled object.",
         "Proxy review aggregates 62 transported payload candidates across the collapsed hint families.",
         "No selected transported payload is recorded yet for this proxy.",
         "Focused 469bad6f previews overturn the earlier mixed-family impression that 16x16 leads; strongest current candidates are 120x120 variants af028e08 and 81b32e31 by RMSE, with c3984de7 lowest by AE, but no payload is selected yet.",
         "Focused asset comparison reduces the effective 469bad6f review surface further: 373fa1d0/e3394be6/fa12dda5 are exact duplicates, af028e08 and 81b32e31 are near-duplicates, and c3984de7 is the strongest structurally distinct alternative.",
-        "Proxy-centered runtime review shrinks the active decision again: c3984de7 stays materially farther from the proven c139 baseline, while af028e08 and 81b32e31 remain the only near-tied top pair."
+        "Proxy-centered runtime review shrinks the active decision again: c3984de7 stays materially farther from the proven c139 baseline, while af028e08 and 81b32e31 remain the only near-tied top pair.",
+        "The combined sampled-proxy package now reproduces the earlier af028e08 preview exactly in a live strict file-select run, with 14 exact sampled-object hits (12 for 7064585c plus the shared 2 c139c1c0 hits)."
       ],
       "overturn_conditions": [
         "A focused proxy-centered runtime comparison identifies one transported payload as clearly superior on the strict fixture.",
         "Static Tier 2 reconstruction reduces this proxy pool to a deterministic canonical bridge.",
         "A broader validation slice shows the current proxy grouping is still missing a stronger discriminator."
-      ]
+      ],
+      "selected_replacement_id": "legacy-469bad6f-af028e08-fs0-120x120",
+      "evidence": {
+        "review_artifact": "artifacts/hires-pack-review/20260328-469bad6f-previews/top3-runtime-review.md",
+        "selected_runtime_bundle": "artifacts/paper-mario-file-select/on/20260328-469bad6f-af028e08__120x120",
+        "alternate_runtime_bundle": "artifacts/paper-mario-file-select/on/20260328-469bad6f-81b32e31__120x120",
+        "selected_hash": "1a0719dfcba68736d09579d8fb1e6eb628cf62fa89544675f8d7ddffe70500bb",
+        "alternate_hash": "90ca8a48c80494fdeeada421713605384b56ebb2d536b48c1ba8ea1d113b73ff",
+        "selected_vs_c139_baseline": {
+          "ae": 14667057,
+          "rmse": 7.440820811350927
+        },
+        "alternate_vs_c139_baseline": {
+          "ae": 14784639,
+          "rmse": 7.485862206887575
+        },
+        "selected_vs_legacy_on": {
+          "ae": 148305693,
+          "rmse": 22.99715751063648
+        },
+        "alternate_vs_legacy_on": {
+          "ae": 148423275,
+          "rmse": 23.01177029702188
+        },
+        "combined_package": "artifacts/hires-pack-review/20260328-sampled-proxy-plus-706/package.phrb",
+        "combined_runtime_bundle": "artifacts/paper-mario-file-select/on/20260328-sampled-proxy-plus-706",
+        "combined_hash": "1a0719dfcba68736d09579d8fb1e6eb628cf62fa89544675f8d7ddffe70500bb",
+        "combined_exact_hit_count": 14
+      }
     }
   }
 }

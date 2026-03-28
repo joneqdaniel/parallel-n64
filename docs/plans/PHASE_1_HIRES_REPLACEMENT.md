@@ -195,7 +195,11 @@
               - all three candidates keep the same `14` sampled-object exact-hit structure
               - `c3984de7__120x120` is materially farther from the proven `c139` baseline than the other two
               - `af028e08__120x120` and `81b32e31__120x120` remain extremely close in runtime output
-          - practical implication: the proxy pool is no longer an undifferentiated set of `62` payloads, and the active unresolved choice is now effectively `af028e08` vs `81b32e31`
+            - the provisional proxy selection is now runtime-composed too:
+              - package: [20260328-sampled-proxy-plus-706/package.phrb](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-sampled-proxy-plus-706/package.phrb)
+              - runtime proof: [20260328-sampled-proxy-plus-706](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260328-sampled-proxy-plus-706)
+              - the combined package reproduces the earlier `af028e08` preview hash `1a0719dfcba68736d09579d8fb1e6eb628cf62fa89544675f8d7ddffe70500bb` with `14` exact hits total
+          - practical implication: the proxy pool is no longer an undifferentiated set of `62` payloads, and the active tracked provisional choice is now `af028e08`
     - practical implication: the active `8x16` gap should not be modeled as meaningful row-local upload bytes, which makes same-start parent-tile/subrect transport a stronger next resolver target than more row-byte reinterpretation
   - hi-res traces now also expose stable bucket summaries, which collapse title misses to 5 unique classes and file-select misses to 6 unique classes
   - the current dominant unresolved file-select class is `mode=block fmt=2 siz=2 wh=64x1 fs=514 tile=7` with 70 repeated misses in the last verified strict `on` bundle

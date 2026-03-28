@@ -459,7 +459,11 @@
         - all three candidates keep the same `14` sampled-object exact-hit structure
         - `c3984de7__120x120` is materially farther from the proven `c139` baseline than the other two
         - `af028e08__120x120` and `81b32e31__120x120` remain extremely close in runtime output
-    - practical implication: the active `7064585c` transport decision is now effectively `af028e08` vs `81b32e31`; `c3984de7` stays as the strongest structurally distinct fallback, but it is no longer a co-leading runtime candidate
+      - the provisional proxy selection is now runtime-composed too:
+        - package: [20260328-sampled-proxy-plus-706/package.phrb](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-sampled-proxy-plus-706/package.phrb)
+        - runtime proof: [20260328-sampled-proxy-plus-706](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260328-sampled-proxy-plus-706)
+        - the combined package reproduces the earlier `af028e08` preview hash `1a0719dfcba68736d09579d8fb1e6eb628cf62fa89544675f8d7ddffe70500bb` with `14` exact hits total
+    - practical implication: `af028e08` is now the tracked provisional transport choice for `7064585c`; `81b32e31` remains the nearest alternate, and `c3984de7` remains the strongest structurally distinct fallback
   - strict bundle extraction now records sampled-object exact hits separately in [`tools/scenarios/lib/common.sh`](/home/auro/code/parallel-n64/tools/scenarios/lib/common.sh), so `traces/hires-evidence.json` can describe canonical lookup-only bundles without conflating them with the upload-side `Hi-res keying summary`
   - practical implication: the active `8x16` strict gap should not be modeled as meaningful row-local upload bytes, which pushes the next resolver step toward same-start parent-tile/subrect transport and away from row-byte reinterpretation
 - The latest unstaged HLE-to-LLE conversion research in [hle-to-lle-conversion-plan.md](/home/auro/code/parallel-n64/docs/plans/hires-conversion-analysis/hle-to-lle-conversion-plan.md) and [palette-crc-transform-analysis.md](/home/auro/code/parallel-n64/docs/plans/hires-conversion-analysis/palette-crc-transform-analysis.md) is directionally useful, but it is now adopted in tracked planning with tighter guardrails:

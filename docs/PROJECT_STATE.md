@@ -306,6 +306,9 @@
   - practical implication: the remaining early missing-texture problem is no longer “some texrect issue”; it is concretely split between:
     - the dominant `64x1 fs514` block family in a repeated texrect regime
     - the smaller ambiguous `8x16 fs258` CI family in another repeated texrect regime
+  - newer Tier 2/runtime comparison tightens that further:
+    - the larger `2cycle` `8x16` bucket is an inactive-slot caution (`uses_texel0=0`) next to an active `texel1` hit, so it should not be weighted like a live sampled miss
+    - the active unresolved `8x16` target is now the much smaller `1cycle` texel0 bucket, not the larger inactive-slot bucket
 - The first direct RDRAM probe of that dominant `64x1 fs514` family is now captured in [hires-block-family-report.md](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select-block-family-probe/on/20260326-live-1/traces/hires-block-family-report.md):
   - it is produced by the new [paper-mario-file-select-block-family-probe.sh](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-file-select-block-family-probe.sh) scenario and [hires_block_family_probe.py](/home/auro/code/parallel-n64/tools/hires_block_family_probe.py) analyzer
   - `70` miss events collapse to `21` unique low-32 keys and `21` unique RDRAM addresses
@@ -362,16 +365,22 @@
   - [`tools/hires_pack_inspect_binary_package.py`](/home/auro/code/parallel-n64/tools/hires_pack_inspect_binary_package.py) now round-trips that `PHRB` package back into JSON for verification, so the binary handoff remains inspectable before we add any runtime parser
   - that package manifest now records decoded `pixel_sha256` values, `alpha_normalized_pixel_sha256` values, and duplicate-pixel groups; on the current deterministic `2a1be0a4 -> c139c1c0` slice, the two legacy transport candidates remain distinct even after alpha-normalized hashing, so importer policy should continue treating them as separate transported assets until stronger evidence justifies collapse
 - The current exact-key audit artifact is now [N64 Exact Key Delta Sheet](/home/auro/code/parallel-n64/docs/plans/N64_EXACT_KEY_DELTA_SHEET.md).
+- [`tools/hires_miss_review.py`](/home/auro/code/parallel-n64/tools/hires_miss_review.py) now correlates pack-review miss families against `sampler_usage`, so miss review can distinguish active texel-slot gaps from inactive-slot bookkeeping buckets on strict fixtures:
+  - on the strict file-select sampled-object bundle, `mode=tile fmt=2 siz=1 wh=8x16 fs=258 tile=7` has `6` direct miss events, but its sampler contexts split into `4` active `texrect/1cycle uses_texel0=1` uses and `16` inactive-slot `texrect/2cycle uses_texel0=0` sightings
+  - practical implication: future CI-format decisions should be shaped by the smaller active `1cycle` `8x16` gap, not by the larger inactive-slot `2cycle` bucket
 - The first Tier 2 Paper Mario static scan is now live via [`tools/paper_mario_tier2_static_scan.py`](/home/auro/code/parallel-n64/tools/paper_mario_tier2_static_scan.py), with the first comparison artifact at [20260328-early-texrect/report.md](/home/auro/code/parallel-n64/artifacts/paper-mario-tier2-static-scan/20260328-early-texrect/report.md):
   - it source-links the dominant `64x1 fs514` file-select miss to the upstream `gDPLoadTextureBlock_4b` filemenu message path, which statically explains the `LoadBlock` transport shape and the sampled `16x16 CI4` object the runtime probe already observed
-  - it source-links the ambiguous `8x16 fs258` family to the `gDPLoadTextureTile_4b` filemenu message branch, which statically explains why that family stays tiled instead of collapsing into the `64x1` transport shape
+  - it source-links the ambiguous `8x16 fs258` family to the `gDPLoadTextureTile_4b` filemenu message branch, but only as a medium-confidence structural match: the strict runtime side is split between a small active `1cycle` texel0 bucket and a larger `2cycle` inactive-slot bucket where the live sample comes from `texel1`
   - it source-links the title-screen striped texrect path directly to `kmr_21`, where `200x2 RGBA32` strips are authored explicitly
   - it also records the filemenu copy-arrow display list as a useful negative control: `64x16 IA4`, not one of the active CI4 families
   - practical implication: the scanner is now also recovering first native-field hints from those exact callsites (`tmem_offset=0`, render tile `0`, macro-derived line/tile-size examples), so the next Tier 2 step is to compare those recovered fields against runtime rather than re-discovering them with more heuristics
   - the first native-field comparison pass is now in the same Tier 2 artifact:
     - the `64x1 -> 16x16 CI4` filemenu message family matches the recovered static fields exactly on the strict file-select bundle (`offset=0`, base tile `0`, `sl/tl/sh/th = 0/0/60/60`)
     - the smaller `8x16` family does not: the static tiled path predicts `sh=28`, while the runtime bucket is still `sh=60`
-    - practical implication: the dominant block/CI4 bridge is now source-backed all the way through native-field comparison, while the `8x16` family still needs deeper `SetTileSize` / texel-combine-path explanation rather than looser fallback rules
+    - the runtime side is now split more carefully too:
+      - the small active `1cycle` texel0 bucket is still a real native-field delta
+      - the larger `2cycle` bucket is an inactive-slot caution (`uses_texel0=0`) and should not drive canonical mapping by itself
+    - practical implication: the dominant block/CI4 bridge is now source-backed all the way through native-field comparison, while the small active `8x16` path still needs deeper `SetTileSize` / texel-combine-path explanation rather than looser fallback rules
 - The latest unstaged HLE-to-LLE conversion research in [hle-to-lle-conversion-plan.md](/home/auro/code/parallel-n64/docs/plans/hires-conversion-analysis/hle-to-lle-conversion-plan.md) and [palette-crc-transform-analysis.md](/home/auro/code/parallel-n64/docs/plans/hires-conversion-analysis/palette-crc-transform-analysis.md) is directionally useful, but it is now adopted in tracked planning with tighter guardrails:
   - adopt the three-tier conversion split:
     - pure-math bridge candidate generation

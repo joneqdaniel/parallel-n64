@@ -228,6 +228,9 @@ Current artifact:
   - the stricter texel-linked follow-up on file select (`20260326-texel-link-check`) narrows the miss side too:
     - the dominant no-hit texrect regime is the `64x1 fs514` block family directly
     - a smaller repeated mixed texrect regime carries the ambiguous `8x16 fs258` CI family
+    - newer Tier 2/runtime comparison narrows that smaller family too:
+      - the active unresolved `8x16` target is the small `1cycle` texel0 bucket
+      - the larger `2cycle` `8x16` bucket is an inactive-slot caution and should not drive canonical mapping decisions
     - so the remaining early texrect work is now concretely split between those two lookup families rather than one vague texrect bucket
 - the first Tier 2 static scan is now live at [`tools/paper_mario_tier2_static_scan.py`](/home/auro/code/parallel-n64/tools/paper_mario_tier2_static_scan.py), with the first comparison artifact at [20260328-early-texrect/report.md](/home/auro/code/parallel-n64/artifacts/paper-mario-tier2-static-scan/20260328-early-texrect/report.md):
   - `gDPLoadTextureBlock_4b` in upstream `filemenu_msg.c` now gives a source-backed explanation for the dominant `64x1 -> 16x16 CI4` file-select bridge
@@ -238,7 +241,8 @@ Current artifact:
   - that comparison is now partially done:
     - the `64x1 -> 16x16 CI4` bridge matches its recovered native fields exactly on the strict file-select bundle
     - the `8x16` family still disagrees on `SetTileSize`-visible width (`sh=28` static, `sh=60` runtime)
-    - practical implication: Tier 2 is now pointing at one concrete unresolved native-field delta instead of a broad menu-texture mystery
+    - the runtime side is now split more carefully between a small active `1cycle` bucket and a larger inactive-slot `2cycle` bucket
+    - practical implication: Tier 2 is now pointing at one concrete unresolved active native-field delta instead of a broad menu-texture mystery
 
 ## What This Plan Explicitly Avoids
 

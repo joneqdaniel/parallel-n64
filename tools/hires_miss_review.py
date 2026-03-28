@@ -48,7 +48,35 @@ def classify_low32_presence(summary):
     return "present-other-formatsize-only"
 
 
-def review_bucket(signature, events, cache_entries):
+def collect_sampler_contexts(hires_data, requested_fs, requested_wh):
+    sampler_usage = hires_data.get("sampler_usage", {})
+    contexts = []
+    for bucket in sampler_usage.get("top_buckets", []) or []:
+        fields = bucket.get("fields", {})
+        if fields.get("texel0_fs") != str(requested_fs):
+            continue
+        texel0_wh = f"{fields.get('texel0_w')}x{fields.get('texel0_h')}"
+        if texel0_wh != requested_wh:
+            continue
+        sample_detail = bucket.get("sample_detail", "")
+        uses_texel0 = None
+        if "uses_texel0=" in sample_detail:
+            uses_texel0 = sample_detail.split("uses_texel0=", 1)[1].split()[0]
+        contexts.append(
+            {
+                "signature": bucket.get("signature", ""),
+                "count": bucket.get("count", 0),
+                "draw_class": fields.get("draw_class"),
+                "cycle": fields.get("cycle"),
+                "texel0_hit": fields.get("texel0_hit"),
+                "texel1_hit": fields.get("texel1_hit"),
+                "uses_texel0": uses_texel0,
+            }
+        )
+    return contexts
+
+
+def review_bucket(signature, events, cache_entries, hires_data):
     low32_counter = Counter(int(event["key"], 16) & 0xFFFFFFFF for event in events if event.get("key"))
     pcrc_counter = Counter(event.get("pcrc", "00000000") for event in events)
     family_summaries = []
@@ -76,6 +104,7 @@ def review_bucket(signature, events, cache_entries):
             }
         )
 
+    requested_wh = events[0].get("wh", "0x0")
     return {
         "signature": signature,
         "event_count": len(events),
@@ -86,6 +115,7 @@ def review_bucket(signature, events, cache_entries):
         "recommended_tier_breakdown": [{"tier": tier, "count": count} for tier, count in tier_counter.most_common()],
         "top_low32_families": family_summaries[:8],
         "sample_details": [event["detail"] for event in events[:3]],
+        "sampler_contexts": collect_sampler_contexts(hires_data, requested_fs, requested_wh),
     }
 
 
@@ -116,6 +146,14 @@ def render_markdown(bundle_path: Path, cache_path: Path, reviews):
             lines.append(
                 "- Top palette CRCs: "
                 + ", ".join(f"`{item['pcrc']} x{item['count']}`" for item in review["top_pcrcs"])
+            )
+        if review.get("sampler_contexts"):
+            lines.append(
+                "- Sampler contexts: "
+                + ", ".join(
+                    f"`{ctx['draw_class']}/{ctx['cycle']} count={ctx['count']} uses_texel0={ctx['uses_texel0']} texel1_hit={ctx['texel1_hit']}`"
+                    for ctx in review["sampler_contexts"]
+                )
             )
         lines.append("")
         lines.append("| low32 | events | presence | tier | exact | generic | palettes | repl dims |")
@@ -156,7 +194,7 @@ def main():
         bucket["signature"]
         for bucket in hires_data.get("bucket_summaries", {}).get("miss", {}).get("top_buckets", [])[: args.top]
     ]
-    reviews = [review_bucket(signature, events_by_signature[signature], cache_entries) for signature in top_signatures]
+    reviews = [review_bucket(signature, events_by_signature[signature], cache_entries, hires_data) for signature in top_signatures]
 
     if args.format == "json":
         print(json.dumps({"bundle": str(bundle_path), "cache": str(cache_path), "reviews": reviews}, indent=2))

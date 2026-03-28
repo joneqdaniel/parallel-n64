@@ -207,11 +207,13 @@ def static_findings(game_root: Path) -> list[dict[str, Any]]:
         {
             "id": "filemenu-msg-loadtile-4b-ci4",
             "category": "macro-to-runtime-bridge",
-            "confidence": "high",
+            "confidence": "medium",
             "summary": (
-                "The ambiguous `8x16 fs258` file-select family is structurally consistent with "
-                "the `gDPLoadTextureTile_4b` branch in filemenu message rendering: it stays a tiled 4b CI load "
-                "instead of collapsing through the `64x1` `LoadBlock` transport shape."
+                "The smaller active `8x16 fs258` file-select family is structurally consistent with "
+                "the `gDPLoadTextureTile_4b` branch in filemenu message rendering, but the broader strict-fixture "
+                "`8x16` neighborhood is split: a small active `1cycle` bucket and a larger `2cycle` bucket where "
+                "`texel0` is inactive and the live sample comes from `texel1`. That larger inactive-slot bucket "
+                "should not drive canonical mapping decisions by itself."
             ),
             "source_refs": [
                 SourceRef(filemenu_msg_path, find_line(filemenu_msg_lines, "gDPLoadTextureTile_4b(gMainGfxPos++, &raster[charRasterSize * c], G_IM_FMT_CI,")).to_json(),
@@ -237,17 +239,31 @@ def static_findings(game_root: Path) -> list[dict[str, Any]]:
                 "notes": [
                     "This branch is taken when `texSizeX` is not a 16-aligned block-load candidate.",
                     "It preserves a tiled 4b CI interpretation instead of forcing the `LoadBlock` transport shape.",
-                    "That matches the current runtime split between the `64x1 fs514` family and the smaller `8x16 fs258` CI family.",
+                    "On the strict file-select fixture, the active `8x16` evidence is now split: a small `1cycle` bucket still samples texel0 directly, while the larger `2cycle` bucket logs the same texel0 family in an inactive slot next to an active texel1 hit.",
+                    "That means the larger `2cycle` `8x16` bucket is a bookkeeping/disambiguation caution, not a clean canonical target on its own.",
                 ],
             },
             "expected_runtime_signatures": {
-                "sampler_bucket": {
-                    "draw_class": "texrect",
-                    "cycle": "2cycle",
-                    "fmt": "2",
-                    "siz": "0",
-                    "texel0_wh": "8x16",
-                }
+                "sampler_buckets": [
+                    {
+                        "label": "sampler_bucket_active_texel0",
+                        "draw_class": "texrect",
+                        "cycle": "1cycle",
+                        "fmt": "2",
+                        "siz": "0",
+                        "texel0_wh": "8x16",
+                        "require_used_texel0": "1",
+                    },
+                    {
+                        "label": "sampler_bucket_inactive_texel0",
+                        "draw_class": "texrect",
+                        "cycle": "2cycle",
+                        "fmt": "2",
+                        "siz": "0",
+                        "texel0_wh": "8x16",
+                        "require_used_texel0": "0",
+                    },
+                ]
             },
         }
     )
@@ -353,8 +369,11 @@ def compare_against_runtime(findings: list[dict[str, Any]], bundles: list[dict[s
             sampled_idx = sampled_group_index(bundle_data)
             sampler_idx = sampler_bucket_index(bundle_data)
             links = []
-            sampler = expected.get("sampler_bucket")
-            if sampler:
+            sampler_specs = []
+            if expected.get("sampler_bucket"):
+                sampler_specs.append(expected["sampler_bucket"])
+            sampler_specs.extend(expected.get("sampler_buckets", []))
+            for sampler in sampler_specs:
                 sampler_key = (
                     sampler["draw_class"],
                     sampler["cycle"],
@@ -363,17 +382,26 @@ def compare_against_runtime(findings: list[dict[str, Any]], bundles: list[dict[s
                     sampler["texel0_wh"],
                 )
                 bucket = sampler_idx.get(sampler_key)
-                if bucket:
-                    link = {
-                        "kind": "sampler_bucket",
-                        "signature": bucket["signature"],
-                        "count": bucket["count"],
-                        "sample_detail": bucket["sample_detail"],
-                    }
-                    field_comparison = compare_native_fields(finding["static_shape"], bucket)
-                    if field_comparison is not None:
-                        link["field_comparison"] = field_comparison
-                    links.append(link)
+                if not bucket:
+                    continue
+                sample_detail = bucket["sample_detail"]
+                uses_texel0 = None
+                if "uses_texel0=" in sample_detail:
+                    uses_texel0 = sample_detail.split("uses_texel0=", 1)[1].split()[0]
+                if "require_used_texel0" in sampler and uses_texel0 is not None and uses_texel0 != sampler["require_used_texel0"]:
+                    continue
+                link = {
+                    "kind": sampler.get("label", "sampler_bucket"),
+                    "signature": bucket["signature"],
+                    "count": bucket["count"],
+                    "sample_detail": sample_detail,
+                }
+                if uses_texel0 is not None:
+                    link["uses_texel0"] = uses_texel0
+                field_comparison = compare_native_fields(finding.get("static_shape", {}), bucket)
+                if field_comparison is not None:
+                    link["field_comparison"] = field_comparison
+                links.append(link)
             sampled = expected.get("sampled_object")
             if sampled:
                 target_wh = sampled["wh"]

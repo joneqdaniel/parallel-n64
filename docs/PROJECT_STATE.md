@@ -426,9 +426,21 @@
     - `opt2` vs legacy strict `on`: `AE=140020278`, `RMSE=22.949551`
     - this is only a provisional ranking, not proof that `opt1` is the final correct art choice
   - there is now a dedicated tool-side narrowing step at [`tools/hires_pack_select_transport.py`](/home/auro/code/parallel-n64/tools/hires_pack_select_transport.py), so selecting one transported payload from a multi-candidate canonical record can stay outside the runtime and remain reproducible
-  - that narrowing step now has a tracked policy source too: [`tools/hires_pack_transport_policy.json`](/home/auro/code/parallel-n64/tools/hires_pack_transport_policy.json) records the first provisional sampled-object transport decision for `legacy-low32-2a1be0a4-fs2 -> legacy-2a1be0a4-3ea78bbb-fs0-640x160`
-  - the policy-selected package at [20260328-sampled-c139-policy-selected/package.phrb](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-sampled-c139-policy-selected/package.phrb) now reproduces the `opt1` runtime result exactly on strict file select: exact hits fire and the screenshot hash is again `831cd6a7dff2d44654c854dbbcd91d13071cf49d6622f9141084780b47bf2b32`
-  - practical implication: the remaining work for this slice is no longer hand-emitting narrowed packages; it is refining and validating transport policy itself
+  - that narrowing step now has a tracked policy source too: [`tools/hires_pack_transport_policy.json`](/home/auro/code/parallel-n64/tools/hires_pack_transport_policy.json) now carries both:
+    - `transport_families` for the earlier legacy-family narrowing path
+    - `transport_proxies` for the new sampled-proxy-centered path
+  - the new proxy-centered bridge is first-class in tooling:
+    - [`tools/hires_pack_proxy_review.py`](/home/auro/code/parallel-n64/tools/hires_pack_proxy_review.py) now treats runtime-ready sampled canonical records as proxies directly, not only hint-linked proxies
+    - [`tools/hires_pack_emit_proxy_bindings.py`](/home/auro/code/parallel-n64/tools/hires_pack_emit_proxy_bindings.py) emits proxy-centered bindings and unresolved proxy transport cases
+    - [20260328-sampled-proxy](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-sampled-proxy) materializes the first proxy-selected `c139c1c0` package slice
+    - [20260328-tile-parent-proxy](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-tile-parent-proxy) makes the unresolved `7064585c` proxy pool explicit as one runtime-ready sampled object with `62` transport candidates from five collapsed hint families
+  - current revalidation changed the runtime conclusion materially:
+    - the historical exact-hit bundles still exist for `c139c1c0` (`opt1`, `opt2`, and the earlier policy-selected slice)
+    - but current live control runs with the same authoritative file-select state and `PARALLEL_RDP_HIRES_SAMPLED_OBJECT_LOOKUP=1` now collapse to baseline `off` for both the old family-selected package and the new proxy-selected package
+    - that means the active blocker is no longer proxy packaging; it is revalidating why sampled-object exact lookup is not reproducing the earlier `c139c1c0` hit path under the current core/runtime path
+  - practical implication: the remaining work for this slice is now split in two:
+    - keep proxy-centered transport policy and unresolved `7064585c` review moving forward tool-side
+    - treat current sampled-object exact runtime behavior as a live revalidation blocker before promoting proxy-selected packages further
   - practical implication: the active `8x16` strict gap should not be modeled as meaningful row-local upload bytes, which pushes the next resolver step toward same-start parent-tile/subrect transport and away from row-byte reinterpretation
 - The latest unstaged HLE-to-LLE conversion research in [hle-to-lle-conversion-plan.md](/home/auro/code/parallel-n64/docs/plans/hires-conversion-analysis/hle-to-lle-conversion-plan.md) and [palette-crc-transform-analysis.md](/home/auro/code/parallel-n64/docs/plans/hires-conversion-analysis/palette-crc-transform-analysis.md) is directionally useful, but it is now adopted in tracked planning with tighter guardrails:
   - adopt the three-tier conversion split:

@@ -23,7 +23,36 @@ def build_proxy_view(index):
     proxies = {}
 
     for record in index.get('canonical_records', []):
-        for proxy in record.get('runtime_proxy_candidates', []):
+        proxy_candidates = list(record.get('runtime_proxy_candidates', []))
+        direct_runtime_ready = bool(
+            record.get('runtime_ready')
+            or record.get('sampled_entry_pcrc')
+            or record.get('sampled_sparse_pcrc')
+        )
+        if not proxy_candidates and direct_runtime_ready:
+            proxy_candidates = [
+                {
+                    'sampled_object_id': record.get('sampled_object_id'),
+                    'candidate_origin': record.get('candidate_origin') or 'runtime-sampled-probe',
+                    'evidence_authority': record.get('evidence_authority') or 'runtime-sampled-probe',
+                    'draw_class': record.get('draw_class'),
+                    'cycle': record.get('cycle'),
+                    'fmt': record.get('fmt'),
+                    'siz': record.get('siz'),
+                    'off': record.get('off'),
+                    'stride': record.get('stride'),
+                    'wh': record.get('wh'),
+                    'formatsize': record.get('formatsize'),
+                    'sampled_low32': record.get('sampled_low32'),
+                    'sampled_entry_pcrc': record.get('sampled_entry_pcrc'),
+                    'sampled_sparse_pcrc': record.get('sampled_sparse_pcrc'),
+                    'runtime_ready': direct_runtime_ready,
+                }
+            ]
+        source_low32s = [item.get('value') for item in record.get('upload_low32s', []) if item.get('value')]
+        if not source_low32s and record.get('sampled_low32'):
+            source_low32s = [record.get('sampled_low32')]
+        for proxy in proxy_candidates:
             proxy_id = proxy.get('sampled_object_id')
             if not proxy_id:
                 continue
@@ -39,7 +68,8 @@ def build_proxy_view(index):
                 },
             )
             group['source_hint_ids'].append(record.get('sampled_object_id'))
-            group['source_hint_low32s'].append(record.get('sampled_low32'))
+            for low32 in source_low32s:
+                group['source_hint_low32s'].append(low32)
             group['source_hint_authorities'].append(record.get('evidence_authority'))
             for policy_key in record.get('linked_policy_keys', []):
                 if policy_key not in group['source_policy_keys']:
@@ -55,7 +85,6 @@ def build_proxy_view(index):
         dims_counter = Counter()
         palette_counter = Counter()
         policy_status_counter = Counter()
-        suggested_groups = []
         for candidate in group['transport_candidates'].values():
             asset = candidate.get('replacement_asset', {})
             dims = f"{asset.get('width')}x{asset.get('height')}"
@@ -70,7 +99,7 @@ def build_proxy_view(index):
         review.append(
             {
                 'proxy_sampled_object_id': proxy_id,
-                'proxy_identity': proxy,
+                'proxy_identity': group['proxy'],
                 'source_hint_count': len(group['source_hint_ids']),
                 'source_hint_ids': sorted(group['source_hint_ids']),
                 'source_hint_low32s': sorted(set(filter(None, group['source_hint_low32s']))),

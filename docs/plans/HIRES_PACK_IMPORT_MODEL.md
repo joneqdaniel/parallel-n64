@@ -101,6 +101,9 @@ This document describes the shape of the import model itself. The evidence thres
   - compares the legacy-family view against the canonical sampled-object view for one emitted subset
 - [`tools/hires_pack_proxy_review.py`](/home/auro/code/parallel-n64/tools/hires_pack_proxy_review.py)
   - aggregates transport-hint families onto their real runtime sampled-object proxies so we can review the actual transport pool before promoting anything into runtime-ready bindings
+  - now also treats runtime-ready sampled canonical records as direct proxies, so deterministic sampled slices and unresolved hint-collapsed proxy slices share one review model
+- [`tools/hires_pack_emit_proxy_bindings.py`](/home/auro/code/parallel-n64/tools/hires_pack_emit_proxy_bindings.py)
+  - emits sampled-proxy-centered bindings and unresolved proxy transport cases so selection can happen against the real sampled object instead of the hint families
 - [`tools/hires_pack_emit_bindings.py`](/home/auro/code/parallel-n64/tools/hires_pack_emit_bindings.py)
   - emits deterministic canonical sampled-object bindings and separates unresolved transport cases for future importer work
 - [`tools/hires_pack_emit_loader_manifest.py`](/home/auro/code/parallel-n64/tools/hires_pack_emit_loader_manifest.py)
@@ -268,9 +271,14 @@ The migration tool now emits that bridge when sampled-object bundle data is avai
     - [20260328-sampled-c139-opt1](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260328-sampled-c139-opt1)
     - [20260328-sampled-c139-opt2](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260328-sampled-c139-opt2)
   - both prove the current remaining ambiguity is transport policy, not canonical sampled-object lookup plumbing
-- the first transport-policy-backed selected package is now also live:
-  - [20260328-sampled-c139-policy-selected/package.phrb](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-sampled-c139-policy-selected/package.phrb) is emitted from [`tools/hires_pack_transport_policy.json`](/home/auro/code/parallel-n64/tools/hires_pack_transport_policy.json) through [`tools/hires_pack_select_transport.py`](/home/auro/code/parallel-n64/tools/hires_pack_select_transport.py)
-  - [20260328-sampled-c139-policy-selected](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260328-sampled-c139-policy-selected) reproduces the exact-hit `opt1` runtime result, which means the transport-selection loop is now reproducible end to end
+- the transport-policy-backed path is now split cleanly:
+  - [`tools/hires_pack_transport_policy.json`](/home/auro/code/parallel-n64/tools/hires_pack_transport_policy.json) now carries both `transport_families` and `transport_proxies`
+  - [20260328-sampled-proxy](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-sampled-proxy) proves the proxy-centered package handoff can be emitted as a real `PHRB` v2 slice for `c139c1c0`
+  - [20260328-tile-parent-proxy](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-tile-parent-proxy) makes the unresolved `7064585c` sampled proxy the active review surface instead of the five collapsed hint families
+- current runtime status is more conservative than the earlier wording:
+  - historical `c139c1c0` exact-hit bundles still show the sampled-object lookup seam can work
+  - but current live revalidation with `PARALLEL_RDP_HIRES_SAMPLED_OBJECT_LOOKUP=1` now collapses to baseline `off` for both the old family-selected package and the new proxy-selected package on the authoritative strict file-select state
+  - that means proxy-centered packaging is not the active blocker; sampled-object exact lookup must be revalidated under the current core/runtime path before proxy-selected packages can be promoted further
 - the package manifest now also records decoded `pixel_sha256` values, `alpha_normalized_pixel_sha256` values, and duplicate-pixel groups, so importer design can distinguish fully distinct transport content from any future duplicate or near-duplicate transport variants
   - markdown: [20260327-sampled-legacy-vs-canonical.md](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260327-sampled-legacy-vs-canonical.md)
   - json: [20260327-sampled-canonical-projection.json](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260327-sampled-canonical-projection.json)

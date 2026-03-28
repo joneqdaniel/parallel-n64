@@ -19,15 +19,16 @@ def merge_selections(selections_data, policy_data):
                 'selection_source': 'selections',
             }
     if policy_data:
-        for policy_key, record in policy_data.get('transport_families', {}).items():
-            replacement_id = record.get('selected_replacement_id')
-            if not replacement_id:
-                continue
-            merged[policy_key] = {
-                'selected_replacement_id': replacement_id,
-                'selection_source': 'policy',
-                'policy_record': record,
-            }
+        for section in ('transport_families', 'transport_proxies'):
+            for policy_key, record in policy_data.get(section, {}).items():
+                replacement_id = record.get('selected_replacement_id')
+                if not replacement_id:
+                    continue
+                merged[policy_key] = {
+                    'selected_replacement_id': replacement_id,
+                    'selection_source': 'policy',
+                    'policy_record': record,
+                }
     return merged
 
 

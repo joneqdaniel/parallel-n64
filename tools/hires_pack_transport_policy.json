@@ -38,5 +38,39 @@
         "Static Tier 2 or native-format research proves that another transport alias is the correct canonical bridge."
       ]
     }
+  },
+  "transport_proxies": {
+    "sampled-fmt2-siz0-off0-stride32-wh64x16-fs2-low32c139c1c0": {
+      "status": "selected",
+      "selected_replacement_id": "legacy-2a1be0a4-3ea78bbb-fs0-640x160",
+      "justification": "Proxy-centered transport selection matches the earlier strict sampled-object runtime proof for c139c1c0.",
+      "supporting_notes": [
+        "This proxy is runtime-ready and already proven through sampled-object exact lookup on the strict file-select fixture.",
+        "The selected transported payload matches the earlier family-selected opt1 result exactly.",
+        "Keeping the proxy selection aligned with the proven c139c1c0 path lets the importer/runtime handoff move away from legacy family keys without changing the observed result."
+      ],
+      "evidence": {
+        "selected_runtime_bundle": "artifacts/paper-mario-file-select/on/20260328-sampled-c139-policy-selected",
+        "selected_hash": "831cd6a7dff2d44654c854dbbcd91d13071cf49d6622f9141084780b47bf2b32"
+      },
+      "overturn_conditions": [
+        "A broader sampled-object validation slice shows another transported payload is more correct for c139c1c0.",
+        "Static Tier 2 reconstruction proves another legacy alias is the better canonical bridge for this sampled object."
+      ]
+    },
+    "sampled-fmt2-siz0-off0-stride8-wh16x16-fs2-low327064585c": {
+      "status": "manual-review-required",
+      "justification": "Five same-start transport hints collapse onto this one real runtime sampled proxy, so transport selection must be made against the proxy object itself rather than the hint families.",
+      "supporting_notes": [
+        "The tile-parent slice is review-only because the hint identities mismatch the real runtime sampled object.",
+        "Proxy review aggregates 62 transported payload candidates across the collapsed hint families.",
+        "No selected transported payload is recorded yet for this proxy."
+      ],
+      "overturn_conditions": [
+        "A focused proxy-centered runtime comparison identifies one transported payload as clearly superior on the strict fixture.",
+        "Static Tier 2 reconstruction reduces this proxy pool to a deterministic canonical bridge.",
+        "A broader validation slice shows the current proxy grouping is still missing a stronger discriminator."
+      ]
+    }
   }
 }

@@ -316,12 +316,19 @@ def parse_bundle_sampled_object_context(bundle_path: Path):
             proxies.append(
                 {
                     "sampled_object_id": proxy.get("sampled_object_id"),
+                    "candidate_origin": proxy.get("candidate_origin"),
+                    "evidence_authority": proxy.get("evidence_authority"),
+                    "draw_class": proxy.get("draw_class"),
+                    "cycle": proxy.get("cycle"),
+                    "fmt": proxy.get("fmt"),
+                    "siz": proxy.get("siz"),
+                    "off": proxy.get("off"),
+                    "stride": proxy.get("stride"),
+                    "wh": proxy.get("wh"),
+                    "formatsize": proxy.get("formatsize"),
                     "sampled_low32": proxy.get("sampled_low32"),
                     "sampled_entry_pcrc": proxy.get("sampled_entry_pcrc"),
                     "sampled_sparse_pcrc": proxy.get("sampled_sparse_pcrc"),
-                    "draw_class": proxy.get("draw_class"),
-                    "cycle": proxy.get("cycle"),
-                    "formatsize": proxy.get("formatsize"),
                     "runtime_ready": proxy.get("runtime_ready"),
                 }
             )

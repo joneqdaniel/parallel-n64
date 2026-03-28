@@ -229,6 +229,12 @@ Current artifact:
     - the dominant no-hit texrect regime is the `64x1 fs514` block family directly
     - a smaller repeated mixed texrect regime carries the ambiguous `8x16 fs258` CI family
     - so the remaining early texrect work is now concretely split between those two lookup families rather than one vague texrect bucket
+- the first Tier 2 static scan is now live at [`tools/paper_mario_tier2_static_scan.py`](/home/auro/code/parallel-n64/tools/paper_mario_tier2_static_scan.py), with the first comparison artifact at [20260328-early-texrect/report.md](/home/auro/code/parallel-n64/artifacts/paper-mario-tier2-static-scan/20260328-early-texrect/report.md):
+  - `gDPLoadTextureBlock_4b` in upstream `filemenu_msg.c` now gives a source-backed explanation for the dominant `64x1 -> 16x16 CI4` file-select bridge
+  - `gDPLoadTextureTile_4b` in the same file now gives a source-backed explanation for the smaller tiled `8x16` CI family
+  - `kmr_21` now gives a direct title-screen source match for the `200x2 RGBA32` texrect stripes
+  - `filemenu_gfx.c` now gives a negative control too: the filemenu copy-arrow path is `64x16 IA4`, so it should not be mixed into the current CI/TLUT work
+  - practical implication: the next Tier 2 ticket is not “more runtime probing”; it is recovering exact tile/TMEM fields from these callsites and checking them against the runtime sampled-object probe
 
 ## What This Plan Explicitly Avoids
 

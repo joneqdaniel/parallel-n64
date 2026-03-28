@@ -115,6 +115,12 @@
     - the visible `32x16 fs258` neighborhood collapses to one sampled `64x16 CI4` object at `off=0 stride=32 fs=2`, with sampled key `c139c1c0` and palette CRCs `80038dc8` / `7ff2e39c`
     - neither sampled key exists anywhere in the current active pack index, even though the corresponding upload-side low-32 families do
     - practical implication: exact runtime identity should move toward the sampled TMEM/tile object, while imported pack transport must learn explicit legacy-upload-family aliases instead of hiding that mismatch behind runtime heuristics
+  - the first Tier 2 static resolver pass is now live via [`tools/paper_mario_tier2_static_scan.py`](/home/auro/code/parallel-n64/tools/paper_mario_tier2_static_scan.py), with the first concrete comparison artifact at [20260328-early-texrect/report.md](/home/auro/code/parallel-n64/artifacts/paper-mario-tier2-static-scan/20260328-early-texrect/report.md):
+    - upstream `filemenu_msg.c` + `gbi_custom.h` now give a source-backed explanation for the dominant `64x1 fs514` miss family: `gDPLoadTextureBlock_4b` produces the raw `64x1` transport shape for a `16x16 CI4` glyph before it is rebound as a sampled `16x16 CI4` texrect object
+    - the same pass source-links the ambiguous `8x16 fs258` family to the tiled `gDPLoadTextureTile_4b` filemenu message branch, which explains why it does not share the `LoadBlock` transport shape
+    - it also gives a direct title-screen source match: `kmr_21` explicitly loads and draws `200x2 RGBA32` texrect strips
+    - and it records the filemenu copy-arrow display list as a negative control (`64x16 IA4`), so we stop conflating unrelated texrect sources with the active CI4 families
+    - practical implication: Tier 2 is now beyond theory; the next static resolver step is to recover native tile/TMEM fields from these exact callsites and compare them against the runtime sampled-object probe
   - hi-res traces now also expose stable bucket summaries, which collapse title misses to 5 unique classes and file-select misses to 6 unique classes
   - the current dominant unresolved file-select class is `mode=block fmt=2 siz=2 wh=64x1 fs=514 tile=7` with 70 repeated misses in the last verified strict `on` bundle
   - the new pack cross-check in `hires-evidence.json` shows those current strict-fixture misses are unmatched in the active local Paper Mario `.hts` index under our current checksum generation, not mismatched under another `formatsize`

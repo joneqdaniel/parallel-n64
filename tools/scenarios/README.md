@@ -212,6 +212,7 @@ Current Paper Mario runtime note:
 - use [hires_pack_emit_subset.py](/home/auro/code/parallel-n64/tools/hires_pack_emit_subset.py) when you want a concrete imported slice for selected family keys as review material
 - add `--variant-selection policy_key=variant_group_id` when you want to materialize one ambiguous candidate as a review-only imported subset
 - use [hires_pack_compare_subsets.py](/home/auro/code/parallel-n64/tools/hires_pack_compare_subsets.py) when you want a side-by-side summary of several review-only subset artifacts
+- use [hires_proxy_candidate_review.py](/home/auro/code/parallel-n64/tools/hires_proxy_candidate_review.py) when you want one report that joins runtime bundle distance, sampled-object exact hits, and transported asset similarity for a sampled-proxy shortlist
 - tracked Paper Mario scenarios now also support `RUNTIME_ENV_OVERRIDE` for temporary experimental runs, and `DISABLE_SCREENSHOT_VERIFY=1` when a controlled debug run is expected to diverge from the locked strict hashes
 - runtime env files are now auto-exported while sourcing, so temporary `PARALLEL_RDP_*` debug toggles in a `RUNTIME_ENV_OVERRIDE` file actually reach the RetroArch/core child process
 - the tracked scenarios now forward the real `PARALLEL_RDP_HIRES_FILTER_*` variable names from those runtime env files; the older shorthand `HIRES_FILTER_*` names are only compatibility fallbacks

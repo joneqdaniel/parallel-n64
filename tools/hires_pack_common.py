@@ -235,6 +235,7 @@ def parse_bundle_sampled_object_context(bundle_path: Path):
                 f"off{fields.get('off')}-stride{fields.get('stride')}-"
                 f"wh{fields.get('wh')}-fs{fields.get('fs')}-low32{fields.get('sampled_low32')}"
             ),
+            "candidate_origin": "runtime-sampled-probe",
             "draw_class": fields.get("draw_class"),
             "cycle": fields.get("cycle"),
             "fmt": fields.get("fmt"),
@@ -259,6 +260,60 @@ def parse_bundle_sampled_object_context(bundle_path: Path):
         for upload in group.get("upload_low32s", []):
             key = (int(upload.get("value"), 16), formatsize)
             context.setdefault(key, []).append(sampled_object)
+
+    family_probe_path = bundle_path / "traces" / "hires-tile-family-report.json"
+    if family_probe_path.exists():
+        report = json.loads(family_probe_path.read_text())
+        family = report.get("family", {})
+        formatsize = int(family.get("formatsize", 0))
+        observed_fmt = int(family.get("observed_fmt", 0))
+        row_bytes = int(family.get("row_bytes", 0))
+        top_draw = None
+        if report.get("draw_usage_summary"):
+            top_draw = report["draw_usage_summary"][0].get("sample", {})
+        for item in report.get("parent_surface_checks", []):
+            upload_low32 = item.get("upload_key")
+            if not upload_low32:
+                continue
+            for variant in item.get("variants", []):
+                if int(variant.get("delta", 0)) != 0:
+                    continue
+                sampled_size = int(variant.get("sampled_size", 0))
+                if sampled_size >= int(family.get("observed_siz", sampled_size)):
+                    continue
+                sampled_wh = f"{variant.get('sampled_width')}x{variant.get('sampled_height')}"
+                sampled_object = {
+                    "sampled_object_id": (
+                        f"sampled-fmt{observed_fmt}-siz{sampled_size}-"
+                        f"off0-stride{row_bytes}-wh{sampled_wh}-fs{formatsize}-low32{variant.get('low32')}"
+                    ),
+                    "candidate_origin": "tile-family-parent-surface",
+                    "transport_hint": "same-start-parent-surface",
+                    "draw_class": top_draw.get("draw_class") if top_draw else None,
+                    "cycle": top_draw.get("cycle") if top_draw else None,
+                    "fmt": observed_fmt,
+                    "siz": sampled_size,
+                    "off": 0,
+                    "stride": row_bytes,
+                    "wh": sampled_wh,
+                    "formatsize": formatsize,
+                    "sampled_low32": variant.get("low32"),
+                    "sampled_entry_pcrc": None,
+                    "sampled_sparse_pcrc": None,
+                    "sampled_entry_count": None,
+                    "sampled_used_count": None,
+                    "pack_exact_entry_hit": False,
+                    "pack_exact_sparse_hit": False,
+                    "pack_family_available": int(variant.get("family_entry_count", 0)) > 0,
+                    "unique_replacement_dims": len(variant.get("active_replacement_dims", [])),
+                    "sample_replacement_dims": (variant.get("active_replacement_dims") or [{}])[0].get("dims"),
+                    "upload_low32s": [{"value": upload_low32}],
+                    "upload_pcrcs": [],
+                }
+                key = (int(upload_low32, 16), formatsize)
+                existing = context.setdefault(key, [])
+                if not any(obj.get("sampled_object_id") == sampled_object["sampled_object_id"] for obj in existing):
+                    existing.append(sampled_object)
 
     return context
 

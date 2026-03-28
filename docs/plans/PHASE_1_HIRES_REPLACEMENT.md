@@ -145,6 +145,9 @@
       - same-start `16x16 CI4` candidates reproduce the active low-32 families directly
       - shifted starts at `-0x40`, `-0x20`, and `-0x10` all miss the active pack pool for those same families
       - same-start parent transport is therefore the better next resolver target than shifted-start hunting
+    - the import/review path now consumes those same-start hints too:
+      - [20260328-tile-parent/import-index.json](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-tile-parent/import-index.json) carries `canonical_sampled_objects` for the active low-32 set as `sampled-fmt2-siz0-off0-stride8-wh16x16-fs258-*`
+      - [20260328-tile-parent/review.md](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-tile-parent/review.md) shows the same-start `16x16 CI4` candidates feeding the current per-low32 import-policy review
     - practical implication: the active `8x16` gap should not be modeled as meaningful row-local upload bytes, which makes same-start parent-tile/subrect transport a stronger next resolver target than more row-byte reinterpretation
   - hi-res traces now also expose stable bucket summaries, which collapse title misses to 5 unique classes and file-select misses to 6 unique classes
   - the current dominant unresolved file-select class is `mode=block fmt=2 siz=2 wh=64x1 fs=514 tile=7` with 70 repeated misses in the last verified strict `on` bundle

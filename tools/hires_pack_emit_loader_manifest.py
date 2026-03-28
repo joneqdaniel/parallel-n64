@@ -40,6 +40,8 @@ def build_loader_manifest(bindings_data, bindings_path: Path):
                 "policy_key": binding.get("policy_key"),
                 "sampled_object_id": binding.get("sampled_object_id"),
                 "canonical_identity": binding.get("canonical_identity", {}),
+                "candidate_origin": binding.get("canonical_identity", {}).get("candidate_origin"),
+                "transport_hint": binding.get("canonical_identity", {}).get("transport_hint"),
                 "upload_low32s": binding.get("upload_low32s", []),
                 "upload_pcrcs": binding.get("upload_pcrcs", []),
                 "asset_candidate_count": len(asset_candidates),

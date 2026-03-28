@@ -398,6 +398,12 @@
     - shifted starts at `-0x40`, `-0x20`, and `-0x10` all fall out of the active pack pool for those same families
     - same-start parent transport is therefore the useful next canonicalization target, not a wider shifted-start search
   - the import/review tooling now carries those same-start parent-surface candidates as canonical sampled-object hints in the dedicated slice at [20260328-tile-parent/review.md](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-tile-parent/review.md)
+  - that slice now materializes into the same handoff shape as the earlier sampled-object work:
+    - [subset.json](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-tile-parent/subset.json)
+    - [bindings.json](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-tile-parent/bindings.json)
+    - [loader-manifest.json](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-tile-parent/loader-manifest.json)
+    - current result: `1` deterministic binding (`legacy-low32-75fee641-fs258`) and `4` explicit unresolved transport cases
+    - the deterministic binding now preserves `candidate_origin = tile-family-parent-surface` and `transport_hint = same-start-parent-surface`
   - practical implication: the active `8x16` strict gap should not be modeled as meaningful row-local upload bytes, which pushes the next resolver step toward same-start parent-tile/subrect transport and away from row-byte reinterpretation
 - The latest unstaged HLE-to-LLE conversion research in [hle-to-lle-conversion-plan.md](/home/auro/code/parallel-n64/docs/plans/hires-conversion-analysis/hle-to-lle-conversion-plan.md) and [palette-crc-transform-analysis.md](/home/auro/code/parallel-n64/docs/plans/hires-conversion-analysis/palette-crc-transform-analysis.md) is directionally useful, but it is now adopted in tracked planning with tighter guardrails:
   - adopt the three-tier conversion split:

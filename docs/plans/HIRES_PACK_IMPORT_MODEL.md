@@ -240,6 +240,9 @@ The migration tool now emits that bridge when sampled-object bundle data is avai
   - delta-0 reduced-size candidates are preserved as review-only canonical sampled objects with `candidate_origin = tile-family-parent-surface`
   - current example slice: [20260328-tile-parent/import-index.json](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-tile-parent/import-index.json)
   - current review artifact: [20260328-tile-parent/review.md](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-tile-parent/review.md)
+  - the same slice now materializes into [20260328-tile-parent/bindings.json](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-tile-parent/bindings.json) and [20260328-tile-parent/loader-manifest.json](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-tile-parent/loader-manifest.json)
+  - current result: `1` deterministic binding (`legacy-low32-75fee641-fs258`) and `4` explicit unresolved transport cases
+  - the deterministic binding preserves `candidate_origin = tile-family-parent-surface` and `transport_hint = same-start-parent-surface`, which is the current model for carrying review-only transport provenance forward without pretending it is final runtime truth
   - practical implication: active file-select `8x16` families can now enter the canonical transport discussion as explicit same-start `16x16 CI4` hints without pretending they are final runtime-ready imported records
 - the review and subset tools can now be driven directly from the sampled strict bundle with explicit `--low32/--formatsize` seeds, which is how [20260327-sampled-review.md](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260327-sampled-review.md) and [20260327-sampled-subset.json](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260327-sampled-subset.json) were emitted
 - the canonical transport view for that same slice is now explicit too:

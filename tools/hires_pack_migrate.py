@@ -146,6 +146,8 @@ def build_canonical_transport(compatibility_aliases, unresolved_families, record
                 sampled_object_id,
                 {
                     "sampled_object_id": sampled_object_id,
+                    "candidate_origin": obj.get("candidate_origin"),
+                    "transport_hint": obj.get("transport_hint"),
                     "draw_class": obj.get("draw_class"),
                     "cycle": obj.get("cycle"),
                     "fmt": obj.get("fmt"),

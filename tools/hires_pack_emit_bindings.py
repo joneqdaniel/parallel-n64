@@ -51,6 +51,8 @@ def build_bindings(subset_path: Path, data, canonical_records, legacy_links):
                     "selection_reason": link.get("selection_reason"),
                     "sampled_object_id": sampled_object_id,
                     "canonical_identity": {
+                        "candidate_origin": record.get("candidate_origin"),
+                        "transport_hint": record.get("transport_hint"),
                         "draw_class": record.get("draw_class"),
                         "cycle": record.get("cycle"),
                         "fmt": record.get("fmt"),

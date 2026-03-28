@@ -135,11 +135,13 @@ def static_findings(game_root: Path) -> list[dict[str, Any]]:
     gbi_path = game_root / "include" / "gbi_custom.h"
     filemenu_msg_path = game_root / "src" / "filemenu" / "filemenu_msg.c"
     filemenu_gfx_path = game_root / "src" / "filemenu" / "filemenu_gfx.c"
+    msg_data_path = game_root / "src" / "msg_data.c"
     title_path = game_root / "src" / "world" / "area_kmr" / "kmr_21" / "main.c"
 
     gbi_lines = read_lines(gbi_path)
     filemenu_msg_lines = read_lines(filemenu_msg_path)
     filemenu_gfx_lines = read_lines(filemenu_gfx_path)
+    msg_data_lines = read_lines(msg_data_path)
     title_lines = read_lines(title_path)
 
     findings: list[dict[str, Any]] = []
@@ -209,15 +211,13 @@ def static_findings(game_root: Path) -> list[dict[str, Any]]:
             "category": "macro-to-runtime-bridge",
             "confidence": "medium",
             "summary": (
-                "The smaller active `8x16 fs258` file-select family is structurally consistent with "
-                "the `gDPLoadTextureTile_4b` branch in filemenu message rendering, but the broader strict-fixture "
-                "`8x16` neighborhood is split: a small active `1cycle` bucket and a larger `2cycle` bucket where "
-                "`texel0` is inactive and the live sample comes from `texel1`. That larger inactive-slot bucket "
-                "should not drive canonical mapping decisions by itself."
+                "The smaller active `8x16 fs258` file-select family still looks like a tiled CI4 path, but it is no longer a clean direct match to filemenu menu-font rendering. The broader strict-fixture `8x16` neighborhood is split between a small active `1cycle` bucket and a larger `2cycle` bucket where `texel0` is inactive and the live sample comes from `texel1`, and upstream menu-font data says the canonical filemenu glyph tile size is `16x16`, not `8x16`."
             ),
             "source_refs": [
                 SourceRef(filemenu_msg_path, find_line(filemenu_msg_lines, "gDPLoadTextureTile_4b(gMainGfxPos++, &raster[charRasterSize * c], G_IM_FMT_CI,")).to_json(),
                 SourceRef(filemenu_msg_path, find_line(filemenu_msg_lines, "filemenu_draw_rect(x * 4, y * 4, (x + texSizeX) * 4, (y + texSizeY) * 4, 0, 0, 0, 0x400, 0x400);")).to_json(),
+                SourceRef(msg_data_path, find_line(msg_data_lines, "MessageCharset MsgCharsetMenu = {")).to_json(),
+                SourceRef(msg_data_path, find_line(msg_data_lines, ".texSize = { 16, 16 },")).to_json(),
             ],
             "static_shape": {
                 "load_kind": "LoadTile",
@@ -237,8 +237,8 @@ def static_findings(game_root: Path) -> list[dict[str, Any]]:
                     "load_size_expr": "G_IM_SIZ_8b with width >> 1 source stride",
                 },
                 "notes": [
-                    "This branch is taken when `texSizeX` is not a 16-aligned block-load candidate.",
-                    "It preserves a tiled 4b CI interpretation instead of forcing the `LoadBlock` transport shape.",
+                    "The filemenu message branch is still the right tiled-CI4 structural reference, but upstream `MsgCharsetMenu` says its canonical glyph tiles are `16x16`, not `8x16`.",
+                    "That means the strict-runtime `8x16` family is unlikely to be a literal menu-font texSize; it is more likely a clipped/subrect transport view or a different tiled-CI4 path.",
                     "On the strict file-select fixture, the active `8x16` evidence is now split: a small `1cycle` bucket still samples texel0 directly, while the larger `2cycle` bucket logs the same texel0 family in an inactive slot next to an active texel1 hit.",
                     "That means the larger `2cycle` `8x16` bucket is a bookkeeping/disambiguation caution, not a clean canonical target on its own.",
                 ],

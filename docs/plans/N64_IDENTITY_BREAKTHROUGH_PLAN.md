@@ -235,6 +235,7 @@ Current artifact:
 - the first Tier 2 static scan is now live at [`tools/paper_mario_tier2_static_scan.py`](/home/auro/code/parallel-n64/tools/paper_mario_tier2_static_scan.py), with the first comparison artifact at [20260328-early-texrect/report.md](/home/auro/code/parallel-n64/artifacts/paper-mario-tier2-static-scan/20260328-early-texrect/report.md):
   - `gDPLoadTextureBlock_4b` in upstream `filemenu_msg.c` now gives a source-backed explanation for the dominant `64x1 -> 16x16 CI4` file-select bridge
   - `gDPLoadTextureTile_4b` in the same file now gives a source-backed explanation for the smaller tiled `8x16` CI family
+  - upstream `msg_data.c` also now constrains that branch: `MsgCharsetMenu` advertises canonical `16x16` menu-font tiles, so the active strict-runtime `8x16` gap should be treated as a clipped/subrect transport view or a different tiled-CI4 path until Tier 2 resolves it more tightly
   - `kmr_21` now gives a direct title-screen source match for the `200x2 RGBA32` texrect stripes
   - `filemenu_gfx.c` now gives a negative control too: the filemenu copy-arrow path is `64x16 IA4`, so it should not be mixed into the current CI/TLUT work
   - practical implication: the next Tier 2 ticket is not “more runtime probing”; the scanner is already recovering first tile/TMEM field hints from these callsites, and the next step is to check those recovered fields against the runtime sampled-object probe

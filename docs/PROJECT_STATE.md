@@ -386,6 +386,14 @@
       - the small active `1cycle` texel0 bucket is still a real native-field delta
       - the larger `2cycle` bucket is an inactive-slot caution (`uses_texel0=0`) and should not drive canonical mapping by itself
     - practical implication: the dominant block/CI4 bridge is now source-backed all the way through native-field comparison, while the small active `8x16` path still needs deeper `SetTileSize` / texel-combine-path explanation rather than looser fallback rules
+- The new direct strict-state probe of the active `8x16 fs258` family is now captured at [hires-tile-family-report.md](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select-tile-family-probe/on/20260328-105848/traces/hires-tile-family-report.md):
+  - it is produced by the new [paper-mario-file-select-tile-family-probe.sh](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-file-select-tile-family-probe.sh) scenario using the same [hires_block_family_probe.py](/home/auro/code/parallel-n64/tools/hires_block_family_probe.py) analyzer
+  - the family collapses to `5` unique addresses / `5` unique low32 keys
+  - no address delta matches the observed `8`-byte row size
+  - every captured `8`-byte row at those source addresses is all-zero, including one duplicate-zero group spanning all five addresses
+  - the same family still maps back to the known draw-side texrect regimes, so the zero-row result is not a missing-probe bug; it is part of the current transport mismatch
+  - the companion neighborhood scan at [hires-tile-family-neighborhood.md](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select-tile-family-probe/on/20260328-105848/traces/hires-tile-family-neighborhood.md) shows non-zero bytes consistently nearby those all-zero anchors, which strengthens the parent-surface/subrect-transport interpretation
+  - practical implication: the active `8x16` strict gap should not be modeled as meaningful row-local upload bytes, which pushes the next resolver step further toward larger parent-tile/subrect transport and away from row-byte reinterpretation
 - The latest unstaged HLE-to-LLE conversion research in [hle-to-lle-conversion-plan.md](/home/auro/code/parallel-n64/docs/plans/hires-conversion-analysis/hle-to-lle-conversion-plan.md) and [palette-crc-transform-analysis.md](/home/auro/code/parallel-n64/docs/plans/hires-conversion-analysis/palette-crc-transform-analysis.md) is directionally useful, but it is now adopted in tracked planning with tighter guardrails:
   - adopt the three-tier conversion split:
     - pure-math bridge candidate generation

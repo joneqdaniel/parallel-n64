@@ -248,6 +248,12 @@ Current artifact:
     - the `8x16` family still disagrees on `SetTileSize`-visible width (`sh=28` static, `sh=60` runtime)
     - the runtime side is now split more carefully between a small active `1cycle` bucket and a larger inactive-slot `2cycle` bucket
     - practical implication: Tier 2 is now pointing at one concrete unresolved active native-field delta instead of a broad menu-texture mystery
+- the new direct strict-state `8x16` family probe now constrains that unresolved delta further:
+  - [hires-tile-family-report.md](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select-tile-family-probe/on/20260328-105848/traces/hires-tile-family-report.md) shows `5` unique addresses / `5` unique low32 keys for the active family
+  - no address delta matches the observed `8`-byte row size
+  - every captured `8`-byte row at those source addresses is all-zero, even though the same family still maps back to the known draw-side texrect regimes
+  - the companion neighborhood scan at [hires-tile-family-neighborhood.md](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select-tile-family-probe/on/20260328-105848/traces/hires-tile-family-neighborhood.md) shows non-zero bytes consistently nearby those all-zero anchors, which strengthens the parent-surface/subrect-transport interpretation
+  - practical implication: the active `8x16` gap is not well represented by literal row-local upload bytes, which strengthens the sampled-object / parent-subrect transport direction for the next Tier 2 resolver slice
 
 ## What This Plan Explicitly Avoids
 

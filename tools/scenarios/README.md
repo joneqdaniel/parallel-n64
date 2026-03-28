@@ -28,6 +28,7 @@ Current tracked scenario seeds:
 - [`paper-mario-file-select.runtime.env`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-file-select.runtime.env)
 - [`paper-mario-file-select-input-probe.sh`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-file-select-input-probe.sh)
 - [`paper-mario-file-select-block-family-probe.sh`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-file-select-block-family-probe.sh)
+- [`paper-mario-file-select-tile-family-probe.sh`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-file-select-tile-family-probe.sh)
 - [`paper-mario-title-timeout-probe.sh`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-title-timeout-probe.sh)
 - [`paper-mario-savefile-start.runtime.env`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-savefile-start.runtime.env)
 - [`paper-mario-hos-05-entry-3.sh`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-hos-05-entry-3.sh)
@@ -179,6 +180,15 @@ Current Paper Mario runtime note:
     - no exact duplicate row payloads
     - a consistent zero-padded row envelope with active bytes concentrated roughly in the `0x18..0x6b` range
   - practical implication: the dominant family currently looks more like repeated row slices from a larger authored surface or sheet than random transient strip noise
+- there is now a matching [paper-mario-file-select-tile-family-probe.sh](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-file-select-tile-family-probe.sh) runner for the active strict `8x16 fs258` family
+  - it reuses the same [hires_block_family_probe.py](/home/auro/code/parallel-n64/tools/hires_block_family_probe.py) analyzer, but seeds the plan from the sampled-object strict bundle so the active `1cycle` `8x16` neighborhood stays in scope
+  - current verified report: [20260328-105848](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select-tile-family-probe/on/20260328-105848/traces/hires-tile-family-report.md)
+  - current probe result:
+    - `5` unique addresses / `5` unique low32 keys across the family
+    - no address delta matches the observed `8`-byte row size
+    - every captured `8`-byte row at those source addresses is all-zero, including one duplicate-zero group spanning all five addresses
+    - the same family still maps back to the known draw-side texrect regimes (`2cycle` inactive-slot, `1cycle` active texel0, plus a smaller masked variant)
+  - practical implication: the active `8x16` gap is not well modeled as literal row-local upload bytes; the next resolver step should stay on sampled-object/subrect transport rather than row-byte reinterpretation
 - the same `hires-evidence.json` trace now also cross-checks miss keys against the active `.hts`/`.htc` index, so bundle evidence can distinguish “unmatched in the local pack index under the current checksum generation” from “lookup present under another formatsize”
 - CI palette probe runs now also record `ci_palette_probe.families` in `traces/hires-evidence.json`, so representative CI misses can report whether their low-32 pack family is exact/generic, dimension-uniform, or structurally ambiguous without changing the default lookup path
 - the same CI probe now also records `ci_palette_probe.usages` and `ci_palette_probe.emulated_tmem`, so strict bundles can show how many palette indices were actually sampled and whether raw-shadow versus emulated-TMEM palette views produce any pack-backed candidate at all

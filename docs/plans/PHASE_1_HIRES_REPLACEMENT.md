@@ -135,6 +135,13 @@
       - the smaller `8x16` family still disagrees on sampled window width (`sh=28` statically versus `sh=60` at runtime)
       - the key guardrail from the newest comparison is that only the small active `1cycle` `8x16` bucket should shape that resolver work; the larger `2cycle` bucket is an inactive-slot caution
       - practical implication: the next Tier 2 resolver target is the small active `8x16` path, not the larger inactive-slot bucket and not the already-matched `64x1` bridge
+  - the new direct strict-state probe of that active `8x16 fs258` family is now captured at [hires-tile-family-report.md](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select-tile-family-probe/on/20260328-105848/traces/hires-tile-family-report.md):
+    - the family collapses to `5` unique addresses / `5` unique low32 keys
+    - no address delta matches the observed `8`-byte row size
+    - every captured `8`-byte row at those source addresses is all-zero, including one duplicate-zero group spanning all five addresses
+    - the family still maps back to the known draw-side texrect regimes, so the zero-row result is part of the transport mismatch rather than a missing-probe failure
+    - the companion neighborhood scan at [hires-tile-family-neighborhood.md](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select-tile-family-probe/on/20260328-105848/traces/hires-tile-family-neighborhood.md) shows non-zero bytes consistently nearby those all-zero anchors, which strengthens the parent-surface/subrect-transport interpretation
+    - practical implication: the active `8x16` gap should not be modeled as meaningful row-local upload bytes, which makes parent-tile/subrect transport a stronger next resolver target than more row-byte reinterpretation
   - hi-res traces now also expose stable bucket summaries, which collapse title misses to 5 unique classes and file-select misses to 6 unique classes
   - the current dominant unresolved file-select class is `mode=block fmt=2 siz=2 wh=64x1 fs=514 tile=7` with 70 repeated misses in the last verified strict `on` bundle
   - the new pack cross-check in `hires-evidence.json` shows those current strict-fixture misses are unmatched in the active local Paper Mario `.hts` index under our current checksum generation, not mismatched under another `formatsize`

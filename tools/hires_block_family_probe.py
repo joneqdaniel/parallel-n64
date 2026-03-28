@@ -80,7 +80,7 @@ DRAW_USAGE_RE = re.compile(
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Plan and analyze targeted hi-res block-family probes.")
+    parser = argparse.ArgumentParser(description="Plan and analyze targeted hi-res family probes.")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     plan = subparsers.add_parser("plan", help="Extract a probe plan from a bundle log.")
@@ -314,6 +314,13 @@ def nibble_counter(data: bytes) -> Counter:
     return counts
 
 
+def signed_hex(value: int) -> str:
+    if value == 0:
+        return "0x0"
+    sign = "-" if value < 0 else "+"
+    return f"{sign}0x{abs(value):x}"
+
+
 def rice_crc32_wrapped(data: bytes, base_off: int, width: int, height: int, size: int, row_stride: int) -> int:
     bytes_per_line = (width << size) >> 1
     if width == 0 or height == 0 or bytes_per_line < 4:
@@ -370,6 +377,19 @@ def analyze_plan(plan: dict, snapshot_trace: Path, cache_path: Path | None = Non
         nonzero_offsets = [index for index, value in enumerate(row) if value != 0]
         first_nonzero = nonzero_offsets[0] if nonzero_offsets else None
         last_nonzero = nonzero_offsets[-1] if nonzero_offsets else None
+        neighborhood_before = min(0x40, offset)
+        neighborhood_after = min(0x80, len(data) - offset)
+        neighborhood = data[offset - neighborhood_before : offset + neighborhood_after]
+        neighborhood_nonzero = [index for index, value in enumerate(neighborhood) if value != 0]
+        nearby_nonzero = None
+        if neighborhood_nonzero:
+            nearby_nonzero = {
+                "window_before": neighborhood_before,
+                "window_after": neighborhood_after,
+                "first_nonzero_rel": neighborhood_nonzero[0] - neighborhood_before,
+                "last_nonzero_rel": neighborhood_nonzero[-1] - neighborhood_before,
+                "count": len(neighborhood_nonzero),
+            }
         row_groups.setdefault(row_hash, []).append(item["addr"])
         rows.append(
             {
@@ -385,6 +405,7 @@ def analyze_plan(plan: dict, snapshot_trace: Path, cache_path: Path | None = Non
                 "trailing_zero_bytes": (len(row) - 1 - last_nonzero) if last_nonzero is not None else len(row),
                 "first_nonzero_byte": None if first_nonzero is None else f"0x{first_nonzero:x}",
                 "last_nonzero_byte": None if last_nonzero is None else f"0x{last_nonzero:x}",
+                "nearby_nonzero": nearby_nonzero,
                 "top_nibbles": [
                     {"index": f"{index:x}", "count": count}
                     for index, count in nibs.most_common(6)
@@ -524,7 +545,7 @@ def analyze_plan(plan: dict, snapshot_trace: Path, cache_path: Path | None = Non
     }
 
     md = []
-    md.append("# Hi-Res Block Family Probe\n")
+    md.append("# Hi-Res Family Probe\n")
     md.append(f"- Source bundle: `{plan['source_bundle']}`")
     md.append(f"- Snapshot trace: `{snapshot_trace}`")
     md.append(
@@ -598,8 +619,8 @@ def analyze_plan(plan: dict, snapshot_trace: Path, cache_path: Path | None = Non
             else:
                 md.append("  - no area-preserving reinterpretation hits in the active pack")
     md.append("\n## Row Preview\n")
-    md.append("| addr | count | key | first16 | last16 | active span | top nibbles |")
-    md.append("|---|---:|---|---|---|---|---|")
+    md.append("| addr | count | key | first16 | last16 | active span | nearby nz | top nibbles |")
+    md.append("|---|---:|---|---|---|---|---|---|")
     for row in rows[:21]:
         top_nibbles = ", ".join(f"{entry['index']}:{entry['count']}" for entry in row["top_nibbles"])
         active_span = (
@@ -607,10 +628,18 @@ def analyze_plan(plan: dict, snapshot_trace: Path, cache_path: Path | None = Non
             if row["first_nonzero_byte"] is None
             else f"{row['first_nonzero_byte']}..{row['last_nonzero_byte']}"
         )
+        nearby = row.get("nearby_nonzero")
+        if nearby is None:
+            nearby_span = "-"
+        else:
+            nearby_span = (
+                f"{signed_hex(nearby['first_nonzero_rel'])}..{signed_hex(nearby['last_nonzero_rel'])} "
+                f"({nearby['count']})"
+            )
         md.append(
             f"| `{row['addr']}` | `{row['count']}` | `{row['key'][-8:]}` | "
             f"`{row['first_16_bytes_hex']}` | `{row['last_16_bytes_hex']}` | "
-            f"`{active_span}` | `{top_nibbles}` |"
+            f"`{active_span}` | `{nearby_span}` | `{top_nibbles}` |"
         )
     md.append("")
 

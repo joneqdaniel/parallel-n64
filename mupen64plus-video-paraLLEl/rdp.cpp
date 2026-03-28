@@ -194,13 +194,25 @@ bool init()
 	}
 
 	CommandProcessorFlags flags = 0;
-	if (const char *env = getenv("PARALLEL_RDP_HIRES_SAMPLED_OBJECT_PROBE"))
+	const bool hires_sampled_object_probe = []() {
+		if (const char *env = getenv("PARALLEL_RDP_HIRES_SAMPLED_OBJECT_PROBE"))
+			return strtol(env, nullptr, 0) > 0;
+		return false;
+	}();
+	const bool hires_sampled_object_lookup = []() {
+		if (const char *env = getenv("PARALLEL_RDP_HIRES_SAMPLED_OBJECT_LOOKUP"))
+			return strtol(env, nullptr, 0) > 0;
+		return false;
+	}();
+	if (hires_sampled_object_probe || hires_sampled_object_lookup)
 	{
-		if (strtol(env, nullptr, 0) > 0)
-		{
-			flags |= COMMAND_PROCESSOR_FLAG_HOST_VISIBLE_TMEM_BIT;
+		flags |= COMMAND_PROCESSOR_FLAG_HOST_VISIBLE_TMEM_BIT;
+		if (hires_sampled_object_probe && hires_sampled_object_lookup)
+			log_cb(RETRO_LOG_INFO, "Enabling host-visible TMEM for hi-res sampled-object probing and exact lookup.\n");
+		else if (hires_sampled_object_probe)
 			log_cb(RETRO_LOG_INFO, "Enabling host-visible TMEM for hi-res sampled-object probing.\n");
-		}
+		else
+			log_cb(RETRO_LOG_INFO, "Enabling host-visible TMEM for hi-res sampled-object exact lookup.\n");
 	}
 	switch (upscaling)
 	{

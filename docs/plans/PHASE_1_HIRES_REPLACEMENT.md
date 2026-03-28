@@ -165,10 +165,15 @@
         - [`tools/hires_pack_emit_proxy_bindings.py`](/home/auro/code/parallel-n64/tools/hires_pack_emit_proxy_bindings.py) emits runtime-ready proxy bindings when a sampled proxy has a selected payload and unresolved proxy transport cases otherwise
         - [20260328-sampled-proxy](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-sampled-proxy) is the first proxy-selected `c139c1c0` package slice
         - [20260328-tile-parent-proxy](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-tile-parent-proxy) makes the unresolved `7064585c` proxy pool explicit (`62` transport candidates, five collapsed hint families)
-      - current live revalidation means the runtime conclusion has to be weaker than before:
-        - the historical `c139c1c0` exact-hit bundles remain valid evidence that the seam can work
-        - but current live reruns from the authoritative file-select state, with `PARALLEL_RDP_HIRES_SAMPLED_OBJECT_LOOKUP=1`, now collapse to baseline `off` for both the old family-selected package and the new proxy-selected package
-        - so the active blocker has shifted back from transport packaging to sampled-object exact-lookup revalidation under the current core/runtime path
+      - that sampled-object exact-lookup seam is now revalidated on the current core/runtime path:
+        - the root cause was a frontend/runtime prerequisite bug, not the package format: lookup-only mode was not enabling host-visible TMEM even though draw-side sampled-object exact lookup requires CPU-visible TMEM
+        - [`mupen64plus-video-paraLLEl/rdp.cpp`](/home/auro/code/parallel-n64/mupen64plus-video-paraLLEl/rdp.cpp) now enables host-visible TMEM for `PARALLEL_RDP_HIRES_SAMPLED_OBJECT_LOOKUP=1` as well as probe mode
+        - strict lookup-only reruns now restore exact sampled-object hits for both the old family-selected package and the new proxy-selected package:
+          - [20260328-old-c139-lookup-only-fixed](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260328-old-c139-lookup-only-fixed)
+          - [20260328-sampled-proxy-lookup-only-fixed](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260328-sampled-proxy-lookup-only-fixed)
+        - both bundles now log `2` sampled-object exact hits for `c139c1c0` and land on the same screenshot hash `831cd6a7dff2d44654c854dbbcd91d13071cf49d6622f9141084780b47bf2b32`
+        - practical implication: the deterministic `c139c1c0` canonical path is now runtime-proven again on the current core, and the next active blocker is tool-side transport selection for unresolved sampled proxies such as `7064585c`
+        - tracked bundle evidence now records sampled-object exact hits separately from the upload-side `Hi-res keying summary`, so canonical lookup-only runs no longer masquerade as `hits=0` in `hires-evidence.json`
     - practical implication: the active `8x16` gap should not be modeled as meaningful row-local upload bytes, which makes same-start parent-tile/subrect transport a stronger next resolver target than more row-byte reinterpretation
   - hi-res traces now also expose stable bucket summaries, which collapse title misses to 5 unique classes and file-select misses to 6 unique classes
   - the current dominant unresolved file-select class is `mode=block fmt=2 siz=2 wh=64x1 fs=514 tile=7` with 70 repeated misses in the last verified strict `on` bundle

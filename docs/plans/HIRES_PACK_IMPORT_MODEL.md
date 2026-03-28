@@ -275,10 +275,15 @@ The migration tool now emits that bridge when sampled-object bundle data is avai
   - [`tools/hires_pack_transport_policy.json`](/home/auro/code/parallel-n64/tools/hires_pack_transport_policy.json) now carries both `transport_families` and `transport_proxies`
   - [20260328-sampled-proxy](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-sampled-proxy) proves the proxy-centered package handoff can be emitted as a real `PHRB` v2 slice for `c139c1c0`
   - [20260328-tile-parent-proxy](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-tile-parent-proxy) makes the unresolved `7064585c` sampled proxy the active review surface instead of the five collapsed hint families
-- current runtime status is more conservative than the earlier wording:
-  - historical `c139c1c0` exact-hit bundles still show the sampled-object lookup seam can work
-  - but current live revalidation with `PARALLEL_RDP_HIRES_SAMPLED_OBJECT_LOOKUP=1` now collapses to baseline `off` for both the old family-selected package and the new proxy-selected package on the authoritative strict file-select state
-  - that means proxy-centered packaging is not the active blocker; sampled-object exact lookup must be revalidated under the current core/runtime path before proxy-selected packages can be promoted further
+- current runtime status is stronger again after the lookup-only seam fix:
+  - the earlier live regression was caused by a frontend/runtime prerequisite bug, not by the proxy package shape: lookup-only mode was not enabling host-visible TMEM even though draw-side sampled-object exact lookup depends on CPU-visible TMEM
+  - [`mupen64plus-video-paraLLEl/rdp.cpp`](/home/auro/code/parallel-n64/mupen64plus-video-paraLLEl/rdp.cpp) now enables host-visible TMEM when either sampled-object probe mode or lookup-only mode is active
+  - strict authoritative file-select reruns now restore exact sampled-object hits for both the old family-selected package and the new proxy-selected package:
+    - [20260328-old-c139-lookup-only-fixed](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260328-old-c139-lookup-only-fixed)
+    - [20260328-sampled-proxy-lookup-only-fixed](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260328-sampled-proxy-lookup-only-fixed)
+  - both bundles log `2` sampled-object exact hits for `c139c1c0` and land on the same screenshot hash `831cd6a7dff2d44654c854dbbcd91d13071cf49d6622f9141084780b47bf2b32`
+  - practical implication: proxy-centered packaging is now runtime-proven again for the deterministic `c139c1c0` slice, so the remaining active importer/runtime blocker is not lookup plumbing but unresolved transport selection for sampled proxies like `7064585c`
+  - bundle extraction now records sampled-object exact hits separately from the upload-side summary, which keeps canonical `PHRB` lookup-only runs machine-readable instead of relying on raw log inspection
 - the package manifest now also records decoded `pixel_sha256` values, `alpha_normalized_pixel_sha256` values, and duplicate-pixel groups, so importer design can distinguish fully distinct transport content from any future duplicate or near-duplicate transport variants
   - markdown: [20260327-sampled-legacy-vs-canonical.md](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260327-sampled-legacy-vs-canonical.md)
   - json: [20260327-sampled-canonical-projection.json](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260327-sampled-canonical-projection.json)

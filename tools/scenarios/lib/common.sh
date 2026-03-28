@@ -190,6 +190,9 @@ result = {
         "unique_group_count": 0,
         "groups": [],
         "top_groups": [],
+        "exact_hit_count": 0,
+        "unique_exact_hit_bucket_count": 0,
+        "top_exact_hit_buckets": [],
     },
 }
 
@@ -216,6 +219,7 @@ ci_logical_view_re = re.compile(r"Hi-res CI palette probe logical-view: (.+)")
 provenance_re = re.compile(r"Hi-res keying provenance: (.+)")
 draw_usage_re = re.compile(r"Hi-res draw usage: (.+)")
 sampled_object_re = re.compile(r"Hi-res sampled-object probe: (.+)")
+sampled_object_exact_hit_re = re.compile(r"Hi-res sampled-object exact hit: (.+)")
 field_re = re.compile(r"(\w+)=([^\s]+)")
 
 bucket_maps = {
@@ -229,6 +233,7 @@ provenance_buckets = {}
 draw_usage_buckets = {}
 sampler_usage_buckets = {}
 sampled_object_buckets = {}
+sampled_object_exact_hit_buckets = {}
 
 def parse_fields(detail):
     fields = {}
@@ -358,6 +363,19 @@ def finalize_sampled_object_summary():
     items.sort(key=lambda item: (-item["count"], item["signature"]))
     result["sampled_object_probe"]["unique_group_count"] = len(items)
     result["sampled_object_probe"]["top_groups"] = items[:10]
+
+    exact_hit_items = [
+        {
+            "signature": signature,
+            "count": payload["count"],
+            "fields": payload["fields"],
+            "sample_detail": payload["sample_detail"],
+        }
+        for signature, payload in sampled_object_exact_hit_buckets.items()
+    ]
+    exact_hit_items.sort(key=lambda item: (-item["count"], item["signature"]))
+    result["sampled_object_probe"]["unique_exact_hit_bucket_count"] = len(exact_hit_items)
+    result["sampled_object_probe"]["top_exact_hit_buckets"] = exact_hit_items[:10]
 
 def parse_hts_cache_index(cache_path):
     data = cache_path.read_bytes()
@@ -712,6 +730,54 @@ for line in log_path.read_text(errors="replace").splitlines():
         upload_pcrc = fields.get("upload_pcrc")
         if upload_pcrc is not None:
             bucket["upload_pcrcs"][upload_pcrc] = bucket["upload_pcrcs"].get(upload_pcrc, 0) + 1
+        continue
+
+    m = sampled_object_exact_hit_re.search(line)
+    if m:
+        result["available"] = True
+        result["sampled_object_probe"]["available"] = True
+        result["sampled_object_probe"]["exact_hit_count"] += 1
+        detail = m.group(1).strip()
+        fields = parse_fields(detail)
+        signature = " ".join(
+            f"{key}={fields.get(key)}"
+            for key in (
+                "draw_class",
+                "cycle",
+                "tile",
+                "reason",
+                "sampled_low32",
+                "sampled_entry_pcrc",
+                "sampled_sparse_pcrc",
+                "fs",
+                "repl",
+            )
+            if fields.get(key) is not None
+        )
+        bucket = sampled_object_exact_hit_buckets.setdefault(
+            signature,
+            {
+                "count": 0,
+                "fields": {
+                    key: fields.get(key)
+                    for key in (
+                        "draw_class",
+                        "cycle",
+                        "tile",
+                        "reason",
+                        "sampled_low32",
+                        "sampled_entry_pcrc",
+                        "sampled_sparse_pcrc",
+                        "fs",
+                        "key",
+                        "repl",
+                    )
+                    if fields.get(key) is not None
+                },
+                "sample_detail": detail,
+            },
+        )
+        bucket["count"] += 1
         continue
 
     m = provenance_re.search(line)

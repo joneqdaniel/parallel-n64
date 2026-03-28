@@ -111,6 +111,8 @@ This document describes the shape of the import model itself. The evidence thres
   - round-trips the `PHRB` package format into a readable JSON view so the binary handoff stays verifiable before a C++ consumer exists
 - [`tools/hires_pack_select_transport.py`](/home/auro/code/parallel-n64/tools/hires_pack_select_transport.py)
   - narrows a materialized canonical package to one selected transported payload per policy key, so runtime-ready `PHRB` experiments can stay tool-side and reproducible
+- [`tools/hires_pack_transport_policy.json`](/home/auro/code/parallel-n64/tools/hires_pack_transport_policy.json)
+  - records provisional transported-payload choices separately from family/variant-group import policy, so canonical runtime packages can be selected without pretending the choice is final or universal
 
 ## Imported Index v1
 
@@ -263,6 +265,9 @@ The migration tool now emits that bridge when sampled-object bundle data is avai
     - [20260328-sampled-c139-opt1](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260328-sampled-c139-opt1)
     - [20260328-sampled-c139-opt2](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260328-sampled-c139-opt2)
   - both prove the current remaining ambiguity is transport policy, not canonical sampled-object lookup plumbing
+- the first transport-policy-backed selected package is now also live:
+  - [20260328-sampled-c139-policy-selected/package.phrb](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-sampled-c139-policy-selected/package.phrb) is emitted from [`tools/hires_pack_transport_policy.json`](/home/auro/code/parallel-n64/tools/hires_pack_transport_policy.json) through [`tools/hires_pack_select_transport.py`](/home/auro/code/parallel-n64/tools/hires_pack_select_transport.py)
+  - [20260328-sampled-c139-policy-selected](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260328-sampled-c139-policy-selected) reproduces the exact-hit `opt1` runtime result, which means the transport-selection loop is now reproducible end to end
 - the package manifest now also records decoded `pixel_sha256` values, `alpha_normalized_pixel_sha256` values, and duplicate-pixel groups, so importer design can distinguish fully distinct transport content from any future duplicate or near-duplicate transport variants
   - markdown: [20260327-sampled-legacy-vs-canonical.md](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260327-sampled-legacy-vs-canonical.md)
   - json: [20260327-sampled-canonical-projection.json](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260327-sampled-canonical-projection.json)

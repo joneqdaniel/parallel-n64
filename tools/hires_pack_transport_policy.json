@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "transport_families": {
+    "legacy-low32-2a1be0a4-fs2": {
+      "status": "selected",
+      "selected_replacement_id": "legacy-2a1be0a4-3ea78bbb-fs0-640x160",
+      "justification": "First sampled-object exact runtime comparison ranks this transported payload ahead of the alternate candidate on the strict file-select fixture.",
+      "supporting_notes": [
+        "Both transported payloads produce valid sampled-object exact hits for sampled-fmt2-siz0-off0-stride32-wh64x16-fs2-low32c139c1c0.",
+        "The selected payload has lower image distance than the alternate candidate against both baseline off and the current legacy strict on frame.",
+        "This is a provisional transport choice for importer/runtime handoff, not proof that the selected payload is final-correct art."
+      ],
+      "evidence": {
+        "selected_runtime_bundle": "artifacts/paper-mario-file-select/on/20260328-sampled-c139-opt1",
+        "alternate_runtime_bundle": "artifacts/paper-mario-file-select/on/20260328-sampled-c139-opt2",
+        "selected_hash": "831cd6a7dff2d44654c854dbbcd91d13071cf49d6622f9141084780b47bf2b32",
+        "alternate_hash": "fe478b418acc9aeabcaa8fc5815732e31df3f6fb6cd66e5c5b9a9b28c7b3fc51",
+        "selected_vs_off": {
+          "ae": 15477373,
+          "rmse": 7.279824
+        },
+        "alternate_vs_off": {
+          "ae": 21871595,
+          "rmse": 10.306369
+        },
+        "selected_vs_legacy_on": {
+          "ae": 133638636,
+          "rmse": 21.760134
+        },
+        "alternate_vs_legacy_on": {
+          "ae": 140020278,
+          "rmse": 22.949551
+        }
+      },
+      "overturn_conditions": [
+        "A stronger strict-fixture comparison shows the alternate payload is visually or semantically more correct.",
+        "A broader non-menu validation slice shows the selected payload overfits the file-select neighborhood.",
+        "Static Tier 2 or native-format research proves that another transport alias is the correct canonical bridge."
+      ]
+    }
+  }
+}

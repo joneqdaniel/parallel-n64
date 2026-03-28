@@ -160,6 +160,10 @@
         - [20260328-sampled-c139-opt1](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260328-sampled-c139-opt1): exact hits fire, semantic state stays locked, screenshot hash `831cd6a7dff2d44654c854dbbcd91d13071cf49d6622f9141084780b47bf2b32`
         - [20260328-sampled-c139-opt2](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260328-sampled-c139-opt2): exact hits also fire with the alternate transported payload, screenshot hash `fe478b418acc9aeabcaa8fc5815732e31df3f6fb6cd66e5c5b9a9b28c7b3fc51`
       - practical implication: the renderer-side sampled-object exact lookup seam is proven, and the active blocker has shifted to tool-side transport selection for multi-candidate canonical records rather than lookup timing itself
+      - that tool-side selection step is now policy-backed too:
+        - [`tools/hires_pack_transport_policy.json`](/home/auro/code/parallel-n64/tools/hires_pack_transport_policy.json) records the first provisional transport choice for the deterministic `c139c1c0` sampled-object slice
+        - [`tools/hires_pack_select_transport.py`](/home/auro/code/parallel-n64/tools/hires_pack_select_transport.py) now accepts that policy directly and carries it into the narrowed package manifest
+        - the resulting policy-selected package at [20260328-sampled-c139-policy-selected](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-sampled-c139-policy-selected) reproduces the `opt1` runtime result exactly
     - practical implication: the active `8x16` gap should not be modeled as meaningful row-local upload bytes, which makes same-start parent-tile/subrect transport a stronger next resolver target than more row-byte reinterpretation
   - hi-res traces now also expose stable bucket summaries, which collapse title misses to 5 unique classes and file-select misses to 6 unique classes
   - the current dominant unresolved file-select class is `mode=block fmt=2 siz=2 wh=64x1 fs=514 tile=7` with 70 repeated misses in the last verified strict `on` bundle

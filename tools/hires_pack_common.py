@@ -2,6 +2,7 @@
 import gzip
 import json
 import struct
+import zlib
 from collections import Counter
 from pathlib import Path
 
@@ -65,8 +66,10 @@ def parse_hts_entries(cache_path: Path):
                 "pixel_type": pixel_type,
                 "is_hires": bool(is_hires),
                 "data_size": data_size,
+                "data_offset": pos + 4,
                 "source_path": str(cache_path),
                 "storage": "hts",
+                "inline_blob": False,
             }
         )
 
@@ -126,6 +129,8 @@ def parse_htc_entries(cache_path: Path):
                     "data_size": data_size,
                     "source_path": str(cache_path),
                     "storage": "htc",
+                    "inline_blob": True,
+                    "blob": payload,
                 }
             )
 
@@ -314,3 +319,176 @@ def build_family_summary(entries, texture_crc, formatsize):
 
 def collect_family_entries(entries, texture_crc):
     return [entry for entry in entries if entry["texture_crc"] == texture_crc]
+
+
+GL_TEXFMT_GZ = 0x80000000
+GL_RGB = 0x1907
+GL_RGBA = 0x1908
+GL_LUMINANCE = 0x1909
+GL_UNSIGNED_BYTE = 0x1401
+GL_UNSIGNED_SHORT_4_4_4_4 = 0x8033
+GL_UNSIGNED_SHORT_5_5_5_1 = 0x8034
+GL_UNSIGNED_SHORT_5_6_5 = 0x8363
+GL_RGB8 = 0x8051
+GL_RGBA8 = 0x8058
+
+
+def _expand_4_to_8(value):
+    return ((value & 0xF) << 4) | (value & 0xF)
+
+
+def _expand_5_to_8(value):
+    value &= 0x1F
+    return ((value << 3) | (value >> 2)) & 0xFF
+
+
+def _expand_6_to_8(value):
+    value &= 0x3F
+    return ((value << 2) | (value >> 4)) & 0xFF
+
+
+def expected_decoded_size(entry):
+    fmt = entry.get("texture_format")
+    pixel_type = entry.get("pixel_type")
+    internal_format = entry.get("format")
+    width = int(entry.get("width", 0))
+    height = int(entry.get("height", 0))
+    if width <= 0 or height <= 0:
+        return 0
+    bpp = 0
+    if fmt == GL_RGBA and pixel_type == GL_UNSIGNED_BYTE:
+        bpp = 4
+    elif fmt == GL_RGB and pixel_type == GL_UNSIGNED_BYTE:
+        bpp = 3
+    elif fmt == GL_RGB and pixel_type == GL_UNSIGNED_SHORT_5_6_5:
+        bpp = 2
+    elif fmt == GL_RGBA and pixel_type in (GL_UNSIGNED_SHORT_4_4_4_4, GL_UNSIGNED_SHORT_5_5_5_1):
+        bpp = 2
+    elif fmt == GL_LUMINANCE and pixel_type == GL_UNSIGNED_BYTE:
+        bpp = 1
+    elif internal_format == GL_RGBA8:
+        bpp = 4
+    elif internal_format == GL_RGB8:
+        bpp = 3
+    return width * height * bpp if bpp else 0
+
+
+def read_entry_blob(cache_path: Path, entry):
+    if entry.get("inline_blob"):
+        return entry.get("blob", b"")
+    data_offset = entry.get("data_offset")
+    data_size = entry.get("data_size")
+    if data_offset is None or data_size is None:
+        raise ValueError("Entry is missing blob location metadata.")
+    with cache_path.open("rb") as fp:
+        fp.seek(int(data_offset))
+        blob = fp.read(int(data_size))
+    if len(blob) != int(data_size):
+        raise ValueError("Failed to read full entry blob.")
+    return blob
+
+
+def decompress_entry_blob(entry, blob):
+    if (int(entry.get("format", 0)) & GL_TEXFMT_GZ) == 0:
+        return blob
+    expected_size = expected_decoded_size(entry)
+    if expected_size == 0:
+        raise ValueError("Unsupported compressed entry format.")
+    pixel_data = zlib.decompress(blob)
+    if len(pixel_data) != expected_size:
+        return pixel_data
+    return pixel_data
+
+
+def decode_pixels_rgba8(entry, pixel_data):
+    width = int(entry.get("width", 0))
+    height = int(entry.get("height", 0))
+    pixel_count = width * height
+    fmt = int(entry.get("texture_format", 0))
+    pixel_type = int(entry.get("pixel_type", 0))
+    internal_format = int(entry.get("format", 0))
+    rgba = bytearray(pixel_count * 4)
+
+    if fmt == GL_RGBA and pixel_type == GL_UNSIGNED_BYTE:
+        if len(pixel_data) < len(rgba):
+            raise ValueError("RGBA8 pixel payload too small.")
+        return bytes(pixel_data[:len(rgba)])
+
+    if fmt == GL_RGB and pixel_type == GL_UNSIGNED_BYTE:
+        if len(pixel_data) < pixel_count * 3:
+            raise ValueError("RGB8 pixel payload too small.")
+        for i in range(pixel_count):
+            rgba[4 * i + 0] = pixel_data[3 * i + 0]
+            rgba[4 * i + 1] = pixel_data[3 * i + 1]
+            rgba[4 * i + 2] = pixel_data[3 * i + 2]
+            rgba[4 * i + 3] = 255
+        return bytes(rgba)
+
+    if fmt == GL_RGB and pixel_type == GL_UNSIGNED_SHORT_5_6_5:
+        if len(pixel_data) < pixel_count * 2:
+            raise ValueError("RGB565 pixel payload too small.")
+        for i in range(pixel_count):
+            value = pixel_data[2 * i + 0] | (pixel_data[2 * i + 1] << 8)
+            rgba[4 * i + 0] = _expand_5_to_8((value >> 11) & 0x1F)
+            rgba[4 * i + 1] = _expand_6_to_8((value >> 5) & 0x3F)
+            rgba[4 * i + 2] = _expand_5_to_8(value & 0x1F)
+            rgba[4 * i + 3] = 255
+        return bytes(rgba)
+
+    if fmt == GL_RGBA and pixel_type == GL_UNSIGNED_SHORT_5_5_5_1:
+        if len(pixel_data) < pixel_count * 2:
+            raise ValueError("RGBA5551 pixel payload too small.")
+        for i in range(pixel_count):
+            value = pixel_data[2 * i + 0] | (pixel_data[2 * i + 1] << 8)
+            rgba[4 * i + 0] = _expand_5_to_8((value >> 11) & 0x1F)
+            rgba[4 * i + 1] = _expand_5_to_8((value >> 6) & 0x1F)
+            rgba[4 * i + 2] = _expand_5_to_8((value >> 1) & 0x1F)
+            rgba[4 * i + 3] = 255 if (value & 1) else 0
+        return bytes(rgba)
+
+    if fmt == GL_RGBA and pixel_type == GL_UNSIGNED_SHORT_4_4_4_4:
+        if len(pixel_data) < pixel_count * 2:
+            raise ValueError("RGBA4444 pixel payload too small.")
+        for i in range(pixel_count):
+            value = pixel_data[2 * i + 0] | (pixel_data[2 * i + 1] << 8)
+            rgba[4 * i + 0] = _expand_4_to_8((value >> 12) & 0xF)
+            rgba[4 * i + 1] = _expand_4_to_8((value >> 8) & 0xF)
+            rgba[4 * i + 2] = _expand_4_to_8((value >> 4) & 0xF)
+            rgba[4 * i + 3] = _expand_4_to_8(value & 0xF)
+        return bytes(rgba)
+
+    if fmt == GL_LUMINANCE and pixel_type == GL_UNSIGNED_BYTE:
+        if len(pixel_data) < pixel_count:
+            raise ValueError("L8 pixel payload too small.")
+        for i in range(pixel_count):
+            value = pixel_data[i]
+            rgba[4 * i + 0] = value
+            rgba[4 * i + 1] = value
+            rgba[4 * i + 2] = value
+            rgba[4 * i + 3] = 255
+        return bytes(rgba)
+
+    if internal_format == GL_RGBA8 and len(pixel_data) >= len(rgba):
+        return bytes(pixel_data[:len(rgba)])
+
+    raise ValueError("Unsupported pixel format for RGBA8 decode.")
+
+
+def find_cache_entry(entries, checksum64, formatsize):
+    exact = None
+    generic = None
+    for entry in entries:
+        if int(entry.get("checksum64", 0)) != int(checksum64):
+            continue
+        entry_formatsize = int(entry.get("formatsize", 0))
+        if entry_formatsize == int(formatsize):
+            exact = entry
+        elif entry_formatsize == 0:
+            generic = entry
+    return exact or generic
+
+
+def decode_entry_rgba8(cache_path: Path, entry):
+    blob = read_entry_blob(cache_path, entry)
+    pixel_data = decompress_entry_blob(entry, blob)
+    return decode_pixels_rgba8(entry, pixel_data)

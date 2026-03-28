@@ -7,7 +7,8 @@ from pathlib import Path
 
 MAGIC = b'PHRB'
 HEADER_STRUCT = struct.Struct('<4sIIIIIII')
-RECORD_STRUCT = struct.Struct('<IIIIIIIIII')
+RECORD_STRUCT_V1 = struct.Struct('<IIIIIIIIII')
+RECORD_STRUCT_V2 = struct.Struct('<IIIIIIIIIIIII')
 ASSET_STRUCT = struct.Struct('<IIIIIIIIIIII')
 
 
@@ -25,14 +26,21 @@ def inspect_binary_package(path: Path):
     magic, version, record_count, asset_count, record_off, asset_off, string_off, blob_off = HEADER_STRUCT.unpack_from(data, 0)
     if magic != MAGIC:
         raise ValueError(f'Unexpected magic: {magic!r}')
-    if version != 1:
+    if version not in (1, 2):
         raise ValueError(f'Unsupported version: {version}')
 
     string_blob = data[string_off:blob_off]
     records = []
+    record_struct = RECORD_STRUCT_V2 if version >= 2 else RECORD_STRUCT_V1
     for i in range(record_count):
-        off = record_off + i * RECORD_STRUCT.size
-        (policy_key_off, sampled_object_id_off, fmt, siz, tex_off, stride, width, height, formatsize, asset_candidate_count) = RECORD_STRUCT.unpack_from(data, off)
+        off = record_off + i * record_struct.size
+        if version >= 2:
+            (policy_key_off, sampled_object_id_off, fmt, siz, tex_off, stride, width, height, formatsize, sampled_low32, sampled_entry_pcrc, sampled_sparse_pcrc, asset_candidate_count) = record_struct.unpack_from(data, off)
+        else:
+            (policy_key_off, sampled_object_id_off, fmt, siz, tex_off, stride, width, height, formatsize, asset_candidate_count) = record_struct.unpack_from(data, off)
+            sampled_low32 = 0
+            sampled_entry_pcrc = 0
+            sampled_sparse_pcrc = 0
         records.append({
             'record_index': i,
             'policy_key': read_c_string(string_blob, policy_key_off),
@@ -44,6 +52,9 @@ def inspect_binary_package(path: Path):
                 'stride': stride,
                 'wh': f'{width}x{height}',
                 'formatsize': formatsize,
+                'sampled_low32': sampled_low32,
+                'sampled_entry_pcrc': sampled_entry_pcrc,
+                'sampled_sparse_pcrc': sampled_sparse_pcrc,
             },
             'asset_candidate_count': asset_candidate_count,
             'asset_candidates': [],

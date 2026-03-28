@@ -6,11 +6,19 @@ import sys
 from pathlib import Path
 
 MAGIC = b'PHRB'
-VERSION = 1
+VERSION = 2
 
 
 def load_package_manifest(path: Path):
     return json.loads(path.read_text())
+
+
+def parse_u32_identity(value):
+    if value is None or value == '':
+        return 0
+    if isinstance(value, int):
+        return value
+    return int(str(value), 16)
 
 
 def encode_string_table(strings):
@@ -68,7 +76,7 @@ def emit_binary_package(package_dir: Path, output_path: Path):
         identity = record['canonical_identity']
         width_str, height_str = identity['wh'].split('x', 1)
         record_table.extend(struct.pack(
-            '<IIIIIIIIII',
+            '<IIIIIIIIIIIII',
             policy_key_off,
             sampled_object_id_off,
             int(identity['fmt']),
@@ -78,6 +86,9 @@ def emit_binary_package(package_dir: Path, output_path: Path):
             int(width_str),
             int(height_str),
             int(identity['formatsize']),
+            parse_u32_identity(identity.get('sampled_low32')),
+            parse_u32_identity(identity.get('sampled_entry_pcrc')),
+            parse_u32_identity(identity.get('sampled_sparse_pcrc')),
             record['asset_candidate_count'],
         ))
 

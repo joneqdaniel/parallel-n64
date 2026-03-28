@@ -234,7 +234,7 @@ Current artifact:
   - `gDPLoadTextureTile_4b` in the same file now gives a source-backed explanation for the smaller tiled `8x16` CI family
   - `kmr_21` now gives a direct title-screen source match for the `200x2 RGBA32` texrect stripes
   - `filemenu_gfx.c` now gives a negative control too: the filemenu copy-arrow path is `64x16 IA4`, so it should not be mixed into the current CI/TLUT work
-  - practical implication: the next Tier 2 ticket is not “more runtime probing”; it is recovering exact tile/TMEM fields from these callsites and checking them against the runtime sampled-object probe
+  - practical implication: the next Tier 2 ticket is not “more runtime probing”; the scanner is already recovering first tile/TMEM field hints from these callsites, and the next step is to check those recovered fields against the runtime sampled-object probe
 
 ## What This Plan Explicitly Avoids
 

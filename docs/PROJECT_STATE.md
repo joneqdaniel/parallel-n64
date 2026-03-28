@@ -367,7 +367,7 @@
   - it source-links the ambiguous `8x16 fs258` family to the `gDPLoadTextureTile_4b` filemenu message branch, which statically explains why that family stays tiled instead of collapsing into the `64x1` transport shape
   - it source-links the title-screen striped texrect path directly to `kmr_21`, where `200x2 RGBA32` strips are authored explicitly
   - it also records the filemenu copy-arrow display list as a useful negative control: `64x16 IA4`, not one of the active CI4 families
-  - practical implication: the next Tier 2 step should recover native `SetTile` / `SetTileSize` / TMEM fields from these exact callsites before widening runtime-side logic any further
+  - practical implication: the scanner is now also recovering first native-field hints from those exact callsites (`tmem_offset=0`, render tile `0`, macro-derived line/tile-size examples), so the next Tier 2 step is to compare those recovered fields against runtime rather than re-discovering them with more heuristics
 - The latest unstaged HLE-to-LLE conversion research in [hle-to-lle-conversion-plan.md](/home/auro/code/parallel-n64/docs/plans/hires-conversion-analysis/hle-to-lle-conversion-plan.md) and [palette-crc-transform-analysis.md](/home/auro/code/parallel-n64/docs/plans/hires-conversion-analysis/palette-crc-transform-analysis.md) is directionally useful, but it is now adopted in tracked planning with tighter guardrails:
   - adopt the three-tier conversion split:
     - pure-math bridge candidate generation

@@ -124,6 +124,16 @@ def static_findings(game_root: Path) -> list[dict[str, Any]]:
                 "sampled_stride_bytes_example": 8,
                 "upload_words_16_example": 64,
                 "raw_upload_shape_example": "64x1",
+                "native_field_hints": {
+                    "tmem_offset": 0,
+                    "render_tile": 0,
+                    "render_line_words64_expr": "((((width >> 1) + 7) >> 3))",
+                    "render_line_words64_example": 1,
+                    "tile_size_expr": "(0, 0) -> ((width - 1) << 2, (height - 1) << 2)",
+                    "tile_size_example": {"sl": 0, "tl": 0, "sh": 60, "th": 60},
+                    "load_count_expr": "(((width * height) + 3) >> 2) - 1",
+                    "load_count_example": 63,
+                },
                 "notes": [
                     "The macro explicitly uses `gDPSetTextureImage(... G_IM_SIZ_16b ...)` followed by `gDPLoadBlock`.",
                     "For a 16x16 CI4 glyph, `(((width * height) + 3) >> 2)` becomes `64`, which matches the dominant raw upload width seen in runtime bundles.",
@@ -170,6 +180,15 @@ def static_findings(game_root: Path) -> list[dict[str, Any]]:
                 "sampled_siz": "4b",
                 "sampled_wh_example": "8x16",
                 "sampled_stride_bytes_example": 8,
+                "native_field_hints": {
+                    "tmem_offset": 0,
+                    "render_tile": 0,
+                    "render_line_words64_expr": "((((((lrs - uls) + 1) >> 1) + 7) >> 3))",
+                    "render_line_words64_example": 1,
+                    "tile_size_expr": "((uls << 2), (ult << 2)) -> ((lrs << 2), (lrt << 2))",
+                    "tile_size_example": {"sl": 0, "tl": 0, "sh": 28, "th": 60},
+                    "load_size_expr": "G_IM_SIZ_8b with width >> 1 source stride",
+                },
                 "notes": [
                     "This branch is taken when `texSizeX` is not a 16-aligned block-load candidate.",
                     "It preserves a tiled 4b CI interpretation instead of forcing the `LoadBlock` transport shape.",
@@ -209,6 +228,14 @@ def static_findings(game_root: Path) -> list[dict[str, Any]]:
                 "sampled_siz": "32b",
                 "sampled_wh_example": "200x2",
                 "sampled_stride_hint": 400,
+                "native_field_hints": {
+                    "tmem_offset": 0,
+                    "render_tile": 0,
+                    "load_rect_example": {"uls": 0, "ult": 0, "lrs": 199, "lrt": 1},
+                    "tile_size_example": {"sl": 0, "tl": 0, "sh": 796, "th": 4},
+                    "rect_step_example": {"dsdx": 1024, "dtdy": 1024},
+                    "screen_rect_example": {"ulx": 240, "lrx": 1040},
+                },
                 "notes": [
                     "Each loop iteration loads one 200x2 stripe from the decompressed title image and draws it as a texrect.",
                     "This directly matches the repeated title-screen texrect regime already seen in runtime bundles.",
@@ -245,6 +272,14 @@ def static_findings(game_root: Path) -> list[dict[str, Any]]:
                 "sampled_fmt": "IA",
                 "sampled_siz": "4b",
                 "sampled_wh_example": "64x16",
+                "native_field_hints": {
+                    "tmem_offset": 0,
+                    "render_tile": 0,
+                    "mask_s": 6,
+                    "mask_t": 4,
+                    "mirror_s": 0,
+                    "mirror_t": 1,
+                },
                 "notes": [
                     "This path is still useful as a texrect/static reference, but its format class is IA, not CI.",
                     "That makes it a good negative control for the current CI/TLUT-focused work.",
@@ -347,6 +382,10 @@ def render_markdown(report: dict[str, Any]) -> str:
                 lines.append(f"- {key}:")
                 for item in value:
                     lines.append(f"  - {item}")
+            elif isinstance(value, dict):
+                lines.append(f"- {key}:")
+                for sub_key, sub_value in value.items():
+                    lines.append(f"  - {sub_key}: `{sub_value}`")
             else:
                 lines.append(f"- {key}: `{value}`")
         if finding.get("runtime_links"):

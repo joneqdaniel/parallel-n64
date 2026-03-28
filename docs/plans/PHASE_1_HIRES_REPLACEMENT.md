@@ -120,7 +120,7 @@
     - the same pass source-links the ambiguous `8x16 fs258` family to the tiled `gDPLoadTextureTile_4b` filemenu message branch, which explains why it does not share the `LoadBlock` transport shape
     - it also gives a direct title-screen source match: `kmr_21` explicitly loads and draws `200x2 RGBA32` texrect strips
     - and it records the filemenu copy-arrow display list as a negative control (`64x16 IA4`), so we stop conflating unrelated texrect sources with the active CI4 families
-    - practical implication: Tier 2 is now beyond theory; the next static resolver step is to recover native tile/TMEM fields from these exact callsites and compare them against the runtime sampled-object probe
+    - practical implication: Tier 2 is now beyond theory; the scanner is already recovering first native tile/TMEM hints from these callsites (`tmem_offset`, render-tile selection, line expressions, tile-size examples), and the next static resolver step is to compare those recovered fields against the runtime sampled-object probe
   - hi-res traces now also expose stable bucket summaries, which collapse title misses to 5 unique classes and file-select misses to 6 unique classes
   - the current dominant unresolved file-select class is `mode=block fmt=2 siz=2 wh=64x1 fs=514 tile=7` with 70 repeated misses in the last verified strict `on` bundle
   - the new pack cross-check in `hires-evidence.json` shows those current strict-fixture misses are unmatched in the active local Paper Mario `.hts` index under our current checksum generation, not mismatched under another `formatsize`

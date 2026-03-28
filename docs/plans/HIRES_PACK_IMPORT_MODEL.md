@@ -284,6 +284,12 @@ The migration tool now emits that bridge when sampled-object bundle data is avai
   - both bundles log `2` sampled-object exact hits for `c139c1c0` and land on the same screenshot hash `831cd6a7dff2d44654c854dbbcd91d13071cf49d6622f9141084780b47bf2b32`
   - practical implication: proxy-centered packaging is now runtime-proven again for the deterministic `c139c1c0` slice, so the remaining active importer/runtime blocker is not lookup plumbing but unresolved transport selection for sampled proxies like `7064585c`
   - bundle extraction now records sampled-object exact hits separately from the upload-side summary, which keeps canonical `PHRB` lookup-only runs machine-readable instead of relying on raw log inspection
+  - the first proxy-centered `7064585c` combined previews now convert the unresolved pool into a bounded review surface:
+    - preview root: [20260328-7064585c-combined-previews](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-7064585c-combined-previews)
+    - each preview keeps the deterministic `c139c1c0` binding and adds one representative `7064585c` transported payload
+    - all six previews produce `14` sampled-object exact hits total: `12` for `7064585c` plus the shared `2` `c139c1c0` hits
+    - current image-distance ordering is `16x16`, `120x120`, `144x144`, `384x512`, `64x64`, `96x96`
+    - practical implication: the import/runtime transport problem for `7064585c` is now narrowed to a short list, but the current preview ranking is still non-binding review evidence rather than a selected transport policy
 - the package manifest now also records decoded `pixel_sha256` values, `alpha_normalized_pixel_sha256` values, and duplicate-pixel groups, so importer design can distinguish fully distinct transport content from any future duplicate or near-duplicate transport variants
   - markdown: [20260327-sampled-legacy-vs-canonical.md](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260327-sampled-legacy-vs-canonical.md)
   - json: [20260327-sampled-canonical-projection.json](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260327-sampled-canonical-projection.json)

@@ -174,6 +174,12 @@
         - both bundles now log `2` sampled-object exact hits for `c139c1c0` and land on the same screenshot hash `831cd6a7dff2d44654c854dbbcd91d13071cf49d6622f9141084780b47bf2b32`
         - practical implication: the deterministic `c139c1c0` canonical path is now runtime-proven again on the current core, and the next active blocker is tool-side transport selection for unresolved sampled proxies such as `7064585c`
         - tracked bundle evidence now records sampled-object exact hits separately from the upload-side `Hi-res keying summary`, so canonical lookup-only runs no longer masquerade as `hits=0` in `hires-evidence.json`
+        - the first focused `7064585c` combined previews now bound that transport-selection problem to a manageable short list:
+          - preview root: [20260328-7064585c-combined-previews](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-7064585c-combined-previews)
+          - each preview kept the proven `c139c1c0` binding and added one representative `7064585c` transported payload
+          - all six previews produced `14` sampled-object exact hits total: `12` for `7064585c` plus the shared `2` `c139c1c0` hits
+          - current image-distance ordering on strict file select is: `16x16`, `120x120`, `144x144`, `384x512`, `64x64`, `96x96`
+          - practical implication: the proxy pool is no longer an undifferentiated set of `62` payloads, but the current ordering is still review evidence only and not enough to lock policy
     - practical implication: the active `8x16` gap should not be modeled as meaningful row-local upload bytes, which makes same-start parent-tile/subrect transport a stronger next resolver target than more row-byte reinterpretation
   - hi-res traces now also expose stable bucket summaries, which collapse title misses to 5 unique classes and file-select misses to 6 unique classes
   - the current dominant unresolved file-select class is `mode=block fmt=2 siz=2 wh=64x1 fs=514 tile=7` with 70 repeated misses in the last verified strict `on` bundle

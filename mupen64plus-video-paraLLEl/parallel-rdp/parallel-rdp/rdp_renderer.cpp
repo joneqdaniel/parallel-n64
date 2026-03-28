@@ -134,6 +134,83 @@ static bool compute_hires_tile_size_pixels(const TileSize &size, uint32_t &width
 	return width_pixels != 0 && height_pixels != 0;
 }
 
+
+struct HiresSampledObjectIdentity
+{
+	bool valid = false;
+	uint32_t width_pixels = 0;
+	uint32_t height_pixels = 0;
+	uint32_t row_stride_bytes = 0;
+	uint32_t texture_crc = 0;
+	uint32_t entry_count = 0;
+	uint32_t entry_crc = 0;
+	uint32_t sparse_crc = 0;
+	uint32_t used_count = 0;
+	uint16_t formatsize = 0;
+};
+
+static HiresSampledObjectIdentity compute_hires_sampled_ci_object_identity(const TileMeta &meta,
+                                                                          const TileSize &size,
+                                                                          const uint8_t *cpu_tmem,
+                                                                          const uint8_t *tlut_tmem_shadow,
+                                                                          bool tlut_shadow_valid)
+{
+	HiresSampledObjectIdentity identity = {};
+	if (!cpu_tmem || !tlut_tmem_shadow || !tlut_shadow_valid)
+		return identity;
+	if (meta.fmt != TextureFormat::CI)
+		return identity;
+	if (!compute_hires_tile_size_pixels(size, identity.width_pixels, identity.height_pixels))
+		return identity;
+
+	identity.row_stride_bytes = meta.stride != 0 ? meta.stride : compute_hires_texture_row_bytes(identity.width_pixels, meta.size);
+	if (identity.row_stride_bytes == 0)
+		return identity;
+
+	identity.texture_crc = rice_crc32_wrapped(
+		cpu_tmem,
+		0x1000,
+		meta.offset,
+		identity.width_pixels,
+		identity.height_pixels,
+		uint32_t(meta.size),
+		identity.row_stride_bytes);
+	const auto usage = detail::compute_hires_ci_palette_usage_tmem(
+		meta.size,
+		cpu_tmem,
+		0x1000,
+		meta.offset,
+		identity.width_pixels,
+		identity.height_pixels,
+		identity.row_stride_bytes);
+	identity.entry_count = detail::compute_hires_ci_palette_entry_count_tmem(
+		meta.size,
+		cpu_tmem,
+		0x1000,
+		meta.offset,
+		identity.width_pixels,
+		identity.height_pixels,
+		identity.row_stride_bytes);
+	identity.entry_crc = detail::compute_hires_ci_palette_crc_for_entries_tmem(
+		meta.size,
+		meta.palette,
+		tlut_tmem_shadow,
+		2048,
+		tlut_shadow_valid,
+		identity.entry_count);
+	identity.sparse_crc = detail::compute_hires_ci_palette_crc_for_used_indices_tmem(
+		meta.size,
+		meta.palette,
+		tlut_tmem_shadow,
+		2048,
+		tlut_shadow_valid,
+		usage);
+	identity.used_count = usage.used_count;
+	identity.formatsize = formatsize_key(meta.fmt, meta.size);
+	identity.valid = identity.texture_crc != 0;
+	return identity;
+}
+
 static bool ranges_overlap_u32(uint32_t a_addr, uint32_t a_size, uint32_t b_addr, uint32_t b_size)
 {
 	if (a_size == 0 || b_size == 0)
@@ -929,6 +1006,13 @@ void Renderer::set_hires_debug_sampled_object_probe(bool enable)
 	hires_debug_sampled_object_probe = enable;
 	if (hires_debug_sampled_object_probe)
 		LOGI("Hi-res debug sampled-object probe enabled.\n");
+}
+
+void Renderer::set_hires_debug_sampled_object_exact_lookup(bool enable)
+{
+	hires_debug_sampled_object_exact_lookup = enable;
+	if (hires_debug_sampled_object_exact_lookup)
+		LOGI("Hi-res debug sampled-object exact lookup enabled.\n");
 }
 
 void Renderer::set_hires_ci_compatibility_mode(HiresCICompatibilityMode mode)
@@ -1762,121 +1846,135 @@ void Renderer::draw_shaded_primitive(const TriangleSetup &setup, const Attribute
 		     (base_meta.flags & TILE_INFO_MIRROR_T_BIT) != 0 ? 1u : 0u);
 	}
 
-	if (hires_debug_sampled_object_probe &&
-	    replacement_provider &&
-	    cpu_tmem &&
-	    tlut_shadow_valid &&
-	    uses_texel0 &&
-	    !texel0_state.hit &&
-	    base_meta.fmt == TextureFormat::CI &&
-	    (draw_class == HiresDrawClass::TexRect || draw_class == HiresDrawClass::TexRectFlip))
+	const bool can_consider_sampled_object =
+		replacement_provider &&
+		cpu_tmem &&
+		tlut_shadow_valid &&
+		uses_texel0 &&
+		!texel0_state.hit &&
+		base_meta.fmt == TextureFormat::CI &&
+		(draw_class == HiresDrawClass::TexRect || draw_class == HiresDrawClass::TexRectFlip);
+	HiresSampledObjectIdentity sampled_identity = {};
+	if (can_consider_sampled_object)
+		sampled_identity = compute_hires_sampled_ci_object_identity(base_meta, base_size, cpu_tmem, tlut_tmem_shadow, tlut_shadow_valid);
+
+	if (hires_debug_sampled_object_exact_lookup && sampled_identity.valid)
 	{
-		uint32_t sampled_width_pixels = 0;
-		uint32_t sampled_height_pixels = 0;
-		if (compute_hires_tile_size_pixels(base_size, sampled_width_pixels, sampled_height_pixels))
+		ReplacementMeta sampled_meta = {};
+		uint64_t sampled_checksum64 = 0;
+		const char *sampled_reason = nullptr;
+		auto try_sampled_exact = [&](uint32_t palette_crc, const char *reason) {
+			const uint64_t checksum64 = detail::compose_hires_checksum64(sampled_identity.texture_crc, palette_crc);
+			ReplacementMeta candidate_meta = {};
+			if (!replacement_provider->lookup(checksum64, sampled_identity.formatsize, &candidate_meta))
+				return false;
+			candidate_meta.orig_w = sampled_identity.width_pixels;
+			candidate_meta.orig_h = sampled_identity.height_pixels;
+			if (!resolve_hires_replacement_descriptor(checksum64, sampled_identity.formatsize, candidate_meta))
+				return false;
+			sampled_meta = candidate_meta;
+			sampled_checksum64 = checksum64;
+			sampled_reason = reason;
+			return true;
+		};
+
+		const bool sampled_hit =
+			try_sampled_exact(sampled_identity.sparse_crc, "sampled-sparse-exact") ||
+			(sampled_identity.entry_crc != sampled_identity.sparse_crc &&
+			 try_sampled_exact(sampled_identity.entry_crc, "sampled-entry-exact"));
+		if (sampled_hit)
 		{
-			const uint32_t sampled_row_stride_bytes = base_meta.stride != 0 ? base_meta.stride : compute_hires_texture_row_bytes(sampled_width_pixels, base_meta.size);
-			if (sampled_row_stride_bytes != 0)
+			ReplacementTileState sampled_state = {};
+			detail::write_hires_lookup_tile_state(
+				sampled_state,
+				true,
+				sampled_checksum64,
+				sampled_identity.formatsize,
+				sampled_identity.width_pixels,
+				sampled_identity.height_pixels);
+			sampled_state.repl_w = static_cast<uint16_t>(sampled_meta.repl_w);
+			sampled_state.repl_h = static_cast<uint16_t>(sampled_meta.repl_h);
+			sampled_state.vk_image_index = sampled_meta.vk_image_index;
+			replacement_tiles[base_tile] = sampled_state;
+			apply_hires_tile_binding(base_tile, replacement_tiles[base_tile]);
+			if (hires_debug)
 			{
-				char probe_key[256] = {};
-				std::snprintf(probe_key, sizeof(probe_key),
-				              "draw=%s cycle=%s tile=%u fmt=%u siz=%u pal=%u off=%u stride=%u sl=%u tl=%u sh=%u th=%u",
-				              get_hires_draw_class(draw_class),
-				              get_hires_cycle_class(raster_flags),
-				              base_tile,
-				              unsigned(base_meta.fmt),
-				              unsigned(base_meta.size),
-				              unsigned(base_meta.palette),
-				              unsigned(base_meta.offset),
-				              unsigned(base_meta.stride),
-				              unsigned(base_size.slo),
-				              unsigned(base_size.tlo),
-				              unsigned(base_size.shi),
-				              unsigned(base_size.thi));
-				if (hires_sampled_object_probe_logged_contexts.insert(probe_key).second)
-				{
-					const uint32_t sampled_texture_crc = rice_crc32_wrapped(
-						cpu_tmem,
-						0x1000,
-						base_meta.offset,
-						sampled_width_pixels,
-						sampled_height_pixels,
-						uint32_t(base_meta.size),
-						sampled_row_stride_bytes);
-					const auto sampled_usage = detail::compute_hires_ci_palette_usage_tmem(
-						base_meta.size,
-						cpu_tmem,
-						0x1000,
-						base_meta.offset,
-						sampled_width_pixels,
-						sampled_height_pixels,
-						sampled_row_stride_bytes);
-					const uint32_t sampled_entry_count = detail::compute_hires_ci_palette_entry_count_tmem(
-						base_meta.size,
-						cpu_tmem,
-						0x1000,
-						base_meta.offset,
-						sampled_width_pixels,
-						sampled_height_pixels,
-						sampled_row_stride_bytes);
-					const uint32_t sampled_entry_crc = detail::compute_hires_ci_palette_crc_for_entries_tmem(
-						base_meta.size,
-						base_meta.palette,
-						tlut_tmem_shadow,
-						sizeof(tlut_tmem_shadow),
-						tlut_shadow_valid,
-						sampled_entry_count);
-					const uint32_t sampled_sparse_crc = detail::compute_hires_ci_palette_crc_for_used_indices_tmem(
-						base_meta.size,
-						base_meta.palette,
-						tlut_tmem_shadow,
-						sizeof(tlut_tmem_shadow),
-						tlut_shadow_valid,
-						sampled_usage);
-					const uint16_t sampled_formatsize = formatsize_key(base_meta.fmt, base_meta.size);
-					ReplacementMeta sampled_entry_meta = {};
-					ReplacementMeta sampled_sparse_meta = {};
-					const bool sampled_entry_hit = sampled_entry_crc != 0 && replacement_provider->lookup(
-						detail::compose_hires_checksum64(sampled_texture_crc, sampled_entry_crc),
-						sampled_formatsize,
-						&sampled_entry_meta);
-					const bool sampled_sparse_hit = sampled_sparse_crc != 0 && replacement_provider->lookup(
-						detail::compose_hires_checksum64(sampled_texture_crc, sampled_sparse_crc),
-						sampled_formatsize,
-						&sampled_sparse_meta);
-					CILow32FamilyDiagnostics sampled_family = {};
-					const bool sampled_family_available = replacement_provider->describe_ci_low32_family(
-						sampled_texture_crc,
-						sampled_formatsize,
-						sampled_sparse_crc,
-						&sampled_family) && sampled_family.available;
-					LOGI("Hi-res sampled-object probe: draw_class=%s cycle=%s tile=%u fmt=%u siz=%u pal=%u off=%u stride=%u wh=%ux%u upload_low32=%08x upload_pcrc=%08x sampled_low32=%08x sampled_entry_pcrc=%08x sampled_sparse_pcrc=%08x sampled_entry_count=%u sampled_used_count=%u fs=%u entry_hit=%u sparse_hit=%u family=%u unique_repl_dims=%u sample_repl=%ux%u.\n",
-					     get_hires_draw_class(draw_class),
-					     get_hires_cycle_class(raster_flags),
-					     base_tile,
-					     unsigned(base_meta.fmt),
-					     unsigned(base_meta.size),
-					     unsigned(base_meta.palette),
-					     unsigned(base_meta.offset),
-					     unsigned(base_meta.stride),
-					     sampled_width_pixels,
-					     sampled_height_pixels,
-					     uint32_t(texel0_state.checksum64 & 0xffffffffu),
-					     uint32_t((texel0_state.checksum64 >> 32) & 0xffffffffu),
-					     sampled_texture_crc,
-					     sampled_entry_crc,
-					     sampled_sparse_crc,
-					     sampled_entry_count,
-					     sampled_usage.used_count,
-					     unsigned(sampled_formatsize),
-					     sampled_entry_hit ? 1 : 0,
-					     sampled_sparse_hit ? 1 : 0,
-					     sampled_family_available ? 1 : 0,
-					     sampled_family_available ? sampled_family.active_unique_repl_dim_count : 0u,
-					     sampled_family_available ? sampled_family.sample_repl_w : 0u,
-					     sampled_family_available ? sampled_family.sample_repl_h : 0u);
-				}
+				LOGI("Hi-res sampled-object exact hit: draw_class=%s cycle=%s tile=%u reason=%s sampled_low32=%08x sampled_entry_pcrc=%08x sampled_sparse_pcrc=%08x fs=%u key=%016llx repl=%ux%u.\n",
+				     get_hires_draw_class(draw_class),
+				     get_hires_cycle_class(raster_flags),
+				     base_tile,
+				     sampled_reason ? sampled_reason : "sampled-exact",
+				     sampled_identity.texture_crc,
+				     sampled_identity.entry_crc,
+				     sampled_identity.sparse_crc,
+				     unsigned(sampled_identity.formatsize),
+				     static_cast<unsigned long long>(sampled_checksum64),
+				     sampled_meta.repl_w,
+				     sampled_meta.repl_h);
 			}
+		}
+	}
+
+	if (hires_debug_sampled_object_probe && sampled_identity.valid)
+	{
+		char probe_key[256] = {};
+		std::snprintf(probe_key, sizeof(probe_key),
+		              "draw=%s cycle=%s tile=%u fmt=%u siz=%u pal=%u off=%u stride=%u sl=%u tl=%u sh=%u th=%u",
+		              get_hires_draw_class(draw_class),
+		              get_hires_cycle_class(raster_flags),
+		              base_tile,
+		              unsigned(base_meta.fmt),
+		              unsigned(base_meta.size),
+		              unsigned(base_meta.palette),
+		              unsigned(base_meta.offset),
+		              unsigned(base_meta.stride),
+		              unsigned(base_size.slo),
+		              unsigned(base_size.tlo),
+		              unsigned(base_size.shi),
+		              unsigned(base_size.thi));
+		if (hires_sampled_object_probe_logged_contexts.insert(probe_key).second)
+		{
+			ReplacementMeta sampled_entry_meta = {};
+			ReplacementMeta sampled_sparse_meta = {};
+			const bool sampled_entry_hit = sampled_identity.entry_crc != 0 && replacement_provider->lookup(
+				detail::compose_hires_checksum64(sampled_identity.texture_crc, sampled_identity.entry_crc),
+				sampled_identity.formatsize,
+				&sampled_entry_meta);
+			const bool sampled_sparse_hit = sampled_identity.sparse_crc != 0 && replacement_provider->lookup(
+				detail::compose_hires_checksum64(sampled_identity.texture_crc, sampled_identity.sparse_crc),
+				sampled_identity.formatsize,
+				&sampled_sparse_meta);
+			CILow32FamilyDiagnostics sampled_family = {};
+			const bool sampled_family_available = replacement_provider->describe_ci_low32_family(
+				sampled_identity.texture_crc,
+				sampled_identity.formatsize,
+				sampled_identity.sparse_crc,
+				&sampled_family) && sampled_family.available;
+			LOGI("Hi-res sampled-object probe: draw_class=%s cycle=%s tile=%u fmt=%u siz=%u pal=%u off=%u stride=%u wh=%ux%u upload_low32=%08x upload_pcrc=%08x sampled_low32=%08x sampled_entry_pcrc=%08x sampled_sparse_pcrc=%08x sampled_entry_count=%u sampled_used_count=%u fs=%u entry_hit=%u sparse_hit=%u family=%u unique_repl_dims=%u sample_repl=%ux%u.\n",
+			     get_hires_draw_class(draw_class),
+			     get_hires_cycle_class(raster_flags),
+			     base_tile,
+			     unsigned(base_meta.fmt),
+			     unsigned(base_meta.size),
+			     unsigned(base_meta.palette),
+			     unsigned(base_meta.offset),
+			     unsigned(base_meta.stride),
+			     sampled_identity.width_pixels,
+			     sampled_identity.height_pixels,
+			     uint32_t(texel0_state.checksum64 & 0xffffffffu),
+			     uint32_t((texel0_state.checksum64 >> 32) & 0xffffffffu),
+			     sampled_identity.texture_crc,
+			     sampled_identity.entry_crc,
+			     sampled_identity.sparse_crc,
+			     sampled_identity.entry_count,
+			     sampled_identity.used_count,
+			     unsigned(sampled_identity.formatsize),
+			     sampled_entry_hit ? 1 : 0,
+			     sampled_sparse_hit ? 1 : 0,
+			     sampled_family_available ? 1 : 0,
+			     sampled_family_available ? sampled_family.active_unique_repl_dim_count : 0u,
+			     sampled_family_available ? sampled_family.sample_repl_w : 0u,
+			     sampled_family_available ? sampled_family.sample_repl_h : 0u);
 		}
 	}
 

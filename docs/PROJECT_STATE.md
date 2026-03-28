@@ -409,6 +409,21 @@
     - `PHRB` is now version `2` and carries numeric canonical sampled identity (`sampled_low32`, `sampled_entry_pcrc`, `sampled_sparse_pcrc`) alongside the fixed-size record fields
     - verified sampled slice: [20260327-sampled-package-inspect.json](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260327-sampled-package-inspect.json) now round-trips nonzero sampled identity (`c139c1c0`, `80038dc8`, `7ff2e39c`) through the binary handoff
     - practical implication: package format is no longer the blocker for a canonical runtime consumer; the remaining blocker is that the live renderer still performs most replacement lookup from upload-side state rather than draw-side sampled-object identity
+- That lookup-timing seam is now partially closed in a debug-only path:
+  - the renderer can now compute sampled CI texrect identity at draw time and consult a canonical sampled-object package when `PARALLEL_RDP_HIRES_SAMPLED_OBJECT_LOOKUP=1` is enabled
+  - the scenario wrappers now honor `PARALLEL_RDP_HIRES_CACHE_PATH` overrides and patch bundle metadata to record the actual loaded package path/hash, so canonical-package runs are no longer mislabeled as default `.hts` runs
+  - a first negative control is now explicit too: loading [20260328-tile-parent/package.phrb](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-tile-parent/package.phrb) on the strict file-select fixture loads correctly but produces `0` sampled-object exact hits and collapses to the baseline `off` hash, because that package carries `sampled_low32=75fee641` while the active strict sampled probes are `7064585c` and `c139c1c0`
+  - the first true exact-hit runtime proof now comes from narrowed single-candidate canonical packages for `sampled-fmt2-siz0-off0-stride32-wh64x16-fs2-low32c139c1c0`:
+    - [20260328-sampled-c139-opt1](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260328-sampled-c139-opt1) loads `1` canonical record / `2` exact keys from its `.phrb`, logs sampled-object exact hits for `c139c1c0`, and lands on screenshot hash `831cd6a7dff2d44654c854dbbcd91d13071cf49d6622f9141084780b47bf2b32`
+    - [20260328-sampled-c139-opt2](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260328-sampled-c139-opt2) proves the same plumbing with the alternate transported payload and lands on screenshot hash `fe478b418acc9aeabcaa8fc5815732e31df3f6fb6cd66e5c5b9a9b28c7b3fc51`
+    - both runs preserve the strict file-select semantic state and prove the current blocker has moved again: canonical sampled-object lookup is real, but multi-candidate transport still needs to be resolved tool-side before default runtime consumption
+  - early image-distance checks rank `opt1` ahead of `opt2` as the current provisional transport candidate for `c139c1c0` on strict file select:
+    - `opt1` vs `off`: `AE=15477373`, `RMSE=7.279824`
+    - `opt2` vs `off`: `AE=21871595`, `RMSE=10.306369`
+    - `opt1` vs legacy strict `on`: `AE=133638636`, `RMSE=21.760134`
+    - `opt2` vs legacy strict `on`: `AE=140020278`, `RMSE=22.949551`
+    - this is only a provisional ranking, not proof that `opt1` is the final correct art choice
+  - there is now a dedicated tool-side narrowing step at [`tools/hires_pack_select_transport.py`](/home/auro/code/parallel-n64/tools/hires_pack_select_transport.py), so selecting one transported payload from a multi-candidate canonical record can stay outside the runtime and remain reproducible
   - practical implication: the active `8x16` strict gap should not be modeled as meaningful row-local upload bytes, which pushes the next resolver step toward same-start parent-tile/subrect transport and away from row-byte reinterpretation
 - The latest unstaged HLE-to-LLE conversion research in [hle-to-lle-conversion-plan.md](/home/auro/code/parallel-n64/docs/plans/hires-conversion-analysis/hle-to-lle-conversion-plan.md) and [palette-crc-transform-analysis.md](/home/auro/code/parallel-n64/docs/plans/hires-conversion-analysis/palette-crc-transform-analysis.md) is directionally useful, but it is now adopted in tracked planning with tighter guardrails:
   - adopt the three-tier conversion split:

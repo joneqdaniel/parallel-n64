@@ -26,6 +26,80 @@ constexpr uint16_t GL_UNSIGNED_SHORT_5_6_5 = 0x8363;
 constexpr uint32_t GL_RGB8 = 0x8051;
 constexpr uint32_t GL_RGBA8 = 0x8058;
 
+
+struct PHRBHeader
+{
+	char magic[4] = {};
+	uint32_t version = 0;
+	uint32_t record_count = 0;
+	uint32_t asset_count = 0;
+	uint32_t record_table_offset = 0;
+	uint32_t asset_table_offset = 0;
+	uint32_t string_table_offset = 0;
+	uint32_t blob_offset = 0;
+};
+
+struct PHRBRecordV2
+{
+	uint32_t policy_key_offset = 0;
+	uint32_t sampled_object_id_offset = 0;
+	uint32_t fmt = 0;
+	uint32_t siz = 0;
+	uint32_t tex_offset = 0;
+	uint32_t stride = 0;
+	uint32_t width = 0;
+	uint32_t height = 0;
+	uint32_t formatsize = 0;
+	uint32_t sampled_low32 = 0;
+	uint32_t sampled_entry_pcrc = 0;
+	uint32_t sampled_sparse_pcrc = 0;
+	uint32_t asset_candidate_count = 0;
+};
+
+struct PHRBAsset
+{
+	uint32_t record_index = 0;
+	uint32_t replacement_id_offset = 0;
+	uint32_t legacy_source_path_offset = 0;
+	uint32_t rgba_rel_path_offset = 0;
+	uint32_t variant_group_id_offset = 0;
+	uint32_t width = 0;
+	uint32_t height = 0;
+	uint32_t texture_format = 0;
+	uint32_t pixel_type = 0;
+	uint32_t legacy_formatsize = 0;
+	uint32_t rgba_blob_offset = 0;
+	uint32_t rgba_blob_size = 0;
+};
+
+inline bool phrb_magic_ok(const char magic[4])
+{
+	return magic[0] == 'P' && magic[1] == 'H' && magic[2] == 'R' && magic[3] == 'B';
+}
+
+template <typename T>
+inline bool read_pod_from_blob(const std::vector<uint8_t> &blob, size_t offset, T &value)
+{
+	if (offset + sizeof(T) > blob.size())
+		return false;
+	std::memcpy(&value, blob.data() + offset, sizeof(T));
+	return true;
+}
+
+inline bool read_c_string_from_blob(const uint8_t *data, size_t size, uint32_t offset, std::string &value)
+{
+	if (!data || offset >= size)
+		return false;
+	const char *str = reinterpret_cast<const char *>(data + offset);
+	size_t len = 0;
+	while (offset + len < size && str[len] != '\0')
+		len++;
+	if (offset + len >= size)
+		return false;
+	value.assign(str, len);
+	return true;
+}
+
 template <typename T>
 inline bool read_exact(std::ifstream &file, T &value)
 {
@@ -151,13 +225,13 @@ bool ReplacementProvider::load_cache_dir(const std::string &path)
 			if (ent->d_name[0] == '.')
 				continue;
 			const std::string name = ent->d_name;
-			if (!has_suffix(name, ".hts") && !has_suffix(name, ".htc"))
+			if (!has_suffix(name, ".hts") && !has_suffix(name, ".htc") && !has_suffix(name, ".phrb"))
 				continue;
 			files.push_back(path + "/" + name);
 		}
 		closedir(dir);
 	}
-	else if (has_suffix(path, ".hts") || has_suffix(path, ".htc"))
+	else if (has_suffix(path, ".hts") || has_suffix(path, ".htc") || has_suffix(path, ".phrb"))
 	{
 		files.push_back(path);
 	}
@@ -171,8 +245,10 @@ bool ReplacementProvider::load_cache_dir(const std::string &path)
 	{
 		if (has_suffix(file, ".hts"))
 			load_hts(file);
-		else
+		else if (has_suffix(file, ".htc"))
 			load_htc(file);
+		else
+			load_phrb(file);
 	}
 
 	return !entries_.empty();
@@ -706,6 +782,110 @@ bool ReplacementProvider::decode_rgba8(uint64_t checksum64, uint16_t formatsize,
 	return true;
 }
 
+
+
+bool ReplacementProvider::load_phrb(const std::string &path)
+{
+	std::ifstream file(path, std::ios::binary);
+	if (!file)
+		return false;
+
+	file.seekg(0, std::ios::end);
+	const std::streamoff size = file.tellg();
+	if (size < std::streamoff(sizeof(PHRBHeader)))
+		return false;
+	file.seekg(0, std::ios::beg);
+
+	std::vector<uint8_t> blob;
+	blob.resize(static_cast<size_t>(size));
+	if (!read_exact(file, blob))
+		return false;
+
+	PHRBHeader header = {};
+	if (!read_pod_from_blob(blob, 0, header))
+		return false;
+	if (!phrb_magic_ok(header.magic) || header.version != 2)
+		return false;
+	if (header.string_table_offset > header.blob_offset || header.blob_offset > blob.size())
+		return false;
+
+	const uint8_t *string_blob = blob.data() + header.string_table_offset;
+	const size_t string_blob_size = size_t(header.blob_offset - header.string_table_offset);
+	const uint8_t *rgba_blob_base = blob.data() + header.blob_offset;
+	const size_t rgba_blob_size = size_t(blob.size() - header.blob_offset);
+	uint32_t deterministic_loaded = 0;
+
+	for (uint32_t record_index = 0; record_index < header.record_count; record_index++)
+	{
+		PHRBRecordV2 record = {};
+		const size_t record_offset = size_t(header.record_table_offset) + size_t(record_index) * sizeof(PHRBRecordV2);
+		if (!read_pod_from_blob(blob, record_offset, record))
+			return false;
+
+		if (record.asset_candidate_count != 1)
+			continue;
+
+		PHRBAsset asset = {};
+		bool found_asset = false;
+		for (uint32_t asset_index = 0; asset_index < header.asset_count; asset_index++)
+		{
+			const size_t asset_offset = size_t(header.asset_table_offset) + size_t(asset_index) * sizeof(PHRBAsset);
+			if (!read_pod_from_blob(blob, asset_offset, asset))
+				return false;
+			if (asset.record_index == record_index)
+			{
+				found_asset = true;
+				break;
+			}
+		}
+		if (!found_asset)
+			continue;
+		if (asset.rgba_blob_offset + asset.rgba_blob_size > rgba_blob_size)
+			continue;
+		if (asset.width == 0 || asset.height == 0 || asset.rgba_blob_size != asset.width * asset.height * 4u)
+			continue;
+
+		std::string policy_key;
+		if (!read_c_string_from_blob(string_blob, string_blob_size, record.policy_key_offset, policy_key))
+			policy_key = "phrb-record";
+
+		auto add_sampled_entry = [&](uint32_t palette_crc) {
+			Entry entry = {};
+			entry.source_path = path + "#" + policy_key;
+			entry.checksum64 = (uint64_t(palette_crc) << 32u) | uint64_t(record.sampled_low32);
+			entry.data_offset = 0;
+			entry.data_size = asset.rgba_blob_size;
+			entry.width = asset.width;
+			entry.height = asset.height;
+			entry.format = GL_RGBA8;
+			entry.texture_format = GL_RGBA;
+			entry.pixel_type = GL_UNSIGNED_BYTE;
+			entry.formatsize = uint16_t(record.formatsize);
+			entry.is_hires = true;
+			entry.inline_blob = true;
+			entry.blob.assign(rgba_blob_base + asset.rgba_blob_offset,
+			                 rgba_blob_base + asset.rgba_blob_offset + asset.rgba_blob_size);
+			add_entry(std::move(entry));
+			deterministic_loaded++;
+		};
+
+		bool added = false;
+		if (record.sampled_sparse_pcrc != 0)
+		{
+			add_sampled_entry(record.sampled_sparse_pcrc);
+			added = true;
+		}
+		if (record.sampled_entry_pcrc != 0 && record.sampled_entry_pcrc != record.sampled_sparse_pcrc)
+		{
+			add_sampled_entry(record.sampled_entry_pcrc);
+			added = true;
+		}
+		if (!added)
+			add_sampled_entry(0);
+	}
+
+	return deterministic_loaded != 0;
+}
 void ReplacementProvider::trim_to_budget(size_t bytes)
 {
 	memory_budget_bytes_ = bytes;

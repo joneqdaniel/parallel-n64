@@ -109,6 +109,8 @@ This document describes the shape of the import model itself. The evidence thres
   - emits a parser-friendly binary package with raw RGBA payloads, so future C++ integration can avoid both JSON and PNG decoding on the hot path
 - [`tools/hires_pack_inspect_binary_package.py`](/home/auro/code/parallel-n64/tools/hires_pack_inspect_binary_package.py)
   - round-trips the `PHRB` package format into a readable JSON view so the binary handoff stays verifiable before a C++ consumer exists
+- [`tools/hires_pack_select_transport.py`](/home/auro/code/parallel-n64/tools/hires_pack_select_transport.py)
+  - narrows a materialized canonical package to one selected transported payload per policy key, so runtime-ready `PHRB` experiments can stay tool-side and reproducible
 
 ## Imported Index v1
 
@@ -253,6 +255,14 @@ The migration tool now emits that bridge when sampled-object bundle data is avai
 - [`tools/hires_pack_materialize_package.py`](/home/auro/code/parallel-n64/tools/hires_pack_materialize_package.py) now takes that one step further and emits a concrete package directory with decoded image assets plus a package manifest
 - [`tools/hires_pack_emit_binary_package.py`](/home/auro/code/parallel-n64/tools/hires_pack_emit_binary_package.py) now turns that package directory into a simple binary container (`PHRB` v2) with fixed-width tables, a string table, raw RGBA blobs, and numeric sampled-object identity fields (`sampled_low32`, `sampled_entry_pcrc`, `sampled_sparse_pcrc`)
 - [`tools/hires_pack_inspect_binary_package.py`](/home/auro/code/parallel-n64/tools/hires_pack_inspect_binary_package.py) now provides the inverse inspection path for both `PHRB` v1 and v2, so the binary handoff is testable without touching the runtime
+- the current conservative runtime loader only consumes `PHRB` records with exactly one transported asset candidate, which is intentional: multi-candidate canonical records still need tool-side transport selection before they are runtime-ready
+- the new narrowing step is now explicit and reproducible via [`tools/hires_pack_select_transport.py`](/home/auro/code/parallel-n64/tools/hires_pack_select_transport.py)
+- that narrowed path is now runtime-proven for the deterministic sampled-object `c139c1c0` slice on strict file select:
+  - loading the wrong canonical package ([20260328-sampled-phrb-runtime-2](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260328-sampled-phrb-runtime-2)) produces no exact hits and collapses to baseline `off`, which is the expected negative control
+  - narrowing the correct sampled package to one payload at a time yields two valid runtime experiments with exact sampled-object hits:
+    - [20260328-sampled-c139-opt1](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260328-sampled-c139-opt1)
+    - [20260328-sampled-c139-opt2](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260328-sampled-c139-opt2)
+  - both prove the current remaining ambiguity is transport policy, not canonical sampled-object lookup plumbing
 - the package manifest now also records decoded `pixel_sha256` values, `alpha_normalized_pixel_sha256` values, and duplicate-pixel groups, so importer design can distinguish fully distinct transport content from any future duplicate or near-duplicate transport variants
   - markdown: [20260327-sampled-legacy-vs-canonical.md](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260327-sampled-legacy-vs-canonical.md)
   - json: [20260327-sampled-canonical-projection.json](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260327-sampled-canonical-projection.json)

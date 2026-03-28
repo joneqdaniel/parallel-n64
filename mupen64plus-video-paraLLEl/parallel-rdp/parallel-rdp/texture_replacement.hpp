@@ -100,6 +100,7 @@ private:
 	const Entry *find_entry(uint64_t checksum64, uint16_t formatsize) const;
 	bool load_hts(const std::string &path);
 	bool load_htc(const std::string &path);
+	bool load_phrb(const std::string &path);
 	bool read_blob(const Entry &entry, std::vector<uint8_t> &blob) const;
 	static bool decode_pixels_rgba8(const Entry &entry, const std::vector<uint8_t> &pixel_data, std::vector<uint8_t> &rgba8);
 	static bool decompress_if_needed(const Entry &entry, const std::vector<uint8_t> &blob, std::vector<uint8_t> &pixel_data);

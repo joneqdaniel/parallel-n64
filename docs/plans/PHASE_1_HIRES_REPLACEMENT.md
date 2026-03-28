@@ -152,6 +152,14 @@
       - the deterministic binding preserves `candidate_origin = tile-family-parent-surface` and `transport_hint = same-start-parent-surface`, so review-only provenance survives into the importer/runtime handoff artifact
       - `PHRB` is now version `2` and carries numeric sampled-object identity, so package format is no longer the main blocker for a canonical runtime consumer
       - the remaining blocker is lookup timing and authority inside the core: the live renderer still performs most replacement lookup from upload-side state, while the new handoff is keyed to draw-side sampled-object identity
+      - that seam now has a debug-only proving path in the core:
+        - `PARALLEL_RDP_HIRES_SAMPLED_OBJECT_LOOKUP=1` enables a draw-side sampled-object exact lookup after upload-side miss classification
+        - the scenario wrappers now correctly honor `PARALLEL_RDP_HIRES_CACHE_PATH` overrides and patch bundle metadata so canonical-package runs record the actual package path/hash
+      - the first package-path control is now explicit: [20260328-sampled-phrb-runtime-2](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260328-sampled-phrb-runtime-2) loads the requested `.phrb` correctly but produces no exact hits because the package carries the wrong sampled object for the active strict fixture (`75fee641` instead of `7064585c` / `c139c1c0`)
+      - the first true exact-hit runtime proof is now the narrowed `c139c1c0` package pair on the strict file-select fixture:
+        - [20260328-sampled-c139-opt1](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260328-sampled-c139-opt1): exact hits fire, semantic state stays locked, screenshot hash `831cd6a7dff2d44654c854dbbcd91d13071cf49d6622f9141084780b47bf2b32`
+        - [20260328-sampled-c139-opt2](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260328-sampled-c139-opt2): exact hits also fire with the alternate transported payload, screenshot hash `fe478b418acc9aeabcaa8fc5815732e31df3f6fb6cd66e5c5b9a9b28c7b3fc51`
+      - practical implication: the renderer-side sampled-object exact lookup seam is proven, and the active blocker has shifted to tool-side transport selection for multi-candidate canonical records rather than lookup timing itself
     - practical implication: the active `8x16` gap should not be modeled as meaningful row-local upload bytes, which makes same-start parent-tile/subrect transport a stronger next resolver target than more row-byte reinterpretation
   - hi-res traces now also expose stable bucket summaries, which collapse title misses to 5 unique classes and file-select misses to 6 unique classes
   - the current dominant unresolved file-select class is `mode=block fmt=2 siz=2 wh=64x1 fs=514 tile=7` with 70 repeated misses in the last verified strict `on` bundle

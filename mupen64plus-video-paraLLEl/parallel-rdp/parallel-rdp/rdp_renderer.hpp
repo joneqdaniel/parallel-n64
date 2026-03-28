@@ -148,6 +148,7 @@ public:
 	void set_hires_debug_block_shape_probe(bool enable);
 	void set_hires_debug_ci_palette_probe(bool enable);
 	void set_hires_debug_sampled_object_probe(bool enable);
+	void set_hires_debug_sampled_object_exact_lookup(bool enable);
 	void set_hires_ci_compatibility_mode(HiresCICompatibilityMode mode);
 	void set_hires_debug_ci_selectors(std::vector<CILow32DimsSelector> selectors);
 	void set_hires_debug_ci_low32_fallback(HiresDebugCILow32FallbackMode mode);
@@ -218,6 +219,7 @@ private:
 	bool hires_debug_block_shape_probe = false;
 	bool hires_debug_ci_palette_probe = false;
 	bool hires_debug_sampled_object_probe = false;
+	bool hires_debug_sampled_object_exact_lookup = false;
 	HiresCICompatibilityMode hires_ci_compatibility_mode = HiresCICompatibilityMode::Off;
 	std::vector<CILow32DimsSelector> hires_debug_ci_selectors;
 	HiresDebugCILow32FallbackMode hires_debug_ci_low32_fallback = HiresDebugCILow32FallbackMode::Off;

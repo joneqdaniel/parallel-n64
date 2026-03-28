@@ -445,8 +445,13 @@
   - the first focused combined previews for `7064585c` now exist at [20260328-7064585c-combined-previews](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-7064585c-combined-previews):
     - each preview kept the proven `c139c1c0` binding and added one representative `7064585c` transported payload
     - all six previews produced `14` sampled-object exact hits total: `12` for `7064585c` plus the shared `2` `c139c1c0` hits
-    - current image-distance ordering on the strict file-select fixture is: `16x16`, `120x120`, `144x144`, `384x512`, `64x64`, `96x96`
-    - practical implication: we now have a bounded evidence-driven short list for `7064585c`, but not enough confidence yet to promote any transported payload into tracked policy
+    - the first mixed-family preview ordering is still useful as a coarse bound: `16x16`, `120x120`, `144x144`, `384x512`, `64x64`, `96x96`
+    - the focused `469bad6f` sweep at [20260328-469bad6f-previews](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-469bad6f-previews) now narrows that further:
+      - all `10` candidates kept the same `14` exact-hit structure
+      - `16x16` no longer leads once the family is isolated
+      - strongest current candidates are `af028e08__120x120` and `81b32e31__120x120` by RMSE, with `c3984de7__120x120` lowest by AE
+      - `373fa1d0__120x120`, `e3394be6__120x120`, and `fa12dda5__120x120` collapse to the same final frame hash
+    - practical implication: the `7064585c` review surface is now narrower than “pick a dimension family”, but still not strong enough to promote a transported payload into tracked policy
   - strict bundle extraction now records sampled-object exact hits separately in [`tools/scenarios/lib/common.sh`](/home/auro/code/parallel-n64/tools/scenarios/lib/common.sh), so `traces/hires-evidence.json` can describe canonical lookup-only bundles without conflating them with the upload-side `Hi-res keying summary`
   - practical implication: the active `8x16` strict gap should not be modeled as meaningful row-local upload bytes, which pushes the next resolver step toward same-start parent-tile/subrect transport and away from row-byte reinterpretation
 - The latest unstaged HLE-to-LLE conversion research in [hle-to-lle-conversion-plan.md](/home/auro/code/parallel-n64/docs/plans/hires-conversion-analysis/hle-to-lle-conversion-plan.md) and [palette-crc-transform-analysis.md](/home/auro/code/parallel-n64/docs/plans/hires-conversion-analysis/palette-crc-transform-analysis.md) is directionally useful, but it is now adopted in tracked planning with tighter guardrails:

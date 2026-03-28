@@ -362,6 +362,15 @@
   - [`tools/hires_pack_inspect_binary_package.py`](/home/auro/code/parallel-n64/tools/hires_pack_inspect_binary_package.py) now round-trips that `PHRB` package back into JSON for verification, so the binary handoff remains inspectable before we add any runtime parser
   - that package manifest now records decoded `pixel_sha256` values, `alpha_normalized_pixel_sha256` values, and duplicate-pixel groups; on the current deterministic `2a1be0a4 -> c139c1c0` slice, the two legacy transport candidates remain distinct even after alpha-normalized hashing, so importer policy should continue treating them as separate transported assets until stronger evidence justifies collapse
 - The current exact-key audit artifact is now [N64 Exact Key Delta Sheet](/home/auro/code/parallel-n64/docs/plans/N64_EXACT_KEY_DELTA_SHEET.md).
+- The latest unstaged HLE-to-LLE conversion research in [hle-to-lle-conversion-plan.md](/home/auro/code/parallel-n64/docs/plans/hires-conversion-analysis/hle-to-lle-conversion-plan.md) and [palette-crc-transform-analysis.md](/home/auro/code/parallel-n64/docs/plans/hires-conversion-analysis/palette-crc-transform-analysis.md) is directionally useful, but it is now adopted in tracked planning with tighter guardrails:
+  - adopt the three-tier conversion split:
+    - pure-math bridge candidate generation
+    - ROM/display-list scan as the primary ambiguity resolver
+    - runtime observation only for edge cases
+  - treat direct legacy texture/palette CRC equality as bridge-input evidence, not proof of the final native canonical key
+  - keep sampled-object identity authoritative for native ParaLLEl lookup even when legacy upload-family CRCs bridge cleanly
+  - do not emit runtime-ready native records with guessed `tmem_offset`, `tmem_stride`, or sampled dimensions; partial conversions stay review-only until resolved by ROM scan or runtime evidence
+  - treat the entry-count palette-CRC identity path as a concrete validation target, not an established fact; it still needs strict-bundle proof against the current ParaLLEl shadows and logical palette views
 - The first logical-TLUT diagnostic pass is now live in strict CI probe bundles:
   - `traces/hires-evidence.json` now records `ci_palette_probe.logical_views`
   - on the verified strict file-select probe bundle (`20260326-logical-tlut-probe-2`), the ambiguous `8x16` CI families produce distinct active/alternate logical palette CRCs when `tlut_type` flips

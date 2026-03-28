@@ -244,6 +244,28 @@ So the breakthrough direction is not “widen heuristics until more hits appear.
 - explicitly classify non-authoritative source classes
 - keep imported compatibility policy separate and reviewable
 
+### Conversion Guardrails From The HLE-to-LLE Report
+
+The new conversion analysis in [hle-to-lle-conversion-plan.md](/home/auro/code/parallel-n64/docs/plans/hires-conversion-analysis/hle-to-lle-conversion-plan.md) and [palette-crc-transform-analysis.md](/home/auro/code/parallel-n64/docs/plans/hires-conversion-analysis/palette-crc-transform-analysis.md) changes the next-step plan, but not the core architecture.
+
+Adopted:
+- a three-tier conversion split:
+  - Tier 1 pure-math bridge generation
+  - Tier 2 ROM/display-list scan as the main resolver
+  - Tier 3 runtime observation only for leftovers
+- direct testing of the entry-count palette CRC path as a likely bridge candidate
+- explicit ROM/display-list tooling as a first-class workstream instead of treating runtime bridge recording as the default path
+
+Not adopted as-is:
+- the claim that the gap is already “narrow” enough to treat legacy CRC equality as native identity
+- the claim that entry-count palette identity already holds without strict-bundle validation
+- partial conversion output with guessed `tmem_offset`, `tmem_stride`, or sampled dimensions as runtime-ready records
+
+Planning rule change:
+- Tier 1 outputs are candidate-generation artifacts only unless every native-key field is independently resolved.
+- Tier 2 is now the preferred path for resolving `SetTile`, `SetTileSize`, and `LoadBlock` ambiguity.
+- Tier 3 runtime bridge recording remains necessary, but only after static resolution paths are exhausted.
+
 ### Workstream A: Broaden The Observed Family Set
 
 Goal:

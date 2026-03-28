@@ -36,6 +36,13 @@
 - the replacement path is now visibly active on both strict targets, and `on` / `off` no longer match at the raw-pixel level
 - the current Phase 1 blocker is no longer wiring; it is correctness: decide whether the visible deltas are the expected hi-res result or corruption, then tighten texel mapping / alias behavior until the strict fixtures are clean
 - the active exact-identity / provenance execution path is now spelled out in [N64 Identity Breakthrough Plan](/home/auro/code/parallel-n64/docs/plans/N64_IDENTITY_BREAKTHROUGH_PLAN.md)
+- the latest unstaged HLE-to-LLE conversion research now changes the execution order for this phase without changing the architecture:
+  - Tier 1 pure-math legacy-to-native bridge work should generate candidate mappings only
+  - Tier 2 ROM/display-list scanning is now the preferred path for resolving `SetTile`, `SetTileSize`, `LoadTile`, and `LoadBlock` ambiguity
+  - Tier 3 runtime bridge capture stays in scope, but only after static resolution paths are exhausted
+  - direct legacy texture/palette CRC equality remains bridge-input evidence, not proof of the final native sampled-object key
+  - partial native records with guessed `tmem_offset`, `tmem_stride`, or sampled dimensions stay review-only until resolved by stronger evidence
+  - entry-count palette identity is a concrete validation target, not a proven rule, until strict-bundle evidence confirms it
 - the current exact-key audit artifact is [N64 Exact Key Delta Sheet](/home/auro/code/parallel-n64/docs/plans/N64_EXACT_KEY_DELTA_SHEET.md)
 - current strict-fixture evidence:
   - title screen: `lookups=196 hits=178 misses=18 provider=on`, `AE=3412580`, `RMSE=0.267821`

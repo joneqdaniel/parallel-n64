@@ -226,6 +226,9 @@ The new strict sampled-object probe changes the transport model materially:
   - a canonical sampled-object identity for ParaLLEl-owned exact lookup
   - one or more legacy upload-family aliases that explain how old packs map onto that canonical object
 - practical implication: imported records should gain an explicit canonical sampled-object section, while compatibility aliases become a legacy-to-canonical transport layer instead of the primary identity model
+- the new HLE-to-LLE conversion research strengthens the legacy-bridge direction, but it does not change one hard rule: direct legacy texture/palette CRC equality is transport evidence only, not the final native key
+- partial bridge outputs with guessed native fields such as `tmem_offset`, `tmem_stride`, or sampled dimensions remain review artifacts and must not be treated as runtime-ready imported records
+- the current preferred resolution order is now explicit: Tier 1 bridge generation, Tier 2 ROM/display-list scan for native-field recovery, Tier 3 runtime capture only for what static analysis cannot explain
 
 The migration tool now emits that bridge when sampled-object bundle data is available:
 - `records[*].diagnostics.canonical_sampled_objects`

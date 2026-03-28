@@ -105,6 +105,8 @@ This document describes the shape of the import model itself. The evidence thres
   - emits a loader-oriented manifest from deterministic bindings so future runtime/import work can consume canonical records without deciding on JSON-in-C++ yet
 - [`tools/hires_pack_materialize_package.py`](/home/auro/code/parallel-n64/tools/hires_pack_materialize_package.py)
   - materializes a deterministic canonical package slice with extracted PNG assets so transport output can be inspected directly before runtime integration
+- [`tools/hires_pack_emit_binary_package.py`](/home/auro/code/parallel-n64/tools/hires_pack_emit_binary_package.py)
+  - emits a parser-friendly binary package with raw RGBA payloads, so future C++ integration can avoid both JSON and PNG decoding on the hot path
 
 ## Imported Index v1
 
@@ -236,6 +238,7 @@ The migration tool now emits that bridge when sampled-object bundle data is avai
 - the next narrowing step is now explicit too: deterministic canonical bindings can be emitted directly from a sampled subset via [`tools/hires_pack_emit_bindings.py`](/home/auro/code/parallel-n64/tools/hires_pack_emit_bindings.py), while unresolved transport cases stay separate
 - from there, [`tools/hires_pack_emit_loader_manifest.py`](/home/auro/code/parallel-n64/tools/hires_pack_emit_loader_manifest.py) can flatten the deterministic slice into the exact asset-oriented fields the current legacy cache loader path already understands
 - [`tools/hires_pack_materialize_package.py`](/home/auro/code/parallel-n64/tools/hires_pack_materialize_package.py) now takes that one step further and emits a concrete package directory with decoded image assets plus a package manifest
+- [`tools/hires_pack_emit_binary_package.py`](/home/auro/code/parallel-n64/tools/hires_pack_emit_binary_package.py) now turns that package directory into a simple binary container (`PHRB` v1) with fixed-width tables, a string table, and raw RGBA blobs
 - the package manifest now also records decoded `pixel_sha256` values, `alpha_normalized_pixel_sha256` values, and duplicate-pixel groups, so importer design can distinguish fully distinct transport content from any future duplicate or near-duplicate transport variants
   - markdown: [20260327-sampled-legacy-vs-canonical.md](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260327-sampled-legacy-vs-canonical.md)
   - json: [20260327-sampled-canonical-projection.json](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260327-sampled-canonical-projection.json)

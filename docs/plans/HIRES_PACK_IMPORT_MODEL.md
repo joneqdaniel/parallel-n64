@@ -101,6 +101,8 @@ This document describes the shape of the import model itself. The evidence thres
   - compares the legacy-family view against the canonical sampled-object view for one emitted subset
 - [`tools/hires_pack_emit_bindings.py`](/home/auro/code/parallel-n64/tools/hires_pack_emit_bindings.py)
   - emits deterministic canonical sampled-object bindings and separates unresolved transport cases for future importer work
+- [`tools/hires_pack_emit_loader_manifest.py`](/home/auro/code/parallel-n64/tools/hires_pack_emit_loader_manifest.py)
+  - emits a loader-oriented manifest from deterministic bindings so future runtime/import work can consume canonical records without deciding on JSON-in-C++ yet
 
 ## Imported Index v1
 
@@ -230,6 +232,7 @@ The migration tool now emits that bridge when sampled-object bundle data is avai
   - the imported index itself now carries `canonical_records` and `legacy_transport_aliases`
   - `canonical_records[*].transport_candidates` now makes the deterministic sampled-object path concrete by embedding the transported replacement payload metadata directly in the canonical record
 - the next narrowing step is now explicit too: deterministic canonical bindings can be emitted directly from a sampled subset via [`tools/hires_pack_emit_bindings.py`](/home/auro/code/parallel-n64/tools/hires_pack_emit_bindings.py), while unresolved transport cases stay separate
+- from there, [`tools/hires_pack_emit_loader_manifest.py`](/home/auro/code/parallel-n64/tools/hires_pack_emit_loader_manifest.py) can flatten the deterministic slice into the exact asset-oriented fields the current legacy cache loader path already understands
   - markdown: [20260327-sampled-legacy-vs-canonical.md](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260327-sampled-legacy-vs-canonical.md)
   - json: [20260327-sampled-canonical-projection.json](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260327-sampled-canonical-projection.json)
 

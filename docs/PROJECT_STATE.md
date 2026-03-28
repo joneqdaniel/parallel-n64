@@ -356,6 +356,7 @@
   - the imported index itself now carries this bridge directly through `canonical_records` and `legacy_transport_aliases`, so the canonical view is no longer derived only at review time
   - `canonical_records[*].transport_candidates` now embeds the transported replacement payload metadata for deterministic sampled-object cases, which is the first concrete canonical imported-record shape rather than only a linked report view
   - that deterministic slice can now be emitted as a future-importer-facing binding artifact through [`tools/hires_pack_emit_bindings.py`](/home/auro/code/parallel-n64/tools/hires_pack_emit_bindings.py), while unresolved sampled-object transport stays explicit instead of being guessed at runtime
+  - a new loader-oriented handoff tool, [`tools/hires_pack_emit_loader_manifest.py`](/home/auro/code/parallel-n64/tools/hires_pack_emit_loader_manifest.py), now flattens those deterministic bindings into the asset/source fields the current replacement loader already consumes, without forcing a JSON parser decision in C++ yet
 - The current exact-key audit artifact is now [N64 Exact Key Delta Sheet](/home/auro/code/parallel-n64/docs/plans/N64_EXACT_KEY_DELTA_SHEET.md).
 - The first logical-TLUT diagnostic pass is now live in strict CI probe bundles:
   - `traces/hires-evidence.json` now records `ci_palette_probe.logical_views`

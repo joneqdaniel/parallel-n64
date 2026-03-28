@@ -65,7 +65,8 @@
         "The tile-parent slice is review-only because the hint identities mismatch the real runtime sampled object.",
         "Proxy review aggregates 62 transported payload candidates across the collapsed hint families.",
         "No selected transported payload is recorded yet for this proxy.",
-        "Focused 469bad6f previews overturn the earlier mixed-family impression that 16x16 leads; strongest current candidates are 120x120 variants af028e08 and 81b32e31 by RMSE, with c3984de7 lowest by AE, but no payload is selected yet."
+        "Focused 469bad6f previews overturn the earlier mixed-family impression that 16x16 leads; strongest current candidates are 120x120 variants af028e08 and 81b32e31 by RMSE, with c3984de7 lowest by AE, but no payload is selected yet.",
+        "Focused asset comparison reduces the effective 469bad6f review surface further: 373fa1d0/e3394be6/fa12dda5 are exact duplicates, af028e08 and 81b32e31 are near-duplicates, and c3984de7 is the strongest structurally distinct alternative."
       ],
       "overturn_conditions": [
         "A focused proxy-centered runtime comparison identifies one transported payload as clearly superior on the strict fixture.",

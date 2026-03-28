@@ -185,6 +185,11 @@
             - `16x16` no longer leads once the family is isolated
             - strongest current candidates are `af028e08__120x120` and `81b32e31__120x120` by RMSE, with `c3984de7__120x120` lowest by AE
             - `373fa1d0__120x120`, `e3394be6__120x120`, and `fa12dda5__120x120` collapse to the same final frame hash
+            - asset comparison now reduces the effective review surface further:
+              - review artifact: [asset-comparison.md](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-469bad6f-previews/asset-comparison.md)
+              - `373fa1d0`, `e3394be6`, and `fa12dda5` are exact duplicates
+              - `af028e08` and `81b32e31` are near-duplicates
+              - `c3984de7` remains the strongest structurally distinct alternative
           - practical implication: the proxy pool is no longer an undifferentiated set of `62` payloads, but the current ordering is still review evidence only and not enough to lock policy
     - practical implication: the active `8x16` gap should not be modeled as meaningful row-local upload bytes, which makes same-start parent-tile/subrect transport a stronger next resolver target than more row-byte reinterpretation
   - hi-res traces now also expose stable bucket summaries, which collapse title misses to 5 unique classes and file-select misses to 6 unique classes

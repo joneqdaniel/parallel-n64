@@ -295,6 +295,11 @@ The migration tool now emits that bridge when sampled-object bundle data is avai
       - `16x16` no longer leads once the family is isolated
       - strongest current candidates are `af028e08__120x120` and `81b32e31__120x120` by RMSE, with `c3984de7__120x120` lowest by AE
       - `373fa1d0__120x120`, `e3394be6__120x120`, and `fa12dda5__120x120` collapse to the same final frame hash
+      - asset comparison now reduces the effective review surface further:
+        - review artifact: [asset-comparison.md](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-469bad6f-previews/asset-comparison.md)
+        - `373fa1d0`, `e3394be6`, and `fa12dda5` are exact duplicates
+        - `af028e08` and `81b32e31` are near-duplicates
+        - `c3984de7` remains the strongest structurally distinct alternative
     - practical implication: the import/runtime transport problem for `7064585c` is now narrowed to a smaller review set, but the current preview ranking is still non-binding review evidence rather than a selected transport policy
 - the package manifest now also records decoded `pixel_sha256` values, `alpha_normalized_pixel_sha256` values, and duplicate-pixel groups, so importer design can distinguish fully distinct transport content from any future duplicate or near-duplicate transport variants
   - markdown: [20260327-sampled-legacy-vs-canonical.md](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260327-sampled-legacy-vs-canonical.md)

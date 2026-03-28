@@ -135,12 +135,22 @@ def static_findings(game_root: Path) -> list[dict[str, Any]]:
     gbi_path = game_root / "include" / "gbi_custom.h"
     filemenu_msg_path = game_root / "src" / "filemenu" / "filemenu_msg.c"
     filemenu_gfx_path = game_root / "src" / "filemenu" / "filemenu_gfx.c"
+    filemenu_main_path = game_root / "src" / "filemenu" / "filemenu_main.c"
+    filemenu_styles_path = game_root / "src" / "filemenu" / "filemenu_styles.c"
+    menu_hud_scripts_path = game_root / "src" / "menu_hud_scripts.c"
+    draw_img_util_path = game_root / "src" / "draw_img_util.c"
+    msg_draw_path = game_root / "src" / "msg_draw.c"
     msg_data_path = game_root / "src" / "msg_data.c"
     title_path = game_root / "src" / "world" / "area_kmr" / "kmr_21" / "main.c"
 
     gbi_lines = read_lines(gbi_path)
     filemenu_msg_lines = read_lines(filemenu_msg_path)
     filemenu_gfx_lines = read_lines(filemenu_gfx_path)
+    filemenu_main_lines = read_lines(filemenu_main_path)
+    filemenu_styles_lines = read_lines(filemenu_styles_path)
+    menu_hud_scripts_lines = read_lines(menu_hud_scripts_path)
+    draw_img_util_lines = read_lines(draw_img_util_path)
+    msg_draw_lines = read_lines(msg_draw_path)
     msg_data_lines = read_lines(msg_data_path)
     title_lines = read_lines(title_path)
 
@@ -354,6 +364,87 @@ def static_findings(game_root: Path) -> list[dict[str, Any]]:
                     "siz": "0",
                     "texel0_wh": "64x16",
                 }
+            },
+        }
+    )
+
+    findings.append(
+        {
+            "id": "filemenu-main-hud-assets-do-not-fit-active-8x16-gap",
+            "category": "negative-static-match",
+            "confidence": "medium",
+            "summary": (
+                "The active strict file-select main-menu HUD scripts are real CI assets, but the upstream sizes in use "
+                "are `16x16`, `32x16`, and `64x16`, not the unresolved active `8x16` strict-runtime bucket. That makes "
+                "them useful controls, not a clean direct explanation for the current CI4 gap."
+            ),
+            "source_refs": [
+                SourceRef(filemenu_main_path, find_line(filemenu_main_lines, "HudScript* filemenu_main_hudScripts[][20] = {")).to_json(),
+                SourceRef(menu_hud_scripts_path, find_line(menu_hud_scripts_lines, "HudScript HES_JpFile = HES_TEMPLATE_CI_CUSTOM_SIZE(ui_pause_label_jp_file, 32, 16);")).to_json(),
+                SourceRef(menu_hud_scripts_path, find_line(menu_hud_scripts_lines, "HudScript HES_OptionMonoOn = HES_TEMPLATE_CI_CUSTOM_SIZE(ui_files_option_mono_on, 64, 16);")).to_json(),
+                SourceRef(menu_hud_scripts_path, find_line(menu_hud_scripts_lines, "HudScript HES_Spirit1 = HES_TEMPLATE_CI_CUSTOM_SIZE(ui_files_eldstar, 16, 16);")).to_json(),
+            ],
+            "static_shape": {
+                "active_main_menu_hud_sizes": ["16x16", "32x16", "64x16"],
+                "notes": [
+                    "The strict file-select authority uses `filemenu_main_hudScripts`, so these are the HUD assets that matter first for the main menu path.",
+                    "Their upstream sizes align with other verified runtime families such as `16x16` and `32x16`, but they do not supply a direct `8x16` active-main-menu match.",
+                    "This does not prove HUD elements are irrelevant globally; it narrows the current strict-main-menu `8x16` search away from the obvious HUD script set.",
+                ],
+            },
+        }
+    )
+
+    findings.append(
+        {
+            "id": "filemenu-window-styles-are-ia-rgba-controls",
+            "category": "negative-static-match",
+            "confidence": "high",
+            "summary": (
+                "The active filemenu window-style corner assets explain some repeated texrect controls, especially `16x8` "
+                "shapes, but the relevant upstream assets are IA8 or RGBA32 rather than CI4. They should be treated as "
+                "format-class controls, not folded into the active CI/TLUT family under investigation."
+            ),
+            "source_refs": [
+                SourceRef(filemenu_main_path, find_line(filemenu_main_lines, ".style = { .customStyle = &filemenu_windowStyles[4] }")).to_json(),
+                SourceRef(filemenu_styles_path, find_line(filemenu_styles_lines, ".imgData = D_8024B400,")).to_json(),
+                SourceRef(filemenu_styles_path, find_line(filemenu_styles_lines, ".size1 = { .x = 16, .y = 8},")).to_json(),
+                SourceRef(filemenu_styles_path, find_line(filemenu_styles_lines, ".imgData = D_8024A400,")).to_json(),
+                SourceRef(filemenu_styles_path, find_line(filemenu_styles_lines, ".bitDepth = G_IM_SIZ_32b,")).to_json(),
+            ],
+            "static_shape": {
+                "window_corner_formats": ["IA8 16x8", "RGBA32 16x16"],
+                "notes": [
+                    "These styles are active on the file-select windows and explain why repeated `16x8` texrect controls appear in the broader evidence set.",
+                    "Because the active corner assets are IA or RGBA, they are the wrong format class for the unresolved strict CI4 `8x16` family.",
+                    "This is a guardrail against mixing window-style texrect evidence back into the CI/TLUT identity problem.",
+                ],
+            },
+        }
+    )
+
+    findings.append(
+        {
+            "id": "clipped-ci-image-helper-is-not-a-filemenu-main-caller",
+            "category": "negative-static-match",
+            "confidence": "medium",
+            "summary": (
+                "The upstream clipped-image helper is still an important subrect-transport reference, but the current static "
+                "scan only finds it in the message-system and document-style paths, not as an obvious strict file-select main-menu caller."
+            ),
+            "source_refs": [
+                SourceRef(draw_img_util_path, find_line(draw_img_util_lines, "s32 draw_ci_image_with_clipping(IMG_PTR raster, s32 width, s32 height, s32 fmt, s32 bitDepth, PAL_PTR palette, s16 posX,")).to_json(),
+                SourceRef(draw_img_util_path, find_line(draw_img_util_lines, "gDPLoadTextureTile_4b(gMainGfxPos++, raster, fmt, width, height,")).to_json(),
+                SourceRef(msg_draw_path, find_line(msg_draw_lines, "draw_ci_image_with_clipping(ui_msg_sign_corner_topleft_png, 16, 16, G_IM_FMT_CI, G_IM_SIZ_4b, signPalette, 20 + MSG_SIGN_OFFSET_X,")).to_json(),
+                SourceRef(msg_draw_path, find_line(msg_draw_lines, "draw_ci_image_with_clipping(printer->letterBackgroundImg, 150, 105, G_IM_FMT_CI, G_IM_SIZ_4b,")).to_json(),
+            ],
+            "static_shape": {
+                "helper_chunking": ["64x32 tile chunks", "partial last-chunk clipping"],
+                "notes": [
+                    "This helper is still the best upstream reference for how a larger logical CI image can travel through smaller upload rectangles.",
+                    "In the current upstream scan, its visible callers are message/sign/letter-style paths rather than the strict file-select main-menu path.",
+                    "That makes it a good model for subrect transport, but not yet a source-backed explanation for the active strict `8x16` file-select gap.",
+                ],
             },
         }
     )

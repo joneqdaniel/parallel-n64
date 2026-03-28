@@ -107,6 +107,8 @@ This document describes the shape of the import model itself. The evidence thres
   - materializes a deterministic canonical package slice with extracted PNG assets so transport output can be inspected directly before runtime integration
 - [`tools/hires_pack_emit_binary_package.py`](/home/auro/code/parallel-n64/tools/hires_pack_emit_binary_package.py)
   - emits a parser-friendly binary package with raw RGBA payloads, so future C++ integration can avoid both JSON and PNG decoding on the hot path
+- [`tools/hires_pack_inspect_binary_package.py`](/home/auro/code/parallel-n64/tools/hires_pack_inspect_binary_package.py)
+  - round-trips the `PHRB` package format into a readable JSON view so the binary handoff stays verifiable before a C++ consumer exists
 
 ## Imported Index v1
 
@@ -239,6 +241,7 @@ The migration tool now emits that bridge when sampled-object bundle data is avai
 - from there, [`tools/hires_pack_emit_loader_manifest.py`](/home/auro/code/parallel-n64/tools/hires_pack_emit_loader_manifest.py) can flatten the deterministic slice into the exact asset-oriented fields the current legacy cache loader path already understands
 - [`tools/hires_pack_materialize_package.py`](/home/auro/code/parallel-n64/tools/hires_pack_materialize_package.py) now takes that one step further and emits a concrete package directory with decoded image assets plus a package manifest
 - [`tools/hires_pack_emit_binary_package.py`](/home/auro/code/parallel-n64/tools/hires_pack_emit_binary_package.py) now turns that package directory into a simple binary container (`PHRB` v1) with fixed-width tables, a string table, and raw RGBA blobs
+- [`tools/hires_pack_inspect_binary_package.py`](/home/auro/code/parallel-n64/tools/hires_pack_inspect_binary_package.py) now provides the inverse inspection path for that container, so the binary handoff is testable without touching the runtime
 - the package manifest now also records decoded `pixel_sha256` values, `alpha_normalized_pixel_sha256` values, and duplicate-pixel groups, so importer design can distinguish fully distinct transport content from any future duplicate or near-duplicate transport variants
   - markdown: [20260327-sampled-legacy-vs-canonical.md](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260327-sampled-legacy-vs-canonical.md)
   - json: [20260327-sampled-canonical-projection.json](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260327-sampled-canonical-projection.json)

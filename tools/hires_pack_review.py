@@ -178,8 +178,12 @@ def append_family_markdown(lines, family):
     lines.append(f"  - canonical_sampled_object_count: `{len(sampled_objects)}`")
     for sampled in sampled_objects[:3]:
         lines.append(
-            f"    - sampled_object `{sampled.get('sampled_object_id')}` draw=`{sampled.get('draw_class')}` cycle=`{sampled.get('cycle')}` wh=`{sampled.get('wh')}` low32=`{sampled.get('sampled_low32')}`"
+            f"    - sampled_object `{sampled.get('sampled_object_id')}` draw=`{sampled.get('draw_class')}` cycle=`{sampled.get('cycle')}` wh=`{sampled.get('wh')}` low32=`{sampled.get('sampled_low32')}` runtime_ready=`{int(bool(sampled.get('runtime_ready')))}` authority=`{sampled.get('evidence_authority')}`"
         )
+        if sampled.get('runtime_proxy_count'):
+            lines.append(
+                f"      - runtime_proxy_count=`{sampled.get('runtime_proxy_count')}` proxy_unique=`{int(bool(sampled.get('runtime_proxy_unique')))}` proxy_identity_mismatch=`{int(bool(sampled.get('runtime_proxy_identity_mismatch')))}`"
+            )
     if family.get("applied_policy"):
         lines.append(f"  - applied_policy: `{json.dumps(family['applied_policy'], sort_keys=True)}`")
         for note in family["applied_policy"].get("selection_notes", []):

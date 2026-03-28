@@ -397,22 +397,24 @@
     - same-start `16x16 CI4` candidates reproduce the active low-32 families directly (`42779bdd`, `469bad6f`, `5464fdf1`, `53302ad5`, `75fee641`)
     - shifted starts at `-0x40`, `-0x20`, and `-0x10` all fall out of the active pack pool for those same families
     - same-start parent transport is therefore the useful next canonicalization target, not a wider shifted-start search
-  - the import/review tooling now carries those same-start parent-surface candidates as canonical sampled-object hints in the dedicated slice at [20260328-tile-parent/review.md](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-tile-parent/review.md)
-  - that slice now materializes into the same handoff shape as the earlier sampled-object work:
+  - the import/review tooling now carries those same-start parent-surface candidates as review-only canonical transport hints in the dedicated slice at [20260328-tile-parent/review.md](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-tile-parent/review.md)
+  - that slice still materializes through the same handoff toolchain:
     - [subset.json](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-tile-parent/subset.json)
     - [bindings.json](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-tile-parent/bindings.json)
     - [loader-manifest.json](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-tile-parent/loader-manifest.json)
     - [package.phrb](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-tile-parent/package.phrb)
     - [package-inspect.json](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-tile-parent/package-inspect.json)
-    - current result: `1` deterministic binding (`legacy-low32-75fee641-fs258`) and `4` explicit unresolved transport cases
-    - the deterministic binding now preserves `candidate_origin = tile-family-parent-surface` and `transport_hint = same-start-parent-surface`
-    - `PHRB` is now version `2` and carries numeric canonical sampled identity (`sampled_low32`, `sampled_entry_pcrc`, `sampled_sparse_pcrc`) alongside the fixed-size record fields
-    - verified sampled slice: [20260327-sampled-package-inspect.json](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260327-sampled-package-inspect.json) now round-trips nonzero sampled identity (`c139c1c0`, `80038dc8`, `7ff2e39c`) through the binary handoff
-    - practical implication: package format is no longer the blocker for a canonical runtime consumer; the remaining blocker is that the live renderer still performs most replacement lookup from upload-side state rather than draw-side sampled-object identity
+    - current result: `0` deterministic bindings and `5` unresolved/review-only transport cases
+    - the former `legacy-low32-75fee641-fs258` slice is now explicitly downgraded to `review-only` because its same-start parent-surface hint is not runtime-ready canonical identity
+    - every same-start `16x16 CI4` hint now records one real sampled-object proxy from the source sampled bundle, `sampled-fmt2-siz0-off0-stride8-wh16x16-fs2-low327064585c`, and the low-32 mismatch is recorded explicitly
+    - `PHRB` is still version `2` and still carries numeric canonical sampled identity (`sampled_low32`, `sampled_entry_pcrc`, `sampled_sparse_pcrc`) alongside the fixed-size record fields
+    - verified sampled slice: [20260327-sampled-package-inspect.json](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260327-sampled-package-inspect.json) still round-trips nonzero sampled identity (`c139c1c0`, `80038dc8`, `7ff2e39c`) through the binary handoff
+    - practical implication: package format is no longer the blocker for a canonical runtime consumer; the active blocker is choosing runtime-ready sampled identity instead of overpromoting transport hints
 - That lookup-timing seam is now partially closed in a debug-only path:
   - the renderer can now compute sampled CI texrect identity at draw time and consult a canonical sampled-object package when `PARALLEL_RDP_HIRES_SAMPLED_OBJECT_LOOKUP=1` is enabled
   - the scenario wrappers now honor `PARALLEL_RDP_HIRES_CACHE_PATH` overrides and patch bundle metadata to record the actual loaded package path/hash, so canonical-package runs are no longer mislabeled as default `.hts` runs
-  - a first negative control is now explicit too: loading [20260328-tile-parent/package.phrb](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-tile-parent/package.phrb) on the strict file-select fixture loads correctly but produces `0` sampled-object exact hits and collapses to the baseline `off` hash, because that package carries `sampled_low32=75fee641` while the active strict sampled probes are `7064585c` and `c139c1c0`
+  - the tile-parent package path is now intentionally empty at runtime (`record_count=0`) because those records are transport-hint-only and should not be emitted as runtime-ready bindings yet
+  - the earlier negative control remains instructive: when the tile-parent slice was forced through as a package, it loaded correctly but produced `0` sampled-object exact hits because the hinted low-32 (`75fee641`) did not match the real strict sampled probes (`7064585c` and `c139c1c0`)
   - the first true exact-hit runtime proof now comes from narrowed single-candidate canonical packages for `sampled-fmt2-siz0-off0-stride32-wh64x16-fs2-low32c139c1c0`:
     - [20260328-sampled-c139-opt1](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260328-sampled-c139-opt1) loads `1` canonical record / `2` exact keys from its `.phrb`, logs sampled-object exact hits for `c139c1c0`, and lands on screenshot hash `831cd6a7dff2d44654c854dbbcd91d13071cf49d6622f9141084780b47bf2b32`
     - [20260328-sampled-c139-opt2](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260328-sampled-c139-opt2) proves the same plumbing with the alternate transported payload and lands on screenshot hash `fe478b418acc9aeabcaa8fc5815732e31df3f6fb6cd66e5c5b9a9b28c7b3fc51`

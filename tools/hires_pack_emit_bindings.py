@@ -38,6 +38,22 @@ def build_bindings(subset_path: Path, data, canonical_records, legacy_links):
                     }
                 )
                 continue
+            if not record.get("runtime_ready"):
+                unresolved.append(
+                    {
+                        "policy_key": link.get("policy_key"),
+                        "family_type": link.get("family_type"),
+                        "reason": "canonical-record-not-runtime-ready",
+                        "status": "review-only",
+                        "selection_reason": link.get("selection_reason"),
+                        "canonical_sampled_object_ids": sampled_ids,
+                        "candidate_replacement_ids": list(candidate_ids),
+                        "evidence_authority": record.get("evidence_authority"),
+                        "runtime_proxy_count": record.get("runtime_proxy_count", 0),
+                        "runtime_proxy_candidates": record.get("runtime_proxy_candidates", []),
+                    }
+                )
+                continue
             candidates = [
                 candidate
                 for candidate in record.get("transport_candidates", [])
@@ -53,6 +69,7 @@ def build_bindings(subset_path: Path, data, canonical_records, legacy_links):
                     "canonical_identity": {
                         "candidate_origin": record.get("candidate_origin"),
                         "transport_hint": record.get("transport_hint"),
+                        "evidence_authority": record.get("evidence_authority"),
                         "draw_class": record.get("draw_class"),
                         "cycle": record.get("cycle"),
                         "fmt": record.get("fmt"),
@@ -64,6 +81,7 @@ def build_bindings(subset_path: Path, data, canonical_records, legacy_links):
                         "sampled_low32": record.get("sampled_low32"),
                         "sampled_entry_pcrc": record.get("sampled_entry_pcrc"),
                         "sampled_sparse_pcrc": record.get("sampled_sparse_pcrc"),
+                        "runtime_ready": record.get("runtime_ready", False),
                     },
                     "transport_candidates": candidates,
                     "upload_low32s": record.get("upload_low32s", []),

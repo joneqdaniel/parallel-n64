@@ -99,6 +99,8 @@ This document describes the shape of the import model itself. The evidence thres
   - compares multiple review-only subset artifacts so candidate imported-family choices can be summarized side by side
 - [`tools/hires_pack_compare_views.py`](/home/auro/code/parallel-n64/tools/hires_pack_compare_views.py)
   - compares the legacy-family view against the canonical sampled-object view for one emitted subset
+- [`tools/hires_pack_proxy_review.py`](/home/auro/code/parallel-n64/tools/hires_pack_proxy_review.py)
+  - aggregates transport-hint families onto their real runtime sampled-object proxies so we can review the actual transport pool before promoting anything into runtime-ready bindings
 - [`tools/hires_pack_emit_bindings.py`](/home/auro/code/parallel-n64/tools/hires_pack_emit_bindings.py)
   - emits deterministic canonical sampled-object bindings and separates unresolved transport cases for future importer work
 - [`tools/hires_pack_emit_loader_manifest.py`](/home/auro/code/parallel-n64/tools/hires_pack_emit_loader_manifest.py)
@@ -245,9 +247,10 @@ The migration tool now emits that bridge when sampled-object bundle data is avai
   - current example slice: [20260328-tile-parent/import-index.json](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-tile-parent/import-index.json)
   - current review artifact: [20260328-tile-parent/review.md](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-tile-parent/review.md)
   - the same slice now materializes into [20260328-tile-parent/bindings.json](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-tile-parent/bindings.json), [20260328-tile-parent/loader-manifest.json](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-tile-parent/loader-manifest.json), [20260328-tile-parent/package.phrb](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-tile-parent/package.phrb), and [20260328-tile-parent/package-inspect.json](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-tile-parent/package-inspect.json)
-  - current result: `1` deterministic binding (`legacy-low32-75fee641-fs258`) and `4` explicit unresolved transport cases
-  - the deterministic binding preserves `candidate_origin = tile-family-parent-surface` and `transport_hint = same-start-parent-surface`, which is the current model for carrying review-only transport provenance forward without pretending it is final runtime truth
-  - practical implication: active file-select `8x16` families can now enter the canonical transport discussion as explicit same-start `16x16 CI4` hints without pretending they are final runtime-ready imported records
+  - current result: `0` deterministic bindings and `5` unresolved/review-only transport cases
+  - the important new signal is not runtime readiness, but proxy alignment: each same-start `16x16 CI4` hint now points at the one real sampled-object proxy observed in the source sampled bundle, `sampled-fmt2-siz0-off0-stride8-wh16x16-fs2-low327064585c`
+  - those hints simultaneously record `runtime_proxy_identity_mismatch=1`, which is why they must stay review-only until the canonical transport path is expressed in terms of the real sampled object rather than the hinted legacy low-32 family
+  - practical implication: active file-select `8x16` families can now enter the canonical transport discussion as explicit same-start `16x16 CI4` hints with a linked runtime proxy, without pretending they are final runtime-ready imported records
 - the review and subset tools can now be driven directly from the sampled strict bundle with explicit `--low32/--formatsize` seeds, which is how [20260327-sampled-review.md](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260327-sampled-review.md) and [20260327-sampled-subset.json](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260327-sampled-subset.json) were emitted
 - the canonical transport view for that same slice is now explicit too:
   - the imported index itself now carries `canonical_records` and `legacy_transport_aliases`

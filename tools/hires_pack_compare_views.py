@@ -49,11 +49,17 @@ def format_markdown(data):
             f"  - draw=`{record.get('draw_class')}` cycle=`{record.get('cycle')}` fmt=`{record.get('fmt')}` siz=`{record.get('siz')}` off=`{record.get('off')}` stride=`{record.get('stride')}` wh=`{record.get('wh')}` fs=`{record.get('formatsize')}`"
         )
         lines.append(
-            f"  - sampled_low32=`{record.get('sampled_low32')}` entry_pcrc=`{record.get('sampled_entry_pcrc')}` sparse_pcrc=`{record.get('sampled_sparse_pcrc')}`"
+            f"  - sampled_low32=`{record.get('sampled_low32')}` entry_pcrc=`{record.get('sampled_entry_pcrc')}` sparse_pcrc=`{record.get('sampled_sparse_pcrc')}` runtime_ready=`{int(bool(record.get('runtime_ready')))}` authority=`{record.get('evidence_authority')}`"
         )
         lines.append(
             f"  - pack_exact_entry_hit=`{int(bool(record.get('pack_exact_entry_hit')))}` pack_exact_sparse_hit=`{int(bool(record.get('pack_exact_sparse_hit')))}` pack_family_available=`{int(bool(record.get('pack_family_available')))}`"
         )
+        if record.get('runtime_proxy_count'):
+            proxy_ids = ', '.join(proxy.get('sampled_object_id') for proxy in record.get('runtime_proxy_candidates', []))
+            lines.append(
+                f"  - runtime_proxy_count=`{record.get('runtime_proxy_count')}` proxy_unique=`{int(bool(record.get('runtime_proxy_unique')))}` proxy_identity_mismatch=`{int(bool(record.get('runtime_proxy_identity_mismatch')))}`"
+            )
+            lines.append(f"  - runtime_proxy_candidates: `{proxy_ids or 'none'}`")
         lines.append(f"  - linked_policy_keys: `{', '.join(record.get('linked_policy_keys', [])) or 'none'}`")
         lines.append(f"  - linked_replacement_ids: `{', '.join(record.get('linked_replacement_ids', [])) or 'none'}`")
         transport_candidates = record.get('transport_candidates', [])
@@ -66,8 +72,16 @@ def format_markdown(data):
                 lines.append(
                     f"    - `{candidate.get('replacement_id')}` palette=`{palette_crc}` dims=`{dims}` variant_group=`{candidate.get('variant_group_id')}`"
                 )
-        upload_low32s = ', '.join(f"{item['value']}x{item['count']}" for item in record.get('upload_low32s', [])) or 'none'
-        upload_pcrcs = ', '.join(f"{item['value']}x{item['count']}" for item in record.get('upload_pcrcs', [])) or 'none'
+        def format_upload_items(items):
+            parts = []
+            for item in items:
+                value = item.get('value')
+                count = item.get('count')
+                parts.append(f"{value}x{count}" if count is not None else str(value))
+            return ', '.join(parts) or 'none'
+
+        upload_low32s = format_upload_items(record.get('upload_low32s', []))
+        upload_pcrcs = format_upload_items(record.get('upload_pcrcs', []))
         lines.append(f"  - upload_low32s: `{upload_low32s}`")
         lines.append(f"  - upload_pcrcs: `{upload_pcrcs}`")
     return '\n'.join(lines) + '\n'

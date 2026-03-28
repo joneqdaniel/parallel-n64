@@ -216,6 +216,34 @@ def parse_bundle_ci_context(bundle_path: Path):
             "emulated_tmem": emulated_tmem_by_key.get(observation_key),
         }
 
+    family_probe_path = bundle_path / "traces" / "hires-tile-family-report.json"
+    if family_probe_path.exists():
+        report = json.loads(family_probe_path.read_text())
+        family = report.get("family", {})
+        formatsize = int(family.get("formatsize", 0))
+        runtime_wh = f"{family.get('width')}x{family.get('height')}"
+        for item in report.get("rows", []):
+            upload_low32 = item.get("key")
+            if not upload_low32:
+                continue
+            key = (int(upload_low32, 16), formatsize)
+            context.setdefault(
+                key,
+                {
+                    "mode": family.get("mode"),
+                    "runtime_address": item.get("addr"),
+                    "runtime_wh": runtime_wh,
+                    "requested_formatsize": formatsize,
+                    "observed_runtime_pcrc": None,
+                    "active_pool": None,
+                    "preferred_palette_matches": 0,
+                    "uniform_replacement_dims": False,
+                    "sample_replacement_dims": None,
+                    "usage": None,
+                    "emulated_tmem": None,
+                },
+            )
+
     return context
 
 

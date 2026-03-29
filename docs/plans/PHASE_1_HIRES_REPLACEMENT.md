@@ -200,10 +200,14 @@
               - runtime proof: [20260328-sampled-proxy-plus-706](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260328-sampled-proxy-plus-706)
               - the combined package reproduces the earlier `af028e08` preview hash `1a0719dfcba68736d09579d8fb1e6eb628cf62fa89544675f8d7ddffe70500bb` with `14` exact hits total
             - the selected-import build is now first-class instead of manual:
-              - builder: `python3 tools/hires_pack_build_selected_package.py --input artifacts/hires-pack-review/20260327-sampled-import-index.json --input artifacts/hires-pack-review/20260328-tile-parent/import-index.json --policy tools/hires_pack_transport_policy.json --output-dir <out>`
-              - emitted proof package: [20260328-selected-from-import-index-v2/package.phrb](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-selected-from-import-index-v2/package.phrb)
-              - live proof: [20260328-selected-from-import-index-v2-runtime](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260328-selected-from-import-index-v2-runtime)
-              - current result: byte-identical to the earlier manual selected package and identical strict runtime output/hash
+              - builder: `python3 tools/hires_pack_build_selected_package.py --input <import-index>... --policy tools/hires_pack_transport_policy.json --output-dir <out>`
+              - review pools are explicit opt-ins via `--review-input` and `--review-pool-key`, so title-only transport pools do not silently leak into file-select packages
+              - regression diagnosis: the no-title builder briefly emitted `PHRB` v3 assets with implicit `selector_checksum64 = legacy_checksum64`; the old proof package was `PHRB` v2 with zero selectors, so the v3 builder over-constrained sampled-object lookup
+              - current fix: selector checksums are explicit-only through the loader/binary emit path
+              - old proof revalidation: [20260328-selected-from-import-index-v2/package.phrb](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-selected-from-import-index-v2/package.phrb) still works on the current core and now verifies to hash `edb0c84ff65226ba7c37546bc06fd3bb3f78eb8965cfdf095659551e78d177de` with `13` exact hits (`12` on `7064585c`, `1` on `c139c1c0`)
+              - rebuilt current proof package: [20260328-selected-no-title-v2/package.phrb](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-selected-no-title-v2/package.phrb)
+              - rebuilt live proof: [20260328-selected-no-title-v2-runtime](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260328-selected-no-title-v2-runtime)
+              - current result: the rebuilt v3 package reproduces the same strict runtime hash and hit structure as the revalidated old package
             - negative title validation is now explicit too:
               - runtime proof: [20260328-selected-from-import-index-v2-runtime](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260328-selected-from-import-index-v2-runtime)
               - current result: `0` sampled-object exact hits and a collapse to the strict title `off` hash
@@ -228,6 +232,10 @@
                 - earlier selector-aware `940` pool: `AE=381982996`, `RMSE=48.24`
                 - earlier partial combined pools: `AE=327399288`, `RMSE=44.69`
                 - single-candidate native: `AE=1076083334`, `RMSE=86.68`
+              - policy-built title package: [20260328-selected-plus-title-v4/package.phrb](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-selected-plus-title-v4/package.phrb)
+              - policy-built title runtime proof: [20260328-selected-plus-title-v4-runtime](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260328-selected-plus-title-v4-runtime)
+              - current result: the explicit-review-pool builder now reproduces the older full-title package exactly on the strict title fixture
+              - negative file-select validation still holds: the same combined package lands on file-select hash `c5ac0f7558547aeb197552bbb1a0881c69f6d57ff1f17358d0d1753617d253e0` with `33` extra `940cea6e` copy-path hits, so the title-expanded package is still not a safe general package
               - next implication: the title path is no longer blocked on whether sampled-object transport pools can work; it is now blocked on how to formalize multi-key title transport pools and how to resolve the paired `940cea6e` / `28916d63` title strip without regressing N64 correctness
           - practical implication: the proxy pool is no longer an undifferentiated set of `62` payloads, and the active tracked provisional choice is now `af028e08`
     - practical implication: the active `8x16` gap should not be modeled as meaningful row-local upload bytes, which makes same-start parent-tile/subrect transport a stronger next resolver target than more row-byte reinterpretation

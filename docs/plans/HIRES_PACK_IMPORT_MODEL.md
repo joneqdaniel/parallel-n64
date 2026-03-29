@@ -312,9 +312,13 @@ The migration tool now emits that bridge when sampled-object bundle data is avai
       - the selected package can now be rebuilt directly from tracked import artifacts and policy:
         - builder: [tools/hires_pack_build_selected_package.py](/home/auro/code/parallel-n64/tools/hires_pack_build_selected_package.py)
         - tracked build inputs: [20260327-sampled-import-index.json](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260327-sampled-import-index.json), [20260328-tile-parent/import-index.json](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-tile-parent/import-index.json), and [hires_pack_transport_policy.json](/home/auro/code/parallel-n64/tools/hires_pack_transport_policy.json)
-        - emitted proof package: [20260328-selected-from-import-index-v2/package.phrb](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-selected-from-import-index-v2/package.phrb)
-        - live proof: [20260328-selected-from-import-index-v2-runtime](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260328-selected-from-import-index-v2-runtime)
-        - current result: byte-identical to the earlier hand-built `20260328-sampled-proxy-plus-706/package.phrb` and identical strict runtime output with `14` sampled-object exact hits
+        - review pools are explicit opt-ins via `--review-input` and `--review-pool-key`
+        - regression diagnosis: the no-title builder briefly emitted `PHRB` v3 assets with implicit selector checksums from `legacy_checksum64`, which over-constrained sampled-object lookup compared to the old `PHRB` v2 proof package
+        - current fix: selector checksums are explicit-only transport fields, not default metadata copied from legacy checksums
+        - old proof revalidation: [20260328-selected-from-import-index-v2/package.phrb](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-selected-from-import-index-v2/package.phrb) still works on the current core and now verifies to hash `edb0c84ff65226ba7c37546bc06fd3bb3f78eb8965cfdf095659551e78d177de` with `13` sampled-object exact hits
+        - rebuilt current proof package: [20260328-selected-no-title-v2/package.phrb](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-selected-no-title-v2/package.phrb)
+        - rebuilt live proof: [20260328-selected-no-title-v2-runtime](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260328-selected-no-title-v2-runtime)
+        - current result: the rebuilt v3 package reproduces the same strict runtime output as the revalidated old package while preserving the newer handoff format
       - the same selected package now has a tracked negative validation on title screen:
         - runtime proof: [20260328-selected-from-import-index-v2-runtime](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260328-selected-from-import-index-v2-runtime)
         - current result: `0` sampled-object exact hits and the strict title frame falls back to the `off` hash
@@ -339,6 +343,10 @@ The migration tool now emits that bridge when sampled-object bundle data is avai
           - full combined pools vs legacy `on`: `AE=67829221`, `RMSE=22.04`
           - earlier selector-aware `940` pool vs legacy `on`: `AE=381982996`, `RMSE=48.24`
           - earlier partial combined pools vs legacy `on`: `AE=327399288`, `RMSE=44.69`
+        - policy-built title package: [20260328-selected-plus-title-v4/package.phrb](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-selected-plus-title-v4/package.phrb)
+        - policy-built title runtime proof: [20260328-selected-plus-title-v4-runtime](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260328-selected-plus-title-v4-runtime)
+        - current result: explicit review-pool selectors now let the tracked builder reproduce the older full-title package exactly on the strict title fixture
+        - negative file-select validation remains: the same combined package still leaks `940cea6e` into file select, so scene-shaped package boundaries remain part of the current import model
         - import implication: some canonical title records are transport pools, some scenes require multiple simultaneous canonical records, and the open question is now how to formalize that multi-key title path rather than whether the imported-record model can drive it at runtime
     - practical implication: the import/runtime transport problem for `7064585c` now has a tracked provisional selection, with `81b32e31` retained as the nearest alternate and `c3984de7` as the strongest structurally distinct fallback
 - the package manifest now also records decoded `pixel_sha256` values, `alpha_normalized_pixel_sha256` values, and duplicate-pixel groups, so importer design can distinguish fully distinct transport content from any future duplicate or near-duplicate transport variants

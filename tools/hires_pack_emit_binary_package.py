@@ -96,7 +96,8 @@ def emit_binary_package(package_dir: Path, output_path: Path):
         rgba_bytes = rgba_path.read_bytes()
         blob_offset = len(blob_section)
         blob_section.extend(rgba_bytes)
-        selector_checksum64 = int(str(candidate.get('legacy_checksum64') or '0'), 16)
+        selector_value = candidate.get('selector_checksum64')
+        selector_checksum64 = int(str(selector_value or '0'), 16)
         asset_table.extend(struct.pack(
             '<IIIIIIIIIIQII',
             record_index,

@@ -22,6 +22,7 @@ def build_loader_manifest(bindings_data, bindings_path: Path):
                     "legacy_checksum64": source.get("legacy_checksum64"),
                     "legacy_texture_crc": source.get("legacy_texture_crc"),
                     "legacy_palette_crc": source.get("legacy_palette_crc"),
+                    "selector_checksum64": candidate.get("selector_checksum64"),
                     "legacy_formatsize": source.get("legacy_formatsize"),
                     "legacy_storage": source.get("legacy_storage"),
                     "legacy_source_path": source.get("legacy_source_path"),

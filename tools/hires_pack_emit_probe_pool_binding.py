@@ -35,6 +35,7 @@ def build_transport_candidate(candidate, cache_path: Path, sampled_low32: str):
             "data_size": candidate["data_size"],
             "is_hires": True,
         },
+        "selector_checksum64": candidate["checksum64"],
         "variant_group_id": f"sampled-{sampled_low32}-{candidate['width']}x{candidate['height']}-{candidate['texture_crc']}",
     }
 

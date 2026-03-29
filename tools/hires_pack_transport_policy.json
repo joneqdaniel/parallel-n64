@@ -104,5 +104,73 @@
         "combined_exact_hit_count": 14
       }
     }
+  },
+  "transport_review_pools": {
+    "sampled-low32-940cea6e-fs258": {
+      "status": "selected-pool",
+      "sampled_low32": "940cea6e",
+      "formatsize": 258,
+      "justification": "The zero-palette title copy strip is still active on the strict title fixture and needs a full transported payload pool instead of a single selected asset.",
+      "supporting_notes": [
+        "The refreshed title sampled-object review shows 29 upload families and 29 transported 2960x60 payloads for this sampled object.",
+        "This sampled object coexists with 28916d63 for the same visible 296x6 title strip once TLUT state becomes populated.",
+        "The current best native title package requires this pool alongside the TLUT-populated 28916d63 pool and the 7701ac09 1-cycle pool."
+      ],
+      "evidence": {
+        "review_artifact": "artifacts/hires-pack-review/20260328-title-sampled-transport-v4/review.md",
+        "runtime_bundle": "artifacts/paper-mario-title-screen/on/20260328-title-combined-pools-v2-full-runtime",
+        "exact_hit_count": 33,
+        "package": "artifacts/hires-pack-review/20260328-title-combined-pools-v2-full/package.phrb"
+      },
+      "overturn_conditions": [
+        "A stronger static resolver proves 940cea6e and 28916d63 should collapse into one canonical title strip identity.",
+        "A later runtime validation slice shows this pool is overbroad for the title path.",
+        "A tighter selector source becomes available and reduces the need for the full transported payload pool."
+      ]
+    },
+    "sampled-low32-28916d63-fs258": {
+      "status": "selected-pool",
+      "sampled_low32": "28916d63",
+      "formatsize": 258,
+      "justification": "The TLUT-populated title copy strip is a distinct active sampled object on the strict title fixture and must be carried as its own transported pool today.",
+      "supporting_notes": [
+        "The refreshed title sampled-object review shows the same visible 296x6 title strip under populated TLUT state with sampled_entry_pcrc 8be3a754 and sampled_sparse_pcrc 0574791d.",
+        "The current best native title package hits this sampled object 33 times on the strict title fixture.",
+        "Treating it as separate from 940cea6e is currently data-preserving; unification belongs in a later stronger static resolver, not in the transport layer."
+      ],
+      "evidence": {
+        "review_artifact": "artifacts/hires-pack-review/20260328-title-sampled-transport-v4/review.md",
+        "runtime_bundle": "artifacts/paper-mario-title-screen/on/20260328-title-combined-pools-v2-full-runtime",
+        "exact_hit_count": 33,
+        "package": "artifacts/hires-pack-review/20260328-title-combined-pools-v2-full/package.phrb"
+      },
+      "overturn_conditions": [
+        "A stronger static scan proves the TLUT-populated and zero-palette title strip should share one canonical imported record.",
+        "Later runtime evidence shows this pool is redundant with another selector-aware title record.",
+        "A more faithful palette/TLUT model changes the sampled identity for this title strip."
+      ]
+    },
+    "sampled-low32-7701ac09-fs768": {
+      "status": "selected-pool",
+      "sampled_low32": "7701ac09",
+      "formatsize": 768,
+      "justification": "The 200x2 1-cycle title texrect is a large visible driver and needs its full transported 1600x16 pool in the current native title package.",
+      "supporting_notes": [
+        "The refreshed title sampled-object review shows 54 probe events, 53 transported candidates, and one unresolved missing upload family for this sampled object.",
+        "The current best native title package hits this sampled object 106 times on the strict title fixture.",
+        "This pool is the largest single contributor to the current native title result and should remain explicit until a stronger selector/static model narrows it."
+      ],
+      "evidence": {
+        "review_artifact": "artifacts/hires-pack-review/20260328-title-sampled-transport-v4/review.md",
+        "runtime_bundle": "artifacts/paper-mario-title-screen/on/20260328-title-combined-pools-v2-full-runtime",
+        "exact_hit_count": 106,
+        "package": "artifacts/hires-pack-review/20260328-title-combined-pools-v2-full/package.phrb"
+      },
+      "overturn_conditions": [
+        "A stronger selector source narrows this 53-candidate pool materially without hurting the strict title frame.",
+        "A later runtime slice shows the current pool is overbroad for 7701ac09.",
+        "Static reconstruction proves a tighter canonical transport grouping for this 1-cycle title texrect."
+      ]
+    }
   }
 }

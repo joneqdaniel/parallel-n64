@@ -10,6 +10,7 @@ from hires_pack_common import decode_entry_rgba8, parse_cache_entries
 
 UPLOAD_RE = re.compile(r"Hi-res keying (?:hit|miss): (.+)")
 SAMPLED_EXACT_RE = re.compile(r"Hi-res sampled-object exact hit: (.+)")
+SAMPLED_PROBE_RE = re.compile(r"Hi-res sampled-object probe: (.+)")
 FIELD_RE = re.compile(r"(\w+)=([^\s]+)")
 
 
@@ -34,12 +35,35 @@ def parse_log_events(log_path: Path):
             continue
 
         sampled_match = SAMPLED_EXACT_RE.search(line)
-        if not sampled_match:
+        if sampled_match:
+            detail = sampled_match.group(1)
+            fields = parse_fields(detail)
+            fields["detail"] = detail
+            fields["event_kind"] = "exact"
+            signature = (
+                fields.get("draw_class"),
+                fields.get("cycle"),
+                fields.get("sampled_low32"),
+                fields.get("sampled_entry_pcrc"),
+                fields.get("sampled_sparse_pcrc"),
+                fields.get("fs"),
+                fields.get("repl"),
+            )
+            group = sampled_groups[signature]
+            group["events"].append({"sampled": fields, "upload": last_upload})
+            if last_upload and last_upload.get("key"):
+                group["uploads"][last_upload["key"]] += 1
+            last_upload = None
             continue
 
-        detail = sampled_match.group(1)
+        probe_match = SAMPLED_PROBE_RE.search(line)
+        if not probe_match:
+            continue
+
+        detail = probe_match.group(1)
         fields = parse_fields(detail)
         fields["detail"] = detail
+        fields["event_kind"] = "probe"
         signature = (
             fields.get("draw_class"),
             fields.get("cycle"),
@@ -47,13 +71,15 @@ def parse_log_events(log_path: Path):
             fields.get("sampled_entry_pcrc"),
             fields.get("sampled_sparse_pcrc"),
             fields.get("fs"),
-            fields.get("repl"),
+            fields.get("sample_repl"),
         )
         group = sampled_groups[signature]
-        group["events"].append({"sampled": fields, "upload": last_upload})
-        if last_upload and last_upload.get("key"):
-            group["uploads"][last_upload["key"]] += 1
-        last_upload = None
+        group["events"].append({"sampled": fields, "upload": None})
+        upload_low32 = fields.get("upload_low32")
+        upload_pcrc = fields.get("upload_pcrc")
+        if upload_low32 is not None and upload_pcrc is not None:
+            upload_checksum64 = f"{int(upload_pcrc, 16):08x}{int(upload_low32, 16):08x}"
+            group["uploads"][upload_checksum64] += 1
 
     return sampled_groups
 
@@ -112,12 +138,31 @@ def build_review(bundle_path: Path, cache_path: Path):
             f"{candidate['width']}x{candidate['height']}" for candidate in candidate_by_id.values()
         )
         candidate_pixels = Counter(candidate["pixel_sha256"] for candidate in candidate_by_id.values())
+        exact_hit_count = sum(1 for event in group["events"] if event["sampled"].get("event_kind") == "exact")
+        probe_event_count = sum(1 for event in group["events"] if event["sampled"].get("event_kind") == "probe")
         groups.append(
             {
                 "sampled_object_id": (
                     f"sampled-low32{first_sampled.get('sampled_low32')}-"
                     f"fs{first_sampled.get('fs')}"
                 ),
+                "canonical_identity": {
+                    "candidate_origin": "runtime-sampled-probe",
+                    "evidence_authority": "runtime-sampled-probe",
+                    "draw_class": first_sampled.get("draw_class"),
+                    "cycle": first_sampled.get("cycle"),
+                    "fmt": first_sampled.get("fmt"),
+                    "siz": first_sampled.get("siz"),
+                    "pal": first_sampled.get("pal"),
+                    "off": first_sampled.get("off"),
+                    "stride": first_sampled.get("stride"),
+                    "wh": first_sampled.get("wh"),
+                    "formatsize": int(first_sampled.get("fs", "0")),
+                    "sampled_low32": first_sampled.get("sampled_low32"),
+                    "sampled_entry_pcrc": first_sampled.get("sampled_entry_pcrc"),
+                    "sampled_sparse_pcrc": first_sampled.get("sampled_sparse_pcrc"),
+                    "runtime_ready": True,
+                },
                 "signature": {
                     "draw_class": first_sampled.get("draw_class"),
                     "cycle": first_sampled.get("cycle"),
@@ -125,9 +170,10 @@ def build_review(bundle_path: Path, cache_path: Path):
                     "sampled_entry_pcrc": first_sampled.get("sampled_entry_pcrc"),
                     "sampled_sparse_pcrc": first_sampled.get("sampled_sparse_pcrc"),
                     "formatsize": int(first_sampled.get("fs", "0")),
-                    "replacement_dims": first_sampled.get("repl"),
+                    "replacement_dims": first_sampled.get("repl") or first_sampled.get("sample_repl"),
                 },
-                "exact_hit_count": len(group["events"]),
+                "exact_hit_count": exact_hit_count,
+                "probe_event_count": probe_event_count,
                 "unique_upload_family_count": len(group["uploads"]),
                 "unique_transport_candidate_count": len(candidate_by_id),
                 "unique_transport_pixel_count": len(candidate_pixels),
@@ -163,6 +209,7 @@ def render_markdown(review):
         )
         lines.append("")
         lines.append(f"- Exact hits: `{group['exact_hit_count']}`")
+        lines.append(f"- Probe events: `{group.get('probe_event_count', 0)}`")
         lines.append(f"- Unique upload families: `{group['unique_upload_family_count']}`")
         lines.append(f"- Unique transport candidates: `{group['unique_transport_candidate_count']}`")
         lines.append(f"- Unique transport pixel payloads: `{group['unique_transport_pixel_count']}`")

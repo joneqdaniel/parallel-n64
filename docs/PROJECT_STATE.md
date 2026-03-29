@@ -473,33 +473,30 @@
         - runtime proof: [20260328-selected-from-import-index-v2-runtime](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260328-selected-from-import-index-v2-runtime)
         - current result: `0` sampled-object exact hits, `0/196` upload-side hits, and the frame collapses to the strict title `off` hash `42e501afb2548a5067bc034578c5bcebf0bf2a40f612bbcc94972af716ad6ff2`
         - practical implication: the currently proven native import path is still file-select-shaped; it does not yet generalize to the visible title path
-      - the sampled-object probe now reaches the visible title copy-cycle path in debug mode:
-        - runtime proof: [20260328-title-sampled-probe-v2](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260328-title-sampled-probe-v2)
-        - review artifact: [hires-sampled-object-review.md](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260328-title-sampled-probe-v2/traces/hires-sampled-object-review.md)
-        - current result: two visible title sampled objects are now explicit, `940cea6e` (`296x6`) and `148e68ee` (`296x2`), both in `copy` texrect mode
-        - neither sampled key has any current pack exact hit or family availability, so title expansion now looks like a real transport/import problem rather than a hidden already-authored family
-      - the first native title package now proves the next seam directly:
-        - package: [20260328-title-copy/package-build-v2/package.phrb](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-title-copy/package-build-v2/package.phrb)
-        - runtime proof: [20260328-title-native-package-v2](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260328-title-native-package-v2)
-        - current result: `34` sampled-object exact hits (`33` for `940cea6e`, `1` for `148e68ee`) and screenshot hash `3ea1cd944d1a328e68bfb75c0c2602b3c8cbce3b6f5185f9522a0381ee01fa20`
-        - but the frame is still much farther from strict legacy `on` (`AE=1076083334`, `RMSE=86.68`) than from strict `off` (`AE=746610203`, `RMSE=72.11`)
-        - practical implication: title copy-cycle native lookup is now proven, and the active problem has moved again from lookup eligibility to transport correctness / copy-mode modeling
-      - split title native-package runs now isolate the dominant bad family:
-        - [20260328-title-native-296x6-only](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260328-title-native-296x6-only) is byte-identical to the combined native title result and keeps `33` exact hits on sampled key `940cea6e`
-        - [20260328-title-native-296x2-only](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260328-title-native-296x2-only) stays on the strict `off` hash and only contributes `1` exact hit on `148e68ee`
-        - practical implication: the remaining title correctness problem is concentrated in the dominant `296x6 -> 2960x60` copy-family transport, not in the small `296x2` family or in interaction between the two
-      - the sampled transport review now proves why a single transported title asset is insufficient:
-        - review artifact: [20260328-title-sampled-transport/review.md](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-title-sampled-transport/review.md)
-        - current result: sampled key `940cea6e` has `33` exact hits but expands to `29` distinct upload families and `29` distinct `2960x60` payloads in the legacy pack
-        - the selector-aware transport-pool package is now runtime-proven too:
-          - package: [20260328-title-transport-pool/package-build-v2/package.phrb](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-title-transport-pool/package-build-v2/package.phrb)
-          - runtime proof: [20260328-title-transport-pool-runtime-v2](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260328-title-transport-pool-runtime-v2)
-          - current result: `33` sampled-object exact hits on `940cea6e` and screenshot hash `df6858a4bf022e514e3c85d67cad5e5ab5d6e25f71cc42cbefdf7c6688d5d904`
-          - distance to strict legacy `on` is now materially better than either prior native or `off`:
-            - selector-aware pool vs legacy `on`: `AE=381982996`, `RMSE=48.24`
-            - single-candidate native vs legacy `on`: `AE=1076083334`, `RMSE=86.68`
-            - strict `off` vs legacy `on`: `AE=667376891`, `RMSE=59.14`
-        - practical implication: title copy-cycle native import is now a proven sampled-object transport-pool problem with a working secondary selector path; the next seam is choosing and formalizing the selector source, not proving that multi-candidate transport works at runtime
+      - the draw-side title sampled-object probe is now materially broader and more useful than the earlier `940cea6e`-only view:
+        - runtime proof: [20260328-title-sampled-probe-v4](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260328-title-sampled-probe-v4)
+        - review artifact: [20260328-title-sampled-transport-v4/review.md](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-title-sampled-transport-v4/review.md)
+        - current result: the visible title path now shows three major sampled-object families instead of one dominant strip plus noise:
+          - `940cea6e` -> `296x6` copy texrect with zeroed sampled palette CRCs
+          - `28916d63` -> the same `296x6` copy texrect once TLUT state is populated (`sampled_entry_pcrc=8be3a754`, `sampled_sparse_pcrc=0574791d`, `entry_count=256`, `used_count=14`)
+          - `7701ac09` -> `200x2` 1-cycle texrect with `53` transported `1600x16` candidates
+          - `148e68ee` remains the minor `296x2` copy family
+        - practical implication: the title path is no longer accurately modeled as one sampled strip; the same visible surface can require multiple canonical sampled keys depending on TLUT state and texrect regime
+      - the sampled transport review tooling now preserves canonical sampled-object identity directly, and the new [hires_pack_emit_probe_pool_binding.py](/home/auro/code/parallel-n64/tools/hires_pack_emit_probe_pool_binding.py) can turn one sampled review group into a review-only transport-pool binding without ad hoc scripts
+      - the new full native title package is now runtime-proven and materially stronger than the earlier partial pools:
+        - package: [20260328-title-combined-pools-v2-full/package.phrb](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-title-combined-pools-v2-full/package.phrb)
+        - runtime proof: [20260328-title-combined-pools-v2-full-runtime](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260328-title-combined-pools-v2-full-runtime)
+        - current result: `172` sampled-object exact hits total and screenshot hash `620692162a2fbf167ef6e4a468f3a56890d229e75cbfd828dc5ad56ffe73a85b`
+          - `106` hits on `7701ac09`
+          - `33` hits on `28916d63`
+          - `33` hits on `940cea6e`
+        - distance to strict legacy `on` is now much better than every earlier native title package:
+          - full combined pools vs legacy `on`: `AE=67829221`, `RMSE=22.04`
+          - earlier selector-aware `940` pool vs legacy `on`: `AE=381982996`, `RMSE=48.24`
+          - earlier partial combined pools vs legacy `on`: `AE=327399288`, `RMSE=44.69`
+          - single-candidate native vs legacy `on`: `AE=1076083334`, `RMSE=86.68`
+          - strict `off` equivalent vs legacy `on`: `AE=667376891`, `RMSE=59.14`
+        - practical implication: native title import is no longer blocked on whether the transport model can reproduce legacy-looking output; the next seam is formalizing multi-key title transport pools and deciding whether the paired `940cea6e` / `28916d63` title strip should stay distinct or be unified by a stronger static resolver
     - practical implication: `af028e08` is now the tracked provisional transport choice for `7064585c`; `81b32e31` remains the nearest alternate, and `c3984de7` remains the strongest structurally distinct fallback
   - strict bundle extraction now records sampled-object exact hits separately in [`tools/scenarios/lib/common.sh`](/home/auro/code/parallel-n64/tools/scenarios/lib/common.sh), so `traces/hires-evidence.json` can describe canonical lookup-only bundles without conflating them with the upload-side `Hi-res keying summary`
   - practical implication: the active `8x16` strict gap should not be modeled as meaningful row-local upload bytes, which pushes the next resolver step toward same-start parent-tile/subrect transport and away from row-byte reinterpretation

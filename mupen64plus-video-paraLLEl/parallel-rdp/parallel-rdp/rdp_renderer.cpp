@@ -149,16 +149,14 @@ struct HiresSampledObjectIdentity
 	uint16_t formatsize = 0;
 };
 
-static HiresSampledObjectIdentity compute_hires_sampled_ci_object_identity(const TileMeta &meta,
-                                                                          const TileSize &size,
-                                                                          const uint8_t *cpu_tmem,
-                                                                          const uint8_t *tlut_tmem_shadow,
-                                                                          bool tlut_shadow_valid)
+static HiresSampledObjectIdentity compute_hires_sampled_object_identity(const TileMeta &meta,
+                                                                       const TileSize &size,
+                                                                       const uint8_t *cpu_tmem,
+                                                                       const uint8_t *tlut_tmem_shadow,
+                                                                       bool tlut_shadow_valid)
 {
 	HiresSampledObjectIdentity identity = {};
-	if (!cpu_tmem || !tlut_tmem_shadow || !tlut_shadow_valid)
-		return identity;
-	if (meta.fmt != TextureFormat::CI)
+	if (!cpu_tmem)
 		return identity;
 	if (!compute_hires_tile_size_pixels(size, identity.width_pixels, identity.height_pixels))
 		return identity;
@@ -175,37 +173,45 @@ static HiresSampledObjectIdentity compute_hires_sampled_ci_object_identity(const
 		identity.height_pixels,
 		uint32_t(meta.size),
 		identity.row_stride_bytes);
-	const auto usage = detail::compute_hires_ci_palette_usage_tmem(
-		meta.size,
-		cpu_tmem,
-		0x1000,
-		meta.offset,
-		identity.width_pixels,
-		identity.height_pixels,
-		identity.row_stride_bytes);
-	identity.entry_count = detail::compute_hires_ci_palette_entry_count_tmem(
-		meta.size,
-		cpu_tmem,
-		0x1000,
-		meta.offset,
-		identity.width_pixels,
-		identity.height_pixels,
-		identity.row_stride_bytes);
-	identity.entry_crc = detail::compute_hires_ci_palette_crc_for_entries_tmem(
-		meta.size,
-		meta.palette,
-		tlut_tmem_shadow,
-		2048,
-		tlut_shadow_valid,
-		identity.entry_count);
-	identity.sparse_crc = detail::compute_hires_ci_palette_crc_for_used_indices_tmem(
-		meta.size,
-		meta.palette,
-		tlut_tmem_shadow,
-		2048,
-		tlut_shadow_valid,
-		usage);
-	identity.used_count = usage.used_count;
+
+	if (meta.fmt == TextureFormat::CI)
+	{
+		if (!tlut_tmem_shadow || !tlut_shadow_valid)
+			return identity;
+
+		const auto usage = detail::compute_hires_ci_palette_usage_tmem(
+			meta.size,
+			cpu_tmem,
+			0x1000,
+			meta.offset,
+			identity.width_pixels,
+			identity.height_pixels,
+			identity.row_stride_bytes);
+		identity.entry_count = detail::compute_hires_ci_palette_entry_count_tmem(
+			meta.size,
+			cpu_tmem,
+			0x1000,
+			meta.offset,
+			identity.width_pixels,
+			identity.height_pixels,
+			identity.row_stride_bytes);
+		identity.entry_crc = detail::compute_hires_ci_palette_crc_for_entries_tmem(
+			meta.size,
+			meta.palette,
+			tlut_tmem_shadow,
+			2048,
+			tlut_shadow_valid,
+			identity.entry_count);
+		identity.sparse_crc = detail::compute_hires_ci_palette_crc_for_used_indices_tmem(
+			meta.size,
+			meta.palette,
+			tlut_tmem_shadow,
+			2048,
+			tlut_shadow_valid,
+			usage);
+		identity.used_count = usage.used_count;
+	}
+
 	identity.formatsize = formatsize_key(meta.fmt, meta.size);
 	identity.valid = identity.texture_crc != 0;
 	return identity;
@@ -1849,8 +1855,6 @@ void Renderer::draw_shaded_primitive(const TriangleSetup &setup, const Attribute
 	const bool can_probe_sampled_object =
 		replacement_provider &&
 		cpu_tmem &&
-		tlut_shadow_valid &&
-		base_meta.fmt == TextureFormat::CI &&
 		(draw_class == HiresDrawClass::TexRect || draw_class == HiresDrawClass::TexRectFlip);
 	const bool sampled_lookup_uses_base_tile =
 		uses_texel0 || ((raster_flags & RASTERIZATION_COPY_BIT) != 0);
@@ -1860,7 +1864,7 @@ void Renderer::draw_shaded_primitive(const TriangleSetup &setup, const Attribute
 		!texel0_state.hit;
 	HiresSampledObjectIdentity sampled_identity = {};
 	if (can_consider_sampled_object || (hires_debug_sampled_object_probe && can_probe_sampled_object))
-		sampled_identity = compute_hires_sampled_ci_object_identity(base_meta, base_size, cpu_tmem, tlut_tmem_shadow, tlut_shadow_valid);
+		sampled_identity = compute_hires_sampled_object_identity(base_meta, base_size, cpu_tmem, tlut_tmem_shadow, tlut_shadow_valid);
 
 	if (hires_debug_sampled_object_exact_lookup && sampled_identity.valid)
 	{
@@ -1924,7 +1928,7 @@ void Renderer::draw_shaded_primitive(const TriangleSetup &setup, const Attribute
 	{
 		char probe_key[256] = {};
 		std::snprintf(probe_key, sizeof(probe_key),
-		              "draw=%s cycle=%s tile=%u fmt=%u siz=%u pal=%u off=%u stride=%u sl=%u tl=%u sh=%u th=%u",
+		              "draw=%s cycle=%s tile=%u fmt=%u siz=%u pal=%u off=%u stride=%u sl=%u tl=%u sh=%u th=%u upload=%08x:%08x sampled=%08x:%08x:%08x",
 		              get_hires_draw_class(draw_class),
 		              get_hires_cycle_class(raster_flags),
 		              base_tile,
@@ -1936,7 +1940,12 @@ void Renderer::draw_shaded_primitive(const TriangleSetup &setup, const Attribute
 		              unsigned(base_size.slo),
 		              unsigned(base_size.tlo),
 		              unsigned(base_size.shi),
-		              unsigned(base_size.thi));
+		              unsigned(base_size.thi),
+		              uint32_t(texel0_state.checksum64 & 0xffffffffu),
+		              uint32_t((texel0_state.checksum64 >> 32) & 0xffffffffu),
+		              sampled_identity.texture_crc,
+		              sampled_identity.entry_crc,
+		              sampled_identity.sparse_crc);
 		if (hires_sampled_object_probe_logged_contexts.insert(probe_key).second)
 		{
 			ReplacementMeta sampled_entry_meta = {};

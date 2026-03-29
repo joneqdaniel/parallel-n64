@@ -43,3 +43,7 @@ tests/rdp_dumps/local/*.rdp
 # Local generated workflow artifacts
 artifacts/*
 !artifacts/README.md
+
+# Local Python cache artifacts
+__pycache__/
+*.pyc

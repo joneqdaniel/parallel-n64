@@ -530,4 +530,7 @@
   - `940cea6e` continues to behave like shared title/file-select content under both the surface-only and merged package paths
   - the remaining open work is not whether ordered surfaces can reach runtime, but how broadly we want to promote them and how we want to carry unresolved edge slots forward in policy/build tooling
 - [`tools/hires_pack_build_selected_package.py`](/home/auro/code/parallel-n64/tools/hires_pack_build_selected_package.py) now supports `--surface-package-input`, and the direct builder path reproduces the validated v9 package byte-for-byte.
+- The same builder now supports `--review-pool-group-key` for coupled title seams.
+  - current groups: `title-press-start-128x32-pair` and `title-copyright-144x16-pair`
+  - validation: rebuilding the current direct-surface package through `title-press-start-128x32-pair` reproduces the same `PHRB` hash `55ad0bfb1792200625552f8344f687e236e62d69cf96c3447a11b0b3e34f35ab` as the explicit per-key build
 

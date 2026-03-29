@@ -356,5 +356,23 @@
       ],
       "sampled_low32": "ce437230"
     }
+  },
+  "transport_review_pool_groups": {
+    "title-copyright-144x16-pair": {
+      "status": "selected-group",
+      "review_pool_keys": [
+        "sampled-low32-0e89915a-fs259",
+        "sampled-low32-1d234571-fs259"
+      ],
+      "justification": "The non-JP title copyright path is a source-backed two-chunk 144x16 IA8 pair, so these two sampled objects should be selected together as one logical review-pool choice."
+    },
+    "title-press-start-128x32-pair": {
+      "status": "selected-group",
+      "review_pool_keys": [
+        "sampled-low32-049201f4-fs259",
+        "sampled-low32-ce437230-fs259"
+      ],
+      "justification": "The non-PAL Press Start seam is a source-backed 128x32 IA8 pair and the current selected transport is shared across both sampled objects."
+    }
   }
 }

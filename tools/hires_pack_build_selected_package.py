@@ -21,6 +21,39 @@ def load_binding_payload(path: Path):
     return data
 
 
+def resolve_review_pool_keys(policy_data, selected_keys, group_keys):
+    review_pool_policy = policy_data.get('transport_review_pools', {}) if policy_data else {}
+    review_pool_groups = policy_data.get('transport_review_pool_groups', {}) if policy_data else {}
+    resolved = []
+    seen = set()
+
+    unknown_group_keys = [key for key in (group_keys or []) if key not in review_pool_groups]
+    if unknown_group_keys:
+        raise SystemExit(f'unknown --review-pool-group-key values: {unknown_group_keys}')
+
+    unknown_keys = [key for key in (selected_keys or []) if key not in review_pool_policy]
+    if unknown_keys:
+        raise SystemExit(f'unknown --review-pool-key values: {unknown_keys}')
+
+    for policy_key in selected_keys or []:
+        if policy_key not in seen:
+            resolved.append(policy_key)
+            seen.add(policy_key)
+
+    for group_key in group_keys or []:
+        members = review_pool_groups[group_key].get('review_pool_keys', [])
+        for policy_key in members:
+            if policy_key not in review_pool_policy:
+                raise SystemExit(
+                    f'review-pool group {group_key} references unknown policy key {policy_key}'
+                )
+            if policy_key not in seen:
+                resolved.append(policy_key)
+                seen.add(policy_key)
+
+    return resolved
+
+
 def build_review_pool_bindings(review_paths, policy_data, selected_keys):
     review_pool_policy = policy_data.get('transport_review_pools', {}) if policy_data else {}
     selected_keys = list(selected_keys or [])
@@ -36,10 +69,6 @@ def build_review_pool_bindings(review_paths, policy_data, selected_keys):
 
     review_docs = [(path, json.loads(path.read_text())) for path in review_paths]
     bindings = []
-    unknown_keys = [key for key in selected_keys if key not in review_pool_policy]
-    if unknown_keys:
-        raise SystemExit(f'unknown --review-pool-key values: {unknown_keys}')
-
     for policy_key in selected_keys:
         record = review_pool_policy[policy_key]
         sampled_low32 = record.get('sampled_low32')
@@ -119,6 +148,7 @@ def main():
     parser.add_argument('--surface-package-input', action='append', help='Path to a phrs-surface-package-v1 JSON. Pass multiple times to fold ordered surfaces into the build.')
     parser.add_argument('--review-input', action='append', help='Path to sampled transport review JSON. Pass multiple times to provide transport-pool review sources.')
     parser.add_argument('--review-pool-key', action='append', help='Policy key from transport_review_pools to include in this package build. Pass multiple times.')
+    parser.add_argument('--review-pool-group-key', action='append', help='Group key from transport_review_pool_groups to include in this package build. Pass multiple times.')
     parser.add_argument('--policy', required=True, help='Transport policy JSON path.')
     parser.add_argument('--output-dir', required=True, help='Output directory for bindings, manifest, package dir, and binary package.')
     parser.add_argument('--package-name', default='package.phrb', help='Binary package filename relative to output-dir.')
@@ -130,8 +160,9 @@ def main():
     surface_package_input_paths = [Path(path) for path in (args.surface_package_input or [])]
     review_input_paths = [Path(path) for path in (args.review_input or [])]
     review_pool_keys = args.review_pool_key or []
-    if review_pool_keys and not review_input_paths:
-        raise SystemExit('--review-pool-key requires at least one --review-input')
+    review_pool_group_keys = args.review_pool_group_key or []
+    if (review_pool_keys or review_pool_group_keys) and not review_input_paths:
+        raise SystemExit('--review-pool-key/--review-pool-group-key requires at least one --review-input')
     if not input_paths and not bindings_input_paths and not surface_package_input_paths and not review_input_paths:
         raise SystemExit('at least one --input, --bindings-input, --surface-package-input, or --review-input is required')
 
@@ -147,8 +178,9 @@ def main():
         binding_payloads.append((bindings_input_path, load_binding_payload(bindings_input_path)))
     for surface_package_input_path in surface_package_input_paths:
         binding_payloads.append((surface_package_input_path, compile_surface_package(surface_package_input_path)))
-    if review_input_paths and review_pool_keys:
-        binding_payloads.append((Path('review-pools'), build_review_pool_bindings(review_input_paths, policy_data, review_pool_keys)))
+    resolved_review_pool_keys = resolve_review_pool_keys(policy_data, review_pool_keys, review_pool_group_keys)
+    if review_input_paths and resolved_review_pool_keys:
+        binding_payloads.append((Path('review-pools'), build_review_pool_bindings(review_input_paths, policy_data, resolved_review_pool_keys)))
     bindings = merge_bindings(binding_payloads)
 
     unresolved = bindings.get('unresolved_transport_cases', [])
@@ -178,6 +210,8 @@ def main():
         'surface_package_input_paths': [str(path) for path in surface_package_input_paths],
         'review_input_paths': [str(path) for path in review_input_paths],
         'review_pool_keys': review_pool_keys,
+        'review_pool_group_keys': review_pool_group_keys,
+        'resolved_review_pool_keys': resolved_review_pool_keys,
         'policy_path': str(policy_path),
         'bindings_path': str(bindings_path),
         'loader_manifest_path': str(loader_manifest_path),

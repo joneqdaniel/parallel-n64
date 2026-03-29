@@ -773,4 +773,7 @@
       - exact hits remain anchored by `7064585c`, `c139c1c0`, and shared `940cea6e`, with the minor shared `148e68ee` strip also active
 - Practical implication: the current native import path can now merge file-select sampled-object bindings, ordered title surfaces, and narrower review-pool seams into one runtime package without inventing a new core-side binary format first.
 - [`tools/hires_pack_build_selected_package.py`](/home/auro/code/parallel-n64/tools/hires_pack_build_selected_package.py) now accepts `--surface-package-input`, and rebuilding v9 through that direct path produces a byte-identical `PHRB` package (`55ad0bfb1792200625552f8344f687e236e62d69cf96c3447a11b0b3e34f35ab`) to the earlier manual compile-plus-merge flow.
+- The same builder now also accepts `--review-pool-group-key` via [`tools/hires_pack_transport_policy.json`](/home/auro/code/parallel-n64/tools/hires_pack_transport_policy.json).
+  - current groups: `title-press-start-128x32-pair` and `title-copyright-144x16-pair`
+  - zero-risk proof: rebuilding the current direct-surface package through `title-press-start-128x32-pair` reproduces the same `PHRB` hash `55ad0bfb1792200625552f8344f687e236e62d69cf96c3447a11b0b3e34f35ab` as the explicit per-key CLI
 

@@ -237,16 +237,17 @@
               - corrected cache-path proof: [20260328-title-control-correct-cache](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260328-title-control-correct-cache)
               - current result: the explicit-review-pool builder now reproduces the older full-title package exactly on the strict title fixture once the selected `PHRB` is actually loaded instead of the default `.hts`
               - current merged-package note: visual review of the four-shot comparison shows the merged package is better in all scenes and adds visible content rather than obviously regressing existing content
-              - active selected merged package: [20260328-selected-plus-title-v5/package.phrb](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-selected-plus-title-v5/package.phrb)
-              - active title proof: [20260328-title-minus-289-runtime](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260328-title-minus-289-runtime)
-              - merged file-select proof: [20260328-selected-plus-title-minus-289-runtime](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260328-selected-plus-title-minus-289-runtime)
+              - active selected merged package: [20260328-selected-plus-title-v6-probe148/package.phrb](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-selected-plus-title-v6-probe148/package.phrb)
+              - active title proof: [20260328-selected-plus-title-v6-probe148-runtime](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260328-selected-plus-title-v6-probe148-runtime)
+              - merged file-select proof: [20260328-selected-plus-title-v6-probe148-runtime](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260328-selected-plus-title-v6-probe148-runtime)
               - active bug target: the center-content `111` region still appears wrong or unloaded, but the active merged title center crop is byte-identical to the strict legacy `on` title reference, so it is not treated as a native import regression
               - title-family isolation now sharpens the next step:
                 - `71c71cdd` alias experiments do not change the final frame, so that alias is not the current `111` cause
                 - removing `28916d63` yields identical strict title and merged file-select outputs, so `28916d63` is redundant on the current strict fixtures and is no longer part of the active selected package
-                - active visible-title contributors are now `7701ac09` and `940cea6e`
+                - primary visible-title contributors are now `7701ac09` and `940cea6e`
+                - `148e68ee` is now included as a safe zero-diff extension: it adds one exact sampled-object hit on both strict title and merged file-select without changing either frame hash
               - debugging implication: split packages remain control fixtures only; they are not the intended product format
-              - next implication: the title path is no longer blocked on whether sampled-object transport pools can work; it is now blocked on tightening the active merged package around `7701ac09` / `940cea6e` while treating the current `111` issue as shared legacy/native correctness debt
+              - next implication: the title path is no longer blocked on whether sampled-object transport pools can work; it is now blocked on tightening the active merged package around the remaining primary `7701ac09` / `940cea6e` contributors while treating the current `111` issue as shared legacy/native correctness debt
           - practical implication: the proxy pool is no longer an undifferentiated set of `62` payloads, and the active tracked provisional choice is now `af028e08`
     - practical implication: the active `8x16` gap should not be modeled as meaningful row-local upload bytes, which makes same-start parent-tile/subrect transport a stronger next resolver target than more row-byte reinterpretation
   - hi-res traces now also expose stable bucket summaries, which collapse title misses to 5 unique classes and file-select misses to 6 unique classes

@@ -174,6 +174,30 @@
         "A later runtime slice shows the current pool is overbroad for 7701ac09.",
         "Static reconstruction proves a tighter canonical transport grouping for this 1-cycle title texrect."
       ]
+    },
+    "sampled-low32-148e68ee-fs258": {
+      "status": "selected-single-candidate",
+      "sampled_low32": "148e68ee",
+      "formatsize": 258,
+      "justification": "This minor 296x2 title/file-select copy texrect has exactly one transported candidate and extends the active merged package with one additional exact sampled-object hit on both strict fixtures without changing either output frame.",
+      "supporting_notes": [
+        "The sampled transport review exposes exactly one transported candidate for 148e68ee: legacy-d65c7fea-5c66840b-fs0-2960x20.",
+        "Adding that single candidate to the active selected merged package produces one exact hit on strict title and one exact hit on merged file select.",
+        "Both strict title and merged file-select screenshots remain byte-identical to the prior active package, so this is a low-risk broadening step rather than a visual retune."
+      ],
+      "evidence": {
+        "review_artifact": "artifacts/hires-pack-review/20260328-title-sampled-transport-v4/review.md",
+        "selected_package": "artifacts/hires-pack-review/20260328-selected-plus-title-v6-probe148/package.phrb",
+        "title_runtime_bundle": "artifacts/paper-mario-title-screen/on/20260328-selected-plus-title-v6-probe148-runtime",
+        "title_hash": "620692162a2fbf167ef6e4a468f3a56890d229e75cbfd828dc5ad56ffe73a85b",
+        "merged_file_select_bundle": "artifacts/paper-mario-file-select/on/20260328-selected-plus-title-v6-probe148-runtime",
+        "merged_file_select_hash": "c5ac0f7558547aeb197552bbb1a0881c69f6d57ff1f17358d0d1753617d253e0"
+      },
+      "overturn_conditions": [
+        "A broader validation slice shows 148e68ee causes a cross-scene regression that is not visible on the current strict fixtures.",
+        "Static reconstruction proves 148e68ee should not be carried as an independent imported record.",
+        "A later tighter selector source absorbs this family into a stronger canonical record."
+      ]
     }
   }
 }

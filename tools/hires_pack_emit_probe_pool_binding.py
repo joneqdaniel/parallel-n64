@@ -40,7 +40,7 @@ def build_transport_candidate(candidate, cache_path: Path, sampled_low32: str):
     }
 
 
-def build_binding(review, sampled_low32: str, max_candidates: int | None = None):
+def build_binding(review, sampled_low32: str, max_candidates: int | None = None, selected_replacement_id: str | None = None):
     target_group = None
     for group in review.get("groups", []):
         signature = group.get("signature", {})
@@ -67,6 +67,15 @@ def build_binding(review, sampled_low32: str, max_candidates: int | None = None)
     )
 
     candidate_rows = list(target_group.get("transport_candidates", []))
+    if selected_replacement_id is not None:
+        candidate_rows = [
+            candidate for candidate in candidate_rows
+            if candidate.get("replacement_id") == selected_replacement_id
+        ]
+        if not candidate_rows:
+            raise SystemExit(
+                f"selected_replacement_id {selected_replacement_id} not found for sampled_low32 {sampled_low32}"
+            )
     if max_candidates is not None:
         candidate_rows = candidate_rows[:max_candidates]
 
@@ -117,11 +126,12 @@ def main():
     parser.add_argument("--review", required=True, help="Path to sampled transport review.json")
     parser.add_argument("--sampled-low32", required=True, help="Target sampled_low32")
     parser.add_argument("--max-candidates", type=int, help="Optional cap on emitted transport candidates")
+    parser.add_argument("--selected-replacement-id", help="Optional exact replacement_id to emit from the review pool")
     parser.add_argument("--output", help="Optional output path")
     args = parser.parse_args()
 
     review_path = Path(args.review)
-    result = build_binding(load_json(review_path), args.sampled_low32, args.max_candidates)
+    result = build_binding(load_json(review_path), args.sampled_low32, args.max_candidates, args.selected_replacement_id)
     serialized = json.dumps(result, indent=2) + "\n"
     if args.output:
         output_path = Path(args.output)

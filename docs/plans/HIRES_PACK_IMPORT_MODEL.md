@@ -118,6 +118,9 @@ This document describes the shape of the import model itself. The evidence thres
   - narrows a materialized canonical package to one selected transported payload per policy key, so runtime-ready `PHRB` experiments can stay tool-side and reproducible
 - [`tools/hires_pack_transport_policy.json`](/home/auro/code/parallel-n64/tools/hires_pack_transport_policy.json)
   - records provisional transported-payload choices separately from family/variant-group import policy, so canonical runtime packages can be selected without pretending the choice is final or universal
+- [`tools/hires_pack_build_selected_package.py`](/home/auro/code/parallel-n64/tools/hires_pack_build_selected_package.py)
+  - builds a reproducible selected `PHRB` package from existing `bindings.json` payloads plus explicit policy-backed review-pool candidates
+  - now supports `--bindings-input` for extending an existing selected package and policy-backed single-candidate review-pool picks via `selected_replacement_id`
 
 ## Imported Index v1
 
@@ -348,7 +351,7 @@ The migration tool now emits that bridge when sampled-object bundle data is avai
         - corrected cache-path proof: [20260328-title-control-correct-cache](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260328-title-control-correct-cache)
         - current result: explicit review-pool selectors now let the tracked builder reproduce the older full-title package exactly on the strict title fixture once the selected `PHRB` is actually loaded instead of the default `.hts`
         - current merged-package note: visual review shows the combined package improves all current comparison scenes, so the import model should still aim toward one merged package rather than scene-shaped packages as the product target
-        - active selected merged package: [20260328-selected-plus-title-v7-probe148-0f47/package.phrb](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-selected-plus-title-v7-probe148-0f47/package.phrb)
+        - active selected merged package: [20260328-selected-plus-title-v8-144x16-B-policy/package.phrb](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-selected-plus-title-v8-144x16-B-policy/package.phrb)
         - active correctness concern: the center-content `111` region still looks wrong or unloaded, but the active merged title center crop is byte-identical to the strict legacy `on` title reference, so it is not treated as a native import regression
         - title-family isolation now points at the active import-side contributors:
           - `71c71cdd` alias experiments are exact-hit-positive but pixel-identical to the corrected title control
@@ -356,8 +359,9 @@ The migration tool now emits that bridge when sampled-object bundle data is avai
           - primary visible-title contributors are now `7701ac09` and `940cea6e`
           - `148e68ee` is now included as a safe zero-diff extension on the active selected merged package
           - `0f472c21` is now included as the TLUT-populated twin of that same minor 296x2 strip
+          - `0e89915a` and `1d234571` are now carried provisionally through explicit selected review-pool candidates (`legacy-2c8a8202-00000000-fs0-1440x160`) rather than hand-built probe packages
         - debugging implication: scene-shaped packages remain control artifacts, not the intended runtime format
-        - import implication: some canonical title records are transport pools, some scenes require multiple simultaneous canonical records, and the open question is now how to formalize that multi-key title path while tightening the active merged package around the remaining primary `7701ac09` / `940cea6e` contributors, because the low-risk single-candidate strip extensions are now exhausted
+        - import implication: some canonical title records are transport pools, some scenes require multiple simultaneous canonical records, and the open question is now how to formalize that multi-key title path while tightening the active merged package around the remaining primary `7701ac09` / `940cea6e` contributors, with the `144x16` lower-strip pair now recorded as policy-backed provisional selections
     - practical implication: the import/runtime transport problem for `7064585c` now has a tracked provisional selection, with `81b32e31` retained as the nearest alternate and `c3984de7` as the strongest structurally distinct fallback
 - the package manifest now also records decoded `pixel_sha256` values, `alpha_normalized_pixel_sha256` values, and duplicate-pixel groups, so importer design can distinguish fully distinct transport content from any future duplicate or near-duplicate transport variants
   - markdown: [20260327-sampled-legacy-vs-canonical.md](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260327-sampled-legacy-vs-canonical.md)

@@ -222,6 +222,72 @@
         "Static reconstruction proves 0f472c21 should collapse into another canonical record rather than remain explicit.",
         "A later tighter selector source absorbs this family into a stronger canonical record."
       ]
+    },
+    "sampled-low32-0e89915a-fs259": {
+      "status": "selected-provisional-candidate",
+      "sampled_low32": "0e89915a",
+      "formatsize": 259,
+      "selected_replacement_id": "legacy-2c8a8202-00000000-fs0-1440x160",
+      "justification": "This 144x16 1-cycle title strip is merge-safe on strict file select in both candidate forms, and the 2c8a8202 transport is the current provisional pick because it moves the affected title strip closer to legacy-on by absolute error while leaving the title center unchanged.",
+      "supporting_notes": [
+        "The lower-strip 144x16 title pair is not involved in the shared title-center 111 issue; both candidates leave the center crop byte-identical to the current active merged package.",
+        "Both A and B packages reproduce the exact same merged file-select frame and exact-hit buckets as the current active package.",
+        "Within the isolated changed title region, B lowers AE and changed-pixel count against the legacy-on title frame, while A remains slightly better on RMSE, so this stays provisional rather than final."
+      ],
+      "evidence": {
+        "selected_runtime_bundle": "artifacts/paper-mario-title-screen/on/20260328-selected-plus-title-v8-144x16-B-runtime",
+        "selected_hash": "1ea9a03044aaf60a64e7c5bd9b709b268d1cceecfd716e48ac0c5234b837e943",
+        "alternate_runtime_bundle": "artifacts/paper-mario-title-screen/on/20260328-selected-plus-title-v8-144x16-A-runtime",
+        "alternate_hash": "ec897716f635434ba9d162d9457243f7d6a29d3df0e83caab29d33f15849e68a",
+        "merged_file_select_bundle": "artifacts/paper-mario-file-select/on/20260328-selected-plus-title-v8-144x16-B-runtime",
+        "merged_file_select_hash": "c5ac0f7558547aeb197552bbb1a0881c69f6d57ff1f17358d0d1753617d253e0",
+        "selected_vs_control": {
+          "ae": 35515114,
+          "rmse": 15.467552768284424
+        },
+        "alternate_vs_control": {
+          "ae": 32318139,
+          "rmse": 15.69289245319327
+        },
+        "selected_vs_legacy_on": {
+          "ae": 32318187,
+          "rmse": 15.693491785483193
+        },
+        "alternate_vs_legacy_on": {
+          "ae": 35515162,
+          "rmse": 15.4676826743546
+        }
+      },
+      "overturn_conditions": [
+        "A stronger visual/static comparison shows the alternate 2a6a962f transport is more faithful in the affected lower strip.",
+        "A broader merged-package validation slice shows 2c8a8202 causes cross-scene leakage outside the current strict fixtures.",
+        "Static Tier 2 reconstruction proves these 144x16 strips should collapse into a tighter canonical transport rule."
+      ]
+    },
+    "sampled-low32-1d234571-fs259": {
+      "status": "selected-provisional-candidate",
+      "sampled_low32": "1d234571",
+      "formatsize": 259,
+      "selected_replacement_id": "legacy-2c8a8202-00000000-fs0-1440x160",
+      "justification": "This twin 144x16 1-cycle title strip shares the same provisional B-side transport choice as 0e89915a because the pair only affects the lower title strip, remains merge-safe on strict file select, and the 2c8a8202 transport lowers absolute error against legacy-on in the affected region.",
+      "supporting_notes": [
+        "Both 144x16 sampled objects hit exactly once on strict title and do not alter strict merged file select.",
+        "The two sampled objects share the same two transported 1440x160 candidates and move together in the runtime probe packages.",
+        "The selection remains provisional because A still wins slightly on RMSE even though B wins on AE and changed-pixel count against the legacy-on title frame."
+      ],
+      "evidence": {
+        "selected_runtime_bundle": "artifacts/paper-mario-title-screen/on/20260328-selected-plus-title-v8-144x16-B-runtime",
+        "selected_hash": "1ea9a03044aaf60a64e7c5bd9b709b268d1cceecfd716e48ac0c5234b837e943",
+        "alternate_runtime_bundle": "artifacts/paper-mario-title-screen/on/20260328-selected-plus-title-v8-144x16-A-runtime",
+        "alternate_hash": "ec897716f635434ba9d162d9457243f7d6a29d3df0e83caab29d33f15849e68a",
+        "merged_file_select_bundle": "artifacts/paper-mario-file-select/on/20260328-selected-plus-title-v8-144x16-B-runtime",
+        "merged_file_select_hash": "c5ac0f7558547aeb197552bbb1a0881c69f6d57ff1f17358d0d1753617d253e0"
+      },
+      "overturn_conditions": [
+        "A stronger visual/static comparison shows the alternate 2a6a962f transport is more faithful in the affected lower strip.",
+        "A broader merged-package validation slice shows 2c8a8202 causes cross-scene leakage outside the current strict fixtures.",
+        "Static Tier 2 reconstruction proves these 144x16 strips should collapse into a tighter canonical transport rule."
+      ]
     }
   }
 }

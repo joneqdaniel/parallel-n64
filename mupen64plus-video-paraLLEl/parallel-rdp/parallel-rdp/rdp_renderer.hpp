@@ -149,6 +149,7 @@ public:
 	void set_hires_debug_ci_palette_probe(bool enable);
 	void set_hires_debug_sampled_object_probe(bool enable);
 	void set_hires_debug_sampled_object_exact_lookup(bool enable);
+	void begin_frame_context();
 	void set_hires_ci_compatibility_mode(HiresCICompatibilityMode mode);
 	void set_hires_debug_ci_selectors(std::vector<CILow32DimsSelector> selectors);
 	void set_hires_debug_ci_low32_fallback(HiresDebugCILow32FallbackMode mode);
@@ -297,6 +298,7 @@ private:
 	std::unordered_set<std::string> hires_ci_palette_probe_logged_hits;
 	std::unordered_set<std::string> hires_ci_palette_probe_logged_contexts;
 	std::unordered_set<std::string> hires_sampled_object_probe_logged_contexts;
+	std::unordered_map<uint64_t, uint32_t> hires_ordered_surface_sequence_cursor;
 	Vulkan::BufferHandle tmem_instances;
 	Vulkan::BufferHandle span_setups;
 	Vulkan::BufferHandle blender_divider_lut_buffer;

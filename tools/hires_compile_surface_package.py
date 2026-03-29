@@ -32,10 +32,47 @@ def candidate_index(group: dict):
     }
 
 
-def build_transport_candidate(candidate: dict, cache_path: str, selector_checksum64: str, sampled_low32: str):
+ORDERED_SURFACE_SELECTOR_TAG = 0x5352464300000000
+
+
+def make_ordered_surface_selector(sequence_index: int) -> str:
+    return f"{(ORDERED_SURFACE_SELECTOR_TAG | int(sequence_index)):016x}"
+
+
+def resolve_surface_unresolved_fallback_slots(surface: dict):
+    slots = surface.get("slots", [])
+    unresolved = surface.get("unresolved_sequences", [])
+    if not unresolved:
+        return []
+
+    by_sequence = {int(slot.get("sequence_index", 0)): slot for slot in slots}
+    fallback_slots = []
+    for row in sorted(unresolved, key=lambda item: int(item.get("sequence_index", 0))):
+        seq = int(row.get("sequence_index", 0))
+        proxy_slot = None
+        for distance in range(1, len(slots) + 1):
+            prev_slot = by_sequence.get(seq - distance)
+            next_slot = by_sequence.get(seq + distance)
+            if prev_slot and prev_slot.get("replacement_id"):
+                proxy_slot = prev_slot
+                break
+            if next_slot and next_slot.get("replacement_id"):
+                proxy_slot = next_slot
+                break
+        if proxy_slot is None:
+            continue
+        fallback_slots.append({
+            "fallback_sequence_index": len(fallback_slots),
+            "unresolved_sequence_index": seq,
+            "proxy_slot": proxy_slot,
+        })
+    return fallback_slots
+
+
+def build_transport_candidate(candidate: dict, cache_path: str, selector_checksum64: str, sampled_low32: str, *, surface_sequence_index=None, surface_upload_key=None):
     width = int(candidate["width"])
     height = int(candidate["height"])
-    return {
+    result = {
         "replacement_id": candidate["replacement_id"],
         "source": {
             "legacy_checksum64": candidate["checksum64"],
@@ -63,6 +100,11 @@ def build_transport_candidate(candidate: dict, cache_path: str, selector_checksu
         "selector_checksum64": selector_checksum64,
         "variant_group_id": f"surface-{sampled_low32}-{selector_checksum64}",
     }
+    if surface_sequence_index is not None:
+        result["surface_sequence_index"] = int(surface_sequence_index)
+    if surface_upload_key is not None:
+        result["surface_upload_key"] = str(surface_upload_key).lower()
+    return result
 
 
 def build_surface_binding(surface_entry: dict, group: dict | None, cache_path: str | None):
@@ -74,9 +116,29 @@ def build_surface_binding(surface_entry: dict, group: dict | None, cache_path: s
     }
     candidates = embedded_candidates or (candidate_index(group) if group is not None else {})
     selectors = {}
+    surface_slots = []
+
+    selector_mode = surface_entry.get('selector_mode') or surface.get('selector_mode')
+    if selector_mode in {'legacy', 'zero'}:
+        selector_mode = 'upload-only'
+    if not selector_mode:
+        selector_mode = 'dual' if surface.get('unresolved_sequences') else 'upload-only'
+    if selector_mode not in {'upload-only', 'ordered-only', 'dual'}:
+        raise SystemExit(f"unsupported selector_mode {selector_mode!r} for {surface['surface_id']}")
+
+    emit_upload_selectors = selector_mode in {'upload-only', 'dual'}
+    emit_ordered_selectors = selector_mode in {'ordered-only', 'dual'}
 
     for slot in slots:
         replacement_id = slot.get("replacement_id")
+        slot_payload = {
+            "sequence_index": int(slot.get("sequence_index", 0)),
+            "selector_checksum64": make_ordered_surface_selector(slot.get("sequence_index", 0)),
+            "upload_key": slot.get("upload_key", "").lower(),
+            "replacement_id": replacement_id,
+            "addr_hex": slot.get("addr_hex"),
+        }
+        surface_slots.append(slot_payload)
         if not replacement_id:
             continue
         candidate = candidates.get(replacement_id)
@@ -84,11 +146,54 @@ def build_surface_binding(surface_entry: dict, group: dict | None, cache_path: s
             raise SystemExit(
                 f"replacement_id {replacement_id} is missing from sampled transport data for {surface['sampled_low32']}"
             )
-        selector_checksum64 = slot["upload_key"].lower()
-        selectors.setdefault(
-            (replacement_id, selector_checksum64),
-            build_transport_candidate(candidate, surface_entry.get('source_cache_path') or cache_path, selector_checksum64, surface["sampled_low32"]),
-        )
+        upload_selector_checksum64 = slot_payload["upload_key"]
+        if emit_upload_selectors and upload_selector_checksum64:
+            selectors.setdefault(
+                (replacement_id, upload_selector_checksum64),
+                build_transport_candidate(
+                    candidate,
+                    surface_entry.get('source_cache_path') or cache_path,
+                    upload_selector_checksum64,
+                    surface["sampled_low32"],
+                    surface_upload_key=slot_payload["upload_key"],
+                ),
+            )
+
+    if emit_ordered_selectors:
+        fallback_slots = resolve_surface_unresolved_fallback_slots(surface)
+        if fallback_slots:
+            ordered_source_slots = []
+            for fallback_slot in fallback_slots:
+                proxy_slot = fallback_slot["proxy_slot"]
+                candidate = candidates.get(proxy_slot.get("replacement_id"))
+                if candidate is None:
+                    raise SystemExit(
+                        f"replacement_id {proxy_slot.get('replacement_id')} is missing from sampled transport data for {surface['sampled_low32']}"
+                    )
+                ordered_source_slots.append((fallback_slot, proxy_slot, candidate))
+        else:
+            ordered_source_slots = []
+            for slot in slots:
+                replacement_id = slot.get("replacement_id")
+                if not replacement_id:
+                    continue
+                candidate = candidates.get(replacement_id)
+                if candidate is None:
+                    raise SystemExit(
+                        f"replacement_id {replacement_id} is missing from sampled transport data for {surface['sampled_low32']}"
+                    )
+                ordered_source_slots.append(({"fallback_sequence_index": int(slot.get("sequence_index", 0)), "unresolved_sequence_index": None}, slot, candidate))
+
+        for fallback_slot, proxy_slot, candidate in ordered_source_slots:
+            ordered_selector_checksum64 = make_ordered_surface_selector(fallback_slot["fallback_sequence_index"])
+            selectors[(candidate["replacement_id"], ordered_selector_checksum64)] = build_transport_candidate(
+                candidate,
+                surface_entry.get('source_cache_path') or cache_path,
+                ordered_selector_checksum64,
+                surface["sampled_low32"],
+                surface_sequence_index=fallback_slot["unresolved_sequence_index"] if fallback_slot["unresolved_sequence_index"] is not None else proxy_slot.get("sequence_index", 0),
+                surface_upload_key=str(proxy_slot.get("upload_key", "")).lower(),
+            )
 
     canonical_identity = dict(surface_entry.get('canonical_identity') or (group.get("canonical_identity", {}) if group is not None else {}))
     if not canonical_identity:
@@ -117,6 +222,8 @@ def build_surface_binding(surface_entry: dict, group: dict | None, cache_path: s
         "canonical_identity": canonical_identity,
         "surface_tile_dims": surface.get("surface_tile_dims"),
         "slot_count": surface.get("slot_count", 0),
+        "selector_mode": selector_mode,
+        "surface_slots": surface_slots,
         "upload_low32s": [],
         "upload_pcrcs": [],
         "transport_candidates": sorted(
@@ -154,6 +261,7 @@ def build_surface_binding(surface_entry: dict, group: dict | None, cache_path: s
             "canonical_identity": canonical_identity,
             "surface_tile_dims": surface.get("surface_tile_dims"),
             "slot_count": surface.get("slot_count", 0),
+            "surface_slots": surface_slots,
             "unresolved_sequences": surface.get("unresolved_sequences", []),
             "edge_review": {
                 "first_resolved_index": edge_review.get("first_resolved_index"),

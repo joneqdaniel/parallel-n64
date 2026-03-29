@@ -284,6 +284,7 @@ void CommandProcessor::begin_frame_context()
 {
 	flush();
 	drain_command_ring();
+	renderer.begin_frame_context();
 	device.next_frame_context();
 }
 

@@ -27,6 +27,32 @@ constexpr uint16_t GL_UNSIGNED_SHORT_5_6_5 = 0x8363;
 
 constexpr uint32_t GL_RGB8 = 0x8051;
 constexpr uint32_t GL_RGBA8 = 0x8058;
+constexpr uint64_t ORDERED_SURFACE_SELECTOR_TAG = 0x5352464300000000ull;
+constexpr uint64_t ORDERED_SURFACE_SELECTOR_MASK = 0xffffffff00000000ull;
+
+inline bool is_ordered_surface_selector(uint64_t selector_checksum64)
+{
+	return (selector_checksum64 & ORDERED_SURFACE_SELECTOR_MASK) == ORDERED_SURFACE_SELECTOR_TAG;
+}
+
+inline uint32_t get_ordered_surface_slot_index(uint64_t selector_checksum64)
+{
+	return uint32_t(selector_checksum64 & 0xffffffffu);
+}
+
+inline void append_unique_ordered_surface_selector(std::vector<uint64_t> &selectors, uint64_t selector_checksum64)
+{
+	for (auto existing : selectors)
+		if (existing == selector_checksum64)
+			return;
+	selectors.push_back(selector_checksum64);
+	std::sort(selectors.begin(), selectors.end());
+}
+
+inline uint64_t compose_ordered_surface_index_key(uint64_t checksum64, uint16_t formatsize)
+{
+	return checksum64 ^ (uint64_t(formatsize) << 48);
+}
 
 
 struct PHRBHeader
@@ -211,6 +237,11 @@ void ReplacementProvider::add_entry(Entry &&entry)
 	const size_t index = entries_.size();
 	checksum_index_[entry.checksum64].push_back(index);
 	checksum_low32_index_[uint32_t(entry.checksum64 & 0xffffffffu)].push_back(index);
+	if (is_ordered_surface_selector(entry.selector_checksum64))
+	{
+		auto ordered_key = compose_ordered_surface_index_key(entry.checksum64, entry.formatsize);
+		append_unique_ordered_surface_selector(ordered_surface_selectors_[ordered_key], entry.selector_checksum64);
+	}
 	entries_.push_back(std::move(entry));
 }
 
@@ -220,6 +251,7 @@ void ReplacementProvider::clear()
 	entries_.clear();
 	checksum_index_.clear();
 	checksum_low32_index_.clear();
+	ordered_surface_selectors_.clear();
 }
 
 size_t ReplacementProvider::entry_count() const
@@ -317,6 +349,27 @@ const ReplacementProvider::Entry *ReplacementProvider::find_entry(uint64_t check
 bool ReplacementProvider::lookup(uint64_t checksum64, uint16_t formatsize, ReplacementMeta *out) const
 {
 	return lookup_with_selector(checksum64, formatsize, 0, out);
+}
+
+uint64_t ReplacementProvider::ordered_surface_slot_selector_checksum64(uint32_t slot_index)
+{
+	return ORDERED_SURFACE_SELECTOR_TAG | uint64_t(slot_index);
+}
+
+uint32_t ReplacementProvider::ordered_surface_selector_count(uint64_t checksum64, uint16_t formatsize) const
+{
+	auto it = ordered_surface_selectors_.find(compose_ordered_surface_index_key(checksum64, formatsize));
+	if (it == ordered_surface_selectors_.end())
+		return 0;
+	return uint32_t(it->second.size());
+}
+
+uint64_t ReplacementProvider::ordered_surface_selector_checksum64(uint64_t checksum64, uint16_t formatsize, uint32_t selector_index) const
+{
+	auto it = ordered_surface_selectors_.find(compose_ordered_surface_index_key(checksum64, formatsize));
+	if (it == ordered_surface_selectors_.end() || selector_index >= it->second.size())
+		return 0;
+	return it->second[selector_index];
 }
 
 bool ReplacementProvider::lookup_with_selector(uint64_t checksum64, uint16_t formatsize, uint64_t selector_checksum64, ReplacementMeta *out) const

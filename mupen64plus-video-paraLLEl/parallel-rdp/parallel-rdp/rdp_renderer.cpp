@@ -120,6 +120,11 @@ static uint32_t compute_hires_texture_source_span_bytes(uint32_t row_stride_byte
 	return row_stride_bytes * (height - 1) + row_bytes;
 }
 
+static uint64_t make_hires_ordered_surface_cursor_key(uint64_t checksum64, uint16_t formatsize)
+{
+	return checksum64 ^ (uint64_t(formatsize) << 48);
+}
+
 static bool compute_hires_tile_size_pixels(const TileSize &size, uint32_t &width_pixels, uint32_t &height_pixels)
 {
 	const uint32_t sl = size.slo >> 2;
@@ -956,6 +961,7 @@ void Renderer::set_replacement_provider(const ReplacementProvider *provider)
 	hires_ci_palette_probe_logged_hits.clear();
 	hires_ci_palette_probe_logged_contexts.clear();
 	hires_sampled_object_probe_logged_contexts.clear();
+	hires_ordered_surface_sequence_cursor.clear();
 
 	if (caps.hires_replacement_shader)
 	{
@@ -1019,6 +1025,11 @@ void Renderer::set_hires_debug_sampled_object_exact_lookup(bool enable)
 	hires_debug_sampled_object_exact_lookup = enable;
 	if (hires_debug_sampled_object_exact_lookup)
 		LOGI("Hi-res debug sampled-object exact lookup enabled.\n");
+}
+
+void Renderer::begin_frame_context()
+{
+	hires_ordered_surface_sequence_cursor.clear();
 }
 
 void Renderer::set_hires_ci_compatibility_mode(HiresCICompatibilityMode mode)
@@ -1872,10 +1883,41 @@ void Renderer::draw_shaded_primitive(const TriangleSetup &setup, const Attribute
 		uint64_t sampled_checksum64 = 0;
 		const char *sampled_reason = nullptr;
 		const uint64_t sampled_selector_checksum64 = texel0_state.checksum64;
-		auto try_sampled_exact = [&](uint32_t palette_crc, const char *reason) {
+		bool ordered_surface_slot_reserved = false;
+		uint64_t ordered_surface_selector_checksum64 = 0;
+
+		auto reserve_ordered_surface_selector = [&](uint64_t checksum64, uint16_t formatsize) -> bool {
+			if (ordered_surface_slot_reserved)
+				return true;
+			if (!replacement_provider)
+				return false;
+			uint32_t selector_count = replacement_provider->ordered_surface_selector_count(checksum64, formatsize);
+			if (selector_count == 0)
+				return false;
+			uint64_t cursor_key = make_hires_ordered_surface_cursor_key(checksum64, formatsize);
+			uint32_t &cursor = hires_ordered_surface_sequence_cursor[cursor_key];
+			uint32_t selector_index = cursor % selector_count;
+			cursor++;
+			ordered_surface_selector_checksum64 = replacement_provider->ordered_surface_selector_checksum64(checksum64, formatsize, selector_index);
+			if (ordered_surface_selector_checksum64 == 0)
+				return false;
+			ordered_surface_slot_reserved = true;
+			return true;
+		};
+
+		auto try_sampled_exact = [&](uint32_t palette_crc, const char *reason_exact, const char *reason_ordered_surface) {
 			const uint64_t checksum64 = detail::compose_hires_checksum64(sampled_identity.texture_crc, palette_crc);
 			ReplacementMeta candidate_meta = {};
-			if (!replacement_provider->lookup_with_selector(checksum64, sampled_identity.formatsize, sampled_selector_checksum64, &candidate_meta))
+			uint64_t resolved_selector_checksum64 = sampled_selector_checksum64;
+			const char *resolved_reason = reason_exact;
+			bool lookup_hit = replacement_provider->lookup_with_selector(checksum64, sampled_identity.formatsize, resolved_selector_checksum64, &candidate_meta);
+			if (!lookup_hit && reserve_ordered_surface_selector(checksum64, sampled_identity.formatsize))
+			{
+				resolved_selector_checksum64 = ordered_surface_selector_checksum64;
+				resolved_reason = reason_ordered_surface;
+				lookup_hit = replacement_provider->lookup_with_selector(checksum64, sampled_identity.formatsize, resolved_selector_checksum64, &candidate_meta);
+			}
+			if (!lookup_hit)
 			{
 				if (hires_debug_sampled_object_probe)
 				{
@@ -1886,7 +1928,7 @@ void Renderer::draw_shaded_primitive(const TriangleSetup &setup, const Attribute
 					     sampled_identity.texture_crc,
 					     palette_crc,
 					     sampled_identity.formatsize,
-					     static_cast<unsigned long long>(sampled_selector_checksum64),
+					     static_cast<unsigned long long>(resolved_selector_checksum64),
 					     replacement_provider->enabled() ? 1u : 0u,
 					     replacement_provider->entry_count());
 				}
@@ -1894,7 +1936,7 @@ void Renderer::draw_shaded_primitive(const TriangleSetup &setup, const Attribute
 			}
 			candidate_meta.orig_w = sampled_identity.width_pixels;
 			candidate_meta.orig_h = sampled_identity.height_pixels;
-			if (!resolve_hires_replacement_descriptor(checksum64, sampled_identity.formatsize, sampled_selector_checksum64, candidate_meta))
+			if (!resolve_hires_replacement_descriptor(checksum64, sampled_identity.formatsize, resolved_selector_checksum64, candidate_meta))
 			{
 				if (hires_debug_sampled_object_probe)
 				{
@@ -1905,7 +1947,7 @@ void Renderer::draw_shaded_primitive(const TriangleSetup &setup, const Attribute
 					     sampled_identity.texture_crc,
 					     palette_crc,
 					     sampled_identity.formatsize,
-					     static_cast<unsigned long long>(sampled_selector_checksum64),
+					     static_cast<unsigned long long>(resolved_selector_checksum64),
 					     candidate_meta.repl_w,
 					     candidate_meta.repl_h);
 				}
@@ -1913,14 +1955,14 @@ void Renderer::draw_shaded_primitive(const TriangleSetup &setup, const Attribute
 			}
 			sampled_meta = candidate_meta;
 			sampled_checksum64 = checksum64;
-			sampled_reason = reason;
+			sampled_reason = resolved_reason;
 			return true;
 		};
 
 		const bool sampled_hit =
-			try_sampled_exact(sampled_identity.sparse_crc, "sampled-sparse-exact") ||
+			try_sampled_exact(sampled_identity.sparse_crc, "sampled-sparse-exact", "sampled-sparse-ordered-surface") ||
 			(sampled_identity.entry_crc != sampled_identity.sparse_crc &&
-			 try_sampled_exact(sampled_identity.entry_crc, "sampled-entry-exact"));
+			 try_sampled_exact(sampled_identity.entry_crc, "sampled-entry-exact", "sampled-entry-ordered-surface"));
 		if (sampled_hit)
 		{
 			ReplacementTileState sampled_state = {};

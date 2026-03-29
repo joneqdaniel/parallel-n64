@@ -534,6 +534,10 @@
   - `940cea6e` continues to behave like shared title/file-select content under both the surface-only and merged package paths
   - the grouped title delta is narrow and intentional: versus [`20260329-selected-plus-title-v9-surface-runtime`](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260329-selected-plus-title-v9-surface-runtime), the new grouped package adds the `144x16` copyright pair and changes the lower title strip (`AE=112032`, `RMSE=0.0700408`) without destabilizing file select
 - [`tools/hires_pack_build_selected_package.py`](/home/auro/code/parallel-n64/tools/hires_pack_build_selected_package.py) now supports `--surface-package-input`, and the direct builder path reproduces the validated v9 package byte-for-byte.
+- Grouped review-pool seams can now be precompiled into static surface-package inputs via [`tools/hires_emit_review_pool_surfaces.py`](/home/auro/code/parallel-n64/tools/hires_emit_review_pool_surfaces.py).
+  - emitted grouped surface package: [`20260329-title-grouped-review-surfaces/surface-package.json`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-grouped-review-surfaces/surface-package.json)
+  - surfaceized selected package: [`20260329-selected-plus-title-v10-surfaceized/package.phrb`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-selected-plus-title-v10-surfaceized/package.phrb)
+  - runtime equivalence: the surfaceized package reproduces the active grouped package exactly on both strict scenes (`521539a34c40488bdfe987779a3c53ca1624c3eb985d362f6d1b7934d0064b31` on title, `c5ac0f7558547aeb197552bbb1a0881c69f6d57ff1f17358d0d1753617d253e0` on file select)
 - The same builder now supports `--review-pool-group-key` for coupled title seams.
   - current groups: `title-press-start-128x32-pair` and `title-copyright-144x16-pair`
   - validation: rebuilding the current direct-surface package through `title-press-start-128x32-pair` reproduces the same `PHRB` hash `55ad0bfb1792200625552f8344f687e236e62d69cf96c3447a11b0b3e34f35ab` as the explicit per-key build

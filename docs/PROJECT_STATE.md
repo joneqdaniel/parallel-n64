@@ -776,6 +776,13 @@
       - hash `c5ac0f7558547aeb197552bbb1a0881c69f6d57ff1f17358d0d1753617d253e0`
       - exact hits remain anchored by `7064585c`, `c139c1c0`, and shared `940cea6e`, with the minor shared `148e68ee` strip also active
 - Practical implication: the native import path can now merge file-select sampled-object bindings, ordered title surfaces, and grouped coupled review-pool seams into one runtime package without inventing a new core-side binary format first.
+- Grouped review-pool seams can now also be materialized into static surface-package inputs through [`tools/hires_emit_review_pool_surfaces.py`](/home/auro/code/parallel-n64/tools/hires_emit_review_pool_surfaces.py).
+  - surface package: [`20260329-title-grouped-review-surfaces/surface-package.json`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-grouped-review-surfaces/surface-package.json)
+  - surfaceized selected package: [`20260329-selected-plus-title-v10-surfaceized/package.phrb`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-selected-plus-title-v10-surfaceized/package.phrb)
+  - runtime equivalence proofs:
+    - title: [`20260329-selected-plus-title-v10-surfaceized-runtime`](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260329-selected-plus-title-v10-surfaceized-runtime) -> hash `521539a34c40488bdfe987779a3c53ca1624c3eb985d362f6d1b7934d0064b31`
+    - file select: [`20260329-selected-plus-title-v10-surfaceized-runtime`](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260329-selected-plus-title-v10-surfaceized-runtime) -> hash `c5ac0f7558547aeb197552bbb1a0881c69f6d57ff1f17358d0d1753617d253e0`
+  - note: the surfaceized `PHRB` hash differs from `v9-grouped`, but the emitted runtime records, exact-hit buckets, and strict-scene screenshots are identical
 - [`tools/hires_pack_build_selected_package.py`](/home/auro/code/parallel-n64/tools/hires_pack_build_selected_package.py) now accepts `--surface-package-input`, and rebuilding v9 through that direct path produces a byte-identical `PHRB` package (`55ad0bfb1792200625552f8344f687e236e62d69cf96c3447a11b0b3e34f35ab`) to the earlier manual compile-plus-merge flow.
 - The same builder now also accepts `--review-pool-group-key` via [`tools/hires_pack_transport_policy.json`](/home/auro/code/parallel-n64/tools/hires_pack_transport_policy.json).
   - current groups: `title-press-start-128x32-pair` and `title-copyright-144x16-pair`

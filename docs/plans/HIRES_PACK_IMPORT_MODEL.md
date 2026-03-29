@@ -532,4 +532,8 @@ This is the preferred inspection path while the import format is still evolving.
     - title: [`20260329-selected-plus-title-v9-grouped-runtime`](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260329-selected-plus-title-v9-grouped-runtime)
     - file select: [`20260329-selected-plus-title-v9-grouped-runtime`](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260329-selected-plus-title-v9-grouped-runtime)
     - practical outcome: the grouped builder path promotes the `144x16` copyright pair into the active merged package while keeping file select byte-identical to the earlier merged v9 result
+  - grouped seams can now be re-expressed as static surface-package inputs via [`tools/hires_emit_review_pool_surfaces.py`](/home/auro/code/parallel-n64/tools/hires_emit_review_pool_surfaces.py)
+    - surface package: [`20260329-title-grouped-review-surfaces/surface-package.json`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-grouped-review-surfaces/surface-package.json)
+    - surfaceized selected package: [`20260329-selected-plus-title-v10-surfaceized/package.phrb`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-selected-plus-title-v10-surfaceized/package.phrb)
+    - practical outcome: the surfaceized path reproduces the same strict-scene runtime outputs as `v9-grouped`, so grouped review seams no longer need to stay live builder inputs to remain usable
 

@@ -290,6 +290,56 @@
         "A broader merged-package validation slice shows 2c8a8202 causes cross-scene leakage outside the current strict fixtures.",
         "A later canonical selector absorbs these now-source-backed 144x16 copyright chunks into a tighter shared transport rule."
       ]
+    },
+    "sampled-low32-049201f4-fs259": {
+      "status": "selected-provisional-candidate",
+      "formatsize": 259,
+      "selected_replacement_id": "legacy-09e981b2-0001abdc-fs0-1280x320",
+      "selector_mode": "zero",
+      "justification": "The source-backed Press Start IA8 seam only wakes up under zero-selector sampled-object transport, and 09e981b2 is the current leading candidate because it is the lowest-disturbance zero-selector title result while remaining byte-identical on strict merged file select.",
+      "supporting_notes": [
+        "The seeded legacy-selector review pool was a complete no-op for all five 1280x320 candidates; zero-selector transport is the first mode that produces exact hits on both sampled objects.",
+        "09e981b2 produces one exact hit on 049201f4 and one on ce437230 in the strict title fixture.",
+        "The same zero-selector package remains byte-identical to the active merged file-select fixture and does not introduce any 049201f4 or ce437230 hits there.",
+        "The zero-selector candidate montage makes 09e981b2 the strongest current visual lead among the five source-backed 1280x320 payloads, but this remains provisional until broader review or stronger static evidence narrows it further."
+      ],
+      "evidence": {
+        "seeded_review_artifact": "artifacts/hires-pack-review/20260329-title-press-start-seeded/review.md",
+        "zero_selector_summary": "artifacts/hires-pack-review/20260329-title-press-start-zero-selector/runtime-summary.md",
+        "title_runtime_bundle": "artifacts/paper-mario-title-screen/on/20260329-press-start-09e981b2-zero-selector-runtime-v2",
+        "file_select_runtime_bundle": "artifacts/paper-mario-file-select/on/20260329-press-start-09e981b2-zero-selector-runtime"
+      },
+      "overturn_conditions": [
+        "A later zero-selector candidate proves visually superior without regressing strict merged file select.",
+        "A stronger static resolver or selector source recovers a non-zero-selector transport for this seam.",
+        "A broader fixture slice shows that the zero-selector 09e981b2 transport bleeds into other scenes."
+      ],
+      "sampled_low32": "049201f4"
+    },
+    "sampled-low32-ce437230-fs259": {
+      "status": "selected-provisional-candidate",
+      "formatsize": 259,
+      "selected_replacement_id": "legacy-09e981b2-0001abdc-fs0-1280x320",
+      "selector_mode": "zero",
+      "justification": "The source-backed Press Start IA8 seam only wakes up under zero-selector sampled-object transport, and 09e981b2 is the current leading candidate because it is the lowest-disturbance zero-selector title result while remaining byte-identical on strict merged file select.",
+      "supporting_notes": [
+        "The seeded legacy-selector review pool was a complete no-op for all five 1280x320 candidates; zero-selector transport is the first mode that produces exact hits on both sampled objects.",
+        "09e981b2 produces one exact hit on 049201f4 and one on ce437230 in the strict title fixture.",
+        "The same zero-selector package remains byte-identical to the active merged file-select fixture and does not introduce any 049201f4 or ce437230 hits there.",
+        "The zero-selector candidate montage makes 09e981b2 the strongest current visual lead among the five source-backed 1280x320 payloads, but this remains provisional until broader review or stronger static evidence narrows it further."
+      ],
+      "evidence": {
+        "seeded_review_artifact": "artifacts/hires-pack-review/20260329-title-press-start-seeded/review.md",
+        "zero_selector_summary": "artifacts/hires-pack-review/20260329-title-press-start-zero-selector/runtime-summary.md",
+        "title_runtime_bundle": "artifacts/paper-mario-title-screen/on/20260329-press-start-09e981b2-zero-selector-runtime-v2",
+        "file_select_runtime_bundle": "artifacts/paper-mario-file-select/on/20260329-press-start-09e981b2-zero-selector-runtime"
+      },
+      "overturn_conditions": [
+        "A later zero-selector candidate proves visually superior without regressing strict merged file select.",
+        "A stronger static resolver or selector source recovers a non-zero-selector transport for this seam.",
+        "A broader fixture slice shows that the zero-selector 09e981b2 transport bleeds into other scenes."
+      ],
+      "sampled_low32": "ce437230"
     }
   }
 }

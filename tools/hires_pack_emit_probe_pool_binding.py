@@ -9,7 +9,8 @@ def load_json(path: Path):
     return json.loads(path.read_text())
 
 
-def build_transport_candidate(candidate, cache_path: Path, sampled_low32: str):
+def build_transport_candidate(candidate, cache_path: Path, sampled_low32: str, selector_mode: str):
+    selector_checksum64 = candidate["checksum64"] if selector_mode == "legacy" else "0000000000000000"
     return {
         "replacement_id": candidate["replacement_id"],
         "source": {
@@ -35,12 +36,18 @@ def build_transport_candidate(candidate, cache_path: Path, sampled_low32: str):
             "data_size": candidate["data_size"],
             "is_hires": True,
         },
-        "selector_checksum64": candidate["checksum64"],
+        "selector_checksum64": selector_checksum64,
         "variant_group_id": f"sampled-{sampled_low32}-{candidate['width']}x{candidate['height']}-{candidate['texture_crc']}",
     }
 
 
-def build_binding(review, sampled_low32: str, max_candidates: int | None = None, selected_replacement_id: str | None = None):
+def build_binding(
+    review,
+    sampled_low32: str,
+    max_candidates: int | None = None,
+    selected_replacement_id: str | None = None,
+    selector_mode: str = "legacy",
+):
     target_group = None
     for group in review.get("groups", []):
         signature = group.get("signature", {})
@@ -80,7 +87,7 @@ def build_binding(review, sampled_low32: str, max_candidates: int | None = None,
         candidate_rows = candidate_rows[:max_candidates]
 
     transport_candidates = [
-        build_transport_candidate(candidate, Path(review["cache"]), sampled_low32)
+        build_transport_candidate(candidate, Path(review["cache"]), sampled_low32, selector_mode)
         for candidate in candidate_rows
     ]
 
@@ -109,6 +116,7 @@ def build_binding(review, sampled_low32: str, max_candidates: int | None = None,
         "probe_event_count": target_group.get("probe_event_count", 0),
         "exact_hit_count": target_group.get("exact_hit_count", 0),
         "transport_candidate_dims": target_group.get("transport_candidate_dims", []),
+        "selector_mode": selector_mode,
     }
 
     return {
@@ -127,11 +135,12 @@ def main():
     parser.add_argument("--sampled-low32", required=True, help="Target sampled_low32")
     parser.add_argument("--max-candidates", type=int, help="Optional cap on emitted transport candidates")
     parser.add_argument("--selected-replacement-id", help="Optional exact replacement_id to emit from the review pool")
+    parser.add_argument("--selector-mode", choices=("legacy", "zero"), default="legacy", help="Selector mode for emitted transport candidates")
     parser.add_argument("--output", help="Optional output path")
     args = parser.parse_args()
 
     review_path = Path(args.review)
-    result = build_binding(load_json(review_path), args.sampled_low32, args.max_candidates, args.selected_replacement_id)
+    result = build_binding(load_json(review_path), args.sampled_low32, args.max_candidates, args.selected_replacement_id, args.selector_mode)
     serialized = json.dumps(result, indent=2) + "\n"
     if args.output:
         output_path = Path(args.output)

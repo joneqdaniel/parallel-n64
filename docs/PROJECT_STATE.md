@@ -623,6 +623,40 @@
 - RetroArch `SAVE_STATE` is now understood as an asynchronous task path; tracked authority minting requires `WAIT_SAVE_STATE`, and save operations must be sequenced ahead of screenshot tasks to avoid blocking-task contention
 - `run-build.sh` is the authoritative local build entrypoint because it carries the ParaLLEl build flags and auto-cleans when flag fingerprints change
 
+- The source-backed title `Press Start` seam is now a tracked sampled-object transport path instead of an unattributed miss:
+  - new seeded review tool: [tools/hires_seed_review_pool.py](/home/auro/code/parallel-n64/tools/hires_seed_review_pool.py)
+  - seeded review artifact: [20260329-title-press-start-seeded/review.md](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-press-start-seeded/review.md)
+  - it carries the two unresolved sampled title objects, `049201f4` and `ce437230`, forward with a source-backed `1280x320` candidate pool from the active Paper Mario pack
+  - the first seeded pass proved an important negative result: all five `1280x320` candidates were complete no-ops under legacy selector mode, so this seam was blocked by selector policy rather than by missing assets alone
+  - `tools/hires_pack_emit_probe_pool_binding.py` now supports `--selector-mode zero`, and `tools/hires_pack_build_selected_package.py` now threads that selector mode from review-pool policy into the selected-package builder
+  - that unlocked the seam immediately:
+    - representative manual proof: [20260329-press-start-09e981b2-zero-selector-runtime-v2](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260329-press-start-09e981b2-zero-selector-runtime-v2)
+    - exact hits now fire on both sampled objects:
+      - `049201f4`
+      - `ce437230`
+    - title hash becomes `ac266300c4bb14375c61994bff90368591067578d857ab5e6f7c10d85921c920`
+  - full zero-selector title sweep: [runtime-summary.md](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-press-start-zero-selector/runtime-summary.md)
+    - all five source-backed `1280x320` candidates now hit both sampled objects exactly once
+    - current movement ranking against the active merged title package is:
+      - `09e981b2`
+      - `0a9b8a27`
+      - `54a98809`
+      - `ea70d9d5`
+      - `e6ce790e`
+    - current changed-region montage: [changed-region-montage.png](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-press-start-zero-selector/changed-region-montage.png)
+  - the transport policy now records a provisional zero-selector choice for both sampled objects:
+    - `sampled-low32-049201f4-fs259`
+    - `sampled-low32-ce437230-fs259`
+    - selected candidate: `legacy-09e981b2-0001abdc-fs0-1280x320`
+    - selector mode: `zero`
+  - policy-built package proof: [20260329-selected-plus-title-v8-press-start-09e/package.phrb](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-selected-plus-title-v8-press-start-09e/package.phrb)
+    - title runtime proof: [20260329-selected-plus-title-v8-press-start-09e-runtime](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260329-selected-plus-title-v8-press-start-09e-runtime)
+    - file-select runtime proof: [20260329-selected-plus-title-v8-press-start-09e-runtime](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260329-selected-plus-title-v8-press-start-09e-runtime)
+    - current result:
+      - title policy package is byte-identical to the manual zero-selector proof (`ac266300...`) and still logs one exact hit on each sampled `128x32` title object
+      - file select stays byte-identical to the previous active merged file-select package (`2b55962a...`) and logs no `049201f4` / `ce437230` hits
+  - practical implication: `Press Start` is now the first tracked case where the right native transport is source-backed but not upload-selector-backed, so zero-selector review-pool transport is now a real, bounded tool in the import model rather than a theoretical escape hatch
+
 ## Locked Planning Backbone
 
 1. Phase 0: agent-first tooling, fixtures, evidence bundles, deterministic control

@@ -45,6 +45,7 @@ def build_review_pool_bindings(review_paths, policy_data, selected_keys):
         formatsize = record.get('formatsize')
         max_candidates = record.get('max_candidates')
         selected_replacement_id = record.get('selected_replacement_id')
+        selector_mode = record.get('selector_mode', 'legacy')
         if not sampled_low32:
             raise SystemExit(f'review-pool policy {policy_key} is missing sampled_low32')
 
@@ -65,7 +66,7 @@ def build_review_pool_bindings(review_paths, policy_data, selected_keys):
             raise SystemExit(f'no review group found for policy {policy_key} sampled_low32={sampled_low32} formatsize={formatsize}')
 
         review_path, review = matched_review
-        emitted = build_review_pool_binding(review, sampled_low32, max_candidates, selected_replacement_id)
+        emitted = build_review_pool_binding(review, sampled_low32, max_candidates, selected_replacement_id, selector_mode)
         binding = emitted['bindings'][0]
         binding['policy_key'] = policy_key
         binding['family_type'] = 'policy-review-transport-pool'

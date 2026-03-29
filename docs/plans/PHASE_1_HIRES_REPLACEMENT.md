@@ -438,6 +438,28 @@
     - keep `replacement-dims-unique` as a debug-backed compatibility candidate, not default policy
     - keep pushing the imported/internal replacement index so it can encode a cleaner CI identity than the inherited Glide-era pack layout, including explicit variant groups where legacy families are structurally ambiguous
 
+    - the source-backed `Press Start` IA8 seam is now a real tracked import path instead of a loose static note:
+      - seeded review tool: [tools/hires_seed_review_pool.py](/home/auro/code/parallel-n64/tools/hires_seed_review_pool.py)
+      - seeded review artifact: [20260329-title-press-start-seeded/review.md](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-press-start-seeded/review.md)
+      - it carries `049201f4` and `ce437230` forward with the five source-backed `1280x320` pack entries as review-only candidates
+      - the first seeded pass proved that legacy-selector transport is a dead path for this seam: all five candidates were exact no-ops on strict title
+      - `tools/hires_pack_emit_probe_pool_binding.py` now supports `--selector-mode zero`, and the selected-package builder now threads that selector mode from review-pool policy
+      - zero-selector transport is the first mode that actually wakes the seam up:
+        - representative manual proof: [20260329-press-start-09e981b2-zero-selector-runtime-v2](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260329-press-start-09e981b2-zero-selector-runtime-v2)
+        - exact hits fire on both sampled title objects (`049201f4`, `ce437230`)
+        - title hash becomes `ac266300c4bb14375c61994bff90368591067578d857ab5e6f7c10d85921c920`
+      - full zero-selector ranking artifact: [runtime-summary.md](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-press-start-zero-selector/runtime-summary.md)
+        - all five candidates hit both sampled objects exactly once
+        - current lead is `legacy-09e981b2-0001abdc-fs0-1280x320`
+      - visual review artifact: [changed-region-montage.png](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-press-start-zero-selector/changed-region-montage.png)
+      - policy-built package proof: [20260329-selected-plus-title-v8-press-start-09e/package.phrb](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-selected-plus-title-v8-press-start-09e/package.phrb)
+        - title runtime proof: [20260329-selected-plus-title-v8-press-start-09e-runtime](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260329-selected-plus-title-v8-press-start-09e-runtime)
+        - file-select runtime proof: [20260329-selected-plus-title-v8-press-start-09e-runtime](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260329-selected-plus-title-v8-press-start-09e-runtime)
+        - current result: the policy-driven package reproduces the manual title proof exactly and remains byte-identical to the active merged file-select package
+      - current interpretation:
+        - this seam is now the first concrete case where source-backed sampled-object transport needs zero-selector review-pool policy rather than legacy upload-family selectors
+        - that is acceptable as a bounded import-model tool, but it should remain provisional until broader fixtures show it does not bleed beyond the tracked scenes
+
 ## Not Yet Claimed Categories
 
 - texrect edge cases beyond explicitly validated fixtures

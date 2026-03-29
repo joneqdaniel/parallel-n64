@@ -371,6 +371,27 @@ The migration tool now emits that bridge when sampled-object bundle data is avai
   - json: [20260327-sampled-canonical-projection.json](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260327-sampled-canonical-projection.json)
 
 
+      - the title `Press Start` IA8 seam is now tracked through the import model as a source-backed, zero-selector sampled-object path:
+        - seeded review tool: [tools/hires_seed_review_pool.py](/home/auro/code/parallel-n64/tools/hires_seed_review_pool.py)
+        - seeded review artifact: [20260329-title-press-start-seeded/review.md](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-press-start-seeded/review.md)
+        - it carries the two sampled title objects (`049201f4`, `ce437230`) with the five source-backed `1280x320` pack entries even though no legacy upload-family selector matches them directly
+        - first important negative result: seeded legacy-selector bindings are total no-ops for all five candidates on strict title
+        - `tools/hires_pack_emit_probe_pool_binding.py` now supports explicit selector modes, and `tools/hires_pack_build_selected_package.py` now threads `selector_mode` from policy-backed review pools into the selected builder path
+        - zero-selector transport is the first mode that activates the seam:
+          - manual proof: [20260329-press-start-09e981b2-zero-selector-runtime-v2](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260329-press-start-09e981b2-zero-selector-runtime-v2)
+          - exact hits fire on both sampled objects and the title hash becomes `ac266300c4bb14375c61994bff90368591067578d857ab5e6f7c10d85921c920`
+        - full zero-selector ranking: [runtime-summary.md](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-press-start-zero-selector/runtime-summary.md)
+          - all five candidates produce `2` target hits (`049201f4`, `ce437230`)
+          - current lead is `legacy-09e981b2-0001abdc-fs0-1280x320`
+        - transport policy now records provisional zero-selector review-pool entries for:
+          - `sampled-low32-049201f4-fs259`
+          - `sampled-low32-ce437230-fs259`
+        - policy-built selected package: [20260329-selected-plus-title-v8-press-start-09e/package.phrb](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-selected-plus-title-v8-press-start-09e/package.phrb)
+          - title runtime proof: [20260329-selected-plus-title-v8-press-start-09e-runtime](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260329-selected-plus-title-v8-press-start-09e-runtime)
+          - file-select runtime proof: [20260329-selected-plus-title-v8-press-start-09e-runtime](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260329-selected-plus-title-v8-press-start-09e-runtime)
+          - current result: the policy-built package reproduces the manual title proof exactly and remains byte-identical to the active merged file-select package
+        - import-model implication: zero-selector review-pool transport is now a justified bounded tool for source-backed sampled objects when legacy-family selectors are known to be structurally wrong; it remains provisional, explicit, and review-driven rather than becoming silent default behavior
+
 ## Policy Layer
 
 - Use [`tools/hires_pack_import_policy.json`](/home/auro/code/parallel-n64/tools/hires_pack_import_policy.json) to record explicit import decisions or non-binding suggestions.

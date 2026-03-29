@@ -484,6 +484,11 @@
         - stripe manifest: [20260329-title-stripe-surface-map/manifest.md](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-stripe-surface-map/manifest.md)
         - copy-strip manifest: [20260329-title-copy-strip-surface-map/manifest.md](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-copy-strip-surface-map/manifest.md)
         - practical implication: these title contributors now have an importer-facing ordered-surface shape instead of only review-pool evidence
+      - the next tool-side bridge is also real now:
+        - tool: [tools/hires_build_surface_package.py](/home/auro/code/parallel-n64/tools/hires_build_surface_package.py)
+        - package: [20260329-title-surface-package/surface-package.json](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-surface-package/surface-package.json)
+        - format id: `phrs-surface-package-v1`
+        - current package contains the two ordered title contributors (`surface-7701ac09`, `surface-940cea6e`) plus their referenced assets
 
 ## Not Yet Claimed Categories
 

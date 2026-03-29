@@ -673,6 +673,11 @@
   - the ordered surface map now proves all `33` sequence slots resolve to transported replacements; the repeated edge key is reused intentionally rather than left unresolved
   - practical implication: the main title copy-strip contributor is already representable as an ordered title surface, while the main `7701ac09` stripe pool is narrowed to just three repeated unresolved edge slots for `71c71cdd`
   - next implication: these title contributors can now be expressed as ordered surfaces instead of ad hoc review pools, which is the clearest current bridge into a cleaner native import format
+- A first ordered-surface package is now emitted tool-side: [20260329-title-surface-package/surface-package.json](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-surface-package/surface-package.json)
+  - tool: [tools/hires_build_surface_package.py](/home/auro/code/parallel-n64/tools/hires_build_surface_package.py)
+  - format id: `phrs-surface-package-v1`
+  - current contents: `surface-7701ac09` with `53` replacements and `3` unresolved edge slots, plus `surface-940cea6e` with `29` replacements and `0` unresolved slots
+  - practical implication: the native-format path now has a concrete `surface + ordered slots + referenced assets` artifact instead of only review/manifold intermediates
 
 ## Locked Planning Backbone
 

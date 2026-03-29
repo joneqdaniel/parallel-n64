@@ -418,6 +418,13 @@ The migration tool now emits that bridge when sampled-object bundle data is avai
         - copy-strip manifest: [20260329-title-copy-strip-surface-map/manifest.md](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-copy-strip-surface-map/manifest.md)
         - import implication: for these title contributors, the next native-format step should be ordered-surface records with explicit unresolved edge slots rather than larger review pools or ad hoc selectors
 
+      - a first tool-side ordered-surface package now makes that bridge concrete:
+        - tool: [tools/hires_build_surface_package.py](/home/auro/code/parallel-n64/tools/hires_build_surface_package.py)
+        - package: [20260329-title-surface-package/surface-package.json](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-surface-package/surface-package.json)
+        - format id: `phrs-surface-package-v1`
+        - current scope: `surface-7701ac09` (`53` replacements, `3` unresolved edge slots) and `surface-940cea6e` (`29` replacements, `0` unresolved slots)
+        - import implication: the remaining design problem is no longer whether ordered surfaces are a useful abstraction; it is whether the runtime should consume this shape directly or via a narrower compiled/binary form
+
 ## Policy Layer
 
 - Use [`tools/hires_pack_import_policy.json`](/home/auro/code/parallel-n64/tools/hires_pack_import_policy.json) to record explicit import decisions or non-binding suggestions.

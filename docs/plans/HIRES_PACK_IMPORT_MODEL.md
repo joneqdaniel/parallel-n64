@@ -121,6 +121,10 @@ This document describes the shape of the import model itself. The evidence thres
 - [`tools/hires_pack_build_selected_package.py`](/home/auro/code/parallel-n64/tools/hires_pack_build_selected_package.py)
   - builds a reproducible selected `PHRB` package from existing `bindings.json` payloads plus explicit policy-backed review-pool candidates
   - now supports `--bindings-input` for extending an existing selected package and policy-backed single-candidate review-pool picks via `selected_replacement_id`
+- [`tools/scenarios/paper-mario-title-timeout-probe.sh`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-title-timeout-probe.sh)
+  - now honors `PARALLEL_RDP_HIRES_CACHE_PATH` overrides and records the actual selected package path in the bundle, so non-menu validation can exercise the same selected `PHRB` artifact as the strict fixtures
+  - current broader validation result: the active v18 selected package stays byte-identical to `off` at the `960`-frame world, `1200`-frame battle, and `1500`-frame world timeout checkpoints while still reporting `39382` sampled-object exact hits and `0` exact misses on each slice
+  - that check is now scripted through [`tools/scenarios/paper-mario-title-timeout-selected-package-validation.sh`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-title-timeout-selected-package-validation.sh); current summary artifact: [`20260329-v18-timeout-reuse/validation-summary.md`](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260329-v18-timeout-reuse/validation-summary.md)
 
 ## Imported Index v1
 

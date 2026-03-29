@@ -137,6 +137,12 @@ fi
 
 scenario_source_runtime_env "$RUNTIME_ENV"
 
+PACK_PATH="${PARALLEL_RDP_HIRES_CACHE_PATH:-$PACK_PATH}"
+PACK_SHA256="$(scenario_sha256_file "$PACK_PATH")"
+
+scenario_patch_file "$BUNDLE_DIR/bundle.json" 's|"hires_pack_path": "[^"]*"|"hires_pack_path": "'"${PACK_PATH}"'"|g; s|"hires_pack_sha256": "[^"]*"|"hires_pack_sha256": "'"${PACK_SHA256}"'"|g'
+scenario_patch_file "$BUNDLE_DIR/config.env" 's|HIRES_PACK_PATH=.*|HIRES_PACK_PATH='"${PACK_PATH}"'|g'
+
 if [[ -z "${AUTHORITATIVE_STATE_PATH:-}" || ! -f "${AUTHORITATIVE_STATE_PATH:-}" ]]; then
   echo "[scenario] authoritative title-screen state is required." >&2
   exit 1

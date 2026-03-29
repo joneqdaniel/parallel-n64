@@ -9,7 +9,8 @@ MAGIC = b'PHRB'
 HEADER_STRUCT = struct.Struct('<4sIIIIIII')
 RECORD_STRUCT_V1 = struct.Struct('<IIIIIIIIII')
 RECORD_STRUCT_V2 = struct.Struct('<IIIIIIIIIIIII')
-ASSET_STRUCT = struct.Struct('<IIIIIIIIIIII')
+ASSET_STRUCT_V2 = struct.Struct('<IIIIIIIIIIII')
+ASSET_STRUCT_V3 = struct.Struct('<IIIIIIIIIIQII')
 
 
 def read_c_string(blob, offset):
@@ -26,7 +27,7 @@ def inspect_binary_package(path: Path):
     magic, version, record_count, asset_count, record_off, asset_off, string_off, blob_off = HEADER_STRUCT.unpack_from(data, 0)
     if magic != MAGIC:
         raise ValueError(f'Unexpected magic: {magic!r}')
-    if version not in (1, 2):
+    if version not in (1, 2, 3):
         raise ValueError(f'Unsupported version: {version}')
 
     string_blob = data[string_off:blob_off]
@@ -60,10 +61,16 @@ def inspect_binary_package(path: Path):
             'asset_candidates': [],
         })
 
+    asset_struct = ASSET_STRUCT_V3 if version >= 3 else ASSET_STRUCT_V2
     for i in range(asset_count):
-        off = asset_off + i * ASSET_STRUCT.size
-        (record_index, replacement_id_off, legacy_source_path_off, rgba_rel_path_off, variant_group_id_off,
-         width, height, texture_format, pixel_type, legacy_formatsize, rgba_blob_off, rgba_blob_size) = ASSET_STRUCT.unpack_from(data, off)
+        off = asset_off + i * asset_struct.size
+        if version >= 3:
+            (record_index, replacement_id_off, legacy_source_path_off, rgba_rel_path_off, variant_group_id_off,
+             width, height, texture_format, pixel_type, legacy_formatsize, selector_checksum64, rgba_blob_off, rgba_blob_size) = asset_struct.unpack_from(data, off)
+        else:
+            (record_index, replacement_id_off, legacy_source_path_off, rgba_rel_path_off, variant_group_id_off,
+             width, height, texture_format, pixel_type, legacy_formatsize, rgba_blob_off, rgba_blob_size) = asset_struct.unpack_from(data, off)
+            selector_checksum64 = 0
         records[record_index]['asset_candidates'].append({
             'replacement_id': read_c_string(string_blob, replacement_id_off),
             'legacy_source_path': read_c_string(string_blob, legacy_source_path_off),
@@ -74,6 +81,7 @@ def inspect_binary_package(path: Path):
             'texture_format': texture_format,
             'pixel_type': pixel_type,
             'legacy_formatsize': legacy_formatsize,
+            'selector_checksum64': f'{selector_checksum64:016x}',
             'rgba_blob_offset': rgba_blob_off,
             'rgba_blob_size': rgba_blob_size,
         })

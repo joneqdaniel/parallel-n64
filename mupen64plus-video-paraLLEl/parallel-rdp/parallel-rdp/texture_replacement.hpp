@@ -56,6 +56,7 @@ public:
 	void set_enabled(bool enable);
 	bool load_cache_dir(const std::string &path);
 	bool lookup(uint64_t checksum64, uint16_t formatsize, ReplacementMeta *out) const;
+	bool lookup_with_selector(uint64_t checksum64, uint16_t formatsize, uint64_t selector_checksum64, ReplacementMeta *out) const;
 	bool lookup_ci_low32_unique(uint32_t checksum_low32, uint16_t formatsize, ReplacementMeta *out, uint64_t *resolved_checksum64 = nullptr) const;
 	bool lookup_ci_low32_repl_dims_unique(uint32_t checksum_low32, uint16_t formatsize, ReplacementMeta *out, uint64_t *resolved_checksum64 = nullptr) const;
 	bool lookup_ci_low32_selected_dims(uint32_t checksum_low32,
@@ -75,6 +76,7 @@ public:
 	                              uint32_t preferred_palette_crc,
 	                              CILow32FamilyDiagnostics *out) const;
 	bool decode_rgba8(uint64_t checksum64, uint16_t formatsize, ReplacementImage *out) const;
+	bool decode_rgba8_with_selector(uint64_t checksum64, uint16_t formatsize, uint64_t selector_checksum64, ReplacementImage *out) const;
 	void trim_to_budget(size_t bytes);
 	void clear();
 	size_t entry_count() const;
@@ -92,12 +94,14 @@ private:
 		uint16_t texture_format = 0;
 		uint16_t pixel_type = 0;
 		uint16_t formatsize = 0;
+		uint64_t selector_checksum64 = 0;
 		bool is_hires = false;
 		bool inline_blob = false;
 		std::vector<uint8_t> blob;
 	};
 
 	const Entry *find_entry(uint64_t checksum64, uint16_t formatsize) const;
+	const Entry *find_entry(uint64_t checksum64, uint16_t formatsize, uint64_t selector_checksum64) const;
 	bool load_hts(const std::string &path);
 	bool load_htc(const std::string &path);
 	bool load_phrb(const std::string &path);

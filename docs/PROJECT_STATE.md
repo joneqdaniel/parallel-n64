@@ -488,6 +488,18 @@
         - [20260328-title-native-296x6-only](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260328-title-native-296x6-only) is byte-identical to the combined native title result and keeps `33` exact hits on sampled key `940cea6e`
         - [20260328-title-native-296x2-only](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260328-title-native-296x2-only) stays on the strict `off` hash and only contributes `1` exact hit on `148e68ee`
         - practical implication: the remaining title correctness problem is concentrated in the dominant `296x6 -> 2960x60` copy-family transport, not in the small `296x2` family or in interaction between the two
+      - the sampled transport review now proves why a single transported title asset is insufficient:
+        - review artifact: [20260328-title-sampled-transport/review.md](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-title-sampled-transport/review.md)
+        - current result: sampled key `940cea6e` has `33` exact hits but expands to `29` distinct upload families and `29` distinct `2960x60` payloads in the legacy pack
+        - the selector-aware transport-pool package is now runtime-proven too:
+          - package: [20260328-title-transport-pool/package-build-v2/package.phrb](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-title-transport-pool/package-build-v2/package.phrb)
+          - runtime proof: [20260328-title-transport-pool-runtime-v2](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260328-title-transport-pool-runtime-v2)
+          - current result: `33` sampled-object exact hits on `940cea6e` and screenshot hash `df6858a4bf022e514e3c85d67cad5e5ab5d6e25f71cc42cbefdf7c6688d5d904`
+          - distance to strict legacy `on` is now materially better than either prior native or `off`:
+            - selector-aware pool vs legacy `on`: `AE=381982996`, `RMSE=48.24`
+            - single-candidate native vs legacy `on`: `AE=1076083334`, `RMSE=86.68`
+            - strict `off` vs legacy `on`: `AE=667376891`, `RMSE=59.14`
+        - practical implication: title copy-cycle native import is now a proven sampled-object transport-pool problem with a working secondary selector path; the next seam is choosing and formalizing the selector source, not proving that multi-candidate transport works at runtime
     - practical implication: `af028e08` is now the tracked provisional transport choice for `7064585c`; `81b32e31` remains the nearest alternate, and `c3984de7` remains the strongest structurally distinct fallback
   - strict bundle extraction now records sampled-object exact hits separately in [`tools/scenarios/lib/common.sh`](/home/auro/code/parallel-n64/tools/scenarios/lib/common.sh), so `traces/hires-evidence.json` can describe canonical lookup-only bundles without conflating them with the upload-side `Hi-res keying summary`
   - practical implication: the active `8x16` strict gap should not be modeled as meaningful row-local upload bytes, which pushes the next resolver step toward same-start parent-tile/subrect transport and away from row-byte reinterpretation

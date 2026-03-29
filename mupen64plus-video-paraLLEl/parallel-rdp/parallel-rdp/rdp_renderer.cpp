@@ -1867,14 +1867,15 @@ void Renderer::draw_shaded_primitive(const TriangleSetup &setup, const Attribute
 		ReplacementMeta sampled_meta = {};
 		uint64_t sampled_checksum64 = 0;
 		const char *sampled_reason = nullptr;
+		const uint64_t sampled_selector_checksum64 = texel0_state.checksum64;
 		auto try_sampled_exact = [&](uint32_t palette_crc, const char *reason) {
 			const uint64_t checksum64 = detail::compose_hires_checksum64(sampled_identity.texture_crc, palette_crc);
 			ReplacementMeta candidate_meta = {};
-			if (!replacement_provider->lookup(checksum64, sampled_identity.formatsize, &candidate_meta))
+			if (!replacement_provider->lookup_with_selector(checksum64, sampled_identity.formatsize, sampled_selector_checksum64, &candidate_meta))
 				return false;
 			candidate_meta.orig_w = sampled_identity.width_pixels;
 			candidate_meta.orig_h = sampled_identity.height_pixels;
-			if (!resolve_hires_replacement_descriptor(checksum64, sampled_identity.formatsize, candidate_meta))
+			if (!resolve_hires_replacement_descriptor(checksum64, sampled_identity.formatsize, sampled_selector_checksum64, candidate_meta))
 				return false;
 			sampled_meta = candidate_meta;
 			sampled_checksum64 = checksum64;
@@ -3449,6 +3450,11 @@ bool Renderer::init_hires_resources(unsigned requested_capacity)
 
 bool Renderer::resolve_hires_replacement_descriptor(uint64_t checksum64, uint16_t formatsize, ReplacementMeta &meta)
 {
+	return resolve_hires_replacement_descriptor(checksum64, formatsize, 0, meta);
+}
+
+bool Renderer::resolve_hires_replacement_descriptor(uint64_t checksum64, uint16_t formatsize, uint64_t selector_checksum64, ReplacementMeta &meta)
+{
 	meta.vk_image_index = detail::hires_invalid_descriptor_index();
 
 	if (!replacement_provider || !caps.hires_replacement_shader)
@@ -3457,6 +3463,7 @@ bool Renderer::resolve_hires_replacement_descriptor(uint64_t checksum64, uint16_
 	HiresKey key = {};
 	key.checksum64 = checksum64;
 	key.formatsize = formatsize;
+	key.selector_checksum64 = selector_checksum64;
 	auto itr = hires_resources.resident_images.find(key);
 	if (itr != hires_resources.resident_images.end())
 	{
@@ -3470,7 +3477,7 @@ bool Renderer::resolve_hires_replacement_descriptor(uint64_t checksum64, uint16_
 		return false;
 
 	ReplacementImage replacement = {};
-	if (!replacement_provider->decode_rgba8(checksum64, formatsize, &replacement))
+	if (!replacement_provider->decode_rgba8_with_selector(checksum64, formatsize, selector_checksum64, &replacement))
 		return false;
 	if (replacement.rgba8.empty() || replacement.meta.repl_w == 0 || replacement.meta.repl_h == 0)
 		return false;

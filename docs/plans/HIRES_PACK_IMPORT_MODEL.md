@@ -333,6 +333,14 @@ The migration tool now emits that bridge when sampled-object bundle data is avai
         - the `296x6` sampled-object package [20260328-title-native-296x6-only](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260328-title-native-296x6-only) is byte-identical to the combined native title result
         - the `296x2` sampled-object package [20260328-title-native-296x2-only](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260328-title-native-296x2-only) stays on strict `off`
         - import implication: the active title correctness problem is concentrated in the dominant `940cea6e` / `2960x60` copy strip, so that family should be the next copy-mode transport target
+      - the new sampled transport review makes the missing import field explicit:
+        - review artifact: [20260328-title-sampled-transport/review.md](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-title-sampled-transport/review.md)
+        - current result: sampled key `940cea6e` collapses `29` legacy upload families into one canonical sampled object, but those families carry `29` distinct transported `2960x60` payloads
+        - the selector-aware `PHRB` v3 transport-pool package is now runtime-proven too:
+          - package: [20260328-title-transport-pool/package-build-v2/package.phrb](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-title-transport-pool/package-build-v2/package.phrb)
+          - runtime proof: [20260328-title-transport-pool-runtime-v2](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260328-title-transport-pool-runtime-v2)
+          - current result: `33` exact hits on sampled object `940cea6e`, with the runtime selecting among the transported payload pool via the upload-side selector checksum carried in `PHRB` v3 asset records
+        - import implication: some canonical sampled records are deterministic, while others are transport pools; `940cea6e` now clearly belongs in the latter class, but the secondary selector path is no longer hypothetical and can be treated as a real imported-record field rather than a future escape hatch
     - practical implication: the import/runtime transport problem for `7064585c` now has a tracked provisional selection, with `81b32e31` retained as the nearest alternate and `c3984de7` as the strongest structurally distinct fallback
 - the package manifest now also records decoded `pixel_sha256` values, `alpha_normalized_pixel_sha256` values, and duplicate-pixel groups, so importer design can distinguish fully distinct transport content from any future duplicate or near-duplicate transport variants
   - markdown: [20260327-sampled-legacy-vs-canonical.md](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260327-sampled-legacy-vs-canonical.md)

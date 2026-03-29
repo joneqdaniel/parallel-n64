@@ -56,7 +56,7 @@ struct PHRBRecordV2
 	uint32_t asset_candidate_count = 0;
 };
 
-struct PHRBAsset
+struct PHRBAssetV2
 {
 	uint32_t record_index = 0;
 	uint32_t replacement_id_offset = 0;
@@ -68,6 +68,23 @@ struct PHRBAsset
 	uint32_t texture_format = 0;
 	uint32_t pixel_type = 0;
 	uint32_t legacy_formatsize = 0;
+	uint32_t rgba_blob_offset = 0;
+	uint32_t rgba_blob_size = 0;
+};
+
+struct PHRBAssetV3
+{
+	uint32_t record_index = 0;
+	uint32_t replacement_id_offset = 0;
+	uint32_t legacy_source_path_offset = 0;
+	uint32_t rgba_rel_path_offset = 0;
+	uint32_t variant_group_id_offset = 0;
+	uint32_t width = 0;
+	uint32_t height = 0;
+	uint32_t texture_format = 0;
+	uint32_t pixel_type = 0;
+	uint32_t legacy_formatsize = 0;
+	uint64_t selector_checksum64 = 0;
 	uint32_t rgba_blob_offset = 0;
 	uint32_t rgba_blob_size = 0;
 };
@@ -256,26 +273,40 @@ bool ReplacementProvider::load_cache_dir(const std::string &path)
 
 const ReplacementProvider::Entry *ReplacementProvider::find_entry(uint64_t checksum64, uint16_t formatsize) const
 {
+	return find_entry(checksum64, formatsize, 0);
+}
+
+const ReplacementProvider::Entry *ReplacementProvider::find_entry(uint64_t checksum64, uint16_t formatsize, uint64_t selector_checksum64) const
+{
 	auto it = checksum_index_.find(checksum64);
 	if (it == checksum_index_.end())
 		return nullptr;
 
 	const auto &indices = it->second;
-	for (auto itr = indices.rbegin(); itr != indices.rend(); ++itr)
+	auto find_matching = [&](uint16_t candidate_formatsize, uint64_t candidate_selector) -> const Entry * {
+		for (auto itr = indices.rbegin(); itr != indices.rend(); ++itr)
+		{
+			const Entry &entry = entries_[*itr];
+			if (entry.formatsize == candidate_formatsize && entry.selector_checksum64 == candidate_selector)
+				return &entry;
+		}
+		return nullptr;
+	};
+
+	if (selector_checksum64 != 0)
 	{
-		const Entry &entry = entries_[*itr];
-		if (entry.formatsize == formatsize)
-			return &entry;
+		if (const Entry *entry = find_matching(formatsize, selector_checksum64))
+			return entry;
+		if (const Entry *entry = find_matching(0, selector_checksum64))
+			return entry;
 	}
 
-	for (auto itr = indices.rbegin(); itr != indices.rend(); ++itr)
-	{
-		const Entry &entry = entries_[*itr];
-		if (entry.formatsize == 0)
-			return &entry;
-	}
+	if (const Entry *entry = find_matching(formatsize, 0))
+		return entry;
+	if (const Entry *entry = find_matching(0, 0))
+		return entry;
 
-	if (formatsize == 0 && !indices.empty())
+	if (selector_checksum64 == 0 && formatsize == 0 && !indices.empty())
 		return &entries_[indices.back()];
 
 	return nullptr;
@@ -283,10 +314,15 @@ const ReplacementProvider::Entry *ReplacementProvider::find_entry(uint64_t check
 
 bool ReplacementProvider::lookup(uint64_t checksum64, uint16_t formatsize, ReplacementMeta *out) const
 {
+	return lookup_with_selector(checksum64, formatsize, 0, out);
+}
+
+bool ReplacementProvider::lookup_with_selector(uint64_t checksum64, uint16_t formatsize, uint64_t selector_checksum64, ReplacementMeta *out) const
+{
 	if (!enabled_ || !out)
 		return false;
 
-	const Entry *entry = find_entry(checksum64, formatsize);
+	const Entry *entry = find_entry(checksum64, formatsize, selector_checksum64);
 	if (!entry)
 		return false;
 
@@ -756,10 +792,15 @@ bool ReplacementProvider::read_blob(const Entry &entry, std::vector<uint8_t> &bl
 
 bool ReplacementProvider::decode_rgba8(uint64_t checksum64, uint16_t formatsize, ReplacementImage *out) const
 {
+	return decode_rgba8_with_selector(checksum64, formatsize, 0, out);
+}
+
+bool ReplacementProvider::decode_rgba8_with_selector(uint64_t checksum64, uint16_t formatsize, uint64_t selector_checksum64, ReplacementImage *out) const
+{
 	if (!enabled_ || !out)
 		return false;
 
-	const Entry *entry = find_entry(checksum64, formatsize);
+	const Entry *entry = find_entry(checksum64, formatsize, selector_checksum64);
 	if (!entry)
 		return false;
 
@@ -804,16 +845,17 @@ bool ReplacementProvider::load_phrb(const std::string &path)
 	PHRBHeader header = {};
 	if (!read_pod_from_blob(blob, 0, header))
 		return false;
-	if (!phrb_magic_ok(header.magic) || header.version != 2)
+	if (!phrb_magic_ok(header.magic) || (header.version != 2 && header.version != 3))
 		return false;
 	if (header.string_table_offset > header.blob_offset || header.blob_offset > blob.size())
 		return false;
 
+	const bool version3 = header.version == 3;
 	const uint8_t *string_blob = blob.data() + header.string_table_offset;
 	const size_t string_blob_size = size_t(header.blob_offset - header.string_table_offset);
 	const uint8_t *rgba_blob_base = blob.data() + header.blob_offset;
 	const size_t rgba_blob_size = size_t(blob.size() - header.blob_offset);
-	uint32_t deterministic_loaded = 0;
+	uint32_t loaded_count = 0;
 
 	for (uint32_t record_index = 0; record_index < header.record_count; record_index++)
 	{
@@ -822,69 +864,90 @@ bool ReplacementProvider::load_phrb(const std::string &path)
 		if (!read_pod_from_blob(blob, record_offset, record))
 			return false;
 
-		if (record.asset_candidate_count != 1)
-			continue;
-
-		PHRBAsset asset = {};
-		bool found_asset = false;
-		for (uint32_t asset_index = 0; asset_index < header.asset_count; asset_index++)
-		{
-			const size_t asset_offset = size_t(header.asset_table_offset) + size_t(asset_index) * sizeof(PHRBAsset);
-			if (!read_pod_from_blob(blob, asset_offset, asset))
-				return false;
-			if (asset.record_index == record_index)
-			{
-				found_asset = true;
-				break;
-			}
-		}
-		if (!found_asset)
-			continue;
-		if (asset.rgba_blob_offset + asset.rgba_blob_size > rgba_blob_size)
-			continue;
-		if (asset.width == 0 || asset.height == 0 || asset.rgba_blob_size != asset.width * asset.height * 4u)
-			continue;
-
 		std::string policy_key;
 		if (!read_c_string_from_blob(string_blob, string_blob_size, record.policy_key_offset, policy_key))
 			policy_key = "phrb-record";
 
-		auto add_sampled_entry = [&](uint32_t palette_crc) {
+		auto add_sampled_entry = [&](uint32_t palette_crc, uint64_t selector_checksum64, uint32_t width, uint32_t height, uint32_t rgba_offset, uint32_t rgba_size) {
 			Entry entry = {};
 			entry.source_path = path + "#" + policy_key;
 			entry.checksum64 = (uint64_t(palette_crc) << 32u) | uint64_t(record.sampled_low32);
 			entry.data_offset = 0;
-			entry.data_size = asset.rgba_blob_size;
-			entry.width = asset.width;
-			entry.height = asset.height;
+			entry.data_size = rgba_size;
+			entry.width = width;
+			entry.height = height;
 			entry.format = GL_RGBA8;
 			entry.texture_format = GL_RGBA;
 			entry.pixel_type = GL_UNSIGNED_BYTE;
 			entry.formatsize = uint16_t(record.formatsize);
+			entry.selector_checksum64 = selector_checksum64;
 			entry.is_hires = true;
 			entry.inline_blob = true;
-			entry.blob.assign(rgba_blob_base + asset.rgba_blob_offset,
-			                 rgba_blob_base + asset.rgba_blob_offset + asset.rgba_blob_size);
+			entry.blob.assign(rgba_blob_base + rgba_offset,
+			                 rgba_blob_base + rgba_offset + rgba_size);
 			add_entry(std::move(entry));
-			deterministic_loaded++;
+			loaded_count++;
 		};
 
-		bool added = false;
-		if (record.sampled_sparse_pcrc != 0)
+		for (uint32_t asset_index = 0; asset_index < header.asset_count; asset_index++)
 		{
-			add_sampled_entry(record.sampled_sparse_pcrc);
-			added = true;
+			uint32_t asset_record_index = 0;
+			uint32_t width = 0;
+			uint32_t height = 0;
+			uint32_t rgba_offset = 0;
+			uint32_t rgba_size = 0;
+			uint64_t selector_checksum64 = 0;
+			size_t asset_offset = 0;
+			if (version3)
+			{
+				PHRBAssetV3 asset = {};
+				asset_offset = size_t(header.asset_table_offset) + size_t(asset_index) * sizeof(PHRBAssetV3);
+				if (!read_pod_from_blob(blob, asset_offset, asset))
+					return false;
+				asset_record_index = asset.record_index;
+				width = asset.width;
+				height = asset.height;
+				rgba_offset = asset.rgba_blob_offset;
+				rgba_size = asset.rgba_blob_size;
+				selector_checksum64 = asset.selector_checksum64;
+			}
+			else
+			{
+				PHRBAssetV2 asset = {};
+				asset_offset = size_t(header.asset_table_offset) + size_t(asset_index) * sizeof(PHRBAssetV2);
+				if (!read_pod_from_blob(blob, asset_offset, asset))
+					return false;
+				asset_record_index = asset.record_index;
+				width = asset.width;
+				height = asset.height;
+				rgba_offset = asset.rgba_blob_offset;
+				rgba_size = asset.rgba_blob_size;
+			}
+
+			if (asset_record_index != record_index)
+				continue;
+			if (rgba_offset + rgba_size > rgba_blob_size)
+				continue;
+			if (width == 0 || height == 0 || rgba_size != width * height * 4u)
+				continue;
+
+			bool added = false;
+			if (record.sampled_sparse_pcrc != 0)
+			{
+				add_sampled_entry(record.sampled_sparse_pcrc, selector_checksum64, width, height, rgba_offset, rgba_size);
+				added = true;
+			}
+			if (record.sampled_entry_pcrc != 0 && record.sampled_entry_pcrc != record.sampled_sparse_pcrc)
+			{
+				add_sampled_entry(record.sampled_entry_pcrc, selector_checksum64, width, height, rgba_offset, rgba_size);
+				added = true;
+			}
+			if (!added)
+				add_sampled_entry(0, selector_checksum64, width, height, rgba_offset, rgba_size);
 		}
-		if (record.sampled_entry_pcrc != 0 && record.sampled_entry_pcrc != record.sampled_sparse_pcrc)
-		{
-			add_sampled_entry(record.sampled_entry_pcrc);
-			added = true;
-		}
-		if (!added)
-			add_sampled_entry(0);
 	}
 
-	return deterministic_loaded != 0;
+	return loaded_count != 0;
 }
 void ReplacementProvider::trim_to_budget(size_t bytes)
 {

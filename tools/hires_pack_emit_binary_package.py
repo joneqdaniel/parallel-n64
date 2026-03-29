@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 
 MAGIC = b'PHRB'
-VERSION = 2
+VERSION = 3
 
 
 def load_package_manifest(path: Path):
@@ -96,8 +96,9 @@ def emit_binary_package(package_dir: Path, output_path: Path):
         rgba_bytes = rgba_path.read_bytes()
         blob_offset = len(blob_section)
         blob_section.extend(rgba_bytes)
+        selector_checksum64 = int(str(candidate.get('legacy_checksum64') or '0'), 16)
         asset_table.extend(struct.pack(
-            '<IIIIIIIIIIII',
+            '<IIIIIIIIIIQII',
             record_index,
             string_offsets[candidate['replacement_id']],
             string_offsets[candidate['legacy_source_path']],
@@ -108,6 +109,7 @@ def emit_binary_package(package_dir: Path, output_path: Path):
             int(candidate['texture_format']),
             int(candidate['pixel_type']),
             int(candidate['legacy_formatsize']),
+            selector_checksum64,
             blob_offset,
             len(rgba_bytes),
         ))

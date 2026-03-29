@@ -222,6 +222,18 @@
               - [20260328-title-native-296x6-only](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260328-title-native-296x6-only) is byte-identical to the combined native title result
               - [20260328-title-native-296x2-only](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260328-title-native-296x2-only) stays on strict `off`
               - next implication: title follow-up work should focus on the dominant `296x6` copy-family transport or copy-mode interpretation, not on the `296x2` family
+            - sampled transport review now shows why a single native title selection is failing:
+              - review artifact: [20260328-title-sampled-transport/review.md](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-title-sampled-transport/review.md)
+              - current result: sampled key `940cea6e` spans `29` distinct upload families and `29` distinct `2960x60` payloads in the active legacy pack, while the current single-candidate native title package transports only one of them
+              - the selector-aware transport-pool package is now runtime-proven:
+                - package: [20260328-title-transport-pool/package-build-v2/package.phrb](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-title-transport-pool/package-build-v2/package.phrb)
+                - runtime proof: [20260328-title-transport-pool-runtime-v2](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260328-title-transport-pool-runtime-v2)
+                - current result: `33` exact hits on `940cea6e` and title hash `df6858a4bf022e514e3c85d67cad5e5ab5d6e25f71cc42cbefdf7c6688d5d904`
+                - distance to strict legacy `on` improves materially over both the single-candidate native package and strict `off`:
+                  - selector-aware pool: `AE=381982996`, `RMSE=48.24`
+                  - single candidate native: `AE=1076083334`, `RMSE=86.68`
+                  - strict `off`: `AE=667376891`, `RMSE=59.14`
+              - next implication: the title path is no longer blocked on whether sampled-object transport pools can work; it is now blocked on how to formalize the selector source and import policy for those pools without regressing N64 correctness
           - practical implication: the proxy pool is no longer an undifferentiated set of `62` payloads, and the active tracked provisional choice is now `af028e08`
     - practical implication: the active `8x16` gap should not be modeled as meaningful row-local upload bytes, which makes same-start parent-tile/subrect transport a stronger next resolver target than more row-byte reinterpretation
   - hi-res traces now also expose stable bucket summaries, which collapse title misses to 5 unique classes and file-select misses to 6 unique classes

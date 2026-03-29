@@ -230,6 +230,7 @@ private:
 	bool init_internal_upscaling_factor(const RendererOptions &options);
 	bool init_hires_resources(unsigned requested_capacity);
 	bool resolve_hires_replacement_descriptor(uint64_t checksum64, uint16_t formatsize, ReplacementMeta &meta);
+	bool resolve_hires_replacement_descriptor(uint64_t checksum64, uint16_t formatsize, uint64_t selector_checksum64, ReplacementMeta &meta);
 	void apply_hires_tile_binding(unsigned tile, const ReplacementTileState &state);
 	void clear_hires_tile_binding(unsigned tile);
 
@@ -467,10 +468,12 @@ private:
 	{
 		uint64_t checksum64 = 0;
 		uint16_t formatsize = 0;
+		uint64_t selector_checksum64 = 0;
 
 		bool operator==(const HiresKey &other) const
 		{
-			return checksum64 == other.checksum64 && formatsize == other.formatsize;
+			return checksum64 == other.checksum64 && formatsize == other.formatsize &&
+			       selector_checksum64 == other.selector_checksum64;
 		}
 	};
 
@@ -478,7 +481,7 @@ private:
 	{
 		size_t operator()(const HiresKey &key) const
 		{
-			return size_t(key.checksum64 ^ (uint64_t(key.formatsize) << 48));
+			return size_t(key.checksum64 ^ (uint64_t(key.formatsize) << 48) ^ key.selector_checksum64);
 		}
 	};
 

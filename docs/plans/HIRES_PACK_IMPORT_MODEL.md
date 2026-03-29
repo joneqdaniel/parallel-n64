@@ -412,6 +412,12 @@ The migration tool now emits that bridge when sampled-object bundle data is avai
         - `7701ac09` maps `53` transported candidates one-to-one onto sequence slots `2-54`, leaving only the repeated unresolved edge family `71c71cdd` at `0`, `1`, and `55`
         - `940cea6e` maps all `33` sequence slots onto transported replacements directly, so it is already closer to an ordered imported surface than to a free review pool
 
+      - ordered surface manifests now carry the first importer-facing surface shape for those pools:
+        - tool: [tools/hires_emit_surface_manifest.py](/home/auro/code/parallel-n64/tools/hires_emit_surface_manifest.py)
+        - stripe manifest: [20260329-title-stripe-surface-map/manifest.md](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-stripe-surface-map/manifest.md)
+        - copy-strip manifest: [20260329-title-copy-strip-surface-map/manifest.md](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-copy-strip-surface-map/manifest.md)
+        - import implication: for these title contributors, the next native-format step should be ordered-surface records with explicit unresolved edge slots rather than larger review pools or ad hoc selectors
+
 ## Policy Layer
 
 - Use [`tools/hires_pack_import_policy.json`](/home/auro/code/parallel-n64/tools/hires_pack_import_policy.json) to record explicit import decisions or non-binding suggestions.

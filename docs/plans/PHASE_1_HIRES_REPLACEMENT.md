@@ -479,6 +479,11 @@
         - copy-strip map: [20260329-title-copy-strip-surface-map/map.md](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-copy-strip-surface-map/map.md)
         - `7701ac09` now resolves `53/56` source-order slots directly, leaving only the repeated edge-key `71c71cdd` unresolved at seq `0`, `1`, and `55`
         - `940cea6e` now resolves all `33/33` source-order slots directly, with `5c66840b2eb5c22e` reused across the repeated edge positions
+      - ordered surface manifests are now emitted from those maps:
+        - tool: [tools/hires_emit_surface_manifest.py](/home/auro/code/parallel-n64/tools/hires_emit_surface_manifest.py)
+        - stripe manifest: [20260329-title-stripe-surface-map/manifest.md](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-stripe-surface-map/manifest.md)
+        - copy-strip manifest: [20260329-title-copy-strip-surface-map/manifest.md](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-copy-strip-surface-map/manifest.md)
+        - practical implication: these title contributors now have an importer-facing ordered-surface shape instead of only review-pool evidence
 
 ## Not Yet Claimed Categories
 

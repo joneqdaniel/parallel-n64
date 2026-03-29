@@ -69,7 +69,12 @@ def canonical_surface_manifest(policy_key: str, record: dict, group: dict):
         raise SystemExit(f'{policy_key} is missing canonical_identity in review group')
     selected_replacement_id = record.get('selected_replacement_id')
     if not selected_replacement_id:
-        raise SystemExit(f'{policy_key} is missing selected_replacement_id')
+        candidates = list(group.get('transport_candidates', []))
+        if len(candidates) != 1:
+            raise SystemExit(
+                f'{policy_key} is missing selected_replacement_id and review group has {len(candidates)} candidates'
+            )
+        selected_replacement_id = candidates[0]['replacement_id']
     candidate = selected_candidate(group, selected_replacement_id)
     selector_mode = record.get('selector_mode', 'legacy')
     selector_checksum64 = candidate['checksum64'] if selector_mode == 'legacy' else '0000000000000000'

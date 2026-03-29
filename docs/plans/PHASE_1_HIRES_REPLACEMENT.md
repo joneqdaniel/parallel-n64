@@ -517,22 +517,20 @@
     - hash `9221491f729b2e11a678456362f25c9d28b820b75297e26e373931978b48eb93`
     - exact hits: `33` on `940cea6e` only
 - Practical implication: the ordered-surface model is already compatible with the current sampled-object exact-lookup runtime as a compiled selector-bearing `PHRB` package. No new runtime binary format is required to start using ordered surfaces.
-- The current active combined selected package using this bridge is [`20260329-selected-plus-title-v9-grouped/package.phrb`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-selected-plus-title-v9-grouped/package.phrb).
+- The current active combined selected package using this bridge is [`20260329-selected-plus-title-v11-all-surfaceized/package.phrb`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-selected-plus-title-v11-all-surfaceized/package.phrb).
   - It merges:
     - file-select base sampled-object bindings
     - compiled `7701ac09` / `940cea6e` title surfaces
-    - policy-backed review-pool seams for `148e68ee` and `0f472c21`
-    - grouped coupled title seams:
-      - `title-press-start-128x32-pair`
-      - `title-copyright-144x16-pair`
+    - grouped title seam surfaces from [`20260329-title-grouped-review-surfaces/surface-package.json`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-grouped-review-surfaces/surface-package.json)
+    - single-candidate strip surfaces from [`20260329-title-strip-review-surfaces/surface-package.json`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-strip-review-surfaces/surface-package.json)
   - Runtime proofs:
-    - title: [`20260329-selected-plus-title-v9-grouped-runtime`](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260329-selected-plus-title-v9-grouped-runtime) -> hash `521539a34c40488bdfe987779a3c53ca1624c3eb985d362f6d1b7934d0064b31`
-    - file select: [`20260329-selected-plus-title-v9-grouped-runtime`](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260329-selected-plus-title-v9-grouped-runtime) -> hash `c5ac0f7558547aeb197552bbb1a0881c69f6d57ff1f17358d0d1753617d253e0`
+    - title: [`20260329-selected-plus-title-v11-all-surfaceized-runtime`](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260329-selected-plus-title-v11-all-surfaceized-runtime) -> hash `521539a34c40488bdfe987779a3c53ca1624c3eb985d362f6d1b7934d0064b31`
+    - file select: [`20260329-selected-plus-title-v11-all-surfaceized-runtime`](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260329-selected-plus-title-v11-all-surfaceized-runtime) -> hash `c5ac0f7558547aeb197552bbb1a0881c69f6d57ff1f17358d0d1753617d253e0`
 - Current meaning of that result:
   - ordered surfaces are now part of the active import pipeline, not just a review abstraction
-  - grouped review-pool seams are now part of the active merged package flow rather than a builder-only convenience
+  - the current active merged package is fully static at build time: no `--review-input`, `--review-pool-key`, or `--review-pool-group-key` path is required for the current merged title slice
   - `940cea6e` continues to behave like shared title/file-select content under both the surface-only and merged package paths
-  - the grouped title delta is narrow and intentional: versus [`20260329-selected-plus-title-v9-surface-runtime`](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260329-selected-plus-title-v9-surface-runtime), the new grouped package adds the `144x16` copyright pair and changes the lower title strip (`AE=112032`, `RMSE=0.0700408`) without destabilizing file select
+  - the grouped title delta remains narrow and intentional: versus [`20260329-selected-plus-title-v9-surface-runtime`](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260329-selected-plus-title-v9-surface-runtime), the merged package adds the `144x16` copyright pair and changes the lower title strip (`AE=112032`, `RMSE=0.0700408`) without destabilizing file select
 - [`tools/hires_pack_build_selected_package.py`](/home/auro/code/parallel-n64/tools/hires_pack_build_selected_package.py) now supports `--surface-package-input`, and the direct builder path reproduces the validated v9 package byte-for-byte.
 - Grouped review-pool seams can now be precompiled into static surface-package inputs via [`tools/hires_emit_review_pool_surfaces.py`](/home/auro/code/parallel-n64/tools/hires_emit_review_pool_surfaces.py).
   - emitted grouped surface package: [`20260329-title-grouped-review-surfaces/surface-package.json`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-grouped-review-surfaces/surface-package.json)

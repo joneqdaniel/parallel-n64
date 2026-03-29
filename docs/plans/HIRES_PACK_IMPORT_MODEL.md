@@ -522,18 +522,18 @@ This is the preferred inspection path while the import format is still evolving.
   - file-select cross-scene proof: [`20260329-title-surface-compiled-runtime`](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260329-title-surface-compiled-runtime)
   - practical outcome: `940cea6e` now compiles and runs as shared selector-bearing sampled-object content, while `7701ac09` remains title-local in the first compiled bridge
 - The same bridge now also composes with the selected-package builder:
-  - active combined package: [`20260329-selected-plus-title-v9-grouped/package.phrb`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-selected-plus-title-v9-grouped/package.phrb)
-  - builder inputs: selected file-select bindings + compiled ordered-surface bindings + policy-backed review-pool seams + grouped coupled title seams
+  - active combined package: [`20260329-selected-plus-title-v11-all-surfaceized/package.phrb`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-selected-plus-title-v11-all-surfaceized/package.phrb)
+  - builder inputs: selected file-select bindings + compiled ordered-surface bindings + grouped title seam surface packages + single-candidate strip surface packages
   - import implication: ordered surfaces can already participate in the active selected-package flow without bypassing the rest of the canonical import model
   - builder shortcut: [`tools/hires_pack_build_selected_package.py`](/home/auro/code/parallel-n64/tools/hires_pack_build_selected_package.py) now accepts `--surface-package-input` directly, and the rebuilt `20260329-selected-plus-title-v9-direct-surface/package.phrb` is byte-identical to the earlier manual v9 package.
   - coupled review-pool shortcut: the same builder now accepts `--review-pool-group-key`, with `title-press-start-128x32-pair` and `title-copyright-144x16-pair` defined in [`tools/hires_pack_transport_policy.json`](/home/auro/code/parallel-n64/tools/hires_pack_transport_policy.json)
-  - current zero-risk proof: rebuilding `20260329-selected-plus-title-v9-direct-surface/package.phrb` through `title-press-start-128x32-pair` reproduces the same package hash `55ad0bfb1792200625552f8344f687e236e62d69cf96c3447a11b0b3e34f35ab` as the explicit per-key build
   - grouped runtime proof:
     - title: [`20260329-selected-plus-title-v9-grouped-runtime`](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260329-selected-plus-title-v9-grouped-runtime)
     - file select: [`20260329-selected-plus-title-v9-grouped-runtime`](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260329-selected-plus-title-v9-grouped-runtime)
-    - practical outcome: the grouped builder path promotes the `144x16` copyright pair into the active merged package while keeping file select byte-identical to the earlier merged v9 result
+    - practical outcome: the grouped builder path proved the `144x16` copyright pair could be promoted into the merged package while keeping file select byte-identical to the earlier merged v9 result
   - grouped seams can now be re-expressed as static surface-package inputs via [`tools/hires_emit_review_pool_surfaces.py`](/home/auro/code/parallel-n64/tools/hires_emit_review_pool_surfaces.py)
-    - surface package: [`20260329-title-grouped-review-surfaces/surface-package.json`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-grouped-review-surfaces/surface-package.json)
-    - surfaceized selected package: [`20260329-selected-plus-title-v10-surfaceized/package.phrb`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-selected-plus-title-v10-surfaceized/package.phrb)
-    - practical outcome: the surfaceized path reproduces the same strict-scene runtime outputs as `v9-grouped`, so grouped review seams no longer need to stay live builder inputs to remain usable
+    - grouped surface package: [`20260329-title-grouped-review-surfaces/surface-package.json`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-grouped-review-surfaces/surface-package.json)
+    - strip surface package: [`20260329-title-strip-review-surfaces/surface-package.json`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-strip-review-surfaces/surface-package.json)
+    - fully static selected package: [`20260329-selected-plus-title-v11-all-surfaceized/package.phrb`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-selected-plus-title-v11-all-surfaceized/package.phrb)
+    - practical outcome: the fully static surfaceized path reproduces the same strict-scene runtime outputs as `v9-grouped`, so the current merged title slice no longer needs live review binding emission to remain usable
 

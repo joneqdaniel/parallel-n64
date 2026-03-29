@@ -360,6 +360,7 @@ The migration tool now emits that bridge when sampled-object bundle data is avai
           - `148e68ee` is now included as a safe zero-diff extension on the active selected merged package
           - `0f472c21` is now included as the TLUT-populated twin of that same minor 296x2 strip
           - `0e89915a` and `1d234571` are now carried provisionally through explicit selected review-pool candidates (`legacy-2c8a8202-00000000-fs0-1440x160`) rather than hand-built probe packages
+          - the next low-complexity unresolved title transport cases are `049201f4` and `ce437230`, which currently have no transported candidates at all; the new title block-family probe proves their shared upload family `dfe97266` is a real structured `2048x1` row rather than a probe truncation artifact
         - debugging implication: scene-shaped packages remain control artifacts, not the intended runtime format
         - import implication: some canonical title records are transport pools, some scenes require multiple simultaneous canonical records, and the open question is now how to formalize that multi-key title path while tightening the active merged package around the remaining primary `7701ac09` / `940cea6e` contributors, with the `144x16` lower-strip pair now recorded as policy-backed provisional selections
     - practical implication: the import/runtime transport problem for `7064585c` now has a tracked provisional selection, with `81b32e31` retained as the nearest alternate and `c3984de7` as the strongest structurally distinct fallback

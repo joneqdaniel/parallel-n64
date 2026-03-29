@@ -213,7 +213,7 @@ def build_plan(args: argparse.Namespace) -> dict:
     observed_siz = Counter(row["siz"] for row in filtered).most_common(1)[0][0]
     observed_fmt = Counter(row["fmt"] for row in filtered).most_common(1)[0][0]
     row_size_bytes = row_bytes(args.width, observed_siz)
-    span_bytes = (max_addr - min_addr) + 0x80
+    span_bytes = max((max_addr - min_addr) + 0x80, row_size_bytes)
     delta_counts = Counter(b - a for a, b in zip(unique_addrs, unique_addrs[1:]))
 
     clusters = []

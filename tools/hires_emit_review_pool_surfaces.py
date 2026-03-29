@@ -63,7 +63,7 @@ def selected_candidate(group: dict, replacement_id: str):
     return matches[0]
 
 
-def canonical_surface_manifest(policy_key: str, record: dict, group: dict):
+def canonical_surface_manifest(policy_key: str, record: dict, group: dict, review_cache_path: str):
     canonical_identity = dict(group.get('canonical_identity', {}))
     if not canonical_identity:
         raise SystemExit(f'{policy_key} is missing canonical_identity in review group')
@@ -78,7 +78,7 @@ def canonical_surface_manifest(policy_key: str, record: dict, group: dict):
     candidate = selected_candidate(group, selected_replacement_id)
     selector_mode = record.get('selector_mode', 'legacy')
     selector_checksum64 = candidate['checksum64'] if selector_mode == 'legacy' else '0000000000000000'
-    return {
+    surface = {
         'surface_id': policy_key,
         'sampled_low32': canonical_identity.get('sampled_low32'),
         'slot_count': 1,
@@ -98,6 +98,23 @@ def canonical_surface_manifest(policy_key: str, record: dict, group: dict):
         'source_policy_key': policy_key,
         'source_group_signature': group.get('signature', {}),
     }
+    surface_entry = {
+        'surface': surface,
+        'assets': {},
+        'canonical_identity': canonical_identity,
+        'candidate_snapshots': [{
+            'replacement_id': candidate['replacement_id'],
+            'checksum64': candidate['checksum64'],
+            'texture_crc': candidate['texture_crc'],
+            'palette_crc': candidate['palette_crc'],
+            'formatsize': candidate['formatsize'],
+            'width': candidate['width'],
+            'height': candidate['height'],
+            'data_size': candidate['data_size'],
+        }],
+        'source_cache_path': review_cache_path,
+    }
+    return surface_entry
 
 
 def render_markdown(package: dict):
@@ -156,7 +173,7 @@ def main():
             raise SystemExit(
                 f'no review group found for policy {policy_key} sampled_low32={sampled_low32} formatsize={formatsize}'
             )
-        surfaces.append({'surface': canonical_surface_manifest(policy_key, record, group), 'assets': {}})
+        surfaces.append(canonical_surface_manifest(policy_key, record, group, review['cache']))
 
     package = {
         'format': 'phrs-surface-package-v1',

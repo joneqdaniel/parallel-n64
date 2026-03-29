@@ -19,6 +19,14 @@ def candidate_index(review: dict):
     return index
 
 
+def group_index(review: dict):
+    return {
+        group.get('signature', {}).get('sampled_low32'): group
+        for group in review.get('groups', [])
+        if group.get('signature', {}).get('sampled_low32')
+    }
+
+
 def cache_index(cache_path: Path):
     entries = parse_cache_entries(cache_path)
     return {
@@ -44,16 +52,37 @@ def materialize_asset(cache_path: Path, entry: dict, out_dir: Path):
 def build_surface(surface_manifest: dict, review: dict, assets_dir: Path):
     cache_path = Path(review['cache'])
     candidates = candidate_index(review)
+    groups = group_index(review)
     entries = cache_index(cache_path)
     assets = {}
+    candidate_snapshots = []
     for replacement_id in surface_manifest['replacement_ids']:
         entry = entries.get(replacement_id)
         if entry is None:
             raise SystemExit(f'missing cache entry for {replacement_id}')
+        candidate = candidates.get(replacement_id)
+        if candidate is None:
+            raise SystemExit(f'missing transport candidate for {replacement_id}')
         assets[replacement_id] = materialize_asset(cache_path, entry, assets_dir)
+        candidate_snapshots.append({
+            'replacement_id': replacement_id,
+            'checksum64': candidate['checksum64'],
+            'texture_crc': candidate['texture_crc'],
+            'palette_crc': candidate['palette_crc'],
+            'formatsize': candidate['formatsize'],
+            'width': candidate['width'],
+            'height': candidate['height'],
+            'data_size': candidate['data_size'],
+        })
+    group = groups.get(surface_manifest['sampled_low32'])
+    if group is None:
+        raise SystemExit(f"missing sampled review group for {surface_manifest['sampled_low32']}")
     return {
         'surface': surface_manifest,
         'assets': assets,
+        'canonical_identity': group.get('canonical_identity', {}),
+        'candidate_snapshots': candidate_snapshots,
+        'source_cache_path': str(cache_path),
     }
 
 

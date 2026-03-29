@@ -759,21 +759,21 @@
     - hash `9221491f729b2e11a678456362f25c9d28b820b75297e26e373931978b48eb93`
     - exact hits: `33` on `940cea6e` only
 - Practical implication: ordered surfaces are no longer just an importer-side abstraction; they can already be compiled into the existing sampled-object `PHRB` runtime path, and `940cea6e` now looks like legitimate shared title/file-select content under that compiled selector model rather than a merge-only artifact.
-- The current active merged selected package is [`20260329-selected-plus-title-v11-all-surfaceized/package.phrb`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-selected-plus-title-v11-all-surfaceized/package.phrb).
+- The current active merged selected package is [`20260329-selected-plus-title-v12-selfcontained/package.phrb`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-selected-plus-title-v12-selfcontained/package.phrb).
   - Build inputs:
     - file-select base bindings from [`20260328-selected-no-title-v2/bindings.json`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-selected-no-title-v2/bindings.json)
-    - compiled ordered surfaces from [`20260329-title-surface-compiled/bindings.json`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-surface-compiled/bindings.json)
-    - grouped title seam surfaces from [`20260329-title-grouped-review-surfaces/surface-package.json`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-grouped-review-surfaces/surface-package.json)
-    - single-candidate strip surfaces from [`20260329-title-strip-review-surfaces/surface-package.json`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-strip-review-surfaces/surface-package.json)
+    - self-contained compiled ordered surfaces from [`20260329-title-surface-package-noreview/surface-package.json`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-surface-package-noreview/surface-package.json)
+    - self-contained grouped title seam surfaces from [`20260329-title-grouped-review-surfaces-noreview/surface-package.json`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-grouped-review-surfaces-noreview/surface-package.json)
+    - self-contained single-candidate strip surfaces from [`20260329-title-strip-review-surfaces-noreview/surface-package.json`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-strip-review-surfaces-noreview/surface-package.json)
   - Runtime proofs:
-    - title: [`20260329-selected-plus-title-v11-all-surfaceized-runtime`](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260329-selected-plus-title-v11-all-surfaceized-runtime)
+    - title: [`20260329-selected-plus-title-v12-selfcontained-runtime`](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260329-selected-plus-title-v12-selfcontained-runtime)
       - hash `521539a34c40488bdfe987779a3c53ca1624c3eb985d362f6d1b7934d0064b31`
       - exact hits: `106` on `7701ac09`, `33` on `940cea6e`, plus `1` each on `049201f4`, `ce437230`, `0e89915a`, `1d234571`, `0f472c21`, and `148e68ee`
       - delta vs [`20260329-selected-plus-title-v9-surface-runtime`](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260329-selected-plus-title-v9-surface-runtime): `AE=112032`, `RMSE=0.0700408`, concentrated in the lower copyright strip rather than the title center; diff artifact: [`20260329-title-v9-grouped-vs-surface/montage.png`](/home/auro/code/parallel-n64/artifacts/analysis/20260329-title-v9-grouped-vs-surface/montage.png)
-    - file select: [`20260329-selected-plus-title-v11-all-surfaceized-runtime`](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260329-selected-plus-title-v11-all-surfaceized-runtime)
+    - file select: [`20260329-selected-plus-title-v12-selfcontained-runtime`](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260329-selected-plus-title-v12-selfcontained-runtime)
       - hash `c5ac0f7558547aeb197552bbb1a0881c69f6d57ff1f17358d0d1753617d253e0`
       - exact hits remain anchored by `7064585c`, `c139c1c0`, and shared `940cea6e`, with the minor shared `148e68ee` strip also active
-- Practical implication: the native import path can now merge file-select sampled-object bindings and ordered title surface packages into one runtime package without inventing a new core-side binary format first, and the current active merged package no longer depends on live review-pool binding emission.
+- Practical implication: the current active merged package is now self-contained at surface-package compile time too. It reproduces the same strict-scene runtime outputs even when the surface-package `review` paths are deliberately broken, so the merged title slice no longer depends on external review JSON during build or runtime.
 - Grouped review-pool seams can now also be materialized into static surface-package inputs through [`tools/hires_emit_review_pool_surfaces.py`](/home/auro/code/parallel-n64/tools/hires_emit_review_pool_surfaces.py).
   - surface package: [`20260329-title-grouped-review-surfaces/surface-package.json`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-grouped-review-surfaces/surface-package.json)
   - surfaceized selected package: [`20260329-selected-plus-title-v10-surfaceized/package.phrb`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-selected-plus-title-v10-surfaceized/package.phrb)

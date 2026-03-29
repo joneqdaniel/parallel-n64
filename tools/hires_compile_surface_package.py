@@ -65,10 +65,14 @@ def build_transport_candidate(candidate: dict, cache_path: str, selector_checksu
     }
 
 
-def build_surface_binding(surface_entry: dict, group: dict, cache_path: str):
+def build_surface_binding(surface_entry: dict, group: dict | None, cache_path: str | None):
     surface = surface_entry["surface"]
     slots = surface.get("slots", [])
-    candidates = candidate_index(group)
+    embedded_candidates = {
+        candidate['replacement_id']: candidate
+        for candidate in surface_entry.get('candidate_snapshots', [])
+    }
+    candidates = embedded_candidates or (candidate_index(group) if group is not None else {})
     selectors = {}
 
     for slot in slots:
@@ -78,24 +82,38 @@ def build_surface_binding(surface_entry: dict, group: dict, cache_path: str):
         candidate = candidates.get(replacement_id)
         if candidate is None:
             raise SystemExit(
-                f"replacement_id {replacement_id} is missing from sampled review group {surface['sampled_low32']}"
+                f"replacement_id {replacement_id} is missing from sampled transport data for {surface['sampled_low32']}"
             )
         selector_checksum64 = slot["upload_key"].lower()
         selectors.setdefault(
             (replacement_id, selector_checksum64),
-            build_transport_candidate(candidate, cache_path, selector_checksum64, surface["sampled_low32"]),
+            build_transport_candidate(candidate, surface_entry.get('source_cache_path') or cache_path, selector_checksum64, surface["sampled_low32"]),
         )
 
-    canonical_identity = dict(group.get("canonical_identity", {}))
+    canonical_identity = dict(surface_entry.get('canonical_identity') or (group.get("canonical_identity", {}) if group is not None else {}))
     if not canonical_identity:
-        raise SystemExit(f"sampled review group {surface['sampled_low32']} is missing canonical_identity")
+        raise SystemExit(f"sampled transport data for {surface['sampled_low32']} is missing canonical_identity")
+
+    sampled_object_id = None
+    if group is not None:
+        sampled_object_id = group.get("sampled_object_id")
+    if not sampled_object_id:
+        sampled_object_id = (
+            f"sampled-fmt{canonical_identity.get('fmt')}"
+            f"-siz{canonical_identity.get('siz')}"
+            f"-off{canonical_identity.get('off')}"
+            f"-stride{canonical_identity.get('stride')}"
+            f"-wh{canonical_identity.get('wh')}"
+            f"-fs{canonical_identity.get('formatsize')}"
+            f"-low32{canonical_identity.get('sampled_low32')}"
+        )
 
     binding = {
         "policy_key": surface["surface_id"],
         "family_type": "ordered-surface",
         "status": "surface-compiled",
         "selection_reason": "ordered-surface-slot-map",
-        "sampled_object_id": group.get("sampled_object_id") or f"sampled-low32-{surface['sampled_low32']}",
+        "sampled_object_id": sampled_object_id,
         "canonical_identity": canonical_identity,
         "surface_tile_dims": surface.get("surface_tile_dims"),
         "slot_count": surface.get("slot_count", 0),
@@ -154,18 +172,30 @@ def compile_surface_package(surface_package_path: Path):
     if surface_package.get("format") != "phrs-surface-package-v1":
         raise SystemExit(f"unsupported surface package format: {surface_package.get('format')}")
 
-    review_path = Path(surface_package["review"])
-    review = load_json(review_path)
-    cache_path = review["cache"]
-    groups = review_group_index(review)
+    review = None
+    groups = {}
+    cache_path = None
+    review_value = surface_package.get("review")
+    surfaces = surface_package.get("surfaces", [])
+    embedded_ready = all(
+        surface_entry.get('canonical_identity') and surface_entry.get('candidate_snapshots') and surface_entry.get('source_cache_path')
+        for surface_entry in surfaces
+    )
+    if review_value and not embedded_ready:
+        review_path = Path(review_value)
+        review = load_json(review_path)
+        cache_path = review["cache"]
+        groups = review_group_index(review)
+    else:
+        review_path = Path(review_value) if review_value else None
 
     bindings = []
     unresolved = []
-    for surface_entry in surface_package.get("surfaces", []):
+    for surface_entry in surfaces:
         sampled_low32 = surface_entry["surface"]["sampled_low32"]
-        group = groups.get(sampled_low32)
-        if group is None:
-            raise SystemExit(f"sampled_low32 {sampled_low32} is missing from {review_path}")
+        group = groups.get(sampled_low32) if groups else None
+        if group is None and not surface_entry.get('canonical_identity'):
+            raise SystemExit(f"sampled_low32 {sampled_low32} is missing embedded transport data and review source")
         binding, unresolved_case = build_surface_binding(surface_entry, group, cache_path)
         bindings.append(binding)
         if unresolved_case is not None:
@@ -174,8 +204,8 @@ def compile_surface_package(surface_package_path: Path):
     return {
         "schema_version": 1,
         "source_input_path": str(surface_package_path),
-        "surface_review_path": str(review_path),
-        "bundle_path": review.get("bundle"),
+        "surface_review_path": str(review_path) if review_path is not None else None,
+        "bundle_path": review.get("bundle") if review is not None else surface_package.get("bundle_path"),
         "binding_count": len(bindings),
         "unresolved_count": len(unresolved),
         "bindings": bindings,

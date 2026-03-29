@@ -218,6 +218,10 @@
               - runtime proof: [20260328-title-native-package-v2](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260328-title-native-package-v2)
               - current result: `34` sampled-object exact hits, but the frame is still farther from legacy `on` than from strict `off`
               - next implication: the remaining title work is transport correctness or copy-mode modeling, not lookup plumbing
+            - split title runs now isolate that remaining problem further:
+              - [20260328-title-native-296x6-only](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260328-title-native-296x6-only) is byte-identical to the combined native title result
+              - [20260328-title-native-296x2-only](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260328-title-native-296x2-only) stays on strict `off`
+              - next implication: title follow-up work should focus on the dominant `296x6` copy-family transport or copy-mode interpretation, not on the `296x2` family
           - practical implication: the proxy pool is no longer an undifferentiated set of `62` payloads, and the active tracked provisional choice is now `af028e08`
     - practical implication: the active `8x16` gap should not be modeled as meaningful row-local upload bytes, which makes same-start parent-tile/subrect transport a stronger next resolver target than more row-byte reinterpretation
   - hi-res traces now also expose stable bucket summaries, which collapse title misses to 5 unique classes and file-select misses to 6 unique classes

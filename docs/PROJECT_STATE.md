@@ -484,6 +484,10 @@
         - current result: `34` sampled-object exact hits (`33` for `940cea6e`, `1` for `148e68ee`) and screenshot hash `3ea1cd944d1a328e68bfb75c0c2602b3c8cbce3b6f5185f9522a0381ee01fa20`
         - but the frame is still much farther from strict legacy `on` (`AE=1076083334`, `RMSE=86.68`) than from strict `off` (`AE=746610203`, `RMSE=72.11`)
         - practical implication: title copy-cycle native lookup is now proven, and the active problem has moved again from lookup eligibility to transport correctness / copy-mode modeling
+      - split title native-package runs now isolate the dominant bad family:
+        - [20260328-title-native-296x6-only](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260328-title-native-296x6-only) is byte-identical to the combined native title result and keeps `33` exact hits on sampled key `940cea6e`
+        - [20260328-title-native-296x2-only](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260328-title-native-296x2-only) stays on the strict `off` hash and only contributes `1` exact hit on `148e68ee`
+        - practical implication: the remaining title correctness problem is concentrated in the dominant `296x6 -> 2960x60` copy-family transport, not in the small `296x2` family or in interaction between the two
     - practical implication: `af028e08` is now the tracked provisional transport choice for `7064585c`; `81b32e31` remains the nearest alternate, and `c3984de7` remains the strongest structurally distinct fallback
   - strict bundle extraction now records sampled-object exact hits separately in [`tools/scenarios/lib/common.sh`](/home/auro/code/parallel-n64/tools/scenarios/lib/common.sh), so `traces/hires-evidence.json` can describe canonical lookup-only bundles without conflating them with the upload-side `Hi-res keying summary`
   - practical implication: the active `8x16` strict gap should not be modeled as meaningful row-local upload bytes, which pushes the next resolver step toward same-start parent-tile/subrect transport and away from row-byte reinterpretation

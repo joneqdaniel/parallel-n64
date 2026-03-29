@@ -329,6 +329,10 @@ The migration tool now emits that bridge when sampled-object bundle data is avai
         - runtime proof: [20260328-title-native-package-v2](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260328-title-native-package-v2)
         - current result: `34` sampled-object exact hits on title (`33` for `940cea6e`, `1` for `148e68ee`)
         - but the resulting frame is not yet visually correct, which means the next title gap is transport correctness or copy-mode interpretation rather than missing canonical identity alone
+      - split title native-package runs sharpen that again:
+        - the `296x6` sampled-object package [20260328-title-native-296x6-only](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260328-title-native-296x6-only) is byte-identical to the combined native title result
+        - the `296x2` sampled-object package [20260328-title-native-296x2-only](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260328-title-native-296x2-only) stays on strict `off`
+        - import implication: the active title correctness problem is concentrated in the dominant `940cea6e` / `2960x60` copy strip, so that family should be the next copy-mode transport target
     - practical implication: the import/runtime transport problem for `7064585c` now has a tracked provisional selection, with `81b32e31` retained as the nearest alternate and `c3984de7` as the strongest structurally distinct fallback
 - the package manifest now also records decoded `pixel_sha256` values, `alpha_normalized_pixel_sha256` values, and duplicate-pixel groups, so importer design can distinguish fully distinct transport content from any future duplicate or near-duplicate transport variants
   - markdown: [20260327-sampled-legacy-vs-canonical.md](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260327-sampled-legacy-vs-canonical.md)

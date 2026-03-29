@@ -502,11 +502,16 @@
           - strict `off` equivalent vs legacy `on`: `AE=667376891`, `RMSE=59.14`
         - policy-built title package: [20260328-selected-plus-title-v4/package.phrb](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-selected-plus-title-v4/package.phrb)
         - policy-built title runtime proof: [20260328-selected-plus-title-v4-runtime](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260328-selected-plus-title-v4-runtime)
-        - current result: the explicit-review-pool builder now reproduces the same strict title hash and the same `172` exact-hit structure as the older hand-built full-title package
+        - corrected cache-path proof: [20260328-title-control-correct-cache](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260328-title-control-correct-cache)
+        - current result: the explicit-review-pool builder now reproduces the same strict title hash and the same `172` exact-hit structure as the older hand-built full-title package once the selected `PHRB` is actually loaded instead of the default `.hts`
         - current merged-package note: visual inspection shows the merged package is better across all four comparison shots and adds visible content rather than obviously regressing earlier content
-        - active correctness concern: the center-content `111` region still looks wrong or incomplete, so the next task is to understand that bug rather than retreat to per-scene packages as a product model
+        - active correctness concern: the center-content `111` region still looks wrong or incomplete, and the same issue is visible in unmerged title controls too, so it is not treated as a merge regression
+        - title-family isolation now narrows the active suspects:
+          - `71c71cdd` alias experiments change exact-hit count but remain pixel-identical to the corrected title control, so that alias is not the current `111` cause
+          - `28916d63` exact-hit-only control collapses to the strict title `off` hash, so it is not the visible-title driver by itself
+          - active visible-title suspects are now `7701ac09` and `940cea6e`
         - debugging implication: separate packages remain useful as controls, but the forward path is still one combined package
-        - practical implication: native title import is no longer blocked on whether the transport model can reproduce legacy-looking output; the next seam is formalizing multi-key title transport pools and deciding whether the paired `940cea6e` / `28916d63` title strip should stay distinct or be unified by a stronger static resolver
+        - practical implication: native title import is no longer blocked on whether the transport model can reproduce legacy-looking output; the next seam is formalizing multi-key title transport pools while localizing the remaining `111` defect inside the `7701ac09` / `940cea6e` title path
     - practical implication: `af028e08` is now the tracked provisional transport choice for `7064585c`; `81b32e31` remains the nearest alternate, and `c3984de7` remains the strongest structurally distinct fallback
   - strict bundle extraction now records sampled-object exact hits separately in [`tools/scenarios/lib/common.sh`](/home/auro/code/parallel-n64/tools/scenarios/lib/common.sh), so `traces/hires-evidence.json` can describe canonical lookup-only bundles without conflating them with the upload-side `Hi-res keying summary`
   - practical implication: the active `8x16` strict gap should not be modeled as meaningful row-local upload bytes, which pushes the next resolver step toward same-start parent-tile/subrect transport and away from row-byte reinterpretation

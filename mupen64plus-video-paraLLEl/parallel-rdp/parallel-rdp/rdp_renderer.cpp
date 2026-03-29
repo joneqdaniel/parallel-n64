@@ -1876,11 +1876,41 @@ void Renderer::draw_shaded_primitive(const TriangleSetup &setup, const Attribute
 			const uint64_t checksum64 = detail::compose_hires_checksum64(sampled_identity.texture_crc, palette_crc);
 			ReplacementMeta candidate_meta = {};
 			if (!replacement_provider->lookup_with_selector(checksum64, sampled_identity.formatsize, sampled_selector_checksum64, &candidate_meta))
+			{
+				if (hires_debug_sampled_object_probe)
+				{
+					LOGI("Hi-res sampled-object exact miss: reason=lookup draw_class=%s cycle=%s tile=%u sampled_low32=%08x palette_crc=%08x fs=%u selector=%016llx provider_enabled=%u provider_entries=%zu.\n",
+					     get_hires_draw_class(draw_class),
+					     get_hires_cycle_class(raster_flags),
+					     base_tile,
+					     sampled_identity.texture_crc,
+					     palette_crc,
+					     sampled_identity.formatsize,
+					     static_cast<unsigned long long>(sampled_selector_checksum64),
+					     replacement_provider->enabled() ? 1u : 0u,
+					     replacement_provider->entry_count());
+				}
 				return false;
+			}
 			candidate_meta.orig_w = sampled_identity.width_pixels;
 			candidate_meta.orig_h = sampled_identity.height_pixels;
 			if (!resolve_hires_replacement_descriptor(checksum64, sampled_identity.formatsize, sampled_selector_checksum64, candidate_meta))
+			{
+				if (hires_debug_sampled_object_probe)
+				{
+					LOGI("Hi-res sampled-object exact miss: reason=resolve draw_class=%s cycle=%s tile=%u sampled_low32=%08x palette_crc=%08x fs=%u selector=%016llx repl=%ux%u.\n",
+					     get_hires_draw_class(draw_class),
+					     get_hires_cycle_class(raster_flags),
+					     base_tile,
+					     sampled_identity.texture_crc,
+					     palette_crc,
+					     sampled_identity.formatsize,
+					     static_cast<unsigned long long>(sampled_selector_checksum64),
+					     candidate_meta.repl_w,
+					     candidate_meta.repl_h);
+				}
 				return false;
+			}
 			sampled_meta = candidate_meta;
 			sampled_checksum64 = checksum64;
 			sampled_reason = reason;

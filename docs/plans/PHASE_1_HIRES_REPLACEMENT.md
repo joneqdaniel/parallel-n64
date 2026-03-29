@@ -234,11 +234,16 @@
                 - single-candidate native: `AE=1076083334`, `RMSE=86.68`
               - policy-built title package: [20260328-selected-plus-title-v4/package.phrb](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-selected-plus-title-v4/package.phrb)
               - policy-built title runtime proof: [20260328-selected-plus-title-v4-runtime](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260328-selected-plus-title-v4-runtime)
-              - current result: the explicit-review-pool builder now reproduces the older full-title package exactly on the strict title fixture
+              - corrected cache-path proof: [20260328-title-control-correct-cache](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260328-title-control-correct-cache)
+              - current result: the explicit-review-pool builder now reproduces the older full-title package exactly on the strict title fixture once the selected `PHRB` is actually loaded instead of the default `.hts`
               - current merged-package note: visual review of the four-shot comparison shows the merged package is better in all scenes and adds visible content rather than obviously regressing existing content
-              - active bug target: the center-content `111` region still appears wrong or unloaded, so the next Phase 1 step is to debug that correctness issue inside the merged path
+              - active bug target: the center-content `111` region still appears wrong or unloaded, and the same issue is visible in unmerged title controls too, so it is not treated as a merge regression
+              - title-family isolation now sharpens the next step:
+                - `71c71cdd` alias experiments do not change the final frame, so that alias is not the current `111` cause
+                - `28916d63` exact-hit-only control falls back to the strict title `off` frame, so it is not the visible-title driver by itself
+                - active visible-title suspects are now `7701ac09` and `940cea6e`
               - debugging implication: split packages remain control fixtures only; they are not the intended product format
-              - next implication: the title path is no longer blocked on whether sampled-object transport pools can work; it is now blocked on how to formalize multi-key title transport pools and how to resolve the paired `940cea6e` / `28916d63` title strip without regressing N64 correctness
+              - next implication: the title path is no longer blocked on whether sampled-object transport pools can work; it is now blocked on localizing the remaining `111` defect inside the `7701ac09` / `940cea6e` title path without regressing N64 correctness
           - practical implication: the proxy pool is no longer an undifferentiated set of `62` payloads, and the active tracked provisional choice is now `af028e08`
     - practical implication: the active `8x16` gap should not be modeled as meaningful row-local upload bytes, which makes same-start parent-tile/subrect transport a stronger next resolver target than more row-byte reinterpretation
   - hi-res traces now also expose stable bucket summaries, which collapse title misses to 5 unique classes and file-select misses to 6 unique classes

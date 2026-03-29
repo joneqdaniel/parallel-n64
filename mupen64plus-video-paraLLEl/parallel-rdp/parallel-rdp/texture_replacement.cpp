@@ -1,6 +1,8 @@
 #include "texture_replacement.hpp"
+#include "logging.hpp"
 #include <algorithm>
 #include <cerrno>
+#include <cstdlib>
 #include <cstring>
 #include <dirent.h>
 #include <fstream>
@@ -851,11 +853,20 @@ bool ReplacementProvider::load_phrb(const std::string &path)
 		return false;
 
 	const bool version3 = header.version == 3;
+	const bool phrb_debug = []() {
+		if (const char *env = getenv("PARALLEL_RDP_HIRES_PHRB_DEBUG"))
+			return strtol(env, nullptr, 0) > 0;
+		return false;
+	}();
 	const uint8_t *string_blob = blob.data() + header.string_table_offset;
 	const size_t string_blob_size = size_t(header.blob_offset - header.string_table_offset);
 	const uint8_t *rgba_blob_base = blob.data() + header.blob_offset;
 	const size_t rgba_blob_size = size_t(blob.size() - header.blob_offset);
 	uint32_t loaded_count = 0;
+
+	if (phrb_debug)
+		LOGI("Hi-res PHRB load: path=%s version=%u record_count=%u asset_count=%u string_table_bytes=%zu blob_bytes=%zu.\n",
+		     path.c_str(), header.version, header.record_count, header.asset_count, string_blob_size, rgba_blob_size);
 
 	for (uint32_t record_index = 0; record_index < header.record_count; record_index++)
 	{
@@ -867,6 +878,12 @@ bool ReplacementProvider::load_phrb(const std::string &path)
 		std::string policy_key;
 		if (!read_c_string_from_blob(string_blob, string_blob_size, record.policy_key_offset, policy_key))
 			policy_key = "phrb-record";
+
+		uint32_t loaded_asset_count = 0;
+		uint32_t zero_selector_count = 0;
+		uint32_t duplicate_selector_count = 0;
+		std::vector<uint64_t> unique_selectors;
+		std::vector<uint64_t> duplicate_selectors;
 
 		auto add_sampled_entry = [&](uint32_t palette_crc, uint64_t selector_checksum64, uint32_t width, uint32_t height, uint32_t rgba_offset, uint32_t rgba_size) {
 			Entry entry = {};
@@ -931,6 +948,26 @@ bool ReplacementProvider::load_phrb(const std::string &path)
 			if (width == 0 || height == 0 || rgba_size != width * height * 4u)
 				continue;
 
+			loaded_asset_count++;
+			if (selector_checksum64 == 0)
+				zero_selector_count++;
+			bool selector_seen = false;
+			for (uint64_t existing : unique_selectors)
+			{
+				if (existing == selector_checksum64)
+				{
+					selector_seen = true;
+					break;
+				}
+			}
+			if (selector_seen)
+			{
+				duplicate_selector_count++;
+				push_unique(duplicate_selectors, selector_checksum64);
+			}
+			else
+				unique_selectors.push_back(selector_checksum64);
+
 			bool added = false;
 			if (record.sampled_sparse_pcrc != 0)
 			{
@@ -944,6 +981,34 @@ bool ReplacementProvider::load_phrb(const std::string &path)
 			}
 			if (!added)
 				add_sampled_entry(0, selector_checksum64, width, height, rgba_offset, rgba_size);
+		}
+
+		if (phrb_debug)
+		{
+			const uint64_t first_selector = !unique_selectors.empty() ? unique_selectors.front() : 0;
+			const uint64_t last_selector = !unique_selectors.empty() ? unique_selectors.back() : 0;
+			const uint32_t self_test_palette_crc =
+				record.sampled_sparse_pcrc != 0 ? record.sampled_sparse_pcrc : record.sampled_entry_pcrc;
+			const uint64_t self_test_checksum64 = (uint64_t(self_test_palette_crc) << 32u) | uint64_t(record.sampled_low32);
+			const Entry *self_test_entry = loaded_asset_count != 0
+				? find_entry(self_test_checksum64, uint16_t(record.formatsize), first_selector)
+				: nullptr;
+			LOGI("Hi-res PHRB record: policy=%s sampled_low32=%08x fs=%u asset_candidates=%u loaded_assets=%u unique_selectors=%zu duplicate_selectors=%u zero_selectors=%u first_selector=%016llx last_selector=%016llx self_test=%u self_test_key=%016llx.\n",
+			     policy_key.c_str(),
+			     record.sampled_low32,
+			     record.formatsize,
+			     record.asset_candidate_count,
+			     loaded_asset_count,
+			     unique_selectors.size(),
+			     duplicate_selector_count,
+			     zero_selector_count,
+			     static_cast<unsigned long long>(first_selector),
+			     static_cast<unsigned long long>(last_selector),
+			     self_test_entry ? 1u : 0u,
+			     static_cast<unsigned long long>(self_test_checksum64));
+			for (uint64_t selector : duplicate_selectors)
+				LOGI("Hi-res PHRB duplicate selector: policy=%s selector=%016llx.\n",
+				     policy_key.c_str(), static_cast<unsigned long long>(selector));
 		}
 	}
 

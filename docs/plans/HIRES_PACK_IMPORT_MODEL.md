@@ -309,6 +309,12 @@ The migration tool now emits that bridge when sampled-object bundle data is avai
         - package: [20260328-sampled-proxy-plus-706/package.phrb](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-sampled-proxy-plus-706/package.phrb)
         - runtime proof: [20260328-sampled-proxy-plus-706](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260328-sampled-proxy-plus-706)
         - the combined package reproduces the earlier `af028e08` preview hash `1a0719dfcba68736d09579d8fb1e6eb628cf62fa89544675f8d7ddffe70500bb` with `14` exact hits total
+      - the selected package can now be rebuilt directly from tracked import artifacts and policy:
+        - builder: [tools/hires_pack_build_selected_package.py](/home/auro/code/parallel-n64/tools/hires_pack_build_selected_package.py)
+        - tracked build inputs: [20260327-sampled-import-index.json](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260327-sampled-import-index.json), [20260328-tile-parent/import-index.json](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-tile-parent/import-index.json), and [hires_pack_transport_policy.json](/home/auro/code/parallel-n64/tools/hires_pack_transport_policy.json)
+        - emitted proof package: [20260328-selected-from-import-index-v2/package.phrb](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-selected-from-import-index-v2/package.phrb)
+        - live proof: [20260328-selected-from-import-index-v2-runtime](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260328-selected-from-import-index-v2-runtime)
+        - current result: byte-identical to the earlier hand-built `20260328-sampled-proxy-plus-706/package.phrb` and identical strict runtime output with `14` sampled-object exact hits
     - practical implication: the import/runtime transport problem for `7064585c` now has a tracked provisional selection, with `81b32e31` retained as the nearest alternate and `c3984de7` as the strongest structurally distinct fallback
 - the package manifest now also records decoded `pixel_sha256` values, `alpha_normalized_pixel_sha256` values, and duplicate-pixel groups, so importer design can distinguish fully distinct transport content from any future duplicate or near-duplicate transport variants
   - markdown: [20260327-sampled-legacy-vs-canonical.md](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260327-sampled-legacy-vs-canonical.md)

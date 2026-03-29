@@ -354,7 +354,7 @@ The migration tool now emits that bridge when sampled-object bundle data is avai
         - active selected merged package: [20260328-selected-plus-title-v8-144x16-B-policy/package.phrb](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-selected-plus-title-v8-144x16-B-policy/package.phrb)
         - active correctness concern: the center-content `111` region still looks wrong or unloaded, but the active merged title center crop is byte-identical to the strict legacy `on` title reference, so it is not treated as a native import regression
         - title-family isolation now points at the active import-side contributors:
-          - `71c71cdd` alias experiments are exact-hit-positive but pixel-identical to the corrected title control
+          - `71c71cdd` alias experiments are exact-hit-positive but pixel-identical to the corrected title control: [20260328-title-71-alias-first-correct-cache](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260328-title-71-alias-first-correct-cache) and [20260328-title-71-alias-last-correct-cache](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260328-title-71-alias-last-correct-cache) both keep hash `620692162a2fbf167ef6e4a468f3a56890d229e75cbfd828dc5ad56ffe73a85b`; `alias-first` only raises sampled exact hits from `172` to `178`
           - `28916d63` exact-hit-only control collapses to the strict title `off` frame, and removing it leaves both strict title and merged file-select outputs unchanged, so it is now treated as redundant on the current strict fixtures
           - primary visible-title contributors are now `7701ac09` and `940cea6e`
           - `148e68ee` is now included as a safe zero-diff extension on the active selected merged package

@@ -169,6 +169,7 @@
         "A new stripe-sequence review shows the upload side is a strict 56-step source-order walk with dominant delta 0x640 (1600 bytes), which matches the upstream 200x2 stripe loop in kmr_21.",
         "That same sequence only repeats one unresolved upload key, 71c71cdd, at the opening/closing edge stripes (seq 0, 1, and 55), while the remaining 53 unique runtime stripes line up with the current 53-candidate transported pool.",
         "A new ordered surface map now proves those 53 transported candidates map one-to-one onto sequence slots 2-54; the only unresolved title stripes left in this pool are the three repeated edge slots for 71c71cdd.",
+        "The targeted alias controls [20260328-title-71-alias-first-correct-cache](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260328-title-71-alias-first-correct-cache) and [20260328-title-71-alias-last-correct-cache](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260328-title-71-alias-last-correct-cache) keep the strict title hash identical to [20260328-title-control-correct-cache](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260328-title-control-correct-cache); alias-first only raises the sampled exact-hit count from 172 to 178, so 71c71cdd is currently treated as a harmless unresolved edge family rather than an active visual blocker.",
         "This pool is the largest single contributor to the current native title result and should remain explicit until a stronger selector/static model narrows it."
       ],
       "evidence": {

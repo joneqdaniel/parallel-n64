@@ -242,7 +242,7 @@
               - merged file-select proof: [20260328-selected-plus-title-v8-144x16-B-policy-runtime](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260328-selected-plus-title-v8-144x16-B-policy-runtime)
               - active bug target: the center-content `111` region still appears wrong or unloaded, but the active merged title center crop is byte-identical to the strict legacy `on` title reference, so it is not treated as a native import regression
               - title-family isolation now sharpens the next step:
-                - `71c71cdd` alias experiments do not change the final frame, so that alias is not the current `111` cause
+                - `71c71cdd` alias experiments remain pixel-identical to the corrected title control: [20260328-title-71-alias-first-correct-cache](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260328-title-71-alias-first-correct-cache) and [20260328-title-71-alias-last-correct-cache](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260328-title-71-alias-last-correct-cache) both keep hash `620692162a2fbf167ef6e4a468f3a56890d229e75cbfd828dc5ad56ffe73a85b`; `alias-first` only raises sampled exact hits from `172` to `178`, so that alias is not the current `111` cause
                 - removing `28916d63` yields identical strict title and merged file-select outputs, so `28916d63` is redundant on the current strict fixtures and is no longer part of the active selected package
                 - primary visible-title contributors are now `7701ac09` and `940cea6e`
                 - `148e68ee` is now included as a safe zero-diff extension: it adds one exact sampled-object hit on both strict title and merged file-select without changing either frame hash

@@ -4,6 +4,7 @@ import json
 import sys
 from pathlib import Path
 
+from hires_compile_surface_package import compile_surface_package
 from hires_pack_emit_binary_package import emit_binary_package
 from hires_pack_emit_loader_manifest import build_loader_manifest
 from hires_pack_emit_probe_pool_binding import build_binding as build_review_pool_binding
@@ -111,10 +112,11 @@ def merge_bindings(binding_payloads):
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Build a selected canonical hi-res package directly from imported index/subset inputs and transport policy.'
+        description='Build a selected canonical hi-res package directly from imported index/subset inputs, ordered surfaces, and transport policy.'
     )
     parser.add_argument('--input', action='append', help='Path to imported_index or imported_subset JSON. Pass multiple times to merge sources.')
     parser.add_argument('--bindings-input', action='append', help='Path to an existing bindings.json payload. Pass multiple times to extend a selected package.')
+    parser.add_argument('--surface-package-input', action='append', help='Path to a phrs-surface-package-v1 JSON. Pass multiple times to fold ordered surfaces into the build.')
     parser.add_argument('--review-input', action='append', help='Path to sampled transport review JSON. Pass multiple times to provide transport-pool review sources.')
     parser.add_argument('--review-pool-key', action='append', help='Policy key from transport_review_pools to include in this package build. Pass multiple times.')
     parser.add_argument('--policy', required=True, help='Transport policy JSON path.')
@@ -125,12 +127,13 @@ def main():
 
     input_paths = [Path(path) for path in (args.input or [])]
     bindings_input_paths = [Path(path) for path in (args.bindings_input or [])]
+    surface_package_input_paths = [Path(path) for path in (args.surface_package_input or [])]
     review_input_paths = [Path(path) for path in (args.review_input or [])]
     review_pool_keys = args.review_pool_key or []
     if review_pool_keys and not review_input_paths:
         raise SystemExit('--review-pool-key requires at least one --review-input')
-    if not input_paths and not bindings_input_paths and not review_input_paths:
-        raise SystemExit('at least one --input, --bindings-input, or --review-input is required')
+    if not input_paths and not bindings_input_paths and not surface_package_input_paths and not review_input_paths:
+        raise SystemExit('at least one --input, --bindings-input, --surface-package-input, or --review-input is required')
 
     policy_path = Path(args.policy)
     output_dir = Path(args.output_dir)
@@ -142,6 +145,8 @@ def main():
         binding_payloads.append((input_path, build_proxy_bindings(input_path, policy_data)))
     for bindings_input_path in bindings_input_paths:
         binding_payloads.append((bindings_input_path, load_binding_payload(bindings_input_path)))
+    for surface_package_input_path in surface_package_input_paths:
+        binding_payloads.append((surface_package_input_path, compile_surface_package(surface_package_input_path)))
     if review_input_paths and review_pool_keys:
         binding_payloads.append((Path('review-pools'), build_review_pool_bindings(review_input_paths, policy_data, review_pool_keys)))
     bindings = merge_bindings(binding_payloads)
@@ -170,6 +175,7 @@ def main():
     result = {
         'input_paths': [str(path) for path in input_paths],
         'bindings_input_paths': [str(path) for path in bindings_input_paths],
+        'surface_package_input_paths': [str(path) for path in surface_package_input_paths],
         'review_input_paths': [str(path) for path in review_input_paths],
         'review_pool_keys': review_pool_keys,
         'policy_path': str(policy_path),

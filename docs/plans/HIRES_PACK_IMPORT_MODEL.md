@@ -524,4 +524,5 @@ This is the preferred inspection path while the import format is still evolving.
   - combined package: [`20260329-selected-plus-title-v9-surface/package.phrb`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-selected-plus-title-v9-surface/package.phrb)
   - builder inputs: selected file-select bindings + compiled ordered-surface bindings + policy-backed review-pool seams
   - import implication: ordered surfaces can already participate in the active selected-package flow without bypassing the rest of the canonical import model
+  - builder shortcut: [`tools/hires_pack_build_selected_package.py`](/home/auro/code/parallel-n64/tools/hires_pack_build_selected_package.py) now accepts `--surface-package-input` directly, and the rebuilt `20260329-selected-plus-title-v9-direct-surface/package.phrb` is byte-identical to the earlier manual v9 package.
 

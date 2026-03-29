@@ -528,4 +528,5 @@
   - ordered surfaces are now part of the active import pipeline, not just a review abstraction
   - `940cea6e` continues to behave like shared title/file-select content under both the surface-only and merged package paths
   - the remaining open work is not whether ordered surfaces can reach runtime, but how broadly we want to promote them and how we want to carry unresolved edge slots forward in policy/build tooling
+- [`tools/hires_pack_build_selected_package.py`](/home/auro/code/parallel-n64/tools/hires_pack_build_selected_package.py) now supports `--surface-package-input`, and the direct builder path reproduces the validated v9 package byte-for-byte.
 

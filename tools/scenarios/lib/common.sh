@@ -193,6 +193,9 @@ result = {
         "exact_hit_count": 0,
         "unique_exact_hit_bucket_count": 0,
         "top_exact_hit_buckets": [],
+        "exact_miss_count": 0,
+        "unique_exact_miss_bucket_count": 0,
+        "top_exact_miss_buckets": [],
     },
 }
 
@@ -220,6 +223,7 @@ provenance_re = re.compile(r"Hi-res keying provenance: (.+)")
 draw_usage_re = re.compile(r"Hi-res draw usage: (.+)")
 sampled_object_re = re.compile(r"Hi-res sampled-object probe: (.+)")
 sampled_object_exact_hit_re = re.compile(r"Hi-res sampled-object exact hit: (.+)")
+sampled_object_exact_miss_re = re.compile(r"Hi-res sampled-object exact miss: (.+)")
 field_re = re.compile(r"(\w+)=([^\s]+)")
 
 bucket_maps = {
@@ -234,6 +238,7 @@ draw_usage_buckets = {}
 sampler_usage_buckets = {}
 sampled_object_buckets = {}
 sampled_object_exact_hit_buckets = {}
+sampled_object_exact_miss_buckets = {}
 
 def parse_fields(detail):
     fields = {}
@@ -376,6 +381,19 @@ def finalize_sampled_object_summary():
     exact_hit_items.sort(key=lambda item: (-item["count"], item["signature"]))
     result["sampled_object_probe"]["unique_exact_hit_bucket_count"] = len(exact_hit_items)
     result["sampled_object_probe"]["top_exact_hit_buckets"] = exact_hit_items[:10]
+
+    exact_miss_items = [
+        {
+            "signature": signature,
+            "count": payload["count"],
+            "fields": payload["fields"],
+            "sample_detail": payload["sample_detail"],
+        }
+        for signature, payload in sampled_object_exact_miss_buckets.items()
+    ]
+    exact_miss_items.sort(key=lambda item: (-item["count"], item["signature"]))
+    result["sampled_object_probe"]["unique_exact_miss_bucket_count"] = len(exact_miss_items)
+    result["sampled_object_probe"]["top_exact_miss_buckets"] = exact_miss_items[:10]
 
 def parse_hts_cache_index(cache_path):
     data = cache_path.read_bytes()
@@ -770,6 +788,55 @@ for line in log_path.read_text(errors="replace").splitlines():
                         "sampled_sparse_pcrc",
                         "fs",
                         "key",
+                        "repl",
+                    )
+                    if fields.get(key) is not None
+                },
+                "sample_detail": detail,
+            },
+        )
+        bucket["count"] += 1
+        continue
+
+    m = sampled_object_exact_miss_re.search(line)
+    if m:
+        result["available"] = True
+        result["sampled_object_probe"]["available"] = True
+        result["sampled_object_probe"]["exact_miss_count"] += 1
+        detail = m.group(1).strip()
+        fields = parse_fields(detail)
+        signature = " ".join(
+            f"{key}={fields.get(key)}"
+            for key in (
+                "reason",
+                "draw_class",
+                "cycle",
+                "tile",
+                "sampled_low32",
+                "palette_crc",
+                "fs",
+                "selector",
+                "repl",
+            )
+            if fields.get(key) is not None
+        )
+        bucket = sampled_object_exact_miss_buckets.setdefault(
+            signature,
+            {
+                "count": 0,
+                "fields": {
+                    key: fields.get(key)
+                    for key in (
+                        "reason",
+                        "draw_class",
+                        "cycle",
+                        "tile",
+                        "sampled_low32",
+                        "palette_crc",
+                        "fs",
+                        "selector",
+                        "provider_enabled",
+                        "provider_entries",
                         "repl",
                     )
                     if fields.get(key) is not None

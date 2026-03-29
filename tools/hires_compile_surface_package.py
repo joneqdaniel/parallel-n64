@@ -169,13 +169,15 @@ def build_surface_binding(surface_entry: dict, group: dict | None, cache_path: s
 
 def compile_surface_package(surface_package_path: Path):
     surface_package = load_json(surface_package_path)
-    if surface_package.get("format") != "phrs-surface-package-v1":
-        raise SystemExit(f"unsupported surface package format: {surface_package.get('format')}")
+    surface_format = surface_package.get("format")
+    if surface_format not in {"phrs-surface-package-v1", "phrs-surface-package-v2"}:
+        raise SystemExit(f"unsupported surface package format: {surface_format}")
 
     review = None
     groups = {}
     cache_path = None
-    review_value = surface_package.get("review")
+    provenance = surface_package.get("provenance") or {}
+    review_value = provenance.get("review_path") or surface_package.get("review")
     surfaces = surface_package.get("surfaces", [])
     embedded_ready = all(
         surface_entry.get('canonical_identity') and surface_entry.get('candidate_snapshots') and surface_entry.get('source_cache_path')
@@ -217,7 +219,7 @@ def main():
     parser = argparse.ArgumentParser(
         description="Compile an ordered-surface package into standard bindings / loader manifest / PHRB artifacts."
     )
-    parser.add_argument("--surface-package", required=True, help="Path to phrs-surface-package-v1 JSON.")
+    parser.add_argument("--surface-package", required=True, help="Path to phrs-surface-package-v1 or phrs-surface-package-v2 JSON.")
     parser.add_argument("--output-dir", required=True, help="Output directory for compiled artifacts.")
     parser.add_argument("--package-name", default="package.phrb", help="Binary package filename relative to output dir.")
     parser.add_argument("--allow-unresolved", action="store_true", help="Keep unresolved ordered-surface slots in metadata.")

@@ -420,8 +420,8 @@ The migration tool now emits that bridge when sampled-object bundle data is avai
 
       - a first tool-side ordered-surface package now makes that bridge concrete:
         - tool: [tools/hires_build_surface_package.py](/home/auro/code/parallel-n64/tools/hires_build_surface_package.py)
-        - package: [20260329-title-surface-package/surface-package.json](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-surface-package/surface-package.json)
-        - format id: `phrs-surface-package-v1`
+        - package: [20260329-title-surface-package-v2/surface-package.json](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-surface-package-v2/surface-package.json)
+        - format id: `phrs-surface-package-v2`
         - current scope: `surface-7701ac09` (`53` replacements, `3` unresolved edge slots) and `surface-940cea6e` (`29` replacements, `0` unresolved slots)
         - import implication: the remaining design problem is no longer whether ordered surfaces are a useful abstraction; it is whether the runtime should consume this shape directly or via a narrower compiled/binary form
 
@@ -501,9 +501,9 @@ This is the preferred inspection path while the import format is still evolving.
 
 ## Ordered-Surface Compile Bridge
 
-- [`tools/hires_compile_surface_package.py`](/home/auro/code/parallel-n64/tools/hires_compile_surface_package.py) now provides the first direct bridge from `phrs-surface-package-v1` into the existing canonical runtime handoff stack.
+- [`tools/hires_compile_surface_package.py`](/home/auro/code/parallel-n64/tools/hires_compile_surface_package.py) now provides the first direct bridge from `phrs-surface-package-v2` into the existing canonical runtime handoff stack.
 - Input:
-  - ordered-surface package JSON, for example [`20260329-title-surface-package/surface-package.json`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-surface-package/surface-package.json)
+  - ordered-surface package JSON, for example [`20260329-title-surface-package-v2/surface-package.json`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-surface-package-v2/surface-package.json)
 - Output:
   - `bindings.json`
   - `loader-manifest.json`
@@ -522,7 +522,7 @@ This is the preferred inspection path while the import format is still evolving.
   - file-select cross-scene proof: [`20260329-title-surface-compiled-runtime`](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260329-title-surface-compiled-runtime)
   - practical outcome: `940cea6e` now compiles and runs as shared selector-bearing sampled-object content, while `7701ac09` remains title-local in the first compiled bridge
 - The same bridge now also composes with the selected-package builder:
-  - active combined package: [`20260329-selected-plus-title-v12-selfcontained/package.phrb`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-selected-plus-title-v12-selfcontained/package.phrb)
+  - active combined package: [`20260329-selected-plus-title-v13-surface-v2/package.phrb`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-selected-plus-title-v13-surface-v2/package.phrb)
   - builder inputs: selected file-select bindings + self-contained ordered-surface packages for the title stripe, title copy strip, grouped title seam pairs, and single-candidate title strips
   - import implication: ordered surfaces can already participate in the active selected-package flow without bypassing the rest of the canonical import model, and they no longer require external sampled review JSON during compilation when emitted with embedded canonical identity and candidate snapshots
   - builder shortcut: [`tools/hires_pack_build_selected_package.py`](/home/auro/code/parallel-n64/tools/hires_pack_build_selected_package.py) now accepts `--surface-package-input` directly, and the rebuilt `20260329-selected-plus-title-v9-direct-surface/package.phrb` is byte-identical to the earlier manual v9 package.
@@ -531,9 +531,9 @@ This is the preferred inspection path while the import format is still evolving.
     - file select: [`20260329-selected-plus-title-v9-grouped-runtime`](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260329-selected-plus-title-v9-grouped-runtime)
     - practical outcome: the grouped builder path proved the `144x16` copyright pair could be promoted into the merged package while keeping file select byte-identical to the earlier merged v9 result
   - self-contained surface-package proof:
-    - self-contained stripe/copy package: [`20260329-title-surface-package-noreview/surface-package.json`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-surface-package-noreview/surface-package.json)
-    - self-contained grouped seam package: [`20260329-title-grouped-review-surfaces-noreview/surface-package.json`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-grouped-review-surfaces-noreview/surface-package.json)
-    - self-contained strip package: [`20260329-title-strip-review-surfaces-noreview/surface-package.json`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-strip-review-surfaces-noreview/surface-package.json)
-    - active self-contained selected package: [`20260329-selected-plus-title-v12-selfcontained/package.phrb`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-selected-plus-title-v12-selfcontained/package.phrb)
+    - self-contained stripe/copy package: [`20260329-title-surface-package-v2-noreview/surface-package.json`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-surface-package-v2-noreview/surface-package.json)
+    - self-contained grouped seam package: [`20260329-title-grouped-review-surfaces-v2-noreview/surface-package.json`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-grouped-review-surfaces-v2-noreview/surface-package.json)
+    - self-contained strip package: [`20260329-title-strip-review-surfaces-v2-noreview/surface-package.json`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-strip-review-surfaces-v2-noreview/surface-package.json)
+    - active self-contained selected package: [`20260329-selected-plus-title-v13-surface-v2/package.phrb`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-selected-plus-title-v13-surface-v2/package.phrb)
     - practical outcome: the self-contained path reproduces the same strict-scene runtime outputs as `v11-all-surfaceized` even with deliberately broken surface-package `review` paths, so the current merged title slice no longer depends on external review JSON during compile or runtime
 

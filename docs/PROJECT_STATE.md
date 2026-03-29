@@ -673,9 +673,9 @@
   - the ordered surface map now proves all `33` sequence slots resolve to transported replacements; the repeated edge key is reused intentionally rather than left unresolved
   - practical implication: the main title copy-strip contributor is already representable as an ordered title surface, while the main `7701ac09` stripe pool is narrowed to just three repeated unresolved edge slots for `71c71cdd`
   - next implication: these title contributors can now be expressed as ordered surfaces instead of ad hoc review pools, which is the clearest current bridge into a cleaner native import format
-- A first ordered-surface package is now emitted tool-side: [20260329-title-surface-package/surface-package.json](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-surface-package/surface-package.json)
+- A first ordered-surface package is now emitted tool-side: [20260329-title-surface-package-v2/surface-package.json](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-surface-package-v2/surface-package.json)
   - tool: [tools/hires_build_surface_package.py](/home/auro/code/parallel-n64/tools/hires_build_surface_package.py)
-  - format id: `phrs-surface-package-v1`
+  - format id: `phrs-surface-package-v2`
   - current contents: `surface-7701ac09` with `53` replacements and `3` unresolved edge slots, plus `surface-940cea6e` with `29` replacements and `0` unresolved slots
   - practical implication: the native-format path now has a concrete `surface + ordered slots + referenced assets` artifact instead of only review/manifold intermediates
 
@@ -744,7 +744,7 @@
 
 ## Latest Ordered-Surface Bridge
 
-- [`tools/hires_compile_surface_package.py`](/home/auro/code/parallel-n64/tools/hires_compile_surface_package.py) now compiles `phrs-surface-package-v1` into ordinary `bindings.json`, `loader-manifest.json`, a materialized package dir, and a runtime-loadable `PHRB` package.
+- [`tools/hires_compile_surface_package.py`](/home/auro/code/parallel-n64/tools/hires_compile_surface_package.py) now compiles `phrs-surface-package-v2` into ordinary `bindings.json`, `loader-manifest.json`, a materialized package dir, and a runtime-loadable `PHRB` package.
 - The first compiled ordered-surface runtime proof is [`20260329-title-surface-compiled/package.phrb`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-surface-compiled/package.phrb).
   - It carries `2` canonical records: `surface-7701ac09` and `surface-940cea6e`.
   - It preserves `1` unresolved metadata case for the repeated `7701ac09` edge slots (`71c71cdd`) instead of inventing selectors for them.
@@ -759,21 +759,21 @@
     - hash `9221491f729b2e11a678456362f25c9d28b820b75297e26e373931978b48eb93`
     - exact hits: `33` on `940cea6e` only
 - Practical implication: ordered surfaces are no longer just an importer-side abstraction; they can already be compiled into the existing sampled-object `PHRB` runtime path, and `940cea6e` now looks like legitimate shared title/file-select content under that compiled selector model rather than a merge-only artifact.
-- The current active merged selected package is [`20260329-selected-plus-title-v12-selfcontained/package.phrb`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-selected-plus-title-v12-selfcontained/package.phrb).
+- The current active merged selected package is [`20260329-selected-plus-title-v13-surface-v2/package.phrb`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-selected-plus-title-v13-surface-v2/package.phrb).
   - Build inputs:
     - file-select base bindings from [`20260328-selected-no-title-v2/bindings.json`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-selected-no-title-v2/bindings.json)
-    - self-contained compiled ordered surfaces from [`20260329-title-surface-package-noreview/surface-package.json`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-surface-package-noreview/surface-package.json)
-    - self-contained grouped title seam surfaces from [`20260329-title-grouped-review-surfaces-noreview/surface-package.json`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-grouped-review-surfaces-noreview/surface-package.json)
-    - self-contained single-candidate strip surfaces from [`20260329-title-strip-review-surfaces-noreview/surface-package.json`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-strip-review-surfaces-noreview/surface-package.json)
+    - self-contained compiled ordered surfaces from [`20260329-title-surface-package-v2-noreview/surface-package.json`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-surface-package-v2-noreview/surface-package.json)
+    - self-contained grouped title seam surfaces from [`20260329-title-grouped-review-surfaces-v2-noreview/surface-package.json`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-grouped-review-surfaces-v2-noreview/surface-package.json)
+    - self-contained single-candidate strip surfaces from [`20260329-title-strip-review-surfaces-v2-noreview/surface-package.json`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-strip-review-surfaces-v2-noreview/surface-package.json)
   - Runtime proofs:
-    - title: [`20260329-selected-plus-title-v12-selfcontained-runtime`](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260329-selected-plus-title-v12-selfcontained-runtime)
+    - title: [`20260329-selected-plus-title-v13-surface-v2-runtime`](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260329-selected-plus-title-v13-surface-v2-runtime)
       - hash `521539a34c40488bdfe987779a3c53ca1624c3eb985d362f6d1b7934d0064b31`
       - exact hits: `106` on `7701ac09`, `33` on `940cea6e`, plus `1` each on `049201f4`, `ce437230`, `0e89915a`, `1d234571`, `0f472c21`, and `148e68ee`
       - delta vs [`20260329-selected-plus-title-v9-surface-runtime`](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260329-selected-plus-title-v9-surface-runtime): `AE=112032`, `RMSE=0.0700408`, concentrated in the lower copyright strip rather than the title center; diff artifact: [`20260329-title-v9-grouped-vs-surface/montage.png`](/home/auro/code/parallel-n64/artifacts/analysis/20260329-title-v9-grouped-vs-surface/montage.png)
-    - file select: [`20260329-selected-plus-title-v12-selfcontained-runtime`](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260329-selected-plus-title-v12-selfcontained-runtime)
+    - file select: [`20260329-selected-plus-title-v13-surface-v2-runtime`](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260329-selected-plus-title-v13-surface-v2-runtime)
       - hash `c5ac0f7558547aeb197552bbb1a0881c69f6d57ff1f17358d0d1753617d253e0`
       - exact hits remain anchored by `7064585c`, `c139c1c0`, and shared `940cea6e`, with the minor shared `148e68ee` strip also active
-- Practical implication: the current active merged package is now self-contained at surface-package compile time too. It reproduces the same strict-scene runtime outputs even when the surface-package `review` paths are deliberately broken, so the merged title slice no longer depends on external review JSON during build or runtime.
+- Practical implication: the current active merged package is now self-contained at surface-package compile time too. It reproduces the same strict-scene runtime outputs even when the surface-package provenance `review_path` values are deliberately broken, so the merged title slice no longer depends on external review JSON during build or runtime.
 - Grouped review-pool seams can now also be materialized into static surface-package inputs through [`tools/hires_emit_review_pool_surfaces.py`](/home/auro/code/parallel-n64/tools/hires_emit_review_pool_surfaces.py).
   - surface package: [`20260329-title-grouped-review-surfaces/surface-package.json`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-grouped-review-surfaces/surface-package.json)
   - surfaceized selected package: [`20260329-selected-plus-title-v10-surfaceized/package.phrb`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-selected-plus-title-v10-surfaceized/package.phrb)

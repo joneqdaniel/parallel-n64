@@ -104,9 +104,12 @@ def main():
         surfaces.append(build_surface(manifest, review, assets_dir))
 
     package = {
-        'format': 'phrs-surface-package-v1',
-        'review': args.review,
+        'format': 'phrs-surface-package-v2',
         'surface_count': len(surfaces),
+        'bundle_path': review.get('bundle'),
+        'provenance': {
+            'review_path': args.review,
+        },
         'surfaces': surfaces,
     }
     (output_dir / 'surface-package.json').write_text(json.dumps(package, indent=2) + '\n')

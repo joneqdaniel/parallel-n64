@@ -145,7 +145,7 @@ def main():
     )
     parser.add_argument('--input', action='append', help='Path to imported_index or imported_subset JSON. Pass multiple times to merge sources.')
     parser.add_argument('--bindings-input', action='append', help='Path to an existing bindings.json payload. Pass multiple times to extend a selected package.')
-    parser.add_argument('--surface-package-input', action='append', help='Path to a phrs-surface-package-v1 JSON. Pass multiple times to fold ordered surfaces into the build.')
+    parser.add_argument('--surface-package-input', action='append', help='Path to a phrs-surface-package-v1 or phrs-surface-package-v2 JSON. Pass multiple times to fold ordered surfaces into the build.')
     parser.add_argument('--review-input', action='append', help='Path to sampled transport review JSON. Pass multiple times to provide transport-pool review sources.')
     parser.add_argument('--review-pool-key', action='append', help='Policy key from transport_review_pools to include in this package build. Pass multiple times.')
     parser.add_argument('--review-pool-group-key', action='append', help='Group key from transport_review_pool_groups to include in this package build. Pass multiple times.')

@@ -121,7 +121,7 @@ def render_markdown(package: dict):
     lines = [
         '# Review-Pool Surface Package',
         '',
-        f"- review: `{package['review']}`",
+        f"- review_path: `{package.get('provenance', {}).get('review_path')}`",
         f"- surface_count: `{package['surface_count']}`",
         '',
     ]
@@ -143,7 +143,7 @@ def render_markdown(package: dict):
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Emit a phrs-surface-package-v1 from selected review-pool keys or group keys.'
+        description='Emit a phrs-surface-package-v2 from selected review-pool keys or group keys.'
     )
     parser.add_argument('--review', required=True)
     parser.add_argument('--policy', required=True)
@@ -176,12 +176,16 @@ def main():
         surfaces.append(canonical_surface_manifest(policy_key, record, group, review['cache']))
 
     package = {
-        'format': 'phrs-surface-package-v1',
-        'review': str(review_path),
+        'format': 'phrs-surface-package-v2',
         'surface_count': len(surfaces),
+        'bundle_path': review.get('bundle'),
         'surfaces': surfaces,
         'source_policy_path': str(policy_path),
         'resolved_review_pool_keys': resolved_keys,
+        'provenance': {
+            'review_path': str(review_path),
+            'policy_path': str(policy_path),
+        },
     }
     output_json = Path(args.output_json)
     output_json.parent.mkdir(parents=True, exist_ok=True)

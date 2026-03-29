@@ -656,6 +656,7 @@
       - title policy package is byte-identical to the manual zero-selector proof (`ac266300...`) and still logs one exact hit on each sampled `128x32` title object
       - file select stays byte-identical to the previous active merged file-select package (`2b55962a...`) and logs no `049201f4` / `ce437230` hits
   - practical implication: `Press Start` is now the first tracked case where the right native transport is source-backed but not upload-selector-backed, so zero-selector review-pool transport is now a real, bounded tool in the import model rather than a theoretical escape hatch
+  - broader validation now passed on the first non-menu timeout slice: [20260329-title-timeout-960-v8-press-start-09e](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/on/20260329-title-timeout-960-v8-press-start-09e) reaches `state_init_world` / `state_step_world` at `kmr_03 entry 5` with `sampled_object_probe.exact_hit_count = 0`, so the current zero-selector `Press Start` seam remains title-only across that world transition probe
 
 - The large title `7701ac09` 1-cycle strip pool is now structurally constrained by a source-order stripe review:
   - tool: [tools/hires_title_stripe_sequence.py](/home/auro/code/parallel-n64/tools/hires_title_stripe_sequence.py)
@@ -663,6 +664,11 @@
   - active title bundle shows exactly `56` sequential `200x2 RGBA32` upload stripes with dominant address delta `0x640`, matching the upstream `kmr_21` `TitleImage[1600 * i]` loop
   - the runtime walk has `54` unique upload keys: one unresolved key, `71c71cdd`, repeats at sequence `0`, `1`, and `55`, while the remaining `53` unique stripes align with the current `53` transported candidates in the `7701ac09` pool
   - practical implication: the big title pool is much closer to an ordered title-surface mapping problem than an arbitrary replacement bag; the next narrowing step should focus on the repeated edge-key and source-order transport rather than more broad candidate hunting
+- The `296x6` title copy-strip pool is now constrained the same way:
+  - artifact: [20260329-title-copy-strip-sequence/sequence.md](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-copy-strip-sequence/sequence.md)
+  - the active title bundle shows `33` sequential `296x6` upload strips with dominant delta `0x6f0`, and `29` unique upload keys
+  - one key, `5c66840b2eb5c22e`, repeats at sequence `0` and `29-32`, while the remaining `29` unique keys line up with the current `29` transported candidates in the `940cea6e` pool
+  - practical implication: the main title copy-strip contributor also looks like an ordered title-surface mapping problem, not a free-form candidate pool
 
 ## Locked Planning Backbone
 

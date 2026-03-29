@@ -459,6 +459,7 @@
       - current interpretation:
         - this seam is now the first concrete case where source-backed sampled-object transport needs zero-selector review-pool policy rather than legacy upload-family selectors
         - that is acceptable as a bounded import-model tool, but it should remain provisional until broader fixtures show it does not bleed beyond the tracked scenes
+      - broader validation now passed on the first non-menu timeout slice: [20260329-title-timeout-960-v8-press-start-09e](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/on/20260329-title-timeout-960-v8-press-start-09e) reaches `state_init_world` / `state_step_world` at `kmr_03 entry 5` with `sampled_object_probe.exact_hit_count = 0`, so the current zero-selector `Press Start` seam stays title-only across that timeout/world probe
 
     - the large title `7701ac09` 1-cycle strip pool is now much more structurally constrained than it looked from the raw review counts alone:
       - tool: [tools/hires_title_stripe_sequence.py](/home/auro/code/parallel-n64/tools/hires_title_stripe_sequence.py)
@@ -467,6 +468,12 @@
       - that runtime walk has `54` unique upload keys, with only one unresolved key, `71c71cdd`, repeated at sequence `0`, `1`, and `55`
       - the remaining `53` unique stripes line up with the current `53` transported candidates already carried in the `7701ac09` selected pool
       - practical implication: the next narrowing step on the main title pool should focus on the repeated edge-key and source-order transport, not more broad candidate hunting across the whole 53-entry set
+
+    - the `296x6` title copy-strip path now shows the same structural pattern:
+      - artifact: [20260329-title-copy-strip-sequence/sequence.md](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-copy-strip-sequence/sequence.md)
+      - the active title bundle exposes exactly `33` sequential `296x6` upload strips with dominant delta `0x6f0` and `29` unique upload keys
+      - one key, `5c66840b2eb5c22e`, repeats at sequence `0` and `29-32`, while the remaining `29` unique keys line up with the current `29` transported candidates in the `940cea6e` pool
+      - practical implication: the main copy-strip contributor is also an ordered title-surface mapping problem, so future narrowing should follow source order and repeated-edge analysis rather than broad pool search
 
 ## Not Yet Claimed Categories
 

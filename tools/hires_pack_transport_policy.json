@@ -113,6 +113,8 @@
       "justification": "The zero-palette title copy strip is still active on the strict title fixture and needs a full transported payload pool instead of a single selected asset.",
       "supporting_notes": [
         "The refreshed title sampled-object review shows 29 upload families and 29 transported 2960x60 payloads for this sampled object.",
+        "A new copy-strip sequence review shows the upload side is a strict 33-step source-order walk with dominant delta 0x6f0 (1776 bytes), which matches 296x6 strip stepping and exposes one repeated edge key, 5c66840b2eb5c22e, at seq 0 and 29-32.",
+        "That sequence has 29 unique upload keys, which line up exactly with the current 29-candidate transported pool for 940cea6e.",
         "This sampled object coexists with 28916d63 for the same visible 296x6 title strip once TLUT state becomes populated.",
         "The current best native title package requires this pool alongside the TLUT-populated 28916d63 pool and the 7701ac09 1-cycle pool."
       ],
@@ -120,7 +122,8 @@
         "review_artifact": "artifacts/hires-pack-review/20260328-title-sampled-transport-v4/review.md",
         "runtime_bundle": "artifacts/paper-mario-title-screen/on/20260328-title-combined-pools-v2-full-runtime",
         "exact_hit_count": 33,
-        "package": "artifacts/hires-pack-review/20260328-title-combined-pools-v2-full/package.phrb"
+        "package": "artifacts/hires-pack-review/20260328-title-combined-pools-v2-full/package.phrb",
+        "copy_strip_sequence_review": "artifacts/hires-pack-review/20260329-title-copy-strip-sequence/sequence.md"
       },
       "overturn_conditions": [
         "A stronger static resolver proves 940cea6e and 28916d63 should collapse into one canonical title strip identity.",
@@ -304,13 +307,15 @@
         "The seeded legacy-selector review pool was a complete no-op for all five 1280x320 candidates; zero-selector transport is the first mode that produces exact hits on both sampled objects.",
         "09e981b2 produces one exact hit on 049201f4 and one on ce437230 in the strict title fixture.",
         "The same zero-selector package remains byte-identical to the active merged file-select fixture and does not introduce any 049201f4 or ce437230 hits there.",
+        "A completed title-timeout world validation now shows the policy-built package reaches state_init_world/state_step_world at kmr_03 entry 5 with sampled-object exact-hit count 0, so this seam is currently title-only across the first non-menu timeout slice.",
         "The zero-selector candidate montage makes 09e981b2 the strongest current visual lead among the five source-backed 1280x320 payloads, but this remains provisional until broader review or stronger static evidence narrows it further."
       ],
       "evidence": {
         "seeded_review_artifact": "artifacts/hires-pack-review/20260329-title-press-start-seeded/review.md",
         "zero_selector_summary": "artifacts/hires-pack-review/20260329-title-press-start-zero-selector/runtime-summary.md",
         "title_runtime_bundle": "artifacts/paper-mario-title-screen/on/20260329-press-start-09e981b2-zero-selector-runtime-v2",
-        "file_select_runtime_bundle": "artifacts/paper-mario-file-select/on/20260329-press-start-09e981b2-zero-selector-runtime"
+        "file_select_runtime_bundle": "artifacts/paper-mario-file-select/on/20260329-press-start-09e981b2-zero-selector-runtime",
+        "title_timeout_world_bundle": "artifacts/paper-mario-probes/on/20260329-title-timeout-960-v8-press-start-09e"
       },
       "overturn_conditions": [
         "A later zero-selector candidate proves visually superior without regressing strict merged file select.",
@@ -329,13 +334,15 @@
         "The seeded legacy-selector review pool was a complete no-op for all five 1280x320 candidates; zero-selector transport is the first mode that produces exact hits on both sampled objects.",
         "09e981b2 produces one exact hit on 049201f4 and one on ce437230 in the strict title fixture.",
         "The same zero-selector package remains byte-identical to the active merged file-select fixture and does not introduce any 049201f4 or ce437230 hits there.",
+        "A completed title-timeout world validation now shows the policy-built package reaches state_init_world/state_step_world at kmr_03 entry 5 with sampled-object exact-hit count 0, so this seam is currently title-only across the first non-menu timeout slice.",
         "The zero-selector candidate montage makes 09e981b2 the strongest current visual lead among the five source-backed 1280x320 payloads, but this remains provisional until broader review or stronger static evidence narrows it further."
       ],
       "evidence": {
         "seeded_review_artifact": "artifacts/hires-pack-review/20260329-title-press-start-seeded/review.md",
         "zero_selector_summary": "artifacts/hires-pack-review/20260329-title-press-start-zero-selector/runtime-summary.md",
         "title_runtime_bundle": "artifacts/paper-mario-title-screen/on/20260329-press-start-09e981b2-zero-selector-runtime-v2",
-        "file_select_runtime_bundle": "artifacts/paper-mario-file-select/on/20260329-press-start-09e981b2-zero-selector-runtime"
+        "file_select_runtime_bundle": "artifacts/paper-mario-file-select/on/20260329-press-start-09e981b2-zero-selector-runtime",
+        "title_timeout_world_bundle": "artifacts/paper-mario-probes/on/20260329-title-timeout-960-v8-press-start-09e"
       },
       "overturn_conditions": [
         "A later zero-selector candidate proves visually superior without regressing strict merged file select.",

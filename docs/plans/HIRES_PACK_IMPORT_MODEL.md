@@ -391,6 +391,7 @@ The migration tool now emits that bridge when sampled-object bundle data is avai
           - file-select runtime proof: [20260329-selected-plus-title-v8-press-start-09e-runtime](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260329-selected-plus-title-v8-press-start-09e-runtime)
           - current result: the policy-built package reproduces the manual title proof exactly and remains byte-identical to the active merged file-select package
         - import-model implication: zero-selector review-pool transport is now a justified bounded tool for source-backed sampled objects when legacy-family selectors are known to be structurally wrong; it remains provisional, explicit, and review-driven rather than becoming silent default behavior
+        - broader validation now passed on the first non-menu timeout slice: [20260329-title-timeout-960-v8-press-start-09e](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/on/20260329-title-timeout-960-v8-press-start-09e) reaches `state_init_world` / `state_step_world` at `kmr_03 entry 5` with `sampled_object_probe.exact_hit_count = 0`, so the current zero-selector `Press Start` seam remains title-only across that world transition probe
 
       - the main `7701ac09` title strip pool is now structurally constrained by an upload-side sequence review:
         - tool: [tools/hires_title_stripe_sequence.py](/home/auro/code/parallel-n64/tools/hires_title_stripe_sequence.py)
@@ -398,6 +399,12 @@ The migration tool now emits that bridge when sampled-object bundle data is avai
         - the active title package still logs the underlying upload walk as exactly `56` sequential `200x2 RGBA32` stripes with dominant address delta `0x640`, matching the upstream `kmr_21` `TitleImage[1600 * i]` loop
         - that walk has `54` unique upload keys: one unresolved key, `71c71cdd`, repeats at sequence `0`, `1`, and `55`, while the remaining `53` unique stripes line up with the current `53` transported candidates in the `7701ac09` pool
         - import implication: the largest remaining title pool is no longer best understood as a flat bag of 53 candidates; it is an ordered title-surface mapping problem with one repeated unresolved edge family
+
+      - the `296x6` title copy-strip path now shows the same structural pattern:
+        - artifact: [20260329-title-copy-strip-sequence/sequence.md](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-copy-strip-sequence/sequence.md)
+        - the active title package logs exactly `33` sequential `296x6` upload strips with dominant delta `0x6f0` and `29` unique upload keys
+        - one key, `5c66840b2eb5c22e`, repeats at sequence `0` and `29-32`, while the remaining `29` unique keys line up with the current `29` transported candidates in the `940cea6e` pool
+        - import implication: both major title pools (`7701ac09` and `940cea6e`) now look like ordered title-surface mappings with repeated edge families, which is a better guide for future canonical transport than generic pool ranking
 
 ## Policy Layer
 

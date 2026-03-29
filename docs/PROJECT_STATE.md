@@ -741,3 +741,32 @@
 ## Working Rule
 
 - classify issues using all available evidence: output, traces, logs, telemetry, fixture identity, and config state
+
+## Latest Ordered-Surface Bridge
+
+- [`tools/hires_compile_surface_package.py`](/home/auro/code/parallel-n64/tools/hires_compile_surface_package.py) now compiles `phrs-surface-package-v1` into ordinary `bindings.json`, `loader-manifest.json`, a materialized package dir, and a runtime-loadable `PHRB` package.
+- The first compiled ordered-surface runtime proof is [`20260329-title-surface-compiled/package.phrb`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-surface-compiled/package.phrb).
+  - It carries `2` canonical records: `surface-7701ac09` and `surface-940cea6e`.
+  - It preserves `1` unresolved metadata case for the repeated `7701ac09` edge slots (`71c71cdd`) instead of inventing selectors for them.
+- That compiled package is now runtime-proven on the strict fixtures:
+  - title proof: [`20260329-title-surface-compiled-runtime`](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260329-title-surface-compiled-runtime)
+    - hash `620692162a2fbf167ef6e4a468f3a56890d229e75cbfd828dc5ad56ffe73a85b`
+    - exact hits: `106` on `7701ac09`, `33` on `940cea6e`
+  - file-select cross-scene proof: [`20260329-title-surface-compiled-runtime`](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260329-title-surface-compiled-runtime)
+    - hash `9221491f729b2e11a678456362f25c9d28b820b75297e26e373931978b48eb93`
+    - exact hits: `33` on `940cea6e` only
+- Practical implication: ordered surfaces are no longer just an importer-side abstraction; they can already be compiled into the existing sampled-object `PHRB` runtime path, and `940cea6e` now looks like legitimate shared title/file-select content under that compiled selector model rather than a merge-only artifact.
+- The first combined package that folds this bridge back into the active selected-package flow is [`20260329-selected-plus-title-v9-surface/package.phrb`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-selected-plus-title-v9-surface/package.phrb).
+  - Build inputs:
+    - file-select base bindings from [`20260328-selected-no-title-v2/bindings.json`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-selected-no-title-v2/bindings.json)
+    - compiled ordered surfaces from [`20260329-title-surface-compiled/bindings.json`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-surface-compiled/bindings.json)
+    - policy-backed review-pool additions for `148e68ee`, `0f472c21`, `049201f4`, and `ce437230`
+  - Runtime proofs:
+    - title: [`20260329-selected-plus-title-v9-surface-runtime`](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260329-selected-plus-title-v9-surface-runtime)
+      - hash `946ac2f13e7fd2695ee28ee60ca26f3a91a7fd91dd7894ded6e847a4dfcfc017`
+      - exact hits: `106` on `7701ac09`, `33` on `940cea6e`, plus `1` each on `049201f4`, `ce437230`, `0f472c21`, and `148e68ee`
+    - file select: [`20260329-selected-plus-title-v9-surface-runtime`](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260329-selected-plus-title-v9-surface-runtime)
+      - hash `c5ac0f7558547aeb197552bbb1a0881c69f6d57ff1f17358d0d1753617d253e0`
+      - exact hits remain anchored by `7064585c`, `c139c1c0`, and shared `940cea6e`, with the minor shared `148e68ee` strip also active
+- Practical implication: the current native import path can now merge file-select sampled-object bindings, ordered title surfaces, and narrower review-pool seams into one runtime package without inventing a new core-side binary format first.
+

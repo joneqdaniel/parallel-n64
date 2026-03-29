@@ -498,3 +498,30 @@ This is the preferred inspection path while the import format is still evolving.
 - Use the attached policy layer to start testing explicit imported-family decisions without changing runtime behavior
 - Decide what additional discriminators or policy fields are required to turn the ambiguous selector policies into deterministic ones, using the recorded runtime context instead of ad hoc notes
 - Keep runtime code unchanged until the imported subset can be inspected and compared against strict fixture evidence
+
+## Ordered-Surface Compile Bridge
+
+- [`tools/hires_compile_surface_package.py`](/home/auro/code/parallel-n64/tools/hires_compile_surface_package.py) now provides the first direct bridge from `phrs-surface-package-v1` into the existing canonical runtime handoff stack.
+- Input:
+  - ordered-surface package JSON, for example [`20260329-title-surface-package/surface-package.json`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-surface-package/surface-package.json)
+- Output:
+  - `bindings.json`
+  - `loader-manifest.json`
+  - materialized package dir
+  - `PHRB` binary
+- First compiled artifact: [`20260329-title-surface-compiled/package.phrb`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-surface-compiled/package.phrb)
+  - `surface-7701ac09` compiles into one sampled-object record with `53` explicit selector-bearing asset candidates
+  - `surface-940cea6e` compiles into one sampled-object record with `29` explicit selector-bearing asset candidates
+  - unresolved `7701ac09` edge slots remain metadata-only (`surface-7701ac09-unresolved`) instead of being promoted into fake selectors
+- Runtime implication:
+  - ordered surfaces do not require a new core-side package format to become useful
+  - current `PHRB` v3 is already expressive enough for the ordered-surface subset when each ordered slot is compiled into a selector-bearing asset candidate under one sampled-object record
+- Validation:
+  - title-only compiled package runtime proof: [`20260329-title-surface-compiled-runtime`](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260329-title-surface-compiled-runtime)
+  - file-select cross-scene proof: [`20260329-title-surface-compiled-runtime`](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260329-title-surface-compiled-runtime)
+  - practical outcome: `940cea6e` now compiles and runs as shared selector-bearing sampled-object content, while `7701ac09` remains title-local in the first compiled bridge
+- The same bridge now also composes with the selected-package builder:
+  - combined package: [`20260329-selected-plus-title-v9-surface/package.phrb`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-selected-plus-title-v9-surface/package.phrb)
+  - builder inputs: selected file-select bindings + compiled ordered-surface bindings + policy-backed review-pool seams
+  - import implication: ordered surfaces can already participate in the active selected-package flow without bypassing the rest of the canonical import model
+

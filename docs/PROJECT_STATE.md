@@ -657,6 +657,13 @@
       - file select stays byte-identical to the previous active merged file-select package (`2b55962a...`) and logs no `049201f4` / `ce437230` hits
   - practical implication: `Press Start` is now the first tracked case where the right native transport is source-backed but not upload-selector-backed, so zero-selector review-pool transport is now a real, bounded tool in the import model rather than a theoretical escape hatch
 
+- The large title `7701ac09` 1-cycle strip pool is now structurally constrained by a source-order stripe review:
+  - tool: [tools/hires_title_stripe_sequence.py](/home/auro/code/parallel-n64/tools/hires_title_stripe_sequence.py)
+  - artifact: [20260329-title-stripe-sequence/sequence.md](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-stripe-sequence/sequence.md)
+  - active title bundle shows exactly `56` sequential `200x2 RGBA32` upload stripes with dominant address delta `0x640`, matching the upstream `kmr_21` `TitleImage[1600 * i]` loop
+  - the runtime walk has `54` unique upload keys: one unresolved key, `71c71cdd`, repeats at sequence `0`, `1`, and `55`, while the remaining `53` unique stripes align with the current `53` transported candidates in the `7701ac09` pool
+  - practical implication: the big title pool is much closer to an ordered title-surface mapping problem than an arbitrary replacement bag; the next narrowing step should focus on the repeated edge-key and source-order transport rather than more broad candidate hunting
+
 ## Locked Planning Backbone
 
 1. Phase 0: agent-first tooling, fixtures, evidence bundles, deterministic control

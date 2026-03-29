@@ -460,6 +460,14 @@
         - this seam is now the first concrete case where source-backed sampled-object transport needs zero-selector review-pool policy rather than legacy upload-family selectors
         - that is acceptable as a bounded import-model tool, but it should remain provisional until broader fixtures show it does not bleed beyond the tracked scenes
 
+    - the large title `7701ac09` 1-cycle strip pool is now much more structurally constrained than it looked from the raw review counts alone:
+      - tool: [tools/hires_title_stripe_sequence.py](/home/auro/code/parallel-n64/tools/hires_title_stripe_sequence.py)
+      - artifact: [20260329-title-stripe-sequence/sequence.md](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-stripe-sequence/sequence.md)
+      - the active title bundle exposes exactly `56` sequential `200x2 RGBA32` upload stripes with dominant address delta `0x640`, which matches the upstream `kmr_21` `TitleImage[1600 * i]` stripe loop exactly
+      - that runtime walk has `54` unique upload keys, with only one unresolved key, `71c71cdd`, repeated at sequence `0`, `1`, and `55`
+      - the remaining `53` unique stripes line up with the current `53` transported candidates already carried in the `7701ac09` selected pool
+      - practical implication: the next narrowing step on the main title pool should focus on the repeated edge-key and source-order transport, not more broad candidate hunting across the whole 53-entry set
+
 ## Not Yet Claimed Categories
 
 - texrect edge cases beyond explicitly validated fixtures

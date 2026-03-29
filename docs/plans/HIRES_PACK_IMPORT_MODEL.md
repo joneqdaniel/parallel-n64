@@ -392,6 +392,13 @@ The migration tool now emits that bridge when sampled-object bundle data is avai
           - current result: the policy-built package reproduces the manual title proof exactly and remains byte-identical to the active merged file-select package
         - import-model implication: zero-selector review-pool transport is now a justified bounded tool for source-backed sampled objects when legacy-family selectors are known to be structurally wrong; it remains provisional, explicit, and review-driven rather than becoming silent default behavior
 
+      - the main `7701ac09` title strip pool is now structurally constrained by an upload-side sequence review:
+        - tool: [tools/hires_title_stripe_sequence.py](/home/auro/code/parallel-n64/tools/hires_title_stripe_sequence.py)
+        - artifact: [20260329-title-stripe-sequence/sequence.md](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-stripe-sequence/sequence.md)
+        - the active title package still logs the underlying upload walk as exactly `56` sequential `200x2 RGBA32` stripes with dominant address delta `0x640`, matching the upstream `kmr_21` `TitleImage[1600 * i]` loop
+        - that walk has `54` unique upload keys: one unresolved key, `71c71cdd`, repeats at sequence `0`, `1`, and `55`, while the remaining `53` unique stripes line up with the current `53` transported candidates in the `7701ac09` pool
+        - import implication: the largest remaining title pool is no longer best understood as a flat bag of 53 candidates; it is an ordered title-surface mapping problem with one repeated unresolved edge family
+
 ## Policy Layer
 
 - Use [`tools/hires_pack_import_policy.json`](/home/auro/code/parallel-n64/tools/hires_pack_import_policy.json) to record explicit import decisions or non-binding suggestions.

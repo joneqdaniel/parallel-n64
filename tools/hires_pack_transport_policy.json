@@ -161,13 +161,16 @@
       "supporting_notes": [
         "The refreshed title sampled-object review shows 54 probe events, 53 transported candidates, and one unresolved missing upload family for this sampled object.",
         "The current best native title package hits this sampled object 106 times on the strict title fixture.",
+        "A new stripe-sequence review shows the upload side is a strict 56-step source-order walk with dominant delta 0x640 (1600 bytes), which matches the upstream 200x2 stripe loop in kmr_21.",
+        "That same sequence only repeats one unresolved upload key, 71c71cdd, at the opening/closing edge stripes (seq 0, 1, and 55), while the remaining 53 unique runtime stripes line up with the current 53-candidate transported pool.",
         "This pool is the largest single contributor to the current native title result and should remain explicit until a stronger selector/static model narrows it."
       ],
       "evidence": {
         "review_artifact": "artifacts/hires-pack-review/20260328-title-sampled-transport-v4/review.md",
         "runtime_bundle": "artifacts/paper-mario-title-screen/on/20260328-title-combined-pools-v2-full-runtime",
         "exact_hit_count": 106,
-        "package": "artifacts/hires-pack-review/20260328-title-combined-pools-v2-full/package.phrb"
+        "package": "artifacts/hires-pack-review/20260328-title-combined-pools-v2-full/package.phrb",
+        "stripe_sequence_review": "artifacts/hires-pack-review/20260329-title-stripe-sequence/sequence.md"
       },
       "overturn_conditions": [
         "A stronger selector source narrows this 53-candidate pool materially without hurting the strict title frame.",

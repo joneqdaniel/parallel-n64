@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "surface_aliases": {
+    "surface-7701ac09": {
+      "slot_aliases": {
+        "0": {
+          "replacement_id": "legacy-e0dc03d0-00000000-fs0-1600x16",
+          "reason": "fill repeated left-edge 71c71cdd slot from first resolved stripe"
+        },
+        "1": {
+          "replacement_id": "legacy-e0dc03d0-00000000-fs0-1600x16",
+          "reason": "fill repeated left-edge 71c71cdd slot from first resolved stripe"
+        },
+        "55": {
+          "replacement_id": "legacy-844144ad-00000000-fs0-1600x16",
+          "reason": "fill repeated right-edge 71c71cdd slot from last resolved stripe"
+        }
+      }
+    }
+  }
+}

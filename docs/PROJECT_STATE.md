@@ -505,13 +505,16 @@
         - corrected cache-path proof: [20260328-title-control-correct-cache](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260328-title-control-correct-cache)
         - current result: the explicit-review-pool builder now reproduces the same strict title hash and the same `172` exact-hit structure as the older hand-built full-title package once the selected `PHRB` is actually loaded instead of the default `.hts`
         - current merged-package note: visual inspection shows the merged package is better across all four comparison shots and adds visible content rather than obviously regressing earlier content
-        - active correctness concern: the center-content `111` region still looks wrong or incomplete, and the same issue is visible in unmerged title controls too, so it is not treated as a merge regression
-        - title-family isolation now narrows the active suspects:
+        - active selected merged package: [20260328-selected-plus-title-v5/package.phrb](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-selected-plus-title-v5/package.phrb)
+        - active selected merged package proof: [20260328-title-minus-289-runtime](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260328-title-minus-289-runtime)
+        - merged file-select compatibility proof: [20260328-selected-plus-title-minus-289-runtime](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260328-selected-plus-title-minus-289-runtime)
+        - active correctness concern: the center-content `111` region still looks wrong or incomplete, but the active merged title center crop is byte-identical to the strict legacy `on` title reference, so it is not treated as a native import regression
+        - title-family isolation now narrows the active contributors and removes one redundant pool:
           - `71c71cdd` alias experiments change exact-hit count but remain pixel-identical to the corrected title control, so that alias is not the current `111` cause
-          - `28916d63` exact-hit-only control collapses to the strict title `off` hash, so it is not the visible-title driver by itself
-          - active visible-title suspects are now `7701ac09` and `940cea6e`
+          - removing `28916d63` yields the same title hash `620692162a2fbf167ef6e4a468f3a56890d229e75cbfd828dc5ad56ffe73a85b` and the same merged file-select hash `c5ac0f7558547aeb197552bbb1a0881c69f6d57ff1f17358d0d1753617d253e0`, so `28916d63` is now treated as redundant on the current strict fixtures
+          - active visible-title contributors are now `7701ac09` and `940cea6e`
         - debugging implication: separate packages remain useful as controls, but the forward path is still one combined package
-        - practical implication: native title import is no longer blocked on whether the transport model can reproduce legacy-looking output; the next seam is formalizing multi-key title transport pools while localizing the remaining `111` defect inside the `7701ac09` / `940cea6e` title path
+        - practical implication: native title import is no longer blocked on whether the transport model can reproduce legacy-looking output; the next seam is tightening the active merged package around `7701ac09` / `940cea6e` while treating the current `111` issue as shared legacy/native correctness debt rather than a native-package regression
     - practical implication: `af028e08` is now the tracked provisional transport choice for `7064585c`; `81b32e31` remains the nearest alternate, and `c3984de7` remains the strongest structurally distinct fallback
   - strict bundle extraction now records sampled-object exact hits separately in [`tools/scenarios/lib/common.sh`](/home/auro/code/parallel-n64/tools/scenarios/lib/common.sh), so `traces/hires-evidence.json` can describe canonical lookup-only bundles without conflating them with the upload-side `Hi-res keying summary`
   - practical implication: the active `8x16` strict gap should not be modeled as meaningful row-local upload bytes, which pushes the next resolver step toward same-start parent-tile/subrect transport and away from row-byte reinterpretation

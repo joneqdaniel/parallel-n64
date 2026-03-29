@@ -129,25 +129,28 @@
       ]
     },
     "sampled-low32-28916d63-fs258": {
-      "status": "selected-pool",
+      "status": "redundant-on-strict-title",
       "sampled_low32": "28916d63",
       "formatsize": 258,
-      "justification": "The TLUT-populated title copy strip is a distinct active sampled object on the strict title fixture and must be carried as its own transported pool today.",
+      "justification": "The TLUT-populated title copy strip is still a tracked sampled object, but removing its transported pool leaves the current strict title and merged file-select outputs unchanged, so it is no longer part of the active selected package.",
       "supporting_notes": [
-        "The refreshed title sampled-object review shows the same visible 296x6 title strip under populated TLUT state with sampled_entry_pcrc 8be3a754 and sampled_sparse_pcrc 0574791d.",
-        "The current best native title package hits this sampled object 33 times on the strict title fixture.",
-        "Treating it as separate from 940cea6e is currently data-preserving; unification belongs in a later stronger static resolver, not in the transport layer."
+        "The refreshed title sampled-object review still shows the 296x6 title strip under populated TLUT state with sampled_entry_pcrc 8be3a754 and sampled_sparse_pcrc 0574791d.",
+        "The active selected merged package now excludes this pool and remains byte-identical to the previous full merged title result on the strict title fixture.",
+        "The same active selected merged package also reproduces the previous merged file-select hash exactly, so this pool is currently redundant on the tracked strict fixtures.",
+        "Keeping the pool in policy as redundant rather than deleting it preserves the evidence in case a later broader slice proves it is needed."
       ],
       "evidence": {
         "review_artifact": "artifacts/hires-pack-review/20260328-title-sampled-transport-v4/review.md",
-        "runtime_bundle": "artifacts/paper-mario-title-screen/on/20260328-title-combined-pools-v2-full-runtime",
-        "exact_hit_count": 33,
-        "package": "artifacts/hires-pack-review/20260328-title-combined-pools-v2-full/package.phrb"
+        "title_runtime_bundle": "artifacts/paper-mario-title-screen/on/20260328-title-minus-289-runtime",
+        "title_hash": "620692162a2fbf167ef6e4a468f3a56890d229e75cbfd828dc5ad56ffe73a85b",
+        "merged_file_select_bundle": "artifacts/paper-mario-file-select/on/20260328-selected-plus-title-minus-289-runtime",
+        "merged_file_select_hash": "c5ac0f7558547aeb197552bbb1a0881c69f6d57ff1f17358d0d1753617d253e0",
+        "selected_package": "artifacts/hires-pack-review/20260328-selected-plus-title-v5/package.phrb"
       },
       "overturn_conditions": [
-        "A stronger static scan proves the TLUT-populated and zero-palette title strip should share one canonical imported record.",
-        "Later runtime evidence shows this pool is redundant with another selector-aware title record.",
-        "A more faithful palette/TLUT model changes the sampled identity for this title strip."
+        "A broader title or non-title validation slice shows the active selected package is missing visible content that depends on 28916d63.",
+        "A stronger static resolver proves 28916d63 is required as an independent canonical imported record rather than redundant TLUT state.",
+        "A later merged-package validation shows that removing 28916d63 causes a real regression outside the current strict fixtures."
       ]
     },
     "sampled-low32-7701ac09-fs768": {

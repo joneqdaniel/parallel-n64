@@ -348,13 +348,14 @@ The migration tool now emits that bridge when sampled-object bundle data is avai
         - corrected cache-path proof: [20260328-title-control-correct-cache](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260328-title-control-correct-cache)
         - current result: explicit review-pool selectors now let the tracked builder reproduce the older full-title package exactly on the strict title fixture once the selected `PHRB` is actually loaded instead of the default `.hts`
         - current merged-package note: visual review shows the combined package improves all current comparison scenes, so the import model should still aim toward one merged package rather than scene-shaped packages as the product target
-        - active correctness concern: the center-content `111` region still looks wrong or unloaded, and the same issue is visible in unmerged title controls too, so it is not treated as a merge regression
-        - title-family isolation now points at the active import-side suspects:
+        - active selected merged package: [20260328-selected-plus-title-v5/package.phrb](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-selected-plus-title-v5/package.phrb)
+        - active correctness concern: the center-content `111` region still looks wrong or unloaded, but the active merged title center crop is byte-identical to the strict legacy `on` title reference, so it is not treated as a native import regression
+        - title-family isolation now points at the active import-side contributors:
           - `71c71cdd` alias experiments are exact-hit-positive but pixel-identical to the corrected title control
-          - `28916d63` exact-hit-only control collapses to the strict title `off` frame
-          - active visible-title suspects are now `7701ac09` and `940cea6e`
+          - `28916d63` exact-hit-only control collapses to the strict title `off` frame, and removing it leaves both strict title and merged file-select outputs unchanged, so it is now treated as redundant on the current strict fixtures
+          - active visible-title contributors are now `7701ac09` and `940cea6e`
         - debugging implication: scene-shaped packages remain control artifacts, not the intended runtime format
-        - import implication: some canonical title records are transport pools, some scenes require multiple simultaneous canonical records, and the open question is now how to formalize that multi-key title path while localizing the remaining `111` defect inside the `7701ac09` / `940cea6e` path
+        - import implication: some canonical title records are transport pools, some scenes require multiple simultaneous canonical records, and the open question is now how to formalize that multi-key title path while tightening the active merged package around `7701ac09` / `940cea6e`
     - practical implication: the import/runtime transport problem for `7064585c` now has a tracked provisional selection, with `81b32e31` retained as the nearest alternate and `c3984de7` as the strongest structurally distinct fallback
 - the package manifest now also records decoded `pixel_sha256` values, `alpha_normalized_pixel_sha256` values, and duplicate-pixel groups, so importer design can distinguish fully distinct transport content from any future duplicate or near-duplicate transport variants
   - markdown: [20260327-sampled-legacy-vs-canonical.md](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260327-sampled-legacy-vs-canonical.md)

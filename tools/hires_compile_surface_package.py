@@ -8,6 +8,7 @@ from hires_pack_common import GL_RGBA, GL_RGBA8, GL_UNSIGNED_BYTE
 from hires_pack_emit_binary_package import emit_binary_package
 from hires_pack_emit_loader_manifest import build_loader_manifest
 from hires_pack_materialize_package import materialize_package
+from hires_surface_edge_review import classify_unresolved_slots
 
 
 def load_json(path: Path):
@@ -125,6 +126,7 @@ def build_surface_binding(surface_entry: dict, group: dict, cache_path: str):
 
     unresolved = None
     if surface.get("unresolved_sequences"):
+        edge_review = classify_unresolved_slots(surface)
         unresolved = {
             "policy_key": f"{surface['surface_id']}-unresolved",
             "family_type": "ordered-surface",
@@ -135,6 +137,13 @@ def build_surface_binding(surface_entry: dict, group: dict, cache_path: str):
             "surface_tile_dims": surface.get("surface_tile_dims"),
             "slot_count": surface.get("slot_count", 0),
             "unresolved_sequences": surface.get("unresolved_sequences", []),
+            "edge_review": {
+                "first_resolved_index": edge_review.get("first_resolved_index"),
+                "last_resolved_index": edge_review.get("last_resolved_index"),
+                "unresolved_count": edge_review.get("unresolved_count", 0),
+                "edge_only": edge_review.get("edge_only", False),
+                "unresolved_slots": edge_review.get("unresolved_slots", []),
+            },
         }
 
     return binding, unresolved

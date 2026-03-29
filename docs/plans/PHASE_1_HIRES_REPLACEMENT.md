@@ -508,6 +508,7 @@
   - `2` canonical records
   - `82` asset candidates
   - unresolved repeated-edge metadata for `surface-7701ac09` stays explicit instead of being converted into guessed selectors
+  - edge review: [`20260329-title-surface-edge-review/review.md`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-surface-edge-review/review.md) confirms all `3` unresolved `7701ac09` slots are edge-only (`seq 0`, `1`, `55`) and that classification now survives the compiled bindings and direct selected-package builder
 - Runtime proofs:
   - title: [`20260329-title-surface-compiled-runtime`](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260329-title-surface-compiled-runtime)
     - hash `620692162a2fbf167ef6e4a468f3a56890d229e75cbfd828dc5ad56ffe73a85b`

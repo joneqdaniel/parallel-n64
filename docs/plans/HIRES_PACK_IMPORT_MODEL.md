@@ -513,6 +513,7 @@ This is the preferred inspection path while the import format is still evolving.
   - `surface-7701ac09` compiles into one sampled-object record with `53` explicit selector-bearing asset candidates
   - `surface-940cea6e` compiles into one sampled-object record with `29` explicit selector-bearing asset candidates
   - unresolved `7701ac09` edge slots remain metadata-only (`surface-7701ac09-unresolved`) instead of being promoted into fake selectors
+  - edge review artifact: [`20260329-title-surface-edge-review/review.md`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-surface-edge-review/review.md) confirms the remaining `3` slots are edge-only, and that classification now carries through compiled bindings and selected-package builds
 - Runtime implication:
   - ordered surfaces do not require a new core-side package format to become useful
   - current `PHRB` v3 is already expressive enough for the ordered-surface subset when each ordered slot is compiled into a selector-bearing asset candidate under one sampled-object record

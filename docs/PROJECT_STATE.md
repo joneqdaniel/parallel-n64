@@ -748,6 +748,9 @@
 - The first compiled ordered-surface runtime proof is [`20260329-title-surface-compiled/package.phrb`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-surface-compiled/package.phrb).
   - It carries `2` canonical records: `surface-7701ac09` and `surface-940cea6e`.
   - It preserves `1` unresolved metadata case for the repeated `7701ac09` edge slots (`71c71cdd`) instead of inventing selectors for them.
+  - Edge review artifact: [`20260329-title-surface-edge-review/review.md`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-surface-edge-review/review.md)
+    - result: all `3` unresolved `7701ac09` slots are edge-only (`seq 0`, `1`, and `55`)
+    - that edge classification now survives the compiled bindings and the direct selected-package builder as structured unresolved metadata
 - That compiled package is now runtime-proven on the strict fixtures:
   - title proof: [`20260329-title-surface-compiled-runtime`](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260329-title-surface-compiled-runtime)
     - hash `620692162a2fbf167ef6e4a468f3a56890d229e75cbfd828dc5ad56ffe73a85b`

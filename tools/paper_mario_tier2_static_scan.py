@@ -142,6 +142,7 @@ def static_findings(game_root: Path) -> list[dict[str, Any]]:
     msg_draw_path = game_root / "src" / "msg_draw.c"
     msg_data_path = game_root / "src" / "msg_data.c"
     title_path = game_root / "src" / "world" / "area_kmr" / "kmr_21" / "main.c"
+    state_title_screen_path = game_root / "src" / "state_title_screen.c"
 
     gbi_lines = read_lines(gbi_path)
     filemenu_msg_lines = read_lines(filemenu_msg_path)
@@ -153,6 +154,7 @@ def static_findings(game_root: Path) -> list[dict[str, Any]]:
     msg_draw_lines = read_lines(msg_draw_path)
     msg_data_lines = read_lines(msg_data_path)
     title_lines = read_lines(title_path)
+    state_title_screen_lines = read_lines(state_title_screen_path)
 
     findings: list[dict[str, Any]] = []
 
@@ -326,6 +328,119 @@ def static_findings(game_root: Path) -> list[dict[str, Any]]:
 
     findings.append(
         {
+            "id": "title-screen-press-start-ia8-block",
+            "category": "probable-static-match",
+            "confidence": "high",
+            "summary": (
+                "The unresolved `128x32` IA8 title seam is now strongly source-backed too: "
+                "the non-PAL `Press Start` path in `state_title_screen` loads a `128x32` IA8 "
+                "texture through `gDPLoadTextureBlock`, which matches the runtime `128x32` "
+                "sampled pair and the observed `sh=508`, `th=124` tile fields."
+            ),
+            "source_refs": [
+                SourceRef(state_title_screen_path, find_line(state_title_screen_lines, "#define VAR_1 32")).to_json(),
+                SourceRef(state_title_screen_path, find_line(state_title_screen_lines, "gDPLoadTextureBlock(gMainGfxPos++, TitleScreen_ImgList_PressStart, G_IM_FMT_IA, G_IM_SIZ_8b, 128, VAR_1, 0,")).to_json(),
+                SourceRef(state_title_screen_path, find_line(state_title_screen_lines, "gSPTextureRectangle(gMainGfxPos++, 384, 548, 896, VAR_2, G_TX_RENDERTILE, 0, 0, 0x0400, 0x0400);")).to_json(),
+            ],
+            "static_shape": {
+                "load_kind": "LoadBlock",
+                "upload_fmt": "IA",
+                "upload_siz": "8b",
+                "source_chunk_dims": "128x32",
+                "sampled_runtime_wh_candidates": ["128x32", "128x32"],
+                "raw_upload_shape_hint": "2048x1",
+                "native_field_hints": {
+                    "tmem_offset": 0,
+                    "render_tile": 0,
+                    "tile_size_example": {"sl": 0, "tl": 0, "sh": 508, "th": 124},
+                    "screen_rect_example": {"ulx": 384, "uly": 548, "lrx": 896, "lry": 676},
+                },
+                "notes": [
+                    "The upstream non-PAL title menu uses `VAR_1 = 32`, so the `Press Start` texture is a direct `128x32 IA8` loadblock path.",
+                    "Runtime exposes two unresolved `128x32 IA8` sampled objects, `049201f4` and `ce437230`, from one shared `2048x1` upload family `dfe97266`.",
+                    "Unlike the copyright path, the recovered native tile fields already match exactly here, so the open problem is transport/import coverage rather than source attribution.",
+                ],
+            },
+            "expected_runtime_signatures": {
+                "sampler_bucket": {
+                    "draw_class": "texrect",
+                    "cycle": "1cycle",
+                    "fmt": "3",
+                    "siz": "1",
+                    "texel0_wh": "2048x1",
+                },
+                "sampled_objects": [
+                    {
+                        "draw_class": "texrect",
+                        "fmt": "3",
+                        "siz": "1",
+                        "wh": "128x32",
+                    }
+                ],
+            },
+        }
+    )
+
+    findings.append(
+        {
+            "id": "title-screen-copyright-ia8-chunks",
+            "category": "probable-static-match",
+            "confidence": "medium",
+            "summary": (
+                "The provisional `144x16` title-strip pair is now strongly source-backed: "
+                "the non-JP copyright path in `state_title_screen` draws exactly two IA8 "
+                "copyright chunks at `144x16`, and runtime exposes the same two `144x16` IA8 "
+                "sampled objects as the current merge-safe lower-strip pair."
+            ),
+            "source_refs": [
+                SourceRef(state_title_screen_path, find_line(state_title_screen_lines, "#define COPYRIGHT_WIDTH 144")).to_json(),
+                SourceRef(state_title_screen_path, find_line(state_title_screen_lines, "#define COPYRIGHT_TEX_CHUNKS 2")).to_json(),
+                SourceRef(state_title_screen_path, find_line(state_title_screen_lines, "#define LTT_LRT 15")).to_json(),
+                SourceRef(state_title_screen_path, find_line(state_title_screen_lines, "gDPLoadTextureTile(gMainGfxPos++, COPYRIGHT_IMG(k, i), G_IM_FMT_IA, G_IM_SIZ_8b,")).to_json(),
+                SourceRef(state_title_screen_path, find_line(state_title_screen_lines, "gSPTextureRectangle(gMainGfxPos++, 356, YL_BASE + (RECT_SIZE * i), 932, YH_BASE + (RECT_SIZE * i),")).to_json(),
+            ],
+            "static_shape": {
+                "load_kind": "LoadTile",
+                "upload_fmt": "IA",
+                "upload_siz": "8b",
+                "source_chunk_dims": "144x16",
+                "source_chunk_count": 2,
+                "sampled_runtime_wh_candidates": ["144x16", "144x16"],
+                "native_field_hints": {
+                    "tmem_offset": 0,
+                    "render_tile": 0,
+                    "tile_size_example": {"sl": 0, "tl": 0, "sh": 572, "th": 60},
+                    "screen_rect_example": {"ulx": 356, "uly": 764, "lrx": 932, "lry": 828},
+                },
+                "notes": [
+                    "The upstream non-JP path explicitly loops `COPYRIGHT_TEX_CHUNKS = 2`.",
+                    "Each chunk is loaded as IA8 with `COPYRIGHT_WIDTH = 144` and `LTT_LRT = 15`, i.e. a 144x16 tile.",
+                    "Runtime already exposes two matching 144x16 IA8 sampled objects, `0e89915a` and `1d234571`, which are the current provisional lower-strip pair.",
+                    "The separate unresolved `128x32` IA8 seam from upload family `dfe97266` does not match this direct copyright tile shape and remains a distinct open problem.",
+                ],
+            },
+            "expected_runtime_signatures": {
+                "sampler_bucket": {
+                    "draw_class": "texrect",
+                    "cycle": "1cycle",
+                    "fmt": "3",
+                    "siz": "1",
+                    "texel0_wh": "144x16",
+                },
+                "sampled_objects": [
+                    {
+                        "draw_class": "texrect",
+                        "fmt": "3",
+                        "siz": "1",
+                        "wh": "144x16",
+                    }
+                ],
+            },
+        }
+    )
+
+    findings.append(
+        {
             "id": "filemenu-copyarrow-is-not-current-ci4-family",
             "category": "negative-static-match",
             "confidence": "high",
@@ -493,8 +608,11 @@ def compare_against_runtime(findings: list[dict[str, Any]], bundles: list[dict[s
                 if field_comparison is not None:
                     link["field_comparison"] = field_comparison
                 links.append(link)
-            sampled = expected.get("sampled_object")
-            if sampled:
+            sampled_specs = []
+            if expected.get("sampled_object"):
+                sampled_specs.append(expected["sampled_object"])
+            sampled_specs.extend(expected.get("sampled_objects", []))
+            for sampled in sampled_specs:
                 target_wh = sampled["wh"]
                 for key, group in sampled_idx.items():
                     draw_class, fmt, siz, wh = key

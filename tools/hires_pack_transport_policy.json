@@ -232,7 +232,8 @@
       "supporting_notes": [
         "The lower-strip 144x16 title pair is not involved in the shared title-center 111 issue; both candidates leave the center crop byte-identical to the current active merged package.",
         "Both A and B packages reproduce the exact same merged file-select frame and exact-hit buckets as the current active package.",
-        "Within the isolated changed title region, B lowers AE and changed-pixel count against the legacy-on title frame, while A remains slightly better on RMSE, so this stays provisional rather than final."
+        "Within the isolated changed title region, B lowers AE and changed-pixel count against the legacy-on title frame, while A remains slightly better on RMSE, so this stays provisional rather than final.",
+        "The updated Tier 2 static scan matches this 144x16 runtime pair directly to the non-JP title copyright path in state_title_screen.c, including matching native tile fields."
       ],
       "evidence": {
         "selected_runtime_bundle": "artifacts/paper-mario-title-screen/on/20260328-selected-plus-title-v8-144x16-B-runtime",
@@ -261,7 +262,7 @@
       "overturn_conditions": [
         "A stronger visual/static comparison shows the alternate 2a6a962f transport is more faithful in the affected lower strip.",
         "A broader merged-package validation slice shows 2c8a8202 causes cross-scene leakage outside the current strict fixtures.",
-        "Static Tier 2 reconstruction proves these 144x16 strips should collapse into a tighter canonical transport rule."
+        "A later canonical selector absorbs these now-source-backed 144x16 copyright chunks into a tighter shared transport rule."
       ]
     },
     "sampled-low32-1d234571-fs259": {
@@ -273,7 +274,8 @@
       "supporting_notes": [
         "Both 144x16 sampled objects hit exactly once on strict title and do not alter strict merged file select.",
         "The two sampled objects share the same two transported 1440x160 candidates and move together in the runtime probe packages.",
-        "The selection remains provisional because A still wins slightly on RMSE even though B wins on AE and changed-pixel count against the legacy-on title frame."
+        "The selection remains provisional because A still wins slightly on RMSE even though B wins on AE and changed-pixel count against the legacy-on title frame.",
+        "The updated Tier 2 static scan matches this 144x16 runtime pair directly to the non-JP title copyright path in state_title_screen.c, including matching native tile fields."
       ],
       "evidence": {
         "selected_runtime_bundle": "artifacts/paper-mario-title-screen/on/20260328-selected-plus-title-v8-144x16-B-runtime",
@@ -286,7 +288,7 @@
       "overturn_conditions": [
         "A stronger visual/static comparison shows the alternate 2a6a962f transport is more faithful in the affected lower strip.",
         "A broader merged-package validation slice shows 2c8a8202 causes cross-scene leakage outside the current strict fixtures.",
-        "Static Tier 2 reconstruction proves these 144x16 strips should collapse into a tighter canonical transport rule."
+        "A later canonical selector absorbs these now-source-backed 144x16 copyright chunks into a tighter shared transport rule."
       ]
     }
   }

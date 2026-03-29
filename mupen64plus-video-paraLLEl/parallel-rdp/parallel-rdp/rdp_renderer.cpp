@@ -1846,16 +1846,18 @@ void Renderer::draw_shaded_primitive(const TriangleSetup &setup, const Attribute
 		     (base_meta.flags & TILE_INFO_MIRROR_T_BIT) != 0 ? 1u : 0u);
 	}
 
-	const bool can_consider_sampled_object =
+	const bool can_probe_sampled_object =
 		replacement_provider &&
 		cpu_tmem &&
 		tlut_shadow_valid &&
-		uses_texel0 &&
-		!texel0_state.hit &&
 		base_meta.fmt == TextureFormat::CI &&
 		(draw_class == HiresDrawClass::TexRect || draw_class == HiresDrawClass::TexRectFlip);
+	const bool can_consider_sampled_object =
+		can_probe_sampled_object &&
+		uses_texel0 &&
+		!texel0_state.hit;
 	HiresSampledObjectIdentity sampled_identity = {};
-	if (can_consider_sampled_object)
+	if (can_consider_sampled_object || (hires_debug_sampled_object_probe && can_probe_sampled_object))
 		sampled_identity = compute_hires_sampled_ci_object_identity(base_meta, base_size, cpu_tmem, tlut_tmem_shadow, tlut_shadow_valid);
 
 	if (hires_debug_sampled_object_exact_lookup && sampled_identity.valid)

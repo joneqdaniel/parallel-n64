@@ -315,6 +315,15 @@ The migration tool now emits that bridge when sampled-object bundle data is avai
         - emitted proof package: [20260328-selected-from-import-index-v2/package.phrb](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-selected-from-import-index-v2/package.phrb)
         - live proof: [20260328-selected-from-import-index-v2-runtime](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260328-selected-from-import-index-v2-runtime)
         - current result: byte-identical to the earlier hand-built `20260328-sampled-proxy-plus-706/package.phrb` and identical strict runtime output with `14` sampled-object exact hits
+      - the same selected package now has a tracked negative validation on title screen:
+        - runtime proof: [20260328-selected-from-import-index-v2-runtime](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260328-selected-from-import-index-v2-runtime)
+        - current result: `0` sampled-object exact hits and the strict title frame falls back to the `off` hash
+        - design implication: the current native import bridge is proven only for the file-select CI texrect seam; early-scene generalization still needs another sampled-object family or a broader draw-side eligibility model
+      - the broader draw-side probe path is now validated on title copy-mode texrects:
+        - runtime proof: [20260328-title-sampled-probe-v2](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260328-title-sampled-probe-v2)
+        - current sampled title keys: `940cea6e` (`296x6`) and `148e68ee` (`296x2`) from upload families `2eb5c22e` and `d65c7fea`
+        - both sampled keys currently report no exact pack hit and no pack family availability
+        - import implication: title-screen expansion now needs canonical transport for copy-cycle sampled objects, not just more policy refinement for the file-select CI seam
     - practical implication: the import/runtime transport problem for `7064585c` now has a tracked provisional selection, with `81b32e31` retained as the nearest alternate and `c3984de7` as the strongest structurally distinct fallback
 - the package manifest now also records decoded `pixel_sha256` values, `alpha_normalized_pixel_sha256` values, and duplicate-pixel groups, so importer design can distinguish fully distinct transport content from any future duplicate or near-duplicate transport variants
   - markdown: [20260327-sampled-legacy-vs-canonical.md](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260327-sampled-legacy-vs-canonical.md)

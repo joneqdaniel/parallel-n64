@@ -204,6 +204,15 @@
               - emitted proof package: [20260328-selected-from-import-index-v2/package.phrb](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-selected-from-import-index-v2/package.phrb)
               - live proof: [20260328-selected-from-import-index-v2-runtime](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260328-selected-from-import-index-v2-runtime)
               - current result: byte-identical to the earlier manual selected package and identical strict runtime output/hash
+            - negative title validation is now explicit too:
+              - runtime proof: [20260328-selected-from-import-index-v2-runtime](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260328-selected-from-import-index-v2-runtime)
+              - current result: `0` sampled-object exact hits and a collapse to the strict title `off` hash
+              - next implication: expanding the native path now requires a new title-visible sampled-object family or a broader sampled-object eligibility seam, not more work on the current `c139 + 706` package
+            - that broader eligibility seam is now probe-visible:
+              - [20260328-title-sampled-probe-v2](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260328-title-sampled-probe-v2) logs the visible title copy-mode sampled identities
+              - current copy-cycle sampled keys: `940cea6e` (`296x6`) and `148e68ee` (`296x2`)
+              - both currently report `entry_hit=0`, `sparse_hit=0`, and `family=0`
+              - next implication: the next native-import expansion should target title copy-cycle transport, not more selection work inside the already-proven file-select `c139 + 706` slice
           - practical implication: the proxy pool is no longer an undifferentiated set of `62` payloads, and the active tracked provisional choice is now `af028e08`
     - practical implication: the active `8x16` gap should not be modeled as meaningful row-local upload bytes, which makes same-start parent-tile/subrect transport a stronger next resolver target than more row-byte reinterpretation
   - hi-res traces now also expose stable bucket summaries, which collapse title misses to 5 unique classes and file-select misses to 6 unique classes

@@ -469,6 +469,15 @@
         - emitted package: [20260328-selected-from-import-index-v2/package.phrb](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-selected-from-import-index-v2/package.phrb)
         - live proof: [20260328-selected-from-import-index-v2-runtime](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260328-selected-from-import-index-v2-runtime)
         - the direct builder reproduces the earlier manual `c139 + 706` package byte-for-byte (`55c0ef1085e566e28cc06ca9ff57716937cb2cfe8fd765dc93025ecf002111a4`) and the same strict runtime hash `1a0719dfcba68736d09579d8fb1e6eb628cf62fa89544675f8d7ddffe70500bb` with `14` sampled-object exact hits
+      - the same selected package is now also negatively validated on title screen:
+        - runtime proof: [20260328-selected-from-import-index-v2-runtime](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260328-selected-from-import-index-v2-runtime)
+        - current result: `0` sampled-object exact hits, `0/196` upload-side hits, and the frame collapses to the strict title `off` hash `42e501afb2548a5067bc034578c5bcebf0bf2a40f612bbcc94972af716ad6ff2`
+        - practical implication: the currently proven native import path is still file-select-shaped; it does not yet generalize to the visible title path
+      - the sampled-object probe now reaches the visible title copy-cycle path in debug mode:
+        - runtime proof: [20260328-title-sampled-probe-v2](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260328-title-sampled-probe-v2)
+        - review artifact: [hires-sampled-object-review.md](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260328-title-sampled-probe-v2/traces/hires-sampled-object-review.md)
+        - current result: two visible title sampled objects are now explicit, `940cea6e` (`296x6`) and `148e68ee` (`296x2`), both in `copy` texrect mode
+        - neither sampled key has any current pack exact hit or family availability, so title expansion now looks like a real transport/import problem rather than a hidden already-authored family
     - practical implication: `af028e08` is now the tracked provisional transport choice for `7064585c`; `81b32e31` remains the nearest alternate, and `c3984de7` remains the strongest structurally distinct fallback
   - strict bundle extraction now records sampled-object exact hits separately in [`tools/scenarios/lib/common.sh`](/home/auro/code/parallel-n64/tools/scenarios/lib/common.sh), so `traces/hires-evidence.json` can describe canonical lookup-only bundles without conflating them with the upload-side `Hi-res keying summary`
   - practical implication: the active `8x16` strict gap should not be modeled as meaningful row-local upload bytes, which pushes the next resolver step toward same-start parent-tile/subrect transport and away from row-byte reinterpretation

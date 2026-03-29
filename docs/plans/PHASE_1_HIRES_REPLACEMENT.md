@@ -235,7 +235,9 @@
               - policy-built title package: [20260328-selected-plus-title-v4/package.phrb](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-selected-plus-title-v4/package.phrb)
               - policy-built title runtime proof: [20260328-selected-plus-title-v4-runtime](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260328-selected-plus-title-v4-runtime)
               - current result: the explicit-review-pool builder now reproduces the older full-title package exactly on the strict title fixture
-              - negative file-select validation still holds: the same combined package lands on file-select hash `c5ac0f7558547aeb197552bbb1a0881c69f6d57ff1f17358d0d1753617d253e0` with `33` extra `940cea6e` copy-path hits, so the title-expanded package is still not a safe general package
+              - current merged-package note: visual review of the four-shot comparison shows the merged package is better in all scenes and adds visible content rather than obviously regressing existing content
+              - active bug target: the center-content `111` region still appears wrong or unloaded, so the next Phase 1 step is to debug that correctness issue inside the merged path
+              - debugging implication: split packages remain control fixtures only; they are not the intended product format
               - next implication: the title path is no longer blocked on whether sampled-object transport pools can work; it is now blocked on how to formalize multi-key title transport pools and how to resolve the paired `940cea6e` / `28916d63` title strip without regressing N64 correctness
           - practical implication: the proxy pool is no longer an undifferentiated set of `62` payloads, and the active tracked provisional choice is now `af028e08`
     - practical implication: the active `8x16` gap should not be modeled as meaningful row-local upload bytes, which makes same-start parent-tile/subrect transport a stronger next resolver target than more row-byte reinterpretation

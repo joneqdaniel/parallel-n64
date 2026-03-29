@@ -346,7 +346,9 @@ The migration tool now emits that bridge when sampled-object bundle data is avai
         - policy-built title package: [20260328-selected-plus-title-v4/package.phrb](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-selected-plus-title-v4/package.phrb)
         - policy-built title runtime proof: [20260328-selected-plus-title-v4-runtime](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260328-selected-plus-title-v4-runtime)
         - current result: explicit review-pool selectors now let the tracked builder reproduce the older full-title package exactly on the strict title fixture
-        - negative file-select validation remains: the same combined package still leaks `940cea6e` into file select, so scene-shaped package boundaries remain part of the current import model
+        - current merged-package note: visual review shows the combined package improves all current comparison scenes, so the import model should still aim toward one merged package rather than scene-shaped packages as the product target
+        - active correctness concern: the center-content `111` region still looks wrong or unloaded, which is now the active bug to resolve inside the merged import path
+        - debugging implication: scene-shaped packages remain control artifacts, not the intended runtime format
         - import implication: some canonical title records are transport pools, some scenes require multiple simultaneous canonical records, and the open question is now how to formalize that multi-key title path rather than whether the imported-record model can drive it at runtime
     - practical implication: the import/runtime transport problem for `7064585c` now has a tracked provisional selection, with `81b32e31` retained as the nearest alternate and `c3984de7` as the strongest structurally distinct fallback
 - the package manifest now also records decoded `pixel_sha256` values, `alpha_normalized_pixel_sha256` values, and duplicate-pixel groups, so importer design can distinguish fully distinct transport content from any future duplicate or near-duplicate transport variants

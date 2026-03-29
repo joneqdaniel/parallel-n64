@@ -213,6 +213,11 @@
               - current copy-cycle sampled keys: `940cea6e` (`296x6`) and `148e68ee` (`296x2`)
               - both currently report `entry_hit=0`, `sparse_hit=0`, and `family=0`
               - next implication: the next native-import expansion should target title copy-cycle transport, not more selection work inside the already-proven file-select `c139 + 706` slice
+            - the first native title package now proves lookup but not correctness:
+              - package: [20260328-title-copy/package-build-v2/package.phrb](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-title-copy/package-build-v2/package.phrb)
+              - runtime proof: [20260328-title-native-package-v2](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260328-title-native-package-v2)
+              - current result: `34` sampled-object exact hits, but the frame is still farther from legacy `on` than from strict `off`
+              - next implication: the remaining title work is transport correctness or copy-mode modeling, not lookup plumbing
           - practical implication: the proxy pool is no longer an undifferentiated set of `62` payloads, and the active tracked provisional choice is now `af028e08`
     - practical implication: the active `8x16` gap should not be modeled as meaningful row-local upload bytes, which makes same-start parent-tile/subrect transport a stronger next resolver target than more row-byte reinterpretation
   - hi-res traces now also expose stable bucket summaries, which collapse title misses to 5 unique classes and file-select misses to 6 unique classes

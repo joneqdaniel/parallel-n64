@@ -324,6 +324,11 @@ The migration tool now emits that bridge when sampled-object bundle data is avai
         - current sampled title keys: `940cea6e` (`296x6`) and `148e68ee` (`296x2`) from upload families `2eb5c22e` and `d65c7fea`
         - both sampled keys currently report no exact pack hit and no pack family availability
         - import implication: title-screen expansion now needs canonical transport for copy-cycle sampled objects, not just more policy refinement for the file-select CI seam
+      - the first native title package now validates that transport can reach draw-time exact lookup on those copy-cycle sampled keys:
+        - package: [20260328-title-copy/package-build-v2/package.phrb](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-title-copy/package-build-v2/package.phrb)
+        - runtime proof: [20260328-title-native-package-v2](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260328-title-native-package-v2)
+        - current result: `34` sampled-object exact hits on title (`33` for `940cea6e`, `1` for `148e68ee`)
+        - but the resulting frame is not yet visually correct, which means the next title gap is transport correctness or copy-mode interpretation rather than missing canonical identity alone
     - practical implication: the import/runtime transport problem for `7064585c` now has a tracked provisional selection, with `81b32e31` retained as the nearest alternate and `c3984de7` as the strongest structurally distinct fallback
 - the package manifest now also records decoded `pixel_sha256` values, `alpha_normalized_pixel_sha256` values, and duplicate-pixel groups, so importer design can distinguish fully distinct transport content from any future duplicate or near-duplicate transport variants
   - markdown: [20260327-sampled-legacy-vs-canonical.md](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260327-sampled-legacy-vs-canonical.md)

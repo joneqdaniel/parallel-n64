@@ -1852,9 +1852,11 @@ void Renderer::draw_shaded_primitive(const TriangleSetup &setup, const Attribute
 		tlut_shadow_valid &&
 		base_meta.fmt == TextureFormat::CI &&
 		(draw_class == HiresDrawClass::TexRect || draw_class == HiresDrawClass::TexRectFlip);
+	const bool sampled_lookup_uses_base_tile =
+		uses_texel0 || ((raster_flags & RASTERIZATION_COPY_BIT) != 0);
 	const bool can_consider_sampled_object =
 		can_probe_sampled_object &&
-		uses_texel0 &&
+		sampled_lookup_uses_base_tile &&
 		!texel0_state.hit;
 	HiresSampledObjectIdentity sampled_identity = {};
 	if (can_consider_sampled_object || (hires_debug_sampled_object_probe && can_probe_sampled_object))

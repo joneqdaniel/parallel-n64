@@ -478,6 +478,12 @@
         - review artifact: [hires-sampled-object-review.md](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260328-title-sampled-probe-v2/traces/hires-sampled-object-review.md)
         - current result: two visible title sampled objects are now explicit, `940cea6e` (`296x6`) and `148e68ee` (`296x2`), both in `copy` texrect mode
         - neither sampled key has any current pack exact hit or family availability, so title expansion now looks like a real transport/import problem rather than a hidden already-authored family
+      - the first native title package now proves the next seam directly:
+        - package: [20260328-title-copy/package-build-v2/package.phrb](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-title-copy/package-build-v2/package.phrb)
+        - runtime proof: [20260328-title-native-package-v2](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260328-title-native-package-v2)
+        - current result: `34` sampled-object exact hits (`33` for `940cea6e`, `1` for `148e68ee`) and screenshot hash `3ea1cd944d1a328e68bfb75c0c2602b3c8cbce3b6f5185f9522a0381ee01fa20`
+        - but the frame is still much farther from strict legacy `on` (`AE=1076083334`, `RMSE=86.68`) than from strict `off` (`AE=746610203`, `RMSE=72.11`)
+        - practical implication: title copy-cycle native lookup is now proven, and the active problem has moved again from lookup eligibility to transport correctness / copy-mode modeling
     - practical implication: `af028e08` is now the tracked provisional transport choice for `7064585c`; `81b32e31` remains the nearest alternate, and `c3984de7` remains the strongest structurally distinct fallback
   - strict bundle extraction now records sampled-object exact hits separately in [`tools/scenarios/lib/common.sh`](/home/auro/code/parallel-n64/tools/scenarios/lib/common.sh), so `traces/hires-evidence.json` can describe canonical lookup-only bundles without conflating them with the upload-side `Hi-res keying summary`
   - practical implication: the active `8x16` strict gap should not be modeled as meaningful row-local upload bytes, which pushes the next resolver step toward same-start parent-tile/subrect transport and away from row-byte reinterpretation

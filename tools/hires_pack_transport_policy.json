@@ -115,6 +115,7 @@
         "The refreshed title sampled-object review shows 29 upload families and 29 transported 2960x60 payloads for this sampled object.",
         "A new copy-strip sequence review shows the upload side is a strict 33-step source-order walk with dominant delta 0x6f0 (1776 bytes), which matches 296x6 strip stepping and exposes one repeated edge key, 5c66840b2eb5c22e, at seq 0 and 29-32.",
         "That sequence has 29 unique upload keys, which line up exactly with the current 29-candidate transported pool for 940cea6e.",
+        "A new ordered surface map now proves every one of the 33 sequence slots resolves to a transported replacement, with only the repeated edge key 5c66840b2eb5c22e reused across five positions.",
         "This sampled object coexists with 28916d63 for the same visible 296x6 title strip once TLUT state becomes populated.",
         "The current best native title package requires this pool alongside the TLUT-populated 28916d63 pool and the 7701ac09 1-cycle pool."
       ],
@@ -123,7 +124,8 @@
         "runtime_bundle": "artifacts/paper-mario-title-screen/on/20260328-title-combined-pools-v2-full-runtime",
         "exact_hit_count": 33,
         "package": "artifacts/hires-pack-review/20260328-title-combined-pools-v2-full/package.phrb",
-        "copy_strip_sequence_review": "artifacts/hires-pack-review/20260329-title-copy-strip-sequence/sequence.md"
+        "copy_strip_sequence_review": "artifacts/hires-pack-review/20260329-title-copy-strip-sequence/sequence.md",
+        "copy_strip_surface_map": "artifacts/hires-pack-review/20260329-title-copy-strip-surface-map/map.md"
       },
       "overturn_conditions": [
         "A stronger static resolver proves 940cea6e and 28916d63 should collapse into one canonical title strip identity.",
@@ -166,6 +168,7 @@
         "The current best native title package hits this sampled object 106 times on the strict title fixture.",
         "A new stripe-sequence review shows the upload side is a strict 56-step source-order walk with dominant delta 0x640 (1600 bytes), which matches the upstream 200x2 stripe loop in kmr_21.",
         "That same sequence only repeats one unresolved upload key, 71c71cdd, at the opening/closing edge stripes (seq 0, 1, and 55), while the remaining 53 unique runtime stripes line up with the current 53-candidate transported pool.",
+        "A new ordered surface map now proves those 53 transported candidates map one-to-one onto sequence slots 2-54; the only unresolved title stripes left in this pool are the three repeated edge slots for 71c71cdd.",
         "This pool is the largest single contributor to the current native title result and should remain explicit until a stronger selector/static model narrows it."
       ],
       "evidence": {
@@ -173,7 +176,8 @@
         "runtime_bundle": "artifacts/paper-mario-title-screen/on/20260328-title-combined-pools-v2-full-runtime",
         "exact_hit_count": 106,
         "package": "artifacts/hires-pack-review/20260328-title-combined-pools-v2-full/package.phrb",
-        "stripe_sequence_review": "artifacts/hires-pack-review/20260329-title-stripe-sequence/sequence.md"
+        "stripe_sequence_review": "artifacts/hires-pack-review/20260329-title-stripe-sequence/sequence.md",
+        "stripe_surface_map": "artifacts/hires-pack-review/20260329-title-stripe-surface-map/map.md"
       },
       "overturn_conditions": [
         "A stronger selector source narrows this 53-candidate pool materially without hurting the strict title frame.",

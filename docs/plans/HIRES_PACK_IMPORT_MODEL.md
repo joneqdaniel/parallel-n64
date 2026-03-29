@@ -406,6 +406,12 @@ The migration tool now emits that bridge when sampled-object bundle data is avai
         - one key, `5c66840b2eb5c22e`, repeats at sequence `0` and `29-32`, while the remaining `29` unique keys line up with the current `29` transported candidates in the `940cea6e` pool
         - import implication: both major title pools (`7701ac09` and `940cea6e`) now look like ordered title-surface mappings with repeated edge families, which is a better guide for future canonical transport than generic pool ranking
 
+      - ordered surface maps now make that explicit:
+        - stripe map: [20260329-title-stripe-surface-map/map.md](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-stripe-surface-map/map.md)
+        - copy-strip map: [20260329-title-copy-strip-surface-map/map.md](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-copy-strip-surface-map/map.md)
+        - `7701ac09` maps `53` transported candidates one-to-one onto sequence slots `2-54`, leaving only the repeated unresolved edge family `71c71cdd` at `0`, `1`, and `55`
+        - `940cea6e` maps all `33` sequence slots onto transported replacements directly, so it is already closer to an ordered imported surface than to a free review pool
+
 ## Policy Layer
 
 - Use [`tools/hires_pack_import_policy.json`](/home/auro/code/parallel-n64/tools/hires_pack_import_policy.json) to record explicit import decisions or non-binding suggestions.

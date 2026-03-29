@@ -666,9 +666,11 @@
   - practical implication: the big title pool is much closer to an ordered title-surface mapping problem than an arbitrary replacement bag; the next narrowing step should focus on the repeated edge-key and source-order transport rather than more broad candidate hunting
 - The `296x6` title copy-strip pool is now constrained the same way:
   - artifact: [20260329-title-copy-strip-sequence/sequence.md](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-copy-strip-sequence/sequence.md)
+  - ordered surface map: [20260329-title-copy-strip-surface-map/map.md](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-copy-strip-surface-map/map.md)
   - the active title bundle shows `33` sequential `296x6` upload strips with dominant delta `0x6f0`, and `29` unique upload keys
   - one key, `5c66840b2eb5c22e`, repeats at sequence `0` and `29-32`, while the remaining `29` unique keys line up with the current `29` transported candidates in the `940cea6e` pool
-  - practical implication: the main title copy-strip contributor also looks like an ordered title-surface mapping problem, not a free-form candidate pool
+  - the ordered surface map now proves all `33` sequence slots resolve to transported replacements; the repeated edge key is reused intentionally rather than left unresolved
+  - practical implication: the main title copy-strip contributor is already representable as an ordered title surface, while the main `7701ac09` stripe pool is narrowed to just three repeated unresolved edge slots for `71c71cdd`
 
 ## Locked Planning Backbone
 

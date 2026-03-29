@@ -474,6 +474,11 @@
       - the active title bundle exposes exactly `33` sequential `296x6` upload strips with dominant delta `0x6f0` and `29` unique upload keys
       - one key, `5c66840b2eb5c22e`, repeats at sequence `0` and `29-32`, while the remaining `29` unique keys line up with the current `29` transported candidates in the `940cea6e` pool
       - practical implication: the main copy-strip contributor is also an ordered title-surface mapping problem, so future narrowing should follow source order and repeated-edge analysis rather than broad pool search
+      - ordered transport maps are now first-class for both major title pools:
+        - stripe map: [20260329-title-stripe-surface-map/map.md](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-stripe-surface-map/map.md)
+        - copy-strip map: [20260329-title-copy-strip-surface-map/map.md](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-copy-strip-surface-map/map.md)
+        - `7701ac09` now resolves `53/56` source-order slots directly, leaving only the repeated edge-key `71c71cdd` unresolved at seq `0`, `1`, and `55`
+        - `940cea6e` now resolves all `33/33` source-order slots directly, with `5c66840b2eb5c22e` reused across the repeated edge positions
 
 ## Not Yet Claimed Categories
 

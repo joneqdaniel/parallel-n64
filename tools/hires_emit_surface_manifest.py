@@ -23,6 +23,7 @@ def emit_manifest(surface_map: dict):
     return {
         'surface_id': f"surface-{surface_map['sampled_low32']}",
         'sampled_low32': surface_map['sampled_low32'],
+        'shape_hint': surface_map.get('shape_hint'),
         'slot_count': len(sequences),
         'surface_tile_dims': dims,
         'replacement_ids': replacement_ids,
@@ -45,6 +46,7 @@ def render_markdown(manifest: dict):
         '',
         f"- surface_id: `{manifest['surface_id']}`",
         f"- sampled_low32: `{manifest['sampled_low32']}`",
+        f"- shape_hint: `{manifest.get('shape_hint')}`",
         f"- slot_count: `{manifest['slot_count']}`",
         f"- tile_dims: `{manifest['surface_tile_dims']}`",
         f"- unique replacements: `{len(manifest['replacement_ids'])}`",

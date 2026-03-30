@@ -118,6 +118,17 @@ def build_summary(bundle: Path, rows, sampled_key: str, draw_class: str, cycle: 
                 )
             run_start = i
     repeated_runs.sort(key=lambda item: (-item["run_length"], item["start_row"]))
+    shape_hint = "unordered"
+    dominant_delta = delta_counts.most_common(1)[0][0] if delta_counts else None
+    dominant_delta_count = delta_counts.most_common(1)[0][1] if delta_counts else 0
+    longest_run = repeated_runs[0]["run_length"] if repeated_runs else 1
+    if dominant_delta == 1 and dominant_delta_count >= max(8, len(index_trace) // 2):
+        if longest_run >= max(4, len(ordered) // 2):
+            shape_hint = "rotating-stream-edge-dwell"
+        else:
+            shape_hint = "rotating-stream"
+    elif dominant_delta in (0, 1) and len(repeated_runs) <= 1:
+        shape_hint = "fixed-ordered-batch"
 
     return {
         "bundle": str(bundle),
@@ -130,6 +141,7 @@ def build_summary(bundle: Path, rows, sampled_key: str, draw_class: str, cycle: 
         "row_count": len(rows),
         "unique_key_count": len(ordered),
         "top_keys": [{"key": key, "count": count} for key, count in counts.most_common(16)],
+        "shape_hint": shape_hint,
         "cyclic_delta_counts": [{"delta": delta, "count": count} for delta, count in delta_counts.most_common(8)],
         "repeated_runs": repeated_runs[:16],
         "sequences": sequences,
@@ -148,6 +160,7 @@ def render_markdown(summary):
         f"- varying_texel: `{summary['varying_texel']}`",
         f"- Total matching draw rows: `{summary['row_count']}`",
         f"- Unique varying keys: `{summary['unique_key_count']}`",
+        f"- shape_hint: `{summary['shape_hint']}`",
         "",
         "## Top Keys",
         "",

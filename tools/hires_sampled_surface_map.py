@@ -52,6 +52,7 @@ def build_map(sequence: dict, group: dict, sampled_low32: str):
     return {
         "sampled_low32": sampled_low32,
         "sequence_path": sequence.get("log_path"),
+        "shape_hint": sequence.get("shape_hint"),
         "sequence_count": len(sequence.get("sequences", [])),
         "mapped_candidate_count": sum(1 for item in mapped if item["candidate_found"]),
         "unresolved_count": len(unresolved),
@@ -65,6 +66,7 @@ def render_markdown(result: dict):
         "# Sampled Surface Map",
         "",
         f"- sampled_low32: `{result['sampled_low32']}`",
+        f"- shape_hint: `{result.get('shape_hint')}`",
         f"- sequence count: `{result['sequence_count']}`",
         f"- mapped candidates: `{result['mapped_candidate_count']}`",
         f"- unresolved sequences: `{result['unresolved_count']}`",

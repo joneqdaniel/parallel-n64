@@ -104,6 +104,7 @@ def build_surface(surface_manifest: dict, review: dict, assets_dir: Path, canoni
         'surface': surface_manifest,
         'assets': assets,
         'canonical_identity': canonical_identity,
+        'shape_hint': surface_manifest.get('shape_hint'),
         'candidate_snapshots': candidate_snapshots,
         'source_cache_path': str(cache_path),
     }

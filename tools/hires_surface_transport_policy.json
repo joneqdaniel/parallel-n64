@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "surface_aliases": {
     "surface-7701ac09": {
       "slot_aliases": {
@@ -16,6 +16,37 @@
           "reason": "fill repeated right-edge 71c71cdd slot from last resolved stripe"
         }
       }
+    }
+  },
+  "surface_selector_modes": {
+    "surface-940cea6e": {
+      "selector_mode": "dual",
+      "reason": "Promote ordered-surface selectors alongside upload selectors for the shared zero-palette copy strip; strict file-select conflicts drop from 37 to 4 with no image change."
+    }
+  },
+  "surface_clones": {
+    "sampled-low32-28916d63-fs258": {
+      "source_surface_id": "surface-940cea6e",
+      "sampled_low32": "28916d63",
+      "selector_mode": "dual",
+      "canonical_identity_override": {
+        "candidate_origin": "runtime-sampled-probe",
+        "evidence_authority": "runtime-sampled-probe",
+        "draw_class": "texrect",
+        "cycle": "copy",
+        "fmt": "2",
+        "siz": "1",
+        "pal": "0",
+        "off": "0",
+        "stride": "296",
+        "wh": "296x6",
+        "formatsize": 258,
+        "sampled_low32": "28916d63",
+        "sampled_entry_pcrc": "8be3a754",
+        "sampled_sparse_pcrc": "0574791d",
+        "runtime_ready": true
+      },
+      "reason": "Model the TLUT-populated copy strip as the same ordered surface with populated sampled palette identity; strict title conflicts drop from 71 to 5 with no image change when paired with dual selectors."
     }
   }
 }

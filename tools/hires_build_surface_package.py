@@ -27,6 +27,16 @@ def group_index(review: dict):
     }
 
 
+def binding_index(binding_payload: dict):
+    index = {}
+    for binding in binding_payload.get('bindings', []):
+        canonical = binding.get('canonical_identity', {})
+        sampled_low32 = canonical.get('sampled_low32')
+        if sampled_low32:
+            index[str(sampled_low32).lower()] = binding
+    return index
+
+
 def cache_index(cache_path: Path):
     entries = parse_cache_entries(cache_path)
     return {
@@ -49,7 +59,7 @@ def materialize_asset(cache_path: Path, entry: dict, out_dir: Path):
     }
 
 
-def build_surface(surface_manifest: dict, review: dict, assets_dir: Path):
+def build_surface(surface_manifest: dict, review: dict, assets_dir: Path, canonical_bindings: dict | None):
     cache_path = Path(review['cache'])
     candidates = candidate_index(review)
     groups = group_index(review)
@@ -77,10 +87,23 @@ def build_surface(surface_manifest: dict, review: dict, assets_dir: Path):
     group = groups.get(surface_manifest['sampled_low32'])
     if group is None:
         raise SystemExit(f"missing sampled review group for {surface_manifest['sampled_low32']}")
+    canonical_identity = dict(group.get('canonical_identity', {}))
+    needs_canonical_fallback = any(
+        canonical_identity.get(field) in (None, '')
+        for field in ('fmt', 'siz', 'off', 'stride', 'wh', 'formatsize')
+    )
+    if needs_canonical_fallback and canonical_bindings:
+        fallback = canonical_bindings.get(surface_manifest['sampled_low32'].lower())
+        if fallback:
+            fallback_identity = dict(fallback.get('canonical_identity', {}))
+            for field, value in fallback_identity.items():
+                if canonical_identity.get(field) in (None, '') and value not in (None, ''):
+                    canonical_identity[field] = value
+
     return {
         'surface': surface_manifest,
         'assets': assets,
-        'canonical_identity': group.get('canonical_identity', {}),
+        'canonical_identity': canonical_identity,
         'candidate_snapshots': candidate_snapshots,
         'source_cache_path': str(cache_path),
     }
@@ -90,10 +113,14 @@ def main():
     parser = argparse.ArgumentParser(description='Build a tool-side ordered-surface package from surface manifests.')
     parser.add_argument('--review', required=True)
     parser.add_argument('--manifest', action='append', required=True)
+    parser.add_argument('--canonical-bindings-input', help='Optional bindings.json to fill canonical_identity fields missing from sampled review data.')
     parser.add_argument('--output-dir', required=True)
     args = parser.parse_args()
 
     review = load_json(Path(args.review))
+    canonical_bindings = None
+    if args.canonical_bindings_input:
+        canonical_bindings = binding_index(load_json(Path(args.canonical_bindings_input)))
     output_dir = Path(args.output_dir)
     assets_dir = output_dir / 'assets'
     assets_dir.mkdir(parents=True, exist_ok=True)
@@ -101,7 +128,7 @@ def main():
     surfaces = []
     for manifest_path in args.manifest:
         manifest = load_json(Path(manifest_path))
-        surfaces.append(build_surface(manifest, review, assets_dir))
+        surfaces.append(build_surface(manifest, review, assets_dir, canonical_bindings))
 
     package = {
         'format': 'phrs-surface-package-v2',

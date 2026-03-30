@@ -32,7 +32,7 @@ def emit_manifest(surface_map: dict):
                 'sequence_index': row['sequence_index'],
                 'replacement_id': row.get('replacement_id'),
                 'upload_key': row['upload_key'],
-                'addr_hex': row['addr_hex'],
+                'addr_hex': row.get('addr_hex'),
             }
             for row in sequences
         ],

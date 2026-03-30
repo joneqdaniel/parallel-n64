@@ -624,3 +624,22 @@
 - The same builder now supports `--review-pool-group-key` for coupled title seams.
   - current groups: `title-press-start-128x32-pair` and `title-copyright-144x16-pair`
   - validation: rebuilding the current direct-surface package through `title-press-start-128x32-pair` reproduces the same `PHRB` hash `55ad0bfb1792200625552f8344f687e236e62d69cf96c3447a11b0b3e34f35ab` as the explicit per-key build
+## 2026-03-30 Gameplay Ordered-Surface Follow-Up
+
+- New generic sampled-side tools:
+  - [`tools/hires_sampled_draw_sequence.py`](/home/auro/code/parallel-n64/tools/hires_sampled_draw_sequence.py)
+  - [`tools/hires_sampled_surface_map.py`](/home/auro/code/parallel-n64/tools/hires_sampled_surface_map.py)
+- Surface-package bridge update:
+  - [`tools/hires_build_surface_package.py`](/home/auro/code/parallel-n64/tools/hires_build_surface_package.py) now accepts `--canonical-bindings-input`
+- First gameplay surfaceized family:
+  - `1b8530fb` becomes a `34`-slot sampled-side ordered surface with `33` resolved slots and one right-edge unresolved tail slot
+  - artifacts:
+    - [`20260330-1b85-sampled-sequence/sequence.md`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260330-1b85-sampled-sequence/sequence.md)
+    - [`20260330-1b85-sampled-surface-map/map.md`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260330-1b85-sampled-surface-map/map.md)
+    - [`20260330-1b85-sampled-surface-package/surface-package.json`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260330-1b85-sampled-surface-package/surface-package.json)
+- Runtime outcome:
+  - `dual` compiled package preserves strict title/file but regresses the `960` gameplay slice: [`20260330-v34-v32base-surface-1b85-timeout-960/validation-summary.md`](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260330-v34-v32base-surface-1b85-timeout-960/validation-summary.md)
+  - `ordered-only` is worse still: [`20260330-v35-v32base-surface-1b85-ordered-only-timeout-960/validation-summary.md`](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260330-v35-v32base-surface-1b85-ordered-only-timeout-960/validation-summary.md)
+- Practical implication:
+  - `1b8530fb` ordered surfaces are now strong structural/import evidence
+  - they are not yet a safe runtime replacement for the flat gameplay binding

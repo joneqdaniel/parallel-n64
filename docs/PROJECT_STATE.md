@@ -874,3 +874,20 @@
 - The same builder now also accepts `--review-pool-group-key` via [`tools/hires_pack_transport_policy.json`](/home/auro/code/parallel-n64/tools/hires_pack_transport_policy.json).
   - current groups: `title-press-start-128x32-pair` and `title-copyright-144x16-pair`
   - zero-risk proof: rebuilding the current direct-surface package through `title-press-start-128x32-pair` reproduces the same `PHRB` hash `55ad0bfb1792200625552f8344f687e236e62d69cf96c3447a11b0b3e34f35ab` as the explicit per-key CLI
+## 2026-03-30 Sampled Gameplay Ordered-Surface Update
+
+- Generic sampled-side ordered-surface tooling now exists for gameplay seams:
+  - [`tools/hires_sampled_draw_sequence.py`](/home/auro/code/parallel-n64/tools/hires_sampled_draw_sequence.py)
+  - [`tools/hires_sampled_surface_map.py`](/home/auro/code/parallel-n64/tools/hires_sampled_surface_map.py)
+  - [`tools/hires_build_surface_package.py`](/home/auro/code/parallel-n64/tools/hires_build_surface_package.py) now supports `--canonical-bindings-input` so gameplay surface packages can inherit authoritative sampled-object identity from a proven binding set.
+- First gameplay ordered-surface proof:
+  - sequence: [`20260330-1b85-sampled-sequence/sequence.md`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260330-1b85-sampled-sequence/sequence.md)
+  - map: [`20260330-1b85-sampled-surface-map/map.md`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260330-1b85-sampled-surface-map/map.md)
+  - surface package: [`20260330-1b85-sampled-surface-package/surface-package.json`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260330-1b85-sampled-surface-package/surface-package.json)
+  - result: `1b8530fb` resolves as a `34`-slot sampled-side ordered surface with `33/34` transported slots and one explicit right-edge unresolved tail slot `77e5f3760b110a9b`.
+- Runtime verdict is negative for promotion right now:
+  - `dual` surface package on the richer `v32` gameplay base keeps strict title/file pixel-identical to the current selected baseline, but regresses the `960` gameplay slice to `AE 34094281 / RMSE 10.8172`: [`20260330-v34-v32base-surface-1b85-timeout-960/validation-summary.md`](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260330-v34-v32base-surface-1b85-timeout-960/validation-summary.md)
+  - `ordered-only` regresses further to `AE 126937490 / RMSE 19.8116`: [`20260330-v35-v32base-surface-1b85-ordered-only-timeout-960/validation-summary.md`](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260330-v35-v32base-surface-1b85-ordered-only-timeout-960/validation-summary.md)
+- Practical implication:
+  - sampled-side ordered surfaces are now a strong import/review representation for gameplay seams
+  - but the flat `1b8530fb` selected binding remains the better runtime transport shape for the active gameplay package until the ordered-selector consumption model is tightened

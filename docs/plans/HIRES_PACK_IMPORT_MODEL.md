@@ -599,3 +599,24 @@ This is the preferred inspection path while the import format is still evolving.
       - title: [`20260329-v20-autoenv-title`](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260329-v20-autoenv-title) -> hash `521539a34c40488bdfe987779a3c53ca1624c3eb985d362f6d1b7934d0064b31`, exact hits `184`, exact misses `104`
       - file select: [`20260329-v20-autoenv-file`](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260329-v20-autoenv-file) -> hash `c5ac0f7558547aeb197552bbb1a0881c69f6d57ff1f17358d0d1753617d253e0`, exact hits `68`, exact misses `214`
     - practical outcome: the self-contained path now preserves both tracked merged-scene images while improving exact coverage materially, but it has not eliminated native exact misses on the corrected strict reruns
+## 2026-03-30 Gameplay Surface Import Update
+
+- The import model now has a generic sampled-side gameplay ordered-surface path:
+  - [`tools/hires_sampled_draw_sequence.py`](/home/auro/code/parallel-n64/tools/hires_sampled_draw_sequence.py)
+  - [`tools/hires_sampled_surface_map.py`](/home/auro/code/parallel-n64/tools/hires_sampled_surface_map.py)
+  - [`tools/hires_build_surface_package.py`](/home/auro/code/parallel-n64/tools/hires_build_surface_package.py) with `--canonical-bindings-input`
+- First gameplay proof:
+  - `1b8530fb` surfaceizes as `34` ordered slots with `33` direct transport matches and one explicit unresolved tail slot
+  - artifacts:
+    - [`20260330-1b85-sampled-sequence/sequence.md`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260330-1b85-sampled-sequence/sequence.md)
+    - [`20260330-1b85-sampled-surface-map/map.md`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260330-1b85-sampled-surface-map/map.md)
+    - [`20260330-1b85-sampled-surface-package/surface-package.json`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260330-1b85-sampled-surface-package/surface-package.json)
+- Import/runtime implication:
+  - this is now a valid imported surface representation
+  - but it is not yet a valid promoted runtime transport shape for the gameplay package
+  - both compiled runtime variants regress the `960` gameplay image:
+    - `dual`: [`20260330-v34-v32base-surface-1b85-timeout-960/validation-summary.md`](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260330-v34-v32base-surface-1b85-timeout-960/validation-summary.md)
+    - `ordered-only`: [`20260330-v35-v32base-surface-1b85-ordered-only-timeout-960/validation-summary.md`](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260330-v35-v32base-surface-1b85-ordered-only-timeout-960/validation-summary.md)
+- Practical implication:
+  - gameplay ordered surfaces are first-class import artifacts now
+  - the flat `1b8530fb` runtime binding remains the correct active transport shape until the ordered-selector runtime contract is tightened

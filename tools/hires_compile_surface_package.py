@@ -126,6 +126,17 @@ def build_surface_binding(surface_entry: dict, group: dict | None, cache_path: s
     if selector_mode not in {'upload-only', 'ordered-only', 'dual'}:
         raise SystemExit(f"unsupported selector_mode {selector_mode!r} for {surface['surface_id']}")
 
+    shape_hint = surface_entry.get('shape_hint') or surface.get('shape_hint')
+    if (
+        shape_hint in {'rotating-stream', 'rotating-stream-edge-dwell'}
+        and selector_mode != 'upload-only'
+        and not surface_entry.get('allow_runtime_selector_compile')
+    ):
+        raise SystemExit(
+            f"surface {surface['surface_id']} has shape_hint={shape_hint!r} and cannot compile to "
+            f"selector_mode={selector_mode!r} without allow_runtime_selector_compile=true"
+        )
+
     emit_upload_selectors = selector_mode in {'upload-only', 'dual'}
     emit_ordered_selectors = selector_mode in {'ordered-only', 'dual'}
 

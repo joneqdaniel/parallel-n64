@@ -535,6 +535,13 @@
     - title: [`20260329-v22-autoenv-title`](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260329-v22-autoenv-title) -> hash `521539a34c40488bdfe987779a3c53ca1624c3eb985d362f6d1b7934d0064b31`, exact hits `184`, exact misses `104`
     - file select: [`20260329-v22-autoenv-file`](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260329-v22-autoenv-file) -> hash `c5ac0f7558547aeb197552bbb1a0881c69f6d57ff1f17358d0d1753617d253e0`, exact hits `68`, exact misses `214`
   - current interpretation: v22 is a reproducibility proof for the selected-package builder path, not a new promoted package
+- Sampled-object miss telemetry is now split into selector-conflict misses versus unresolved misses.
+  - [`tools/scenarios/lib/common.sh`](/home/auro/code/parallel-n64/tools/scenarios/lib/common.sh) now records both classes separately
+  - [`tools/hires_sampled_selector_review.py`](/home/auro/code/parallel-n64/tools/hires_sampled_selector_review.py) emits a compact review artifact from corrected native bundles
+  - corrected v20 native reruns now read:
+    - title: [`20260329-v20-autoenv-title-postclassify`](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260329-v20-autoenv-title-postclassify) -> exact hits `184`, conflict misses `104`, unresolved misses `0`
+    - file select: [`20260329-v20-autoenv-file-postclassify`](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260329-v20-autoenv-file-postclassify) -> exact hits `68`, conflict misses `34`, unresolved misses `180`
+  - practical implication: the active merged title path is no longer blocked by unresolved sampled-object misses on the strict fixture; the next real selector-model work is the file-select `7064585c` family
 - Current meaning of that result:
   - [`tools/scenarios/paper-mario-title-timeout-probe.sh`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-title-timeout-probe.sh) now honors `PARALLEL_RDP_HIRES_CACHE_PATH` overrides, so deeper timeout probes validate the same selected `PHRB` package the strict fixtures use instead of silently falling back to the legacy `.hts` path
   - broader non-menu validation now passed on the first deterministic timeout slices with the active v20 package:

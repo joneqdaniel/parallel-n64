@@ -130,6 +130,10 @@ This document describes the shape of the import model itself. The evidence thres
   - strict scenario entrypoints now also auto-enable sampled-object lookup/probe when the selected cache path ends in `.phrb`, which corrects an earlier validation gap where native packages could silently run without their draw-side exact path enabled
   - corrected broader validation result: the active v20 selected package still stays byte-identical to `off` at the `960`-frame world, `1200`-frame battle, and `1500`-frame world timeout checkpoints, but fresh native reruns report `39382` sampled-object exact hits and `33918` exact misses on the tracked `960` slice instead of the earlier stale `0` exact-miss claim
   - a full-source rebuild proof now exists as [`20260329-selected-plus-title-v22-add-press-start-fullsource/package.phrb`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-selected-plus-title-v22-add-press-start-fullsource/package.phrb), with strict title/file-select reruns matching the active v20 image hashes; this is recorded as a reproducibility proof, not a new active promotion
+  - corrected native evidence now also splits sampled-object miss telemetry into selector-conflict misses versus unresolved misses:
+    - title v20: conflict-only on the strict fixture (`104` conflict misses, `0` unresolved)
+    - file-select v20: the real remaining unresolved selector work is concentrated in the `7064585c` family (`180` unresolved misses, `34` conflict misses)
+  - practical implication: the current selected-package import path is farther along on title than the raw miss count suggested; file select is now the authoritative seam for the next selector-model change
   - that check is now scripted through [`tools/scenarios/paper-mario-title-timeout-selected-package-validation.sh`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-title-timeout-selected-package-validation.sh); current summary artifact: [`20260329-v19-timeout-full/validation-summary.md`](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260329-v19-timeout-full/validation-summary.md)
 
 ## Imported Index v1

@@ -1885,6 +1885,15 @@ void Renderer::draw_shaded_primitive(const TriangleSetup &setup, const Attribute
 		const uint64_t sampled_selector_checksum64 = texel0_state.checksum64;
 		bool ordered_surface_slot_reserved = false;
 		uint64_t ordered_surface_selector_checksum64 = 0;
+		struct SampledExactMissAttempt
+		{
+			const char *reason = nullptr;
+			uint32_t palette_crc = 0;
+			uint64_t selector_checksum64 = 0;
+			uint32_t repl_w = 0;
+			uint32_t repl_h = 0;
+		};
+		std::vector<SampledExactMissAttempt> sampled_miss_attempts;
 
 		auto reserve_ordered_surface_selector = [&](uint64_t checksum64, uint16_t formatsize) -> bool {
 			if (ordered_surface_slot_reserved)
@@ -1919,38 +1928,24 @@ void Renderer::draw_shaded_primitive(const TriangleSetup &setup, const Attribute
 			}
 			if (!lookup_hit)
 			{
-				if (hires_debug_sampled_object_probe)
-				{
-					LOGI("Hi-res sampled-object exact miss: reason=lookup draw_class=%s cycle=%s tile=%u sampled_low32=%08x palette_crc=%08x fs=%u selector=%016llx provider_enabled=%u provider_entries=%zu.\n",
-					     get_hires_draw_class(draw_class),
-					     get_hires_cycle_class(raster_flags),
-					     base_tile,
-					     sampled_identity.texture_crc,
-					     palette_crc,
-					     sampled_identity.formatsize,
-					     static_cast<unsigned long long>(resolved_selector_checksum64),
-					     replacement_provider->enabled() ? 1u : 0u,
-					     replacement_provider->entry_count());
-				}
+				SampledExactMissAttempt attempt = {};
+				attempt.reason = "lookup";
+				attempt.palette_crc = palette_crc;
+				attempt.selector_checksum64 = resolved_selector_checksum64;
+				sampled_miss_attempts.push_back(attempt);
 				return false;
 			}
 			candidate_meta.orig_w = sampled_identity.width_pixels;
 			candidate_meta.orig_h = sampled_identity.height_pixels;
 			if (!resolve_hires_replacement_descriptor(checksum64, sampled_identity.formatsize, resolved_selector_checksum64, candidate_meta))
 			{
-				if (hires_debug_sampled_object_probe)
-				{
-					LOGI("Hi-res sampled-object exact miss: reason=resolve draw_class=%s cycle=%s tile=%u sampled_low32=%08x palette_crc=%08x fs=%u selector=%016llx repl=%ux%u.\n",
-					     get_hires_draw_class(draw_class),
-					     get_hires_cycle_class(raster_flags),
-					     base_tile,
-					     sampled_identity.texture_crc,
-					     palette_crc,
-					     sampled_identity.formatsize,
-					     static_cast<unsigned long long>(resolved_selector_checksum64),
-					     candidate_meta.repl_w,
-					     candidate_meta.repl_h);
-				}
+				SampledExactMissAttempt attempt = {};
+				attempt.reason = "resolve";
+				attempt.palette_crc = palette_crc;
+				attempt.selector_checksum64 = resolved_selector_checksum64;
+				attempt.repl_w = candidate_meta.repl_w;
+				attempt.repl_h = candidate_meta.repl_h;
+				sampled_miss_attempts.push_back(attempt);
 				return false;
 			}
 			sampled_meta = candidate_meta;
@@ -1963,6 +1958,38 @@ void Renderer::draw_shaded_primitive(const TriangleSetup &setup, const Attribute
 			try_sampled_exact(sampled_identity.sparse_crc, "sampled-sparse-exact", "sampled-sparse-ordered-surface") ||
 			(sampled_identity.entry_crc != sampled_identity.sparse_crc &&
 			 try_sampled_exact(sampled_identity.entry_crc, "sampled-entry-exact", "sampled-entry-ordered-surface"));
+		if (!sampled_hit && hires_debug_sampled_object_probe)
+		{
+			for (const auto &attempt : sampled_miss_attempts)
+			{
+				if (std::strcmp(attempt.reason, "resolve") == 0)
+				{
+					LOGI("Hi-res sampled-object exact miss: reason=resolve draw_class=%s cycle=%s tile=%u sampled_low32=%08x palette_crc=%08x fs=%u selector=%016llx repl=%ux%u.\n",
+					     get_hires_draw_class(draw_class),
+					     get_hires_cycle_class(raster_flags),
+					     base_tile,
+					     sampled_identity.texture_crc,
+					     attempt.palette_crc,
+					     sampled_identity.formatsize,
+					     static_cast<unsigned long long>(attempt.selector_checksum64),
+					     attempt.repl_w,
+					     attempt.repl_h);
+				}
+				else
+				{
+					LOGI("Hi-res sampled-object exact miss: reason=lookup draw_class=%s cycle=%s tile=%u sampled_low32=%08x palette_crc=%08x fs=%u selector=%016llx provider_enabled=%u provider_entries=%zu.\n",
+					     get_hires_draw_class(draw_class),
+					     get_hires_cycle_class(raster_flags),
+					     base_tile,
+					     sampled_identity.texture_crc,
+					     attempt.palette_crc,
+					     sampled_identity.formatsize,
+					     static_cast<unsigned long long>(attempt.selector_checksum64),
+					     replacement_provider->enabled() ? 1u : 0u,
+					     replacement_provider->entry_count());
+				}
+			}
+		}
 		if (sampled_hit)
 		{
 			ReplacementTileState sampled_state = {};

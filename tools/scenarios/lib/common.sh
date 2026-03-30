@@ -210,6 +210,12 @@ result = {
         "exact_miss_count": 0,
         "unique_exact_miss_bucket_count": 0,
         "top_exact_miss_buckets": [],
+        "exact_conflict_miss_count": 0,
+        "unique_exact_conflict_miss_bucket_count": 0,
+        "top_exact_conflict_miss_buckets": [],
+        "exact_unresolved_miss_count": 0,
+        "unique_exact_unresolved_miss_bucket_count": 0,
+        "top_exact_unresolved_miss_buckets": [],
     },
 }
 
@@ -408,6 +414,46 @@ def finalize_sampled_object_summary():
     exact_miss_items.sort(key=lambda item: (-item["count"], item["signature"]))
     result["sampled_object_probe"]["unique_exact_miss_bucket_count"] = len(exact_miss_items)
     result["sampled_object_probe"]["top_exact_miss_buckets"] = exact_miss_items[:10]
+
+    def sampled_family_key(fields):
+        return (
+            fields.get("draw_class"),
+            fields.get("cycle"),
+            fields.get("tile"),
+            fields.get("sampled_low32"),
+            fields.get("fs"),
+        )
+
+    hit_palette_sets = {}
+    for item in exact_hit_items:
+        fields = item["fields"]
+        key = sampled_family_key(fields)
+        palette_set = hit_palette_sets.setdefault(key, set())
+        entry_pcrc = fields.get("sampled_entry_pcrc")
+        sparse_pcrc = fields.get("sampled_sparse_pcrc")
+        if entry_pcrc is not None:
+            palette_set.add(entry_pcrc)
+        if sparse_pcrc is not None:
+            palette_set.add(sparse_pcrc)
+
+    exact_conflict_items = []
+    exact_unresolved_items = []
+    for item in exact_miss_items:
+        fields = item["fields"]
+        key = sampled_family_key(fields)
+        palette_crc = fields.get("palette_crc")
+        hit_palettes = hit_palette_sets.get(key, set())
+        if palette_crc is not None and palette_crc in hit_palettes:
+            exact_conflict_items.append(item)
+        else:
+            exact_unresolved_items.append(item)
+
+    result["sampled_object_probe"]["exact_conflict_miss_count"] = sum(item["count"] for item in exact_conflict_items)
+    result["sampled_object_probe"]["unique_exact_conflict_miss_bucket_count"] = len(exact_conflict_items)
+    result["sampled_object_probe"]["top_exact_conflict_miss_buckets"] = exact_conflict_items[:10]
+    result["sampled_object_probe"]["exact_unresolved_miss_count"] = sum(item["count"] for item in exact_unresolved_items)
+    result["sampled_object_probe"]["unique_exact_unresolved_miss_bucket_count"] = len(exact_unresolved_items)
+    result["sampled_object_probe"]["top_exact_unresolved_miss_buckets"] = exact_unresolved_items[:10]
 
 def parse_hts_cache_index(cache_path):
     data = cache_path.read_bytes()

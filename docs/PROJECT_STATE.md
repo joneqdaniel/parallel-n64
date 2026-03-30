@@ -783,6 +783,17 @@
     - title: [`20260329-v22-autoenv-title`](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260329-v22-autoenv-title) -> hash `521539a34c40488bdfe987779a3c53ca1624c3eb985d362f6d1b7934d0064b31`, exact hits `184`, exact misses `104`
     - file select: [`20260329-v22-autoenv-file`](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260329-v22-autoenv-file) -> hash `c5ac0f7558547aeb197552bbb1a0881c69f6d57ff1f17358d0d1753617d253e0`, exact hits `68`, exact misses `214`
   - current interpretation: v22 is a reproducibility proof for the selected-package builder path, not a new promoted active package
+- Sampled-object miss telemetry is now split into selector-conflict misses versus unresolved misses.
+  - parser/tooling:
+    - [`tools/scenarios/lib/common.sh`](/home/auro/code/parallel-n64/tools/scenarios/lib/common.sh) now records `exact_conflict_miss_count` and `exact_unresolved_miss_count`
+    - [`tools/hires_sampled_selector_review.py`](/home/auro/code/parallel-n64/tools/hires_sampled_selector_review.py) emits a compact review artifact from any corrected native bundle
+  - corrected v20 native reruns now show the active path much more clearly:
+    - title: [`20260329-v20-autoenv-title-postclassify`](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260329-v20-autoenv-title-postclassify) -> exact hits `184`, raw exact misses `104`, conflict misses `104`, unresolved misses `0`
+    - file select: [`20260329-v20-autoenv-file-postclassify`](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260329-v20-autoenv-file-postclassify) -> exact hits `68`, raw exact misses `214`, conflict misses `34`, unresolved misses `180`
+  - the new review artifacts are:
+    - [title selector review](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260329-v20-autoenv-title-postclassify/traces/hires-sampled-selector-review.md)
+    - [file-select selector review](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260329-v20-autoenv-file-postclassify/traces/hires-sampled-selector-review.md)
+  - practical implication: the active merged native title path no longer has unresolved sampled-object misses on the strict fixture; the real remaining native selector gap is concentrated in the file-select `7064585c` family
 - Practical implication: the current active merged package is now self-contained at surface-package compile time too. It reproduces the same strict-scene runtime outputs even when the surface-package provenance `review_path` values are deliberately broken, so the merged title slice no longer depends on external review JSON during build or runtime.
   - [`tools/scenarios/paper-mario-title-timeout-probe.sh`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-title-timeout-probe.sh) now mirrors the tracked strict scenarios by honoring `PARALLEL_RDP_HIRES_CACHE_PATH` overrides and patching the bundle metadata to the actual loaded package path.
   - broader non-menu validation now passed on the first three deterministic timeout slices with the active v20 package:

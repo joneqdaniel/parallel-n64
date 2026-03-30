@@ -2,13 +2,12 @@
   "schema_version": 1,
   "transport_families": {
     "legacy-low32-2a1be0a4-fs2": {
-      "status": "selected",
-      "selected_replacement_id": "legacy-2a1be0a4-3ea78bbb-fs0-640x160",
-      "justification": "First sampled-object exact runtime comparison ranks this transported payload ahead of the alternate candidate on the strict file-select fixture.",
+      "status": "manual-review-required",
+      "justification": "Both transported c139 payloads regress the current merged file-select image relative to leaving c139 unresolved in the cleaned v27 package context.",
       "supporting_notes": [
-        "Both transported payloads produce valid sampled-object exact hits for sampled-fmt2-siz0-off0-stride32-wh64x16-fs2-low32c139c1c0.",
-        "The selected payload has lower image distance than the alternate candidate against both baseline off and the current legacy strict on frame.",
-        "This is a provisional transport choice for importer/runtime handoff, not proof that the selected payload is final-correct art."
+        "Both transported payloads still prove the sampled-object exact lookup path works for c139c1c0.",
+        "In the current merged v27 package context, removing c139 entirely improves file-select visual distance to legacy-on from AE 46737511 to 31260618 while leaving strict title byte-identical.",
+        "The alternate transported payload legacy-2a1be0a4-ab0c7574-fs0-640x160 is worse than leaving c139 unresolved in the same merged context (AE 53131944 vs legacy-on)."
       ],
       "evidence": {
         "selected_runtime_bundle": "artifacts/paper-mario-file-select/on/20260328-sampled-c139-opt1",
@@ -30,32 +29,62 @@
         "alternate_vs_legacy_on": {
           "ae": 140020278,
           "rmse": 22.949551
-        }
+        },
+        "v27_context_bundle": "artifacts/paper-mario-file-select/on/20260329-v26-ablation-minus-706",
+        "v27_context_hash": "b5c854d9f3b642e2914d88a8c542e59977c4b42862ee1c285b13c6746ffb2a21",
+        "v27_context_vs_legacy_on": {
+          "ae": 46737511,
+          "rmse": 11.477825705202557
+        },
+        "drop_c139_bundle": "artifacts/paper-mario-file-select/on/20260329-v27-minus-c139",
+        "drop_c139_hash": "9221491f729b2e11a678456362f25c9d28b820b75297e26e373931978b48eb93",
+        "drop_c139_vs_legacy_on": {
+          "ae": 31260618,
+          "rmse": 7.814799294141195
+        },
+        "alternate_v27_bundle": "artifacts/paper-mario-file-select/on/20260329-v27-c139-alt",
+        "alternate_v27_hash": "2226d41a50d45af1dcde7be044949a08e8bc510fa074d35879d55ca2cbaf97a9",
+        "alternate_v27_vs_legacy_on": {
+          "ae": 53131944,
+          "rmse": 14.238358534706414
+        },
+        "title_control_without_c139_bundle": "artifacts/paper-mario-title-screen/on/20260329-v27-minus-c139-control",
+        "title_control_without_c139_hash": "1eca10ff973c12dce6a5eaae39952d55df033898cc227b35cfb12c759335f1e7"
       },
       "overturn_conditions": [
-        "A stronger strict-fixture comparison shows the alternate payload is visually or semantically more correct.",
-        "A broader non-menu validation slice shows the selected payload overfits the file-select neighborhood.",
-        "Static Tier 2 or native-format research proves that another transport alias is the correct canonical bridge."
+        "A merged-package comparison shows one transported payload is clearly superior to leaving c139 unresolved.",
+        "A broader non-menu validation slice shows c139 should be restored despite the strict file-select regression.",
+        "Static Tier 2 or native-format research proves that one transport alias is the correct canonical bridge in merged-package use."
       ]
     }
   },
   "transport_proxies": {
     "sampled-fmt2-siz0-off0-stride32-wh64x16-fs2-low32c139c1c0": {
-      "status": "selected",
-      "selected_replacement_id": "legacy-2a1be0a4-3ea78bbb-fs0-640x160",
-      "justification": "Proxy-centered transport selection matches the earlier strict sampled-object runtime proof for c139c1c0.",
+      "status": "manual-review-required",
+      "justification": "The earlier c139 proxy selection proves sampled-object lookup plumbing, but both transported payloads are worse than leaving c139 unresolved in the current merged v27 package context.",
       "supporting_notes": [
-        "This proxy is runtime-ready and already proven through sampled-object exact lookup on the strict file-select fixture.",
-        "The selected transported payload matches the earlier family-selected opt1 result exactly.",
-        "Keeping the proxy selection aligned with the proven c139c1c0 path lets the importer/runtime handoff move away from legacy family keys without changing the observed result."
+        "This proxy is still runtime-ready and remains a valid lookup-path proof artifact.",
+        "Merged-package validation now outweighs the older isolated proof: removing c139 improves file-select while leaving title unchanged.",
+        "The alternate payload ab0c7574 is also worse than unresolved in the same merged context."
       ],
       "evidence": {
         "selected_runtime_bundle": "artifacts/paper-mario-file-select/on/20260328-sampled-c139-policy-selected",
-        "selected_hash": "831cd6a7dff2d44654c854dbbcd91d13071cf49d6622f9141084780b47bf2b32"
+        "selected_hash": "831cd6a7dff2d44654c854dbbcd91d13071cf49d6622f9141084780b47bf2b32",
+        "v27_context_bundle": "artifacts/paper-mario-file-select/on/20260329-v26-ablation-minus-706",
+        "v27_context_hash": "b5c854d9f3b642e2914d88a8c542e59977c4b42862ee1c285b13c6746ffb2a21",
+        "drop_c139_bundle": "artifacts/paper-mario-file-select/on/20260329-v27-minus-c139",
+        "drop_c139_hash": "9221491f729b2e11a678456362f25c9d28b820b75297e26e373931978b48eb93",
+        "drop_c139_vs_legacy_on": {
+          "ae": 31260618,
+          "rmse": 7.814799294141195
+        },
+        "alternate_v27_bundle": "artifacts/paper-mario-file-select/on/20260329-v27-c139-alt",
+        "alternate_v27_hash": "2226d41a50d45af1dcde7be044949a08e8bc510fa074d35879d55ca2cbaf97a9"
       },
       "overturn_conditions": [
-        "A broader sampled-object validation slice shows another transported payload is more correct for c139c1c0.",
-        "Static Tier 2 reconstruction proves another legacy alias is the better canonical bridge for this sampled object."
+        "A merged-package comparison shows one transported payload is clearly superior to leaving c139 unresolved.",
+        "A broader sampled-object validation slice shows c139 should remain active despite the strict file-select regression.",
+        "Static Tier 2 reconstruction proves one legacy alias is the better canonical bridge in merged-package use."
       ]
     },
     "sampled-fmt2-siz0-off0-stride8-wh16x16-fs2-low327064585c": {

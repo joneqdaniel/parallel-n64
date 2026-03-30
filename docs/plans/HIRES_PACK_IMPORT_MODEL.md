@@ -138,7 +138,13 @@ This document describes the shape of the import model itself. The evidence thres
     - [`tools/hires_pack_emit_binding_aliases.py`](/home/auro/code/parallel-n64/tools/hires_pack_emit_binding_aliases.py) clones selected transported payloads into alternate canonical palette/selector records
     - current proof package: [`20260329-selected-plus-title-v23-706-aliases/package.phrb`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-selected-plus-title-v23-706-aliases/package.phrb)
     - current proof result: `7064585c` unresolved misses on strict file select fall from `180` to `4` while strict title stays byte-identical
-  - practical implication: the current import model now has a real richer-selector escape hatch that remains explicit and policy-driven; the next unresolved imported/native seam is the small `7872a318` family rather than the broad `7064585c` pool
+  - that remaining `7872a318` seam is now formalized as a selected synthetic bridge instead of a one-off proof:
+    - [`tools/hires_pack_emit_transport_bridge_bindings.py`](/home/auro/code/parallel-n64/tools/hires_pack_emit_transport_bridge_bindings.py) emits bridge bindings directly from `transport_synthetic_bridges`
+    - [`tools/hires_pack_build_selected_package.py`](/home/auro/code/parallel-n64/tools/hires_pack_build_selected_package.py) can include those bridges directly with `--bridge-key` and `--cache`
+    - bridge binding artifact: [`20260329-7872-bridge-policy/bindings.json`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-7872-bridge-policy/bindings.json)
+    - active selected package: [`20260329-selected-plus-title-v24-policy-bridge/package.phrb`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-selected-plus-title-v24-policy-bridge/package.phrb)
+    - strict result: file-select unresolved misses fall from `4` to `0` while title stays byte-identical and unresolved-free
+  - practical implication: the current import model now has both a richer-selector alias path and a guarded reinterpret bridge path, and both remain explicit, policy-backed, and fixture-verified rather than hidden runtime heuristics
   - that check is now scripted through [`tools/scenarios/paper-mario-title-timeout-selected-package-validation.sh`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-title-timeout-selected-package-validation.sh); current summary artifact: [`20260329-v19-timeout-full/validation-summary.md`](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260329-v19-timeout-full/validation-summary.md)
 
 ## Imported Index v1

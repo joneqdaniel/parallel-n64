@@ -11,6 +11,11 @@ MODE="on"
 DRY_RUN=1
 BUNDLE_DIR=""
 SOURCE_BUNDLE="${SOURCE_BUNDLE:-$REPO_ROOT/artifacts/paper-mario-file-select/on/20260326-texel-link-check}"
+PROBE_OUTCOME="${PROBE_OUTCOME:-miss}"
+PROBE_FORMATSIZE="${PROBE_FORMATSIZE:-514}"
+PROBE_WIDTH="${PROBE_WIDTH:-64}"
+PROBE_HEIGHT="${PROBE_HEIGHT:-1}"
+PROBE_TILE="${PROBE_TILE:-7}"
 RUNTIME_ENV="${RUNTIME_ENV_OVERRIDE:-$SCRIPT_DIR/paper-mario-file-select.runtime.env}"
 
 usage() {
@@ -20,7 +25,12 @@ Usage:
 
 Options:
   --mode off|on            Scenario mode label (default: on)
-  --source-bundle PATH     Source bundle used to derive the 64x1 probe plan
+  --source-bundle PATH     Source bundle used to derive the probe plan
+  --outcome miss|hit       Provenance outcome filter (default: miss)
+  --formatsize N           Family formatsize filter (default: 514)
+  --width N                Family width filter (default: 64)
+  --height N               Family height filter (default: 1)
+  --tile N                 Family tile filter (default: 7)
   --bundle-dir PATH        Output bundle directory
   --run                    Execute the live probe
   -h, --help               Show this help
@@ -40,6 +50,26 @@ while (($#)); do
     --source-bundle)
       shift
       SOURCE_BUNDLE="${1:-}"
+      ;;
+    --outcome)
+      shift
+      PROBE_OUTCOME="${1:-}"
+      ;;
+    --formatsize)
+      shift
+      PROBE_FORMATSIZE="${1:-}"
+      ;;
+    --width)
+      shift
+      PROBE_WIDTH="${1:-}"
+      ;;
+    --height)
+      shift
+      PROBE_HEIGHT="${1:-}"
+      ;;
+    --tile)
+      shift
+      PROBE_TILE="${1:-}"
       ;;
     --bundle-dir)
       shift
@@ -75,11 +105,11 @@ REPORT_MD="$BUNDLE_DIR/traces/hires-block-family-report.md"
 python3 "$REPO_ROOT/tools/hires_block_family_probe.py" plan \
   --source-bundle "$SOURCE_BUNDLE" \
   --mode block \
-  --outcome miss \
-  --formatsize 514 \
-  --width 64 \
-  --height 1 \
-  --tile 7 \
+  --outcome "$PROBE_OUTCOME" \
+  --formatsize "$PROBE_FORMATSIZE" \
+  --width "$PROBE_WIDTH" \
+  --height "$PROBE_HEIGHT" \
+  --tile "$PROBE_TILE" \
   --output "$PLAN_JSON"
 
 PROBE_MIN_ADDR="$(python3 - <<'PY' "$PLAN_JSON"

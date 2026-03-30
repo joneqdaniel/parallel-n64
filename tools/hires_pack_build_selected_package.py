@@ -9,6 +9,7 @@ from hires_pack_emit_binary_package import emit_binary_package
 from hires_pack_emit_loader_manifest import build_loader_manifest
 from hires_pack_emit_probe_pool_binding import build_binding as build_review_pool_binding
 from hires_pack_emit_proxy_bindings import build_proxy_bindings, load_policy
+from hires_pack_emit_transport_bridge_bindings import build_transport_bridge_bindings
 from hires_pack_materialize_package import materialize_package
 
 
@@ -149,6 +150,8 @@ def main():
     parser.add_argument('--review-input', action='append', help='Path to sampled transport review JSON. Pass multiple times to provide transport-pool review sources.')
     parser.add_argument('--review-pool-key', action='append', help='Policy key from transport_review_pools to include in this package build. Pass multiple times.')
     parser.add_argument('--review-pool-group-key', action='append', help='Group key from transport_review_pool_groups to include in this package build. Pass multiple times.')
+    parser.add_argument('--bridge-key', action='append', help='Policy key from transport_synthetic_bridges to include in this package build. Pass multiple times.')
+    parser.add_argument('--cache', help='Legacy .hts/.htc cache path required when using --bridge-key.')
     parser.add_argument('--policy', required=True, help='Transport policy JSON path.')
     parser.add_argument('--output-dir', required=True, help='Output directory for bindings, manifest, package dir, and binary package.')
     parser.add_argument('--package-name', default='package.phrb', help='Binary package filename relative to output-dir.')
@@ -161,10 +164,14 @@ def main():
     review_input_paths = [Path(path) for path in (args.review_input or [])]
     review_pool_keys = args.review_pool_key or []
     review_pool_group_keys = args.review_pool_group_key or []
+    bridge_keys = args.bridge_key or []
+    cache_path = Path(args.cache) if args.cache else None
     if (review_pool_keys or review_pool_group_keys) and not review_input_paths:
         raise SystemExit('--review-pool-key/--review-pool-group-key requires at least one --review-input')
-    if not input_paths and not bindings_input_paths and not surface_package_input_paths and not review_input_paths:
-        raise SystemExit('at least one --input, --bindings-input, --surface-package-input, or --review-input is required')
+    if bridge_keys and cache_path is None:
+        raise SystemExit('--bridge-key requires --cache')
+    if not input_paths and not bindings_input_paths and not surface_package_input_paths and not review_input_paths and not bridge_keys:
+        raise SystemExit('at least one --input, --bindings-input, --surface-package-input, --review-input, or --bridge-key is required')
 
     policy_path = Path(args.policy)
     output_dir = Path(args.output_dir)
@@ -181,6 +188,8 @@ def main():
     resolved_review_pool_keys = resolve_review_pool_keys(policy_data, review_pool_keys, review_pool_group_keys)
     if review_input_paths and resolved_review_pool_keys:
         binding_payloads.append((Path('review-pools'), build_review_pool_bindings(review_input_paths, policy_data, resolved_review_pool_keys)))
+    if bridge_keys:
+        binding_payloads.append((Path('transport-bridges'), build_transport_bridge_bindings(policy_data, cache_path, bridge_keys)))
     bindings = merge_bindings(binding_payloads)
 
     unresolved = bindings.get('unresolved_transport_cases', [])
@@ -212,6 +221,8 @@ def main():
         'review_pool_keys': review_pool_keys,
         'review_pool_group_keys': review_pool_group_keys,
         'resolved_review_pool_keys': resolved_review_pool_keys,
+        'bridge_keys': bridge_keys,
+        'cache_path': str(cache_path) if cache_path else None,
         'policy_path': str(policy_path),
         'bindings_path': str(bindings_path),
         'loader_manifest_path': str(loader_manifest_path),

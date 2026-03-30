@@ -428,5 +428,64 @@
       ],
       "justification": "The non-PAL Press Start seam is a source-backed 128x32 IA8 pair and the current selected transport is shared across both sampled objects."
     }
+  },
+  "transport_synthetic_bridges": {
+    "sampled-low32-7872a318-fs768": {
+      "status": "selected-provisional",
+      "bridge_kind": "runtime-block-reinterpret",
+      "selected_replacement_id": "legacy-332b46e7-00000000-fs0-320x320",
+      "sampled_object_id": "sampled-fmt0-siz3-off0-stride64-wh1024x1-fs768-low327872a318",
+      "canonical_identity": {
+        "candidate_origin": "runtime-block-reinterpret-32x32",
+        "evidence_authority": "runtime-block-family-probe",
+        "draw_class": "texrect",
+        "cycle": "2cycle",
+        "fmt": "0",
+        "siz": "3",
+        "off": "0",
+        "stride": "64",
+        "wh": "1024x1",
+        "formatsize": 768,
+        "sampled_low32": "7872a318",
+        "sampled_entry_pcrc": "00000000",
+        "sampled_sparse_pcrc": "00000000",
+        "runtime_ready": true
+      },
+      "upload_low32s": [
+        "1d27afb6",
+        "332b46e7"
+      ],
+      "upload_pcrcs": [],
+      "selector_checksum64s": [
+        "000000001d27afb6"
+      ],
+      "include_zero_selector": false,
+      "reinterpretation": {
+        "source_wh": "1024x1",
+        "bridge_wh": "32x32",
+        "source_formatsize": 768,
+        "source_selector_checksum64": "000000001d27afb6",
+        "bridge_low32": "332b46e7",
+        "bridge_tier": "compat-unique"
+      },
+      "source_probe_bundle": "artifacts/paper-mario-file-select-block-family-probe/on/20260329-7872-live",
+      "justification": "Live 7872 block-family probe shows the remaining strict file-select fs768 seam can be bridged by a single 1024x1-to-32x32 reinterpretation that maps to one compat-unique active pack family.",
+      "supporting_notes": [
+        "The strict v23 file-select runtime collapses the remaining unresolved seam to sampled low32 7872a318 with only four unresolved misses.",
+        "The live 7872 block-family probe finds no direct 1024x1 pack family but does find one compat-unique 32x32 family, low32 332b46e7, at the same source address.",
+        "A synthetic v24 bridge package built from this reinterpretation clears the remaining unresolved misses on strict file select without changing the tracked title or file-select screenshot hashes."
+      ],
+      "overturn_conditions": [
+        "Static Tier 2 reconstruction proves this fs768 texrect should map to a different sampled object than the 32x32 bridge candidate.",
+        "A broader runtime validation slice shows this reinterpret bridge overmatches outside the current strict Paper Mario scenes.",
+        "A stronger selector model makes this reinterpret bridge unnecessary by resolving the same seam directly."
+      ],
+      "evidence": {
+        "probe_report": "artifacts/paper-mario-file-select-block-family-probe/on/20260329-7872-live/traces/hires-block-family-report.md",
+        "synthetic_binding": "artifacts/hires-pack-review/20260329-7872-synthetic-binding.json",
+        "runtime_bundle": "artifacts/paper-mario-file-select/on/20260329-v24-7872-test-runtime",
+        "runtime_hash": "3f779e572aea05188467acfbcab3f45f632a42d63cdeecb83536e30ef02c7c43"
+      }
+    }
   }
 }

@@ -637,9 +637,12 @@
     - [`20260330-1b85-sampled-sequence/sequence.md`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260330-1b85-sampled-sequence/sequence.md)
     - [`20260330-1b85-sampled-surface-map/map.md`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260330-1b85-sampled-surface-map/map.md)
     - [`20260330-1b85-sampled-surface-package/surface-package.json`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260330-1b85-sampled-surface-package/surface-package.json)
+  - stream-shape finding:
+    - the sampled-side sequence is not a stable repeated 34-slot batch
+    - it behaves as a mostly cyclic walk (`delta 1` dominates) plus a long repeated right-edge dwell on slot `33`
 - Runtime outcome:
   - `dual` compiled package preserves strict title/file but regresses the `960` gameplay slice: [`20260330-v34-v32base-surface-1b85-timeout-960/validation-summary.md`](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260330-v34-v32base-surface-1b85-timeout-960/validation-summary.md)
   - `ordered-only` is worse still: [`20260330-v35-v32base-surface-1b85-ordered-only-timeout-960/validation-summary.md`](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260330-v35-v32base-surface-1b85-ordered-only-timeout-960/validation-summary.md)
 - Practical implication:
   - `1b8530fb` ordered surfaces are now strong structural/import evidence
-  - they are not yet a safe runtime replacement for the flat gameplay binding
+  - they are not yet a safe runtime replacement for the flat gameplay binding because the current ordered-selector runtime model assumes fixed slot replay rather than a rotating stream with edge dwell

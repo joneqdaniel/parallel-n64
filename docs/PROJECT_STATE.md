@@ -885,9 +885,12 @@
   - map: [`20260330-1b85-sampled-surface-map/map.md`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260330-1b85-sampled-surface-map/map.md)
   - surface package: [`20260330-1b85-sampled-surface-package/surface-package.json`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260330-1b85-sampled-surface-package/surface-package.json)
   - result: `1b8530fb` resolves as a `34`-slot sampled-side ordered surface with `33/34` transported slots and one explicit right-edge unresolved tail slot `77e5f3760b110a9b`.
+  - updated stream-shape analysis now explains the runtime regression:
+    - `cyclic delta 1` dominates (`994` transitions), so the stream is mostly a rotating walk through the ordered candidates rather than a stable 34-slot batch
+    - the unresolved edge key `77e5f3760b110a9b` then dwells for a `33`-row repeated run before the stream rotates back into the ordered body
 - Runtime verdict is negative for promotion right now:
   - `dual` surface package on the richer `v32` gameplay base keeps strict title/file pixel-identical to the current selected baseline, but regresses the `960` gameplay slice to `AE 34094281 / RMSE 10.8172`: [`20260330-v34-v32base-surface-1b85-timeout-960/validation-summary.md`](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260330-v34-v32base-surface-1b85-timeout-960/validation-summary.md)
   - `ordered-only` regresses further to `AE 126937490 / RMSE 19.8116`: [`20260330-v35-v32base-surface-1b85-ordered-only-timeout-960/validation-summary.md`](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260330-v35-v32base-surface-1b85-ordered-only-timeout-960/validation-summary.md)
 - Practical implication:
   - sampled-side ordered surfaces are now a strong import/review representation for gameplay seams
-  - but the flat `1b8530fb` selected binding remains the better runtime transport shape for the active gameplay package until the ordered-selector consumption model is tightened
+  - but the flat `1b8530fb` selected binding remains the better runtime transport shape for the active gameplay package until the ordered-selector consumption model can represent rotating streams with edge dwell, not just fixed slot maps

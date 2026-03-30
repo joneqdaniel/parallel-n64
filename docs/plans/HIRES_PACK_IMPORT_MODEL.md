@@ -611,6 +611,8 @@ This is the preferred inspection path while the import format is still evolving.
     - [`20260330-1b85-sampled-sequence/sequence.md`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260330-1b85-sampled-sequence/sequence.md)
     - [`20260330-1b85-sampled-surface-map/map.md`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260330-1b85-sampled-surface-map/map.md)
     - [`20260330-1b85-sampled-surface-package/surface-package.json`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260330-1b85-sampled-surface-package/surface-package.json)
+  - stream-shape result:
+    - the imported surface is structurally valid, but the sampled stream is mostly cyclic with a long repeated edge dwell, not a simple fixed ordered batch
 - Import/runtime implication:
   - this is now a valid imported surface representation
   - but it is not yet a valid promoted runtime transport shape for the gameplay package
@@ -619,4 +621,4 @@ This is the preferred inspection path while the import format is still evolving.
     - `ordered-only`: [`20260330-v35-v32base-surface-1b85-ordered-only-timeout-960/validation-summary.md`](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260330-v35-v32base-surface-1b85-ordered-only-timeout-960/validation-summary.md)
 - Practical implication:
   - gameplay ordered surfaces are first-class import artifacts now
-  - the flat `1b8530fb` runtime binding remains the correct active transport shape until the ordered-selector runtime contract is tightened
+  - the flat `1b8530fb` runtime binding remains the correct active transport shape until the ordered-selector runtime contract can express rotating sampled streams with repeated edge dwell

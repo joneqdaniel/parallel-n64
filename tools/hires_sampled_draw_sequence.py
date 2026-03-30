@@ -80,7 +80,9 @@ def build_summary(bundle: Path, rows, sampled_key: str, draw_class: str, cycle: 
 
     ordered = [first_seen[key] for key in sorted(first_seen, key=lambda item: first_seen[item]["line_no"])]
     sequences = []
+    key_to_sequence_index = {}
     for sequence_index, row in enumerate(ordered):
+        key_to_sequence_index[row["varying_key"]] = sequence_index
         sequences.append(
             {
                 "sequence_index": sequence_index,
@@ -95,6 +97,28 @@ def build_summary(bundle: Path, rows, sampled_key: str, draw_class: str, cycle: 
             }
         )
 
+    index_trace = [key_to_sequence_index[row["varying_key"]] for row in rows]
+    delta_counts = Counter(
+        (index_trace[i + 1] - index_trace[i]) % len(ordered)
+        for i in range(len(index_trace) - 1)
+    ) if len(index_trace) > 1 and ordered else Counter()
+    repeated_runs = []
+    run_start = 0
+    for i in range(1, len(index_trace) + 1):
+        if i == len(index_trace) or index_trace[i] != index_trace[run_start]:
+            run_length = i - run_start
+            if run_length > 1:
+                repeated_runs.append(
+                    {
+                        "sequence_index": index_trace[run_start],
+                        "key": ordered[index_trace[run_start]]["varying_key"],
+                        "start_row": run_start,
+                        "run_length": run_length,
+                    }
+                )
+            run_start = i
+    repeated_runs.sort(key=lambda item: (-item["run_length"], item["start_row"]))
+
     return {
         "bundle": str(bundle),
         "log_path": str(bundle / "logs" / "retroarch.log"),
@@ -106,6 +130,8 @@ def build_summary(bundle: Path, rows, sampled_key: str, draw_class: str, cycle: 
         "row_count": len(rows),
         "unique_key_count": len(ordered),
         "top_keys": [{"key": key, "count": count} for key, count in counts.most_common(16)],
+        "cyclic_delta_counts": [{"delta": delta, "count": count} for delta, count in delta_counts.most_common(8)],
+        "repeated_runs": repeated_runs[:16],
         "sequences": sequences,
     }
 
@@ -128,6 +154,19 @@ def render_markdown(summary):
     ]
     for row in summary["top_keys"]:
         lines.append(f"- `{row['key']}` x{row['count']}")
+    lines.extend(["", "## Stream Shape", ""])
+    if summary["cyclic_delta_counts"]:
+        for row in summary["cyclic_delta_counts"]:
+            lines.append(f"- cyclic delta `{row['delta']}` x{row['count']}")
+    else:
+        lines.append("- no cyclic delta data")
+    if summary["repeated_runs"]:
+        lines.append("")
+        lines.append("Repeated runs:")
+        for row in summary["repeated_runs"]:
+            lines.append(
+                f"- seq `{row['sequence_index']}` key `{row['key']}` start_row `{row['start_row']}` run_length `{row['run_length']}`"
+            )
     lines.extend(["", "## Ordered Sequence", "", "| seq | line | varying key | count | varying hit |", "|---:|---:|---|---:|---:|"])
     for row in summary["sequences"]:
         lines.append(

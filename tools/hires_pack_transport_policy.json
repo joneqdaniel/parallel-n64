@@ -457,7 +457,8 @@
       ],
       "upload_pcrcs": [],
       "selector_checksum64s": [
-        "000000001d27afb6"
+        "000000001d27afb6",
+        "000000007872a318"
       ],
       "include_zero_selector": false,
       "reinterpretation": {
@@ -473,7 +474,8 @@
       "supporting_notes": [
         "The strict v23 file-select runtime collapses the remaining unresolved seam to sampled low32 7872a318 with only four unresolved misses.",
         "The live 7872 block-family probe finds no direct 1024x1 pack family but does find one compat-unique 32x32 family, low32 332b46e7, at the same source address.",
-        "A synthetic v24 bridge package built from this reinterpretation clears the remaining unresolved misses on strict file select without changing the tracked title or file-select screenshot hashes."
+        "A synthetic v24 bridge package built from this reinterpretation clears the remaining unresolved misses on strict file select without changing the tracked title or file-select screenshot hashes.",
+        "Later strict v25 conflict telemetry shows the same seam also appears under selector 000000007872a318, so the bridge now carries both the upload-derived selector and the sampled-low32 selector."
       ],
       "overturn_conditions": [
         "Static Tier 2 reconstruction proves this fs768 texrect should map to a different sampled object than the 32x32 bridge candidate.",
@@ -486,6 +488,183 @@
         "runtime_bundle": "artifacts/paper-mario-file-select/on/20260329-v24-7872-test-runtime",
         "runtime_hash": "3f779e572aea05188467acfbcab3f45f632a42d63cdeecb83536e30ef02c7c43"
       }
+    },
+    "sampled-low32-148e68ee-fs258#selector-148e68ee": {
+      "status": "selected-provisional",
+      "bridge_kind": "runtime-selector-alias",
+      "selected_replacement_id": "legacy-d65c7fea-5c66840b-fs0-2960x20",
+      "sampled_object_id": "sampled-fmt2-siz1-off0-stride296-wh296x2-fs258-low32148e68ee",
+      "canonical_identity": {
+        "candidate_origin": "runtime-sampled-probe",
+        "evidence_authority": "runtime-sampled-probe",
+        "draw_class": "texrect",
+        "cycle": "copy",
+        "fmt": "2",
+        "siz": "1",
+        "pal": "0",
+        "off": "0",
+        "stride": "296",
+        "wh": "296x2",
+        "formatsize": 258,
+        "sampled_low32": "148e68ee",
+        "sampled_entry_pcrc": "00000000",
+        "sampled_sparse_pcrc": "00000000",
+        "runtime_ready": true
+      },
+      "upload_low32s": [
+        "148e68ee"
+      ],
+      "upload_pcrcs": [
+        "00000000"
+      ],
+      "selector_checksum64s": [
+        "00000000148e68ee"
+      ],
+      "include_zero_selector": false,
+      "source_probe_bundle": "artifacts/paper-mario-title-screen/on/20260329-v24-940-289-dual-test-runtime",
+      "justification": "Strict v25 title/file-select conflict telemetry shows the remaining 148e68ee seam is not missing art; it is the same single-candidate 296x2 strip under a sampled-low32 selector instead of the legacy upload selector.",
+      "supporting_notes": [
+        "The compiled ordered-surface binding already transports legacy-d65c7fea-5c66840b-fs0-2960x20 for sampled-low32-148e68ee-fs258.",
+        "Both strict title and strict file-select conflict buckets resolve to selector 00000000148e68ee with no unresolved payload gap.",
+        "Adding this alias should test whether the last 148e68ee miss is selector-shape only."
+      ],
+      "overturn_conditions": [
+        "A strict-fixture runtime check shows the alias changes either tracked screenshot hash unexpectedly.",
+        "The alias fails to remove the 148e68ee conflict bucket, indicating the remaining seam is not selector-shape only."
+      ]
+    },
+    "sampled-low32-0f472c21-fs258#selector-0574791d0f472c21": {
+      "status": "selected-provisional",
+      "bridge_kind": "runtime-selector-alias",
+      "selected_replacement_id": "legacy-d65c7fea-5c66840b-fs0-2960x20",
+      "sampled_object_id": "sampled-fmt2-siz1-off0-stride296-wh296x2-fs258-low320f472c21",
+      "canonical_identity": {
+        "candidate_origin": "runtime-sampled-probe",
+        "evidence_authority": "runtime-sampled-probe",
+        "draw_class": "texrect",
+        "cycle": "copy",
+        "fmt": "2",
+        "siz": "1",
+        "pal": "0",
+        "off": "0",
+        "stride": "296",
+        "wh": "296x2",
+        "formatsize": 258,
+        "sampled_low32": "0f472c21",
+        "sampled_entry_pcrc": "8be3a754",
+        "sampled_sparse_pcrc": "0574791d",
+        "runtime_ready": true
+      },
+      "upload_low32s": [
+        "0f472c21"
+      ],
+      "upload_pcrcs": [
+        "0574791d",
+        "8be3a754"
+      ],
+      "selector_checksum64s": [
+        "0574791d0f472c21"
+      ],
+      "include_zero_selector": false,
+      "source_probe_bundle": "artifacts/paper-mario-title-screen/on/20260329-v24-940-289-dual-test-runtime",
+      "justification": "Strict v25 title conflict telemetry shows the remaining 0f472c21 seam is the proven single-candidate 296x2 strip under the sampled sparse selector 0574791d0f472c21 instead of the legacy upload selector.",
+      "supporting_notes": [
+        "The compiled ordered-surface binding already transports legacy-d65c7fea-5c66840b-fs0-2960x20 for sampled-low32-0f472c21-fs258.",
+        "Both remaining 0f472c21 title conflicts use selector 0574791d0f472c21, even when palette_crc differs between sparse and entry views.",
+        "This alias is meant to close the selector mismatch without changing the transported payload."
+      ],
+      "overturn_conditions": [
+        "A strict title runtime check shows the alias changes the tracked screenshot unexpectedly.",
+        "The alias fails to remove the 0f472c21 conflict bucket, indicating a deeper selector/source mismatch."
+      ]
+    },
+    "sampled-low32-0e89915a-fs259#selector-2a6a962f": {
+      "status": "selected-provisional",
+      "bridge_kind": "runtime-selector-alias",
+      "selected_replacement_id": "legacy-2c8a8202-00000000-fs0-1440x160",
+      "sampled_object_id": "sampled-fmt3-siz1-off0-stride144-wh144x16-fs259-low320e89915a",
+      "canonical_identity": {
+        "candidate_origin": "runtime-sampled-probe",
+        "evidence_authority": "runtime-sampled-probe",
+        "draw_class": "texrect",
+        "cycle": "1cycle",
+        "fmt": "3",
+        "siz": "1",
+        "pal": "0",
+        "off": "0",
+        "stride": "144",
+        "wh": "144x16",
+        "formatsize": 259,
+        "sampled_low32": "0e89915a",
+        "sampled_entry_pcrc": "00000000",
+        "sampled_sparse_pcrc": "00000000",
+        "runtime_ready": true
+      },
+      "upload_low32s": [
+        "2a6a962f"
+      ],
+      "upload_pcrcs": [
+        "00000000"
+      ],
+      "selector_checksum64s": [
+        "000000002a6a962f"
+      ],
+      "include_zero_selector": false,
+      "source_probe_bundle": "artifacts/paper-mario-title-screen/on/20260329-v24-940-289-dual-test-runtime",
+      "justification": "Strict v25 title conflict telemetry shows the remaining 0e89915a seam is the provisional 144x16 title strip under upload selector 2a6a962f rather than the transported asset selector 2c8a8202.",
+      "supporting_notes": [
+        "The compiled ordered-surface binding already transports legacy-2c8a8202-00000000-fs0-1440x160 for sampled-low32-0e89915a-fs259.",
+        "The conflict bucket is single-count and selector-stable at 000000002a6a962f.",
+        "Tier 2 static work already maps this seam to the copyright strip, so selector aliasing is the narrowest next test."
+      ],
+      "overturn_conditions": [
+        "A strict title runtime check shows the alias changes the tracked screenshot unexpectedly.",
+        "The alias fails to remove the 0e89915a conflict bucket."
+      ]
+    },
+    "sampled-low32-1d234571-fs259#selector-2a6a962f": {
+      "status": "selected-provisional",
+      "bridge_kind": "runtime-selector-alias",
+      "selected_replacement_id": "legacy-2c8a8202-00000000-fs0-1440x160",
+      "sampled_object_id": "sampled-fmt3-siz1-off0-stride144-wh144x16-fs259-low321d234571",
+      "canonical_identity": {
+        "candidate_origin": "runtime-sampled-probe",
+        "evidence_authority": "runtime-sampled-probe",
+        "draw_class": "texrect",
+        "cycle": "1cycle",
+        "fmt": "3",
+        "siz": "1",
+        "pal": "0",
+        "off": "0",
+        "stride": "144",
+        "wh": "144x16",
+        "formatsize": 259,
+        "sampled_low32": "1d234571",
+        "sampled_entry_pcrc": "00000000",
+        "sampled_sparse_pcrc": "00000000",
+        "runtime_ready": true
+      },
+      "upload_low32s": [
+        "2a6a962f"
+      ],
+      "upload_pcrcs": [
+        "00000000"
+      ],
+      "selector_checksum64s": [
+        "000000002a6a962f"
+      ],
+      "include_zero_selector": false,
+      "source_probe_bundle": "artifacts/paper-mario-title-screen/on/20260329-v24-940-289-dual-test-runtime",
+      "justification": "Strict v25 title conflict telemetry shows the remaining 1d234571 seam is the twin provisional 144x16 title strip under the same upload selector 2a6a962f rather than the transported asset selector 2c8a8202.",
+      "supporting_notes": [
+        "The compiled ordered-surface binding already transports legacy-2c8a8202-00000000-fs0-1440x160 for sampled-low32-1d234571-fs259.",
+        "The conflict bucket is single-count and selector-stable at 000000002a6a962f.",
+        "This is the structural twin of 0e89915a, so the alias test should be kept symmetrical."
+      ],
+      "overturn_conditions": [
+        "A strict title runtime check shows the alias changes the tracked screenshot unexpectedly.",
+        "The alias fails to remove the 1d234571 conflict bucket."
+      ]
     }
   }
 }

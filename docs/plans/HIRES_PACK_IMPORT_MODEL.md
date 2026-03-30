@@ -145,9 +145,10 @@ This document describes the shape of the import model itself. The evidence thres
     - the surface-policy layer now carries the next selector promotion too:
       - [`tools/hires_apply_surface_transport_policy.py`](/home/auro/code/parallel-n64/tools/hires_apply_surface_transport_policy.py) now supports selector-mode overrides and surface clones in addition to slot aliases
       - [`tools/hires_surface_transport_policy.json`](/home/auro/code/parallel-n64/tools/hires_surface_transport_policy.json) promotes `surface-940cea6e` to `dual` and clones the TLUT-populated `28916d63` strip as an ordered-surface record
-      - active selected package: [`20260329-selected-plus-title-v25-surface-policy/package.phrb`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-selected-plus-title-v25-surface-policy/package.phrb)
-      - strict result: file-select exact hits rise from `157` to `190` and title exact hits rise from `184` to `250`, while both tracked screenshot hashes stay byte-identical and unresolved misses remain `0`
-      - the policy-built `v25` package is byte-identical to the earlier manual dual-surface proof, so ordered-surface selector promotion is now a tracked import path rather than a local experiment
+      - active selected package: [`20260329-selected-plus-title-v26-tail-bridges/package.phrb`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-selected-plus-title-v26-tail-bridges/package.phrb)
+      - strict result: file-select exact hits rise from `190` to `194` and title exact hits rise from `250` to `254`, with zero exact/conflict misses on both strict fixtures
+      - file select stays byte-identical to `v25`, while title moves only in the expected lower-strip/minor-strip region `(961,1658)-(1853,1801)`
+      - the bridge-expanded `v26` package shows the current import model can close the last strict-fixture selector seams without widening runtime heuristics
   - practical implication: the current import model now has a richer-selector alias path, a guarded reinterpret bridge path, and an ordered-surface selector-promotion path, all explicit, policy-backed, and fixture-verified rather than hidden runtime heuristics
   - that check is now scripted through [`tools/scenarios/paper-mario-title-timeout-selected-package-validation.sh`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-title-timeout-selected-package-validation.sh); current summary artifact: [`20260329-v19-timeout-full/validation-summary.md`](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260329-v19-timeout-full/validation-summary.md)
 

@@ -102,7 +102,61 @@
         "combined_runtime_bundle": "artifacts/paper-mario-file-select/on/20260328-sampled-proxy-plus-706",
         "combined_hash": "1a0719dfcba68736d09579d8fb1e6eb628cf62fa89544675f8d7ddffe70500bb",
         "combined_exact_hit_count": 14
-      }
+      },
+      "sampled_alias_records": [
+        {
+          "alias_suffix": "7ff11e42",
+          "status": "selected-alias-provisional",
+          "sampled_entry_pcrc": "7ff11e42",
+          "sampled_sparse_pcrc": "7ff11e42",
+          "selector_checksum64s": [
+            "00000000333090b4",
+            "000000007f109643",
+            "0000000025b13743",
+            "00000000de7e9910",
+            "000000008da55910"
+          ],
+          "include_zero_selector": true,
+          "justification": "Strict file-select alias experiment shows the selected af028e08 payload can safely cover the dominant alternate 7064585c palette domain when carried under the top unresolved 1cycle selectors."
+        },
+        {
+          "alias_suffix": "ad8acbf3",
+          "status": "selected-alias-provisional",
+          "sampled_entry_pcrc": "ad8acbf3",
+          "sampled_sparse_pcrc": "ad8acbf3",
+          "selector_checksum64s": [
+            "00000000333090b4",
+            "000000007f109643",
+            "0000000025b13743",
+            "00000000de7e9910",
+            "000000008da55910"
+          ],
+          "include_zero_selector": true,
+          "justification": "The same strict file-select alias experiment also closes the paired alternate 7064585c palette domain with the same selected af028e08 payload and selector set."
+        },
+        {
+          "alias_suffix": "02009652-75fee641",
+          "status": "selected-alias-provisional",
+          "sampled_entry_pcrc": "02009652",
+          "sampled_sparse_pcrc": "02009652",
+          "selector_checksum64s": [
+            "014ba93675fee641"
+          ],
+          "include_zero_selector": true,
+          "justification": "A follow-up strict file-select alias experiment shows the same af028e08 payload also closes the remaining 75fee641-shaped 7064585c selector path for palette domain 02009652."
+        },
+        {
+          "alias_suffix": "ed77be48-75fee641",
+          "status": "selected-alias-provisional",
+          "sampled_entry_pcrc": "ed77be48",
+          "sampled_sparse_pcrc": "ed77be48",
+          "selector_checksum64s": [
+            "014ba93675fee641"
+          ],
+          "include_zero_selector": true,
+          "justification": "The second 75fee641-shaped alternate 7064585c palette domain also resolves under the same selected af028e08 payload in the strict file-select alias experiment."
+        }
+      ]
     }
   },
   "transport_review_pools": {

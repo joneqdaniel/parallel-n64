@@ -542,6 +542,13 @@
     - title: [`20260329-v20-autoenv-title-postclassify`](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260329-v20-autoenv-title-postclassify) -> exact hits `184`, conflict misses `104`, unresolved misses `0`
     - file select: [`20260329-v20-autoenv-file-postclassify`](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260329-v20-autoenv-file-postclassify) -> exact hits `68`, conflict misses `34`, unresolved misses `180`
   - practical implication: the active merged title path is no longer blocked by unresolved sampled-object misses on the strict fixture; the next real selector-model work is the file-select `7064585c` family
+  - that `7064585c` work now has a first policy-backed richer selector result:
+    - [`tools/hires_pack_emit_binding_aliases.py`](/home/auro/code/parallel-n64/tools/hires_pack_emit_binding_aliases.py) emits alternate canonical palette/selector records from the selected binding set
+    - [`tools/hires_pack_transport_policy.json`](/home/auro/code/parallel-n64/tools/hires_pack_transport_policy.json) now records four provisional `7064585c` alias records for the selected `af028e08` payload
+    - policy-built package: [`20260329-selected-plus-title-v23-706-aliases/package.phrb`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-selected-plus-title-v23-706-aliases/package.phrb)
+    - strict file select: [`20260329-v23-706-aliases-runtime`](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260329-v23-706-aliases-runtime) -> exact hits `156`, unresolved misses `4`, hash `3f779e572aea05188467acfbcab3f45f632a42d63cdeecb83536e30ef02c7c43`
+    - strict title remains byte-identical: [`20260329-v23-706-aliases-runtime`](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260329-v23-706-aliases-runtime) -> exact hits `184`, unresolved misses `0`, hash `521539a34c40488bdfe987779a3c53ca1624c3eb985d362f6d1b7934d0064b31`
+  - practical implication: the richer selector model is now good enough to retire `7064585c` as the dominant unresolved native seam; the next unresolved sampled family is `7872a318` with only `4` strict file-select misses
 - Current meaning of that result:
   - [`tools/scenarios/paper-mario-title-timeout-probe.sh`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-title-timeout-probe.sh) now honors `PARALLEL_RDP_HIRES_CACHE_PATH` overrides, so deeper timeout probes validate the same selected `PHRB` package the strict fixtures use instead of silently falling back to the legacy `.hts` path
   - broader non-menu validation now passed on the first deterministic timeout slices with the active v20 package:

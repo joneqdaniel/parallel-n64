@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+import copy
 import json
 import sys
 from pathlib import Path
@@ -11,6 +12,54 @@ def load_policy(path: Path | None):
     if path is None:
         return {}
     return json.loads(path.read_text())
+
+
+def clone_transport_candidates(selected_candidates, selector_checksum64s, include_zero_selector):
+    emitted = []
+    if include_zero_selector:
+        emitted.extend(copy.deepcopy(selected_candidates))
+    for selector_checksum64 in selector_checksum64s:
+        for candidate in selected_candidates:
+            cloned = copy.deepcopy(candidate)
+            cloned['selector_checksum64'] = selector_checksum64
+            variant_group_id = cloned.get('variant_group_id') or 'selector-alias'
+            cloned['variant_group_id'] = f'{variant_group_id}-sel-{selector_checksum64}'
+            emitted.append(cloned)
+    return emitted
+
+
+def build_alias_bindings(base, selected_candidates, policy_record):
+    aliases = []
+    for alias_record in policy_record.get('sampled_alias_records', []):
+        alias_entry_pcrc = alias_record.get('sampled_entry_pcrc')
+        if not alias_entry_pcrc:
+            continue
+        alias_sparse_pcrc = alias_record.get('sampled_sparse_pcrc', alias_entry_pcrc)
+        alias_suffix = alias_record.get('alias_suffix') or alias_entry_pcrc
+        selector_checksum64s = alias_record.get('selector_checksum64s', [])
+        include_zero_selector = alias_record.get('include_zero_selector', True)
+        alias_policy_key = f"{base['policy_key']}#alias-{alias_suffix}"
+        alias_binding = copy.deepcopy(base)
+        alias_binding['policy_key'] = alias_policy_key
+        alias_binding['family_type'] = 'proxy-selector-alias'
+        alias_binding['sampled_object_id'] = alias_policy_key
+        alias_binding['status'] = alias_record.get('status') or 'selected-alias'
+        alias_binding['selection_reason'] = alias_record.get('justification') or 'proxy-selector-alias'
+        alias_binding['canonical_identity']['candidate_origin'] = 'runtime-sampled-probe-alias'
+        alias_binding['canonical_identity']['sampled_entry_pcrc'] = alias_entry_pcrc
+        alias_binding['canonical_identity']['sampled_sparse_pcrc'] = alias_sparse_pcrc
+        alias_binding['transport_candidates'] = clone_transport_candidates(
+            selected_candidates,
+            selector_checksum64s,
+            include_zero_selector,
+        )
+        alias_binding['transport_policy'] = {
+            'base_proxy_id': base['policy_key'],
+            'selected_replacement_id': policy_record.get('selected_replacement_id'),
+            **alias_record,
+        }
+        aliases.append(alias_binding)
+    return aliases
 
 
 def build_proxy_bindings(input_path: Path, policy_data: dict):
@@ -76,6 +125,7 @@ def build_proxy_bindings(input_path: Path, policy_data: dict):
                 "transport_candidates": selected,
                 "transport_policy": policy_record,
             })
+            bindings.extend(build_alias_bindings(base, selected, policy_record))
         else:
             unresolved.append({
                 **base,

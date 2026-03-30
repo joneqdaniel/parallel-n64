@@ -134,6 +134,11 @@ This document describes the shape of the import model itself. The evidence thres
     - title v20: conflict-only on the strict fixture (`104` conflict misses, `0` unresolved)
     - file-select v20: the real remaining unresolved selector work is concentrated in the `7064585c` family (`180` unresolved misses, `34` conflict misses)
   - practical implication: the current selected-package import path is farther along on title than the raw miss count suggested; file select is now the authoritative seam for the next selector-model change
+  - the import/build path now supports policy-backed sampled alias records on top of an existing selected binding set:
+    - [`tools/hires_pack_emit_binding_aliases.py`](/home/auro/code/parallel-n64/tools/hires_pack_emit_binding_aliases.py) clones selected transported payloads into alternate canonical palette/selector records
+    - current proof package: [`20260329-selected-plus-title-v23-706-aliases/package.phrb`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-selected-plus-title-v23-706-aliases/package.phrb)
+    - current proof result: `7064585c` unresolved misses on strict file select fall from `180` to `4` while strict title stays byte-identical
+  - practical implication: the current import model now has a real richer-selector escape hatch that remains explicit and policy-driven; the next unresolved imported/native seam is the small `7872a318` family rather than the broad `7064585c` pool
   - that check is now scripted through [`tools/scenarios/paper-mario-title-timeout-selected-package-validation.sh`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-title-timeout-selected-package-validation.sh); current summary artifact: [`20260329-v19-timeout-full/validation-summary.md`](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260329-v19-timeout-full/validation-summary.md)
 
 ## Imported Index v1

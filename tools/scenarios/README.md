@@ -125,6 +125,12 @@ Current Paper Mario runtime note:
     - `1200` frames -> `state_init_battle` / `state_step_battle`, `kmr_03`, `entry 0`
     - `1500` frames -> `state_init_world` / `state_step_world`, `kmr_06`, `entry 3`
   - this is now the preferred way to widen Paper Mario hi-res evidence beyond menu-heavy states without relying on save data
+  - validation helpers now exist for comparing selected `PHRB` packages against the legacy `.hts` path on deterministic branches:
+    - [paper-mario-title-timeout-legacy-validation.sh](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-title-timeout-legacy-validation.sh)
+    - [paper-mario-file-select-selected-package-validation.sh](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-file-select-selected-package-validation.sh)
+  - current validated deeper result:
+    - the `1b8530fb` gameplay pool package [20260330-selected-plus-timeout-960-v1-add-1b85/package.phrb](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260330-selected-plus-timeout-960-v1-add-1b85/package.phrb) keeps strict title/file select pixel-identical to legacy `.hts`
+    - and materially improves the deterministic `960` and `1200` timeout checkpoints versus the previous selected baseline
 - a one-frame button sweep across `A`, `B`, `START`, `UP`, `DOWN`, `LEFT`, and `RIGHT`, plus `A` / `START` with `post-input-settle = 0`, stayed on that same decoded top-level file-select state too
 - the current trusted-vs-advisory Paper Mario runtime signals are documented in [PAPER_MARIO_SIGNAL_TABLE.md](/home/auro/code/parallel-n64/docs/plans/PAPER_MARIO_SIGNAL_TABLE.md)
 - deeper `savefile-start` menu probes now have two verified `on` branches:

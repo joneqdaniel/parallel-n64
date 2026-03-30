@@ -441,6 +441,15 @@ The migration tool now emits that bridge when sampled-object bundle data is avai
         - strict file select remains byte-identical to `v29`: [20260330-file-minus-289-surface](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260330-file-minus-289-surface)
         - the first non-menu timeout slice still matches `off`: [20260330-v30-timeout-960/validation-summary.md](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260330-v30-timeout-960/validation-summary.md)
       - import-model implication: the TLUT-populated `28916d63` identity remains worth tracking as evidence, but it is not required as an active imported record on the current merged baseline
+      - the first gameplay-native sampled pool now clears the import threshold:
+        - sampled review: [20260330-timeout-960-sampled-transport/review.md](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260330-timeout-960-sampled-transport/review.md)
+        - new active merged package: [20260330-selected-plus-timeout-960-v1-add-1b85/package.phrb](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260330-selected-plus-timeout-960-v1-add-1b85/package.phrb)
+        - strict title remains pixel-identical to the selected baseline and legacy `.hts`: [20260330-v31-add-1b85-strict-title](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260330-v31-add-1b85-strict-title)
+        - strict file select remains pixel-identical to the selected baseline and legacy `.hts`: [20260330-v31-add-1b85-strict-file](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260330-v31-add-1b85-strict-file)
+        - non-menu timeout validation now improves materially instead of merely adding exact hits:
+          - `960`: [20260330-v31-legacy-timeout-960-add-1b85/validation-summary.md](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260330-v31-legacy-timeout-960-add-1b85/validation-summary.md)
+          - `1200` / `1500`: [20260330-v31-legacy-timeout-rest-add-1b85/validation-summary.md](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260330-v31-legacy-timeout-rest-add-1b85/validation-summary.md)
+        - import-model implication: `1b8530fb` is the first deeper sampled transport pool that is strong enough to carry forward as an active imported expansion instead of staying review-only
 
       - the main `7701ac09` title strip pool is now structurally constrained by an upload-side sequence review:
         - tool: [tools/hires_title_stripe_sequence.py](/home/auro/code/parallel-n64/tools/hires_title_stripe_sequence.py)

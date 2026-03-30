@@ -426,6 +426,15 @@ The migration tool now emits that bridge when sampled-object bundle data is avai
           - current result: the policy-built package reproduces the manual title proof exactly and remains byte-identical to the active merged file-select package
         - import-model implication: zero-selector review-pool transport is now a justified bounded tool for source-backed sampled objects when legacy-family selectors are known to be structurally wrong; it remains provisional, explicit, and review-driven rather than becoming silent default behavior
         - broader validation now passed on the first non-menu timeout slice: [20260329-title-timeout-960-v8-press-start-09e](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/on/20260329-title-timeout-960-v8-press-start-09e) reaches `state_init_world` / `state_step_world` at `kmr_03 entry 5` with `sampled_object_probe.exact_hit_count = 0`, so the current zero-selector `Press Start` seam remains title-only across that world transition probe
+        - stricter merged-package validation now demotes that provisional choice:
+          - active merged package: [20260330-selected-plus-title-v29-drop-press-start/package.phrb](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260330-selected-plus-title-v29-drop-press-start/package.phrb)
+          - merged title proof: [20260330-title-ablation-minus-128x32](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260330-title-ablation-minus-128x32)
+          - merged file-select control: [20260330-file-control-minus-128x32](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260330-file-control-minus-128x32)
+          - current result:
+            - strict title improves sharply toward legacy `on`: `AE 69618` vs `260598` for `v28`
+            - strict file select stays byte-identical to `v28`
+            - the first non-menu timeout slice still matches `off` exactly: [20260330-v29-timeout-960/validation-summary.md](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260330-v29-timeout-960/validation-summary.md)
+        - import-model implication: zero-selector review-pool transport is still justified as a bounded tool, but the `Press Start` pair is now review-only in the active merged path until one candidate beats the `v29` baseline instead of merely increasing exact-hit counts
 
       - the main `7701ac09` title strip pool is now structurally constrained by an upload-side sequence review:
         - tool: [tools/hires_title_stripe_sequence.py](/home/auro/code/parallel-n64/tools/hires_title_stripe_sequence.py)
@@ -575,4 +584,3 @@ This is the preferred inspection path while the import format is still evolving.
       - title: [`20260329-v20-autoenv-title`](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260329-v20-autoenv-title) -> hash `521539a34c40488bdfe987779a3c53ca1624c3eb985d362f6d1b7934d0064b31`, exact hits `184`, exact misses `104`
       - file select: [`20260329-v20-autoenv-file`](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260329-v20-autoenv-file) -> hash `c5ac0f7558547aeb197552bbb1a0881c69f6d57ff1f17358d0d1753617d253e0`, exact hits `68`, exact misses `214`
     - practical outcome: the self-contained path now preserves both tracked merged-scene images while improving exact coverage materially, but it has not eliminated native exact misses on the corrected strict reruns
-

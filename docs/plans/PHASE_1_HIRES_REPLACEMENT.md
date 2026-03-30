@@ -460,6 +460,15 @@
         - this seam is now the first concrete case where source-backed sampled-object transport needs zero-selector review-pool policy rather than legacy upload-family selectors
         - that is acceptable as a bounded import-model tool, but it should remain provisional until broader fixtures show it does not bleed beyond the tracked scenes
       - broader validation now passed on the first non-menu timeout slice: [20260329-title-timeout-960-v8-press-start-09e](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/on/20260329-title-timeout-960-v8-press-start-09e) reaches `state_init_world` / `state_step_world` at `kmr_03 entry 5` with `sampled_object_probe.exact_hit_count = 0`, so the current zero-selector `Press Start` seam stays title-only across that timeout/world probe
+      - stricter merged-package validation now demotes that provisional choice:
+        - merged ablation proof: [20260330-title-ablation-minus-128x32](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260330-title-ablation-minus-128x32)
+        - merged file-select control: [20260330-file-control-minus-128x32](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260330-file-control-minus-128x32)
+        - new active merged package: [20260330-selected-plus-title-v29-drop-press-start/package.phrb](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260330-selected-plus-title-v29-drop-press-start/package.phrb)
+        - current result:
+          - strict title improves sharply toward legacy `on`: hash `0a4ab3b92965de412998d94eca82ce6d4e134392fe2243befd481a716bc341c0`, legacy distance `AE 69618` vs `260598` for `v28`
+          - strict file select stays byte-identical to `v28`: hash `9221491f729b2e11a678456362f25c9d28b820b75297e26e373931978b48eb93`
+          - broader non-menu validation still matches `off`: [20260330-v29-timeout-960/validation-summary.md](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260330-v29-timeout-960/validation-summary.md)
+      - practical implication: the `Press Start` seam remains source-backed and review-worthy, but it is no longer an active merged transport choice until a zero-selector candidate beats the `v29` review-only baseline
 
     - the large title `7701ac09` 1-cycle strip pool is now much more structurally constrained than it looked from the raw review counts alone:
       - tool: [tools/hires_title_stripe_sequence.py](/home/auro/code/parallel-n64/tools/hires_title_stripe_sequence.py)
@@ -573,7 +582,9 @@
   - strict title is still unchanged without `c139`: [`20260329-v27-minus-c139-control`](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260329-v27-minus-c139-control) stays byte-identical to `v26` / `v27` at `1eca10ff973c12dce6a5eaae39952d55df033898cc227b35cfb12c759335f1e7`
   - the alternate `c139` payload (`ab0c7574`) does not rescue the family in merged use: [`20260329-v27-c139-alt`](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260329-v27-c139-alt) is worse than leaving `c139` unresolved (`AE 53131944` vs legacy-on)
   - practical implication: the active merged package should now treat both `7064585c` and `c139c1c0` as unresolved review pools until a stronger selector model beats the unresolved case in the merged package context.
-  - first broader revalidation with [`20260329-v26-timeout-960/validation-summary.md`](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260329-v26-timeout-960/validation-summary.md) keeps the `960`-frame world slice byte-identical to `off` at hash `4bd3929dabff3ffb1b7e03a9c10d8ce50e9b6d0f067825d3a788c48a41b6fc62`, while the package still logs `54396` exact hits and `4352` exact misses there
+  - the same merged-package check now overturns the older `Press Start` zero-selector choice too: `v29` removes the `049201f4` / `ce437230` pair from `v28`, keeps strict file select byte-identical, and improves strict title sharply toward legacy `on`
+  - practical implication: the active merged package should now treat `7064585c`, `c139c1c0`, and the `Press Start` `128x32` pair as unresolved review pools until a stronger selector model beats the review-only baseline in merged-package use
+  - broader revalidation with [`20260330-v29-timeout-960/validation-summary.md`](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260330-v29-timeout-960/validation-summary.md) keeps the `960`-frame world slice byte-identical to `off` at hash `4bd3929dabff3ffb1b7e03a9c10d8ce50e9b6d0f067825d3a788c48a41b6fc62`, while the active package reports `53996` exact hits and `4752` exact misses there
 - Current meaning of that result:
   - [`tools/scenarios/paper-mario-title-timeout-probe.sh`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-title-timeout-probe.sh) now honors `PARALLEL_RDP_HIRES_CACHE_PATH` overrides, so deeper timeout probes validate the same selected `PHRB` package the strict fixtures use instead of silently falling back to the legacy `.hts` path
   - broader non-menu validation now passed on the first deterministic timeout slices with the active v20 package:
@@ -599,4 +610,3 @@
 - The same builder now supports `--review-pool-group-key` for coupled title seams.
   - current groups: `title-press-start-128x32-pair` and `title-copyright-144x16-pair`
   - validation: rebuilding the current direct-surface package through `title-press-start-128x32-pair` reproduces the same `PHRB` hash `55ad0bfb1792200625552f8344f687e236e62d69cf96c3447a11b0b3e34f35ab` as the explicit per-key build
-

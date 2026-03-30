@@ -144,7 +144,7 @@ This document describes the shape of the import model itself. The evidence thres
     - bridge binding artifact: [`20260329-7872-bridge-policy/bindings.json`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-7872-bridge-policy/bindings.json)
     - the surface-policy layer now carries the next selector promotion too:
       - [`tools/hires_apply_surface_transport_policy.py`](/home/auro/code/parallel-n64/tools/hires_apply_surface_transport_policy.py) now supports selector-mode overrides and surface clones in addition to slot aliases
-      - [`tools/hires_surface_transport_policy.json`](/home/auro/code/parallel-n64/tools/hires_surface_transport_policy.json) promotes `surface-940cea6e` to `dual` and clones the TLUT-populated `28916d63` strip as an ordered-surface record
+      - [`tools/hires_surface_transport_policy.json`](/home/auro/code/parallel-n64/tools/hires_surface_transport_policy.json) keeps `surface-940cea6e` in `dual` mode but no longer clones the TLUT-populated `28916d63` strip, because that clone proved redundant on the current merged baseline
       - active selected package: [`20260329-selected-plus-title-v26-tail-bridges/package.phrb`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-selected-plus-title-v26-tail-bridges/package.phrb)
       - strict result: file-select exact hits rise from `190` to `194` and title exact hits rise from `250` to `254`, with zero exact/conflict misses on both strict fixtures
       - file select stays byte-identical to `v25`, while title moves only in the expected lower-strip/minor-strip region `(961,1658)-(1853,1801)`
@@ -435,6 +435,12 @@ The migration tool now emits that bridge when sampled-object bundle data is avai
             - strict file select stays byte-identical to `v28`
             - the first non-menu timeout slice still matches `off` exactly: [20260330-v29-timeout-960/validation-summary.md](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260330-v29-timeout-960/validation-summary.md)
         - import-model implication: zero-selector review-pool transport is still justified as a bounded tool, but the `Press Start` pair is now review-only in the active merged path until one candidate beats the `v29` baseline instead of merely increasing exact-hit counts
+      - the same cleanup logic now removes the `28916d63` clone from the active merged path too:
+        - active merged package: [20260330-selected-plus-title-v30-drop-289/package.phrb](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260330-selected-plus-title-v30-drop-289/package.phrb)
+        - strict title remains byte-identical to `v29`: [20260330-title-minus-289-surface](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260330-title-minus-289-surface)
+        - strict file select remains byte-identical to `v29`: [20260330-file-minus-289-surface](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260330-file-minus-289-surface)
+        - the first non-menu timeout slice still matches `off`: [20260330-v30-timeout-960/validation-summary.md](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260330-v30-timeout-960/validation-summary.md)
+      - import-model implication: the TLUT-populated `28916d63` identity remains worth tracking as evidence, but it is not required as an active imported record on the current merged baseline
 
       - the main `7701ac09` title strip pool is now structurally constrained by an upload-side sequence review:
         - tool: [tools/hires_title_stripe_sequence.py](/home/auro/code/parallel-n64/tools/hires_title_stripe_sequence.py)

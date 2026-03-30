@@ -59,23 +59,22 @@
       ]
     },
     "sampled-fmt2-siz0-off0-stride8-wh16x16-fs2-low327064585c": {
-      "status": "selected-provisional",
-      "justification": "Proxy-centered runtime review narrows the unresolved 7064585c choice to a near-tied top pair and af028e08 leads slightly against both the c139 baseline and the strict legacy-on bridge frame.",
+      "status": "manual-review-required",
+      "justification": "The previously selected af028e08 transport regresses strict file-select visual correctness in the current merged v26 package context; dropping 706 entirely is materially closer to the legacy hi-res result while leaving strict title byte-identical.",
       "supporting_notes": [
         "The tile-parent slice is review-only because the hint identities mismatch the real runtime sampled object.",
         "Proxy review aggregates 62 transported payload candidates across the collapsed hint families.",
-        "No selected transported payload is recorded yet for this proxy.",
         "Focused 469bad6f previews overturn the earlier mixed-family impression that 16x16 leads; strongest current candidates are 120x120 variants af028e08 and 81b32e31 by RMSE, with c3984de7 lowest by AE, but no payload is selected yet.",
         "Focused asset comparison reduces the effective 469bad6f review surface further: 373fa1d0/e3394be6/fa12dda5 are exact duplicates, af028e08 and 81b32e31 are near-duplicates, and c3984de7 is the strongest structurally distinct alternative.",
         "Proxy-centered runtime review shrinks the active decision again: c3984de7 stays materially farther from the proven c139 baseline, while af028e08 and 81b32e31 remain the only near-tied top pair.",
-        "The combined sampled-proxy package now reproduces the earlier af028e08 preview exactly in a live strict file-select run, with 14 exact sampled-object hits (12 for 7064585c plus the shared 2 c139c1c0 hits)."
+        "The combined sampled-proxy package now reproduces the earlier af028e08 preview exactly in a live strict file-select run, with 14 exact sampled-object hits (12 for 7064585c plus the shared 2 c139c1c0 hits).",
+        "A corrected v26-context ablation now shows the opposite decision boundary for product correctness: removing 706 from the active merged package moves file select much closer to legacy-on while leaving strict title unchanged."
       ],
       "overturn_conditions": [
-        "A focused proxy-centered runtime comparison identifies one transported payload as clearly superior on the strict fixture.",
+        "A focused v26-context runtime comparison identifies one transported payload as clearly superior to leaving 706 unresolved.",
         "Static Tier 2 reconstruction reduces this proxy pool to a deterministic canonical bridge.",
         "A broader validation slice shows the current proxy grouping is still missing a stronger discriminator."
       ],
-      "selected_replacement_id": "legacy-469bad6f-af028e08-fs0-120x120",
       "evidence": {
         "review_artifact": "artifacts/hires-pack-review/20260328-469bad6f-previews/top3-runtime-review.md",
         "selected_runtime_bundle": "artifacts/paper-mario-file-select/on/20260328-469bad6f-af028e08__120x120",
@@ -101,62 +100,38 @@
         "combined_package": "artifacts/hires-pack-review/20260328-sampled-proxy-plus-706/package.phrb",
         "combined_runtime_bundle": "artifacts/paper-mario-file-select/on/20260328-sampled-proxy-plus-706",
         "combined_hash": "1a0719dfcba68736d09579d8fb1e6eb628cf62fa89544675f8d7ddffe70500bb",
-        "combined_exact_hit_count": 14
+        "combined_exact_hit_count": 14,
+        "v26_context_bundle": "artifacts/paper-mario-file-select/on/20260329-v26-tail-bridges-runtime",
+        "v26_context_hash": "3f779e572aea05188467acfbcab3f45f632a42d63cdeecb83536e30ef02c7c43",
+        "v26_context_vs_legacy_on": {
+          "ae": 113409671,
+          "rmse": 21.370895614952634
+        },
+        "drop_706_bundle": "artifacts/paper-mario-file-select/on/20260329-v26-ablation-minus-706",
+        "drop_706_hash": "b5c854d9f3b642e2914d88a8c542e59977c4b42862ee1c285b13c6746ffb2a21",
+        "drop_706_vs_legacy_on": {
+          "ae": 46737511,
+          "rmse": 11.477825705202557
+        },
+        "swap_81b32e31_bundle": "artifacts/paper-mario-file-select/on/20260329-swap-706-81b32e31",
+        "swap_81b32e31_vs_legacy_on": {
+          "ae": 112716160,
+          "rmse": 21.2992848794499
+        },
+        "swap_c3984de7_bundle": "artifacts/paper-mario-file-select/on/20260329-swap-706-c3984de7",
+        "swap_c3984de7_vs_legacy_on": {
+          "ae": 147696267,
+          "rmse": 30.168014659034732
+        },
+        "swap_e3314872_bundle": "artifacts/paper-mario-file-select/on/20260329-swap-706-e3314872",
+        "swap_e3314872_vs_legacy_on": {
+          "ae": 143984581,
+          "rmse": 27.937447281587517
+        },
+        "title_control_without_706_bundle": "artifacts/paper-mario-title-screen/on/20260329-minus-706-control",
+        "title_control_without_706_hash": "1eca10ff973c12dce6a5eaae39952d55df033898cc227b35cfb12c759335f1e7"
       },
-      "sampled_alias_records": [
-        {
-          "alias_suffix": "7ff11e42",
-          "status": "selected-alias-provisional",
-          "sampled_entry_pcrc": "7ff11e42",
-          "sampled_sparse_pcrc": "7ff11e42",
-          "selector_checksum64s": [
-            "00000000333090b4",
-            "000000007f109643",
-            "0000000025b13743",
-            "00000000de7e9910",
-            "000000008da55910"
-          ],
-          "include_zero_selector": true,
-          "justification": "Strict file-select alias experiment shows the selected af028e08 payload can safely cover the dominant alternate 7064585c palette domain when carried under the top unresolved 1cycle selectors."
-        },
-        {
-          "alias_suffix": "ad8acbf3",
-          "status": "selected-alias-provisional",
-          "sampled_entry_pcrc": "ad8acbf3",
-          "sampled_sparse_pcrc": "ad8acbf3",
-          "selector_checksum64s": [
-            "00000000333090b4",
-            "000000007f109643",
-            "0000000025b13743",
-            "00000000de7e9910",
-            "000000008da55910"
-          ],
-          "include_zero_selector": true,
-          "justification": "The same strict file-select alias experiment also closes the paired alternate 7064585c palette domain with the same selected af028e08 payload and selector set."
-        },
-        {
-          "alias_suffix": "02009652-75fee641",
-          "status": "selected-alias-provisional",
-          "sampled_entry_pcrc": "02009652",
-          "sampled_sparse_pcrc": "02009652",
-          "selector_checksum64s": [
-            "014ba93675fee641"
-          ],
-          "include_zero_selector": true,
-          "justification": "A follow-up strict file-select alias experiment shows the same af028e08 payload also closes the remaining 75fee641-shaped 7064585c selector path for palette domain 02009652."
-        },
-        {
-          "alias_suffix": "ed77be48-75fee641",
-          "status": "selected-alias-provisional",
-          "sampled_entry_pcrc": "ed77be48",
-          "sampled_sparse_pcrc": "ed77be48",
-          "selector_checksum64s": [
-            "014ba93675fee641"
-          ],
-          "include_zero_selector": true,
-          "justification": "The second 75fee641-shaped alternate 7064585c palette domain also resolves under the same selected af028e08 payload in the strict file-select alias experiment."
-        }
-      ]
+      "sampled_alias_records": []
     }
   },
   "transport_review_pools": {

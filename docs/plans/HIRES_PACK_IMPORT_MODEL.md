@@ -127,7 +127,9 @@ This document describes the shape of the import model itself. The evidence thres
   - records the current tracked surface alias policy, including the three repeated `71c71cdd` edge-slot resolutions for `surface-7701ac09`
 - [`tools/scenarios/paper-mario-title-timeout-probe.sh`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-title-timeout-probe.sh)
   - now honors `PARALLEL_RDP_HIRES_CACHE_PATH` overrides and records the actual selected package path in the bundle, so non-menu validation can exercise the same selected `PHRB` artifact as the strict fixtures
-  - current broader validation result: the active v20 selected package stays byte-identical to `off` at the `960`-frame world, `1200`-frame battle, and `1500`-frame world timeout checkpoints while still reporting `39382` sampled-object exact hits and `0` exact misses on each slice
+  - strict scenario entrypoints now also auto-enable sampled-object lookup/probe when the selected cache path ends in `.phrb`, which corrects an earlier validation gap where native packages could silently run without their draw-side exact path enabled
+  - corrected broader validation result: the active v20 selected package still stays byte-identical to `off` at the `960`-frame world, `1200`-frame battle, and `1500`-frame world timeout checkpoints, but fresh native reruns report `39382` sampled-object exact hits and `33918` exact misses on the tracked `960` slice instead of the earlier stale `0` exact-miss claim
+  - a full-source rebuild proof now exists as [`20260329-selected-plus-title-v22-add-press-start-fullsource/package.phrb`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-selected-plus-title-v22-add-press-start-fullsource/package.phrb), with strict title/file-select reruns matching the active v20 image hashes; this is recorded as a reproducibility proof, not a new active promotion
   - that check is now scripted through [`tools/scenarios/paper-mario-title-timeout-selected-package-validation.sh`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-title-timeout-selected-package-validation.sh); current summary artifact: [`20260329-v19-timeout-full/validation-summary.md`](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260329-v19-timeout-full/validation-summary.md)
 
 ## Imported Index v1
@@ -545,8 +547,8 @@ This is the preferred inspection path while the import format is still evolving.
     - self-contained grouped seam package: [`20260329-title-grouped-review-surfaces-v2-noreview/surface-package.json`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-grouped-review-surfaces-v2-noreview/surface-package.json)
     - self-contained strip package: [`20260329-title-strip-review-surfaces-v2-noreview/surface-package.json`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-strip-review-surfaces-v2-noreview/surface-package.json)
     - active self-contained selected package: [`20260329-selected-plus-title-v20-policy-aliased/package.phrb`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-selected-plus-title-v20-policy-aliased/package.phrb)
-    - runtime proofs:
-      - title: [`20260329-v19-edge-aliased-probe`](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260329-v19-edge-aliased-probe) -> hash `521539a34c40488bdfe987779a3c53ca1624c3eb985d362f6d1b7934d0064b31`, exact hits `184`, exact misses `0`
-      - file select: [`20260329-v19-edge-aliased-probe`](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260329-v19-edge-aliased-probe) -> hash `c5ac0f7558547aeb197552bbb1a0881c69f6d57ff1f17358d0d1753617d253e0`, exact hits `48`, exact misses `0`
-    - practical outcome: the self-contained path now preserves both tracked merged-scene images while eliminating the old title exact-miss ceiling, which is the first concrete proof that the imported ordered-surface selector model can be richer without being broader
+    - corrected native strict reruns:
+      - title: [`20260329-v20-autoenv-title`](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260329-v20-autoenv-title) -> hash `521539a34c40488bdfe987779a3c53ca1624c3eb985d362f6d1b7934d0064b31`, exact hits `184`, exact misses `104`
+      - file select: [`20260329-v20-autoenv-file`](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260329-v20-autoenv-file) -> hash `c5ac0f7558547aeb197552bbb1a0881c69f6d57ff1f17358d0d1753617d253e0`, exact hits `68`, exact misses `214`
+    - practical outcome: the self-contained path now preserves both tracked merged-scene images while improving exact coverage materially, but it has not eliminated native exact misses on the corrected strict reruns
 

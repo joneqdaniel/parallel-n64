@@ -24,6 +24,20 @@ scenario_sha256_file() {
   fi
 }
 
+scenario_configure_hires_runtime_env_for_cache() {
+  local cache_path="$1"
+  local suffix="${cache_path##*.}"
+  suffix="${suffix,,}"
+
+  if [[ "$suffix" == "phrb" ]]; then
+    export PARALLEL_RDP_HIRES_SAMPLED_OBJECT_LOOKUP="${PARALLEL_RDP_HIRES_SAMPLED_OBJECT_LOOKUP:-1}"
+    export PARALLEL_RDP_HIRES_SAMPLED_OBJECT_PROBE="${PARALLEL_RDP_HIRES_SAMPLED_OBJECT_PROBE:-1}"
+  else
+    export PARALLEL_RDP_HIRES_SAMPLED_OBJECT_LOOKUP="${PARALLEL_RDP_HIRES_SAMPLED_OBJECT_LOOKUP:-0}"
+    export PARALLEL_RDP_HIRES_SAMPLED_OBJECT_PROBE="${PARALLEL_RDP_HIRES_SAMPLED_OBJECT_PROBE:-0}"
+  fi
+}
+
 scenario_json_bool() {
   if [[ "$1" == "1" ]]; then
     echo "true"

@@ -88,6 +88,24 @@ target_compile_definitions(emu_unit_rdp_frame_mapping_test PRIVATE GRANITE_VULKA
 target_compile_features(emu_unit_rdp_frame_mapping_test PRIVATE cxx_std_17)
 add_test(NAME emu.unit.rdp_frame_mapping COMMAND emu_unit_rdp_frame_mapping_test)
 
+add_library(emu_obj_rdp_renderer_compile OBJECT EXCLUDE_FROM_ALL
+  "${CMAKE_SOURCE_DIR}/mupen64plus-video-paraLLEl/parallel-rdp/parallel-rdp/rdp_renderer.cpp"
+)
+target_include_directories(emu_obj_rdp_renderer_compile PRIVATE
+  "${EMU_BEHAVIOR_SUPPORT_DIR}"
+  "${CMAKE_SOURCE_DIR}"
+  "${CMAKE_SOURCE_DIR}/mupen64plus-core/src/api"
+  "${CMAKE_SOURCE_DIR}/mupen64plus-video-paraLLEl/parallel-rdp/parallel-rdp"
+  "${CMAKE_SOURCE_DIR}/mupen64plus-video-paraLLEl/parallel-rdp/vulkan"
+  "${CMAKE_SOURCE_DIR}/mupen64plus-video-paraLLEl/parallel-rdp/util"
+  "${CMAKE_SOURCE_DIR}/mupen64plus-video-paraLLEl/parallel-rdp/volk"
+  "${CMAKE_SOURCE_DIR}/mupen64plus-video-paraLLEl/parallel-rdp/vulkan-headers/include"
+  "${CMAKE_SOURCE_DIR}/libretro-common/include"
+)
+target_compile_definitions(emu_obj_rdp_renderer_compile PRIVATE GRANITE_VULKAN_MT)
+target_compile_features(emu_obj_rdp_renderer_compile PRIVATE cxx_std_17)
+add_custom_target(emu_compile_rdp_renderer DEPENDS emu_obj_rdp_renderer_compile)
+
 add_executable(emu_unit_rdp_frame_fallback_policy_test
   emu_unit_rdp_frame_fallback_policy_test.cpp
 )

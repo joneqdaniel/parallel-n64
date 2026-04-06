@@ -168,6 +168,7 @@ int main()
 
 	ReplacementProvider provider;
 	check(provider.load_cache_dir(path), "provider should load synthetic PHRB");
+	provider.set_enabled(true);
 	check(provider.entry_count() == 2, "provider should load one entry for each distinct palette CRC");
 
 	const auto &entry = provider.entries_[0];
@@ -184,6 +185,59 @@ int main()
 	check(entry.phrb_sampled_object_id == sampled_object_id, "PHRB sampled_object_id should be preserved");
 	check(entry.selector_checksum64 == asset.selector_checksum64, "selector should be preserved");
 	check(entry.formatsize == record.formatsize, "formatsize should remain preserved");
+
+	const auto *structured_sparse_entry = provider.find_sampled_entry(
+		record.fmt,
+		record.siz,
+		record.tex_offset,
+		record.stride,
+		record.width,
+		record.height,
+		record.sampled_low32,
+		record.sampled_sparse_pcrc,
+		record.formatsize,
+		asset.selector_checksum64);
+	check(structured_sparse_entry != nullptr, "structured sparse sampled entry should be discoverable");
+	check(structured_sparse_entry->checksum64 == ((uint64_t(record.sampled_sparse_pcrc) << 32u) | uint64_t(record.sampled_low32)),
+	      "structured sparse sampled entry should resolve the sparse alias checksum");
+
+	ReplacementMeta sampled_meta = {};
+	uint64_t resolved_checksum64 = 0;
+	check(provider.lookup_sampled_with_selector(
+	          record.fmt,
+	          record.siz,
+	          record.tex_offset,
+	          record.stride,
+	          record.width,
+	          record.height,
+	          record.sampled_low32,
+	          record.sampled_sparse_pcrc,
+	          record.formatsize,
+	          asset.selector_checksum64,
+	          &sampled_meta,
+	          &resolved_checksum64),
+	      "structured sampled lookup should resolve the sparse alias");
+	check(sampled_meta.repl_w == asset.width, "structured sampled lookup should preserve replacement width");
+	check(sampled_meta.repl_h == asset.height, "structured sampled lookup should preserve replacement height");
+	check(resolved_checksum64 == ((uint64_t(record.sampled_sparse_pcrc) << 32u) | uint64_t(record.sampled_low32)),
+	      "structured sampled lookup should return the resolved sparse alias checksum");
+
+	check(provider.lookup_sampled_with_selector(
+	          record.fmt,
+	          record.siz,
+	          record.tex_offset,
+	          record.stride,
+	          record.width,
+	          record.height,
+	          record.sampled_low32,
+	          record.sampled_entry_pcrc,
+	          record.formatsize,
+	          asset.selector_checksum64,
+	          &sampled_meta,
+	          &resolved_checksum64),
+	      "structured sampled lookup should resolve the entry alias too");
+	check(resolved_checksum64 == ((uint64_t(record.sampled_entry_pcrc) << 32u) | uint64_t(record.sampled_low32)),
+	      "structured sampled lookup should return the resolved entry alias checksum");
 
 	remove_tree(dir);
 	std::cout << "emu_unit_texture_replacement_provider_test: PASS" << std::endl;

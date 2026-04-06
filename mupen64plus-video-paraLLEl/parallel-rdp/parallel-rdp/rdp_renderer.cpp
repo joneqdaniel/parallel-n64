@@ -1917,14 +1917,39 @@ void Renderer::draw_shaded_primitive(const TriangleSetup &setup, const Attribute
 		auto try_sampled_exact = [&](uint32_t palette_crc, const char *reason_exact, const char *reason_ordered_surface) {
 			const uint64_t checksum64 = detail::compose_hires_checksum64(sampled_identity.texture_crc, palette_crc);
 			ReplacementMeta candidate_meta = {};
+			uint64_t resolved_checksum64 = checksum64;
 			uint64_t resolved_selector_checksum64 = sampled_selector_checksum64;
 			const char *resolved_reason = reason_exact;
-			bool lookup_hit = replacement_provider->lookup_with_selector(checksum64, sampled_identity.formatsize, resolved_selector_checksum64, &candidate_meta);
+			bool lookup_hit = replacement_provider->lookup_sampled_with_selector(
+				uint32_t(base_meta.fmt),
+				uint32_t(base_meta.size),
+				base_meta.offset,
+				sampled_identity.row_stride_bytes,
+				sampled_identity.width_pixels,
+				sampled_identity.height_pixels,
+				sampled_identity.texture_crc,
+				palette_crc,
+				sampled_identity.formatsize,
+				resolved_selector_checksum64,
+				&candidate_meta,
+				&resolved_checksum64);
 			if (!lookup_hit && reserve_ordered_surface_selector(checksum64, sampled_identity.formatsize))
 			{
 				resolved_selector_checksum64 = ordered_surface_selector_checksum64;
 				resolved_reason = reason_ordered_surface;
-				lookup_hit = replacement_provider->lookup_with_selector(checksum64, sampled_identity.formatsize, resolved_selector_checksum64, &candidate_meta);
+				lookup_hit = replacement_provider->lookup_sampled_with_selector(
+					uint32_t(base_meta.fmt),
+					uint32_t(base_meta.size),
+					base_meta.offset,
+					sampled_identity.row_stride_bytes,
+					sampled_identity.width_pixels,
+					sampled_identity.height_pixels,
+					sampled_identity.texture_crc,
+					palette_crc,
+					sampled_identity.formatsize,
+					resolved_selector_checksum64,
+					&candidate_meta,
+					&resolved_checksum64);
 			}
 			if (!lookup_hit)
 			{
@@ -1937,7 +1962,7 @@ void Renderer::draw_shaded_primitive(const TriangleSetup &setup, const Attribute
 			}
 			candidate_meta.orig_w = sampled_identity.width_pixels;
 			candidate_meta.orig_h = sampled_identity.height_pixels;
-			if (!resolve_hires_replacement_descriptor(checksum64, sampled_identity.formatsize, resolved_selector_checksum64, candidate_meta))
+			if (!resolve_hires_replacement_descriptor(resolved_checksum64, sampled_identity.formatsize, resolved_selector_checksum64, candidate_meta))
 			{
 				SampledExactMissAttempt attempt = {};
 				attempt.reason = "resolve";
@@ -1949,7 +1974,7 @@ void Renderer::draw_shaded_primitive(const TriangleSetup &setup, const Attribute
 				return false;
 			}
 			sampled_meta = candidate_meta;
-			sampled_checksum64 = checksum64;
+			sampled_checksum64 = resolved_checksum64;
 			sampled_reason = resolved_reason;
 			return true;
 		};

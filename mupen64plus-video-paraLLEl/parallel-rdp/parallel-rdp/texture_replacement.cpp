@@ -346,6 +346,56 @@ const ReplacementProvider::Entry *ReplacementProvider::find_entry(uint64_t check
 	return nullptr;
 }
 
+const ReplacementProvider::Entry *ReplacementProvider::find_sampled_entry(uint32_t sampled_fmt,
+                                                                          uint32_t sampled_siz,
+                                                                          uint32_t sampled_tex_offset,
+                                                                          uint32_t sampled_stride,
+                                                                          uint32_t sampled_width,
+                                                                          uint32_t sampled_height,
+                                                                          uint32_t sampled_low32,
+                                                                          uint32_t palette_crc,
+                                                                          uint16_t formatsize,
+                                                                          uint64_t selector_checksum64) const
+{
+	auto matches = [&](const Entry &entry, uint16_t candidate_formatsize, uint64_t candidate_selector) {
+		if (entry.formatsize != candidate_formatsize || entry.selector_checksum64 != candidate_selector)
+			return false;
+		if (entry.sampled_fmt != sampled_fmt ||
+		    entry.sampled_siz != sampled_siz ||
+		    entry.sampled_tex_offset != sampled_tex_offset ||
+		    entry.sampled_stride != sampled_stride ||
+		    entry.sampled_width != sampled_width ||
+		    entry.sampled_height != sampled_height ||
+		    entry.sampled_low32 != sampled_low32)
+			return false;
+		return uint32_t((entry.checksum64 >> 32u) & 0xffffffffu) == palette_crc;
+	};
+
+	auto find_matching = [&](uint16_t candidate_formatsize, uint64_t candidate_selector) -> const Entry * {
+		for (auto itr = entries_.rbegin(); itr != entries_.rend(); ++itr)
+		{
+			if (matches(*itr, candidate_formatsize, candidate_selector))
+				return &*itr;
+		}
+		return nullptr;
+	};
+
+	if (selector_checksum64 != 0)
+	{
+		if (const Entry *entry = find_matching(formatsize, selector_checksum64))
+			return entry;
+		if (const Entry *entry = find_matching(0, selector_checksum64))
+			return entry;
+	}
+
+	if (const Entry *entry = find_matching(formatsize, 0))
+		return entry;
+	if (const Entry *entry = find_matching(0, 0))
+		return entry;
+
+	return nullptr;
+}
+
 bool ReplacementProvider::lookup(uint64_t checksum64, uint16_t formatsize, ReplacementMeta *out) const
 {
 	return lookup_with_selector(checksum64, formatsize, 0, out);
@@ -392,6 +442,48 @@ bool ReplacementProvider::lookup_with_selector(uint64_t checksum64, uint16_t for
 	out->vk_image_index = meta.vk_image_index;
 	out->has_mips = meta.has_mips;
 	out->srgb = meta.srgb;
+	return true;
+}
+
+bool ReplacementProvider::lookup_sampled_with_selector(uint32_t sampled_fmt,
+                                                       uint32_t sampled_siz,
+                                                       uint32_t sampled_tex_offset,
+                                                       uint32_t sampled_stride,
+                                                       uint32_t sampled_width,
+                                                       uint32_t sampled_height,
+                                                       uint32_t sampled_low32,
+                                                       uint32_t palette_crc,
+                                                       uint16_t formatsize,
+                                                       uint64_t selector_checksum64,
+                                                       ReplacementMeta *out,
+                                                       uint64_t *resolved_checksum64) const
+{
+	if (!enabled_ || !out)
+		return false;
+
+	const Entry *entry = find_sampled_entry(
+		sampled_fmt,
+		sampled_siz,
+		sampled_tex_offset,
+		sampled_stride,
+		sampled_width,
+		sampled_height,
+		sampled_low32,
+		palette_crc,
+		formatsize,
+		selector_checksum64);
+	if (!entry)
+		return false;
+
+	out->repl_w = entry->width;
+	out->repl_h = entry->height;
+	out->orig_w = 0;
+	out->orig_h = 0;
+	out->vk_image_index = 0xffffffffu;
+	out->has_mips = false;
+	out->srgb = false;
+	if (resolved_checksum64)
+		*resolved_checksum64 = entry->checksum64;
 	return true;
 }
 

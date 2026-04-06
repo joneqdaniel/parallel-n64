@@ -57,6 +57,18 @@ public:
 	bool load_cache_dir(const std::string &path);
 	bool lookup(uint64_t checksum64, uint16_t formatsize, ReplacementMeta *out) const;
 	bool lookup_with_selector(uint64_t checksum64, uint16_t formatsize, uint64_t selector_checksum64, ReplacementMeta *out) const;
+	bool lookup_sampled_with_selector(uint32_t sampled_fmt,
+	                                  uint32_t sampled_siz,
+	                                  uint32_t sampled_tex_offset,
+	                                  uint32_t sampled_stride,
+	                                  uint32_t sampled_width,
+	                                  uint32_t sampled_height,
+	                                  uint32_t sampled_low32,
+	                                  uint32_t palette_crc,
+	                                  uint16_t formatsize,
+	                                  uint64_t selector_checksum64,
+	                                  ReplacementMeta *out,
+	                                  uint64_t *resolved_checksum64 = nullptr) const;
 	uint32_t ordered_surface_selector_count(uint64_t checksum64, uint16_t formatsize) const;
 	uint64_t ordered_surface_selector_checksum64(uint64_t checksum64, uint16_t formatsize, uint32_t selector_index) const;
 	static uint64_t ordered_surface_slot_selector_checksum64(uint32_t slot_index);
@@ -116,6 +128,16 @@ private:
 
 	const Entry *find_entry(uint64_t checksum64, uint16_t formatsize) const;
 	const Entry *find_entry(uint64_t checksum64, uint16_t formatsize, uint64_t selector_checksum64) const;
+	const Entry *find_sampled_entry(uint32_t sampled_fmt,
+	                                uint32_t sampled_siz,
+	                                uint32_t sampled_tex_offset,
+	                                uint32_t sampled_stride,
+	                                uint32_t sampled_width,
+	                                uint32_t sampled_height,
+	                                uint32_t sampled_low32,
+	                                uint32_t palette_crc,
+	                                uint16_t formatsize,
+	                                uint64_t selector_checksum64) const;
 	bool load_hts(const std::string &path);
 	bool load_htc(const std::string &path);
 	bool load_phrb(const std::string &path);

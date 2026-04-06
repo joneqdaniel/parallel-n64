@@ -62,7 +62,7 @@ No policy files. No per-game tuning. No surface packages. Just conversion.
 
 ---
 
-## Why This Sequence: Bugs Before Architecture
+## Why This Sequence: Investigate Before Architecture
 
 The competing plan (Codex Runtime Redirect) proposes the opposite sequencing:
 redesign the provider to structured sampled-object keys first (Phase A), then
@@ -76,10 +76,11 @@ The previous 200-commit attempt rewrote runtime lookup modes, ownership policies
 and consumer contracts before understanding why textures were actually missing.
 That produced a policy explosion with no measurable improvement to hit rates.
 Codex's Phase A repeats this pattern: redesigning the provider lookup to structured
-keys before the CRC bugs are even investigated. The structured key model may need
-revision once the CRC results are in — meaning the redesign could be wasted work.
+keys before the CRC/LoadBlock issues are even investigated. The structured key model
+may need revision once the investigation results are in — meaning the redesign could
+be wasted work.
 
-### CRC fixes produce measurable results immediately
+### The investigations produce measurable results immediately
 
 Step 1 (palette CRC) has a concrete numeric target: file-select hits from 82 to
 ~150+. Step 2 (LoadBlock reinterpretation) resolves a documented miss family. Both
@@ -100,12 +101,12 @@ blocked on having a working converter — a circular dependency that delays ever
 
 ### Evidence-first sequencing avoids rework
 
-By fixing the CRC bugs first, we learn whether `checksum64 + formatsize` with
-corrected CRCs is sufficient for cross-game lookup. If it is, the structured key
-redesign becomes an optional optimization (Step 8) rather than a prerequisite. If
-it isn't, the classification gate at Step 2.5 tells us exactly which structured
-fields are needed and why — making the eventual provider redesign targeted rather
-than speculative.
+By investigating the CRC and LoadBlock issues first, we learn whether
+`checksum64 + formatsize` with corrected CRCs is sufficient for cross-game lookup.
+If it is, the structured key redesign becomes an optional optimization (Step 8)
+rather than a prerequisite. If it isn't, the classification gate at Step 2.5 tells
+us exactly which structured fields are needed and why — making the eventual provider
+redesign targeted rather than speculative.
 
 ### Every intermediate step is shippable
 
@@ -121,8 +122,8 @@ better than it does today.
 Both plans end at the same place: PHRB as runtime, generic converter, structured
 identity in records, explicit compat fencing, cross-game validation. The
 disagreement is purely about whether the provider redesign happens before or after
-the CRC fixes. Since the converter emits all PHRB identity fields regardless of
-the current runtime key model, both orderings reach the same destination — but
+the investigations. Since the converter emits all PHRB identity fields regardless
+of the current runtime key model, both orderings reach the same destination — but
 ours produces working results at every intermediate step.
 
 ---
@@ -139,7 +140,7 @@ No new behavior should be promoted to the default runtime path unless all of:
 
 ---
 
-## Step 1: Match GlideN64's Palette CRC Exactly
+## Step 1: Investigate Palette CRC Parity
 
 **Problem:** ParaLLEl's CI palette CRC doesn't match what pack creators used.
 
@@ -201,7 +202,7 @@ fix is a native identity fact or a dead end.
 
 ---
 
-## Step 2: Add LoadBlock Dimension Reinterpretation
+## Step 2: Investigate LoadBlock Dimension Reinterpretation
 
 **Problem:** Some textures are uploaded via `LoadBlock` as e.g. 64x1 but sampled as
 16x16 CI4 via `SetTile`/`SetTileSize`. The pack keys them as 16x16, ParaLLEl keys
@@ -587,8 +588,8 @@ hit rates or require the next slice to become testable. Good early slices:
 
 | Step | Effort | Risk |
 |------|--------|------|
-| 1. Fix palette CRC | 2-4 days | Low — GlideN64 source is clear reference |
-| 2. LoadBlock reinterpretation | 2-3 days | Medium — stride/dxt needs care |
+| 1. Palette CRC investigation | 2-4 days | Low — GlideN64 source is clear reference |
+| 2. LoadBlock investigation | 2-3 days | Medium — stride/dxt needs care |
 | 2.5. Identity classification gate | 0.5 day | N/A — decision point |
 | 3. Generic converter | 3-5 days | Low — reuses existing parsing code |
 | 4. Paper Mario non-menu validation | 2-3 days | Low — fixtures already exist |

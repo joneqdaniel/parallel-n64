@@ -1866,7 +1866,12 @@ void Renderer::draw_shaded_primitive(const TriangleSetup &setup, const Attribute
 	const bool can_probe_sampled_object =
 		replacement_provider &&
 		cpu_tmem &&
-		(draw_class == HiresDrawClass::TexRect || draw_class == HiresDrawClass::TexRectFlip);
+		(draw_class == HiresDrawClass::TexRect ||
+		 draw_class == HiresDrawClass::TexRectFlip ||
+		 (draw_class == HiresDrawClass::Triangle &&
+		  uses_texel0 &&
+		  !uses_texel1 &&
+		  (raster_flags & RASTERIZATION_COPY_BIT) == 0));
 	const bool sampled_lookup_uses_base_tile =
 		uses_texel0 || ((raster_flags & RASTERIZATION_COPY_BIT) != 0);
 	const bool can_consider_sampled_object =

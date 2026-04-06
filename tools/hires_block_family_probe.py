@@ -357,6 +357,80 @@ def parent_surface_start_deltas(row_bytes: int) -> list[int]:
     return sorted(set(deltas))
 
 
+def classify_report(family: dict,
+                    exact_row_run_pack_checks: list[dict],
+                    parent_surface_checks: list[dict]) -> dict:
+    exact_surface_supported = any(
+        int(item.get("exact_surface_family_entry_count", 0)) > 0
+        for item in exact_row_run_pack_checks
+    )
+    reinterpretation_supported = any(
+        int(hit.get("family_entry_count", 0)) > 0
+        for item in exact_row_run_pack_checks
+        for hit in item.get("reinterpretation_hits", [])
+    )
+    parent_surface_supported = any(
+        int(variant.get("family_entry_count", 0)) > 0
+        for item in parent_surface_checks
+        for variant in item.get("variants", [])
+    )
+    has_exact_row_runs = bool(exact_row_run_pack_checks)
+
+    classification = {
+        "has_exact_row_runs": has_exact_row_runs,
+        "exact_surface_supported": exact_surface_supported,
+        "reinterpretation_supported": reinterpretation_supported,
+        "parent_surface_supported": parent_surface_supported,
+        "recommended_outcome": "needs-manual-review",
+        "reason": "The probe captured mixed evidence that still needs manual review.",
+    }
+
+    if family.get("mode") == "block":
+        if exact_surface_supported:
+            classification["recommended_outcome"] = "candidate-native-surface"
+            classification["reason"] = (
+                "A contiguous exact surface from the captured block data already matches pack families, "
+                "so the seam looks more like a native imported-surface candidate than a retry-only compatibility rule."
+            )
+        elif reinterpretation_supported:
+            classification["recommended_outcome"] = "candidate-compat-retry"
+            classification["reason"] = (
+                "Area-preserving reinterpretation hits exist for the captured block data, "
+                "so a miss-only compatibility retry may be justified if false positives stay bounded."
+            )
+        elif not has_exact_row_runs:
+            classification["recommended_outcome"] = "no-simple-loadblock-retry"
+            classification["reason"] = (
+                "The captured block addresses do not form contiguous row runs that map cleanly to pack-backed surfaces, "
+                "so a simple contiguous LoadBlock retry is not supported by this evidence."
+            )
+        else:
+            classification["recommended_outcome"] = "no-simple-loadblock-retry"
+            classification["reason"] = (
+                "Contiguous row runs were present, but neither exact-surface nor area-preserving reinterpretation hits "
+                "matched the active pack, so the seam is not explained by a simple LoadBlock retry."
+            )
+    elif family.get("mode") == "tile":
+        if parent_surface_supported:
+            classification["recommended_outcome"] = "candidate-parent-surface"
+            classification["reason"] = (
+                "Parent-surface variants hit pack families, which supports imported parent-surface review rather than "
+                "flat upload-key promotion."
+            )
+        elif exact_surface_supported or reinterpretation_supported:
+            classification["recommended_outcome"] = "candidate-tile-surface"
+            classification["reason"] = (
+                "Captured tile data produced pack-backed surface candidates, so the seam is still live for sampled-surface import."
+            )
+        else:
+            classification["recommended_outcome"] = "no-surface-evidence"
+            classification["reason"] = (
+                "Neither exact surfaces nor parent-surface variants matched the active pack, so this tile seam remains unresolved."
+            )
+
+    return classification
+
+
 def analyze_plan(plan: dict, snapshot_trace: Path, cache_path: Path | None = None) -> tuple[dict, str]:
     base_addr, data = parse_snapshot_trace(snapshot_trace)
     min_addr = int(plan["snapshot"]["min_addr"], 16)
@@ -578,11 +652,18 @@ def analyze_plan(plan: dict, snapshot_trace: Path, cache_path: Path | None = Non
                     }
                 )
 
+    classification = classify_report(
+        plan["family"],
+        exact_row_run_pack_checks,
+        parent_surface_checks,
+    )
+
     report = {
         "plan_source_bundle": plan["source_bundle"],
         "snapshot_trace": str(snapshot_trace),
         "cache_path": None if cache_path is None else str(cache_path),
         "family": plan["family"],
+        "classification": classification,
         "snapshot": {
             "base_addr": f"0x{base_addr:06x}",
             "captured_bytes": len(data),
@@ -612,6 +693,16 @@ def analyze_plan(plan: dict, snapshot_trace: Path, cache_path: Path | None = Non
     md.append(f"- Events: `{plan['event_count']}`")
     md.append(f"- Unique addresses: `{plan['unique_addresses']}`")
     md.append(f"- Unique low32 keys: `{plan['unique_low32_keys']}`\n")
+    md.append("## Classification\n")
+    md.append(f"- Outcome: `{classification['recommended_outcome']}`")
+    md.append(f"- Reason: {classification['reason']}")
+    md.append(f"- Exact row runs present: `{classification['has_exact_row_runs']}`")
+    md.append(f"- Exact surface supported: `{classification['exact_surface_supported']}`")
+    md.append(f"- Reinterpretation supported: `{classification['reinterpretation_supported']}`")
+    if family := plan["family"].get("mode"):
+        if family == "tile":
+            md.append(f"- Parent surface supported: `{classification['parent_surface_supported']}`")
+    md.append("")
     md.append(
         f"- Observed row bytes: `{row_size_bytes}` (`0x{row_size_bytes:x}`)"
     )

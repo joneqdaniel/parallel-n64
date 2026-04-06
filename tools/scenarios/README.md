@@ -26,6 +26,8 @@ Current tracked scenario seeds:
 - [`paper-mario-title-screen.runtime.env`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-title-screen.runtime.env)
 - [`paper-mario-file-select.sh`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-file-select.sh)
 - [`paper-mario-file-select.runtime.env`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-file-select.runtime.env)
+- [`paper-mario-kmr-03-entry-5.sh`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-kmr-03-entry-5.sh)
+- [`paper-mario-kmr-03-entry-5.runtime.env`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-kmr-03-entry-5.runtime.env)
 - [`paper-mario-file-select-input-probe.sh`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-file-select-input-probe.sh)
 - [`paper-mario-file-select-block-family-probe.sh`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-file-select-block-family-probe.sh)
 - [`paper-mario-file-select-tile-family-probe.sh`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-file-select-tile-family-probe.sh)
@@ -34,6 +36,7 @@ Current tracked scenario seeds:
 - [`paper-mario-hos-05-entry-3.sh`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-hos-05-entry-3.sh)
 - [`paper-mario-hos-05-entry-3.runtime.env`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-hos-05-entry-3.runtime.env)
 - [`remint-paper-mario-file-select-authority.sh`](/home/auro/code/parallel-n64/tools/scenarios/remint-paper-mario-file-select-authority.sh)
+- [`remint-paper-mario-kmr-03-entry-5-authority.sh`](/home/auro/code/parallel-n64/tools/scenarios/remint-paper-mario-kmr-03-entry-5-authority.sh)
 - [`remint-paper-mario-hos-05-entry-3-authority.sh`](/home/auro/code/parallel-n64/tools/scenarios/remint-paper-mario-hos-05-entry-3-authority.sh)
 - [`stage-paper-mario-savefile.sh`](/home/auro/code/parallel-n64/tools/scenarios/stage-paper-mario-savefile.sh)
 
@@ -131,6 +134,10 @@ Current Paper Mario runtime note:
   - current validated deeper result:
     - the `1b8530fb` gameplay pool package [20260330-selected-plus-timeout-960-v1-add-1b85/package.phrb](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260330-selected-plus-timeout-960-v1-add-1b85/package.phrb) keeps strict title/file select pixel-identical to legacy `.hts`
     - and materially improves the deterministic `960` and `1200` timeout checkpoints versus the previous selected baseline
+  - that probe path now has a savestate-backed authority fixture too:
+    - [paper-mario-kmr-03-entry-5.sh](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-kmr-03-entry-5.sh)
+    - it uses the title timeout only as bootstrap lineage, then verifies the real steady-state contract through `load savestate -> settle 3 -> capture`
+    - the canonical savestate-backed `off` hash is `04ea11ae5d0bd5b64d79851d88e406f3167454a5033630396e6fc492f60052d5`
 - a one-frame button sweep across `A`, `B`, `START`, `UP`, `DOWN`, `LEFT`, and `RIGHT`, plus `A` / `START` with `post-input-settle = 0`, stayed on that same decoded top-level file-select state too
 - the current trusted-vs-advisory Paper Mario runtime signals are documented in [PAPER_MARIO_SIGNAL_TABLE.md](/home/auro/code/parallel-n64/docs/plans/PAPER_MARIO_SIGNAL_TABLE.md)
 - deeper `savefile-start` menu probes now have two verified `on` branches:

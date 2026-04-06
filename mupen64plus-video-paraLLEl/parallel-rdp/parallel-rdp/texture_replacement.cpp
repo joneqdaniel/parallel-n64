@@ -220,6 +220,12 @@ inline void push_unique(std::vector<T> &values, const T &value)
 			return;
 	values.push_back(value);
 }
+
+template <typename T>
+inline void hash_combine(size_t &seed, const T &value)
+{
+	seed ^= std::hash<T>{}(value) + 0x9e3779b97f4a7c15ull + (seed << 6u) + (seed >> 2u);
+}
 }
 
 bool ReplacementProvider::enabled() const
@@ -232,17 +238,76 @@ void ReplacementProvider::set_enabled(bool enable)
 	enabled_ = enable;
 }
 
+size_t ReplacementProvider::SampledLookupKeyHash::operator()(const SampledLookupKey &key) const
+{
+	size_t seed = 0;
+	hash_combine(seed, key.sampled_fmt);
+	hash_combine(seed, key.sampled_siz);
+	hash_combine(seed, key.sampled_tex_offset);
+	hash_combine(seed, key.sampled_stride);
+	hash_combine(seed, key.sampled_width);
+	hash_combine(seed, key.sampled_height);
+	hash_combine(seed, key.sampled_low32);
+	hash_combine(seed, key.sampled_palette_crc);
+	hash_combine(seed, key.formatsize);
+	hash_combine(seed, key.selector_checksum64);
+	return seed;
+}
+
+ReplacementProvider::SampledLookupKey ReplacementProvider::make_sampled_lookup_key(uint32_t sampled_fmt,
+                                                                                    uint32_t sampled_siz,
+                                                                                    uint32_t sampled_tex_offset,
+                                                                                    uint32_t sampled_stride,
+                                                                                    uint32_t sampled_width,
+                                                                                    uint32_t sampled_height,
+                                                                                    uint32_t sampled_low32,
+                                                                                    uint32_t sampled_palette_crc,
+                                                                                    uint16_t formatsize,
+                                                                                    uint64_t selector_checksum64)
+{
+	SampledLookupKey key = {};
+	key.sampled_fmt = sampled_fmt;
+	key.sampled_siz = sampled_siz;
+	key.sampled_tex_offset = sampled_tex_offset;
+	key.sampled_stride = sampled_stride;
+	key.sampled_width = sampled_width;
+	key.sampled_height = sampled_height;
+	key.sampled_low32 = sampled_low32;
+	key.sampled_palette_crc = sampled_palette_crc;
+	key.formatsize = formatsize;
+	key.selector_checksum64 = selector_checksum64;
+	return key;
+}
+
 void ReplacementProvider::add_entry(Entry &&entry)
 {
 	const size_t index = entries_.size();
-	checksum_index_[entry.checksum64].push_back(index);
-	checksum_low32_index_[uint32_t(entry.checksum64 & 0xffffffffu)].push_back(index);
-	if (is_ordered_surface_selector(entry.selector_checksum64))
-	{
-		auto ordered_key = compose_ordered_surface_index_key(entry.checksum64, entry.formatsize);
-		append_unique_ordered_surface_selector(ordered_surface_selectors_[ordered_key], entry.selector_checksum64);
-	}
 	entries_.push_back(std::move(entry));
+	const Entry &stored = entries_.back();
+	checksum_index_[stored.checksum64].push_back(index);
+	checksum_low32_index_[uint32_t(stored.checksum64 & 0xffffffffu)].push_back(index);
+	if (!stored.has_native_sampled_identity)
+		compat_checksum_low32_index_[uint32_t(stored.checksum64 & 0xffffffffu)].push_back(index);
+	if (stored.has_native_sampled_identity)
+	{
+		auto sampled_key = make_sampled_lookup_key(
+			stored.sampled_fmt,
+			stored.sampled_siz,
+			stored.sampled_tex_offset,
+			stored.sampled_stride,
+			stored.sampled_width,
+			stored.sampled_height,
+			stored.sampled_low32,
+			stored.sampled_palette_crc,
+			stored.formatsize,
+			stored.selector_checksum64);
+		sampled_index_[sampled_key] = index;
+	}
+	if (is_ordered_surface_selector(stored.selector_checksum64))
+	{
+		auto ordered_key = compose_ordered_surface_index_key(stored.checksum64, stored.formatsize);
+		append_unique_ordered_surface_selector(ordered_surface_selectors_[ordered_key], stored.selector_checksum64);
+	}
 }
 
 void ReplacementProvider::clear()
@@ -251,6 +316,8 @@ void ReplacementProvider::clear()
 	entries_.clear();
 	checksum_index_.clear();
 	checksum_low32_index_.clear();
+	compat_checksum_low32_index_.clear();
+	sampled_index_.clear();
 	ordered_surface_selectors_.clear();
 }
 
@@ -357,27 +424,22 @@ const ReplacementProvider::Entry *ReplacementProvider::find_sampled_entry(uint32
                                                                           uint16_t formatsize,
                                                                           uint64_t selector_checksum64) const
 {
-	auto matches = [&](const Entry &entry, uint16_t candidate_formatsize, uint64_t candidate_selector) {
-		if (entry.formatsize != candidate_formatsize || entry.selector_checksum64 != candidate_selector)
-			return false;
-		if (entry.sampled_fmt != sampled_fmt ||
-		    entry.sampled_siz != sampled_siz ||
-		    entry.sampled_tex_offset != sampled_tex_offset ||
-		    entry.sampled_stride != sampled_stride ||
-		    entry.sampled_width != sampled_width ||
-		    entry.sampled_height != sampled_height ||
-		    entry.sampled_low32 != sampled_low32)
-			return false;
-		return uint32_t((entry.checksum64 >> 32u) & 0xffffffffu) == palette_crc;
-	};
-
 	auto find_matching = [&](uint16_t candidate_formatsize, uint64_t candidate_selector) -> const Entry * {
-		for (auto itr = entries_.rbegin(); itr != entries_.rend(); ++itr)
-		{
-			if (matches(*itr, candidate_formatsize, candidate_selector))
-				return &*itr;
-		}
-		return nullptr;
+		auto key = make_sampled_lookup_key(
+			sampled_fmt,
+			sampled_siz,
+			sampled_tex_offset,
+			sampled_stride,
+			sampled_width,
+			sampled_height,
+			sampled_low32,
+			palette_crc,
+			candidate_formatsize,
+			candidate_selector);
+		auto it = sampled_index_.find(key);
+		if (it == sampled_index_.end())
+			return nullptr;
+		return &entries_[it->second];
 	};
 
 	if (selector_checksum64 != 0)
@@ -495,8 +557,8 @@ bool ReplacementProvider::lookup_ci_low32_unique(uint32_t checksum_low32,
 	if (!enabled_ || !out)
 		return false;
 
-	auto it = checksum_low32_index_.find(checksum_low32);
-	if (it == checksum_low32_index_.end())
+	auto it = compat_checksum_low32_index_.find(checksum_low32);
+	if (it == compat_checksum_low32_index_.end())
 		return false;
 
 	auto collect_unique_checksums = [&](uint16_t candidate_formatsize, std::vector<uint64_t> &unique) {
@@ -553,8 +615,8 @@ bool ReplacementProvider::lookup_ci_low32_repl_dims_unique(uint32_t checksum_low
 	if (!enabled_ || !out)
 		return false;
 
-	auto it = checksum_low32_index_.find(checksum_low32);
-	if (it == checksum_low32_index_.end())
+	auto it = compat_checksum_low32_index_.find(checksum_low32);
+	if (it == compat_checksum_low32_index_.end())
 		return false;
 
 	auto pick_candidate = [&](uint16_t candidate_formatsize) -> const Entry * {
@@ -605,8 +667,8 @@ bool ReplacementProvider::lookup_ci_low32_selected_dims(uint32_t checksum_low32,
 	if (!enabled_ || !out)
 		return false;
 
-	auto it = checksum_low32_index_.find(checksum_low32);
-	if (it == checksum_low32_index_.end())
+	auto it = compat_checksum_low32_index_.find(checksum_low32);
+	if (it == compat_checksum_low32_index_.end())
 		return false;
 
 	auto pick_candidate = [&](uint16_t candidate_formatsize) -> const Entry * {
@@ -650,8 +712,8 @@ bool ReplacementProvider::lookup_ci_low32_any(uint32_t checksum_low32,
 	if (!enabled_ || !out)
 		return false;
 
-	auto it = checksum_low32_index_.find(checksum_low32);
-	if (it == checksum_low32_index_.end())
+	auto it = compat_checksum_low32_index_.find(checksum_low32);
+	if (it == compat_checksum_low32_index_.end())
 		return false;
 
 	auto pick_candidate = [&](uint16_t candidate_formatsize, uint32_t palette_crc_or_any) -> const Entry * {
@@ -710,8 +772,8 @@ bool ReplacementProvider::describe_ci_low32_family(uint32_t checksum_low32,
 	if (!enabled_ || !out)
 		return false;
 
-	auto it = checksum_low32_index_.find(checksum_low32);
-	if (it == checksum_low32_index_.end())
+	auto it = compat_checksum_low32_index_.find(checksum_low32);
+	if (it == compat_checksum_low32_index_.end())
 		return false;
 
 	CILow32FamilyDiagnostics diag = {};
@@ -1055,8 +1117,10 @@ bool ReplacementProvider::load_phrb(const std::string &path)
 			entry.sampled_width = record.width;
 			entry.sampled_height = record.height;
 			entry.sampled_low32 = record.sampled_low32;
+			entry.sampled_palette_crc = palette_crc;
 			entry.sampled_entry_pcrc = record.sampled_entry_pcrc;
 			entry.sampled_sparse_pcrc = record.sampled_sparse_pcrc;
+			entry.has_native_sampled_identity = true;
 			entry.is_hires = true;
 			entry.inline_blob = true;
 			entry.blob.assign(rgba_blob_base + rgba_offset,

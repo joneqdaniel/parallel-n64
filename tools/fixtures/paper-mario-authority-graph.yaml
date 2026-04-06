@@ -39,6 +39,28 @@ nodes:
         save_offset_frames: 2
       remint_script: tools/scenarios/remint-paper-mario-file-select-authority.sh
 
+  - id: kmr_03_entry_5_idle
+    fixture_id: paper-mario-kmr-03-entry-5
+    state_path: assets/states/paper-mario-kmr-03-entry-5/ParaLLEl N64/Paper Mario (USA).state
+    kind: authoritative
+    status: active
+    scene_identity:
+      map: kmr_03
+      entry: ENTRY_5
+    steady_state_capture:
+      settle_frames: 3
+      capture_id: kmr_03_entry_5
+      expected_capture_sha256: 04ea11ae5d0bd5b64d79851d88e406f3167454a5033630396e6fc492f60052d5
+    lineage:
+      source: bootstrap
+      parent_node_id: title_screen_idle
+      bootstrap_sequence:
+        load_parent_settle_frames: 3
+        step_frames: 960
+        step_chunk_frames: 120
+        probe_capture_sha256: 4bd3929dabff3ffb1b7e03a9c10d8ce50e9b6d0f067825d3a788c48a41b6fc62
+      remint_script: tools/scenarios/remint-paper-mario-kmr-03-entry-5-authority.sh
+
   - id: hos_05_entry_3_idle
     fixture_id: paper-mario-hos-05-entry-3
     state_path: assets/states/paper-mario-hos-05-entry-3/ParaLLEl N64/Paper Mario (USA).state

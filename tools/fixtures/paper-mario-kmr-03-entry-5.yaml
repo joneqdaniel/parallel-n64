@@ -1,0 +1,72 @@
+id: paper-mario-kmr-03-entry-5
+game: paper_mario
+status: active
+description: >
+  First deterministic non-menu Paper Mario authority fixture. This steady-state
+  world scene is minted from the title-screen authority by advancing 960 frames
+  into `kmr_03 ENTRY_5`, then saving and verifying a canonical capture.
+
+content:
+  rom_path: assets/Paper Mario (USA).zip
+  core: parallel_n64
+  savefile_path: ""
+  hires_pack_path: assets/PAPER MARIO_HIRESTEXTURES.hts
+
+entry:
+  method: savestate
+  reference: kmr_03_entry_5
+  authority: authoritative_kmr_03_entry_5_savestate
+  target_state: kmr_03_entry_5_idle
+
+authority:
+  graph_path: tools/fixtures/paper-mario-authority-graph.yaml
+  node_id: kmr_03_entry_5_idle
+  preferred_mode: auto
+  bootstrap_parent_fixture_id: paper-mario-title-screen
+  remint_script: tools/scenarios/remint-paper-mario-kmr-03-entry-5-authority.sh
+
+requirements:
+  assets:
+    - assets/Paper Mario (USA).zip
+    - assets/PAPER MARIO_HIRESTEXTURES.hts
+  environment:
+    - RetroArch must be available at the canonical local path in docs/WORKSPACE_PATHS.md
+
+runtime:
+  internal_scale: 4x
+  execution_mode: serial
+  display_required: true
+
+capture:
+  screenshots:
+    - kmr_03_entry_5
+  frames:
+    - kmr_03_entry_5
+  logs: true
+  memory: false
+  traces:
+    - config_snapshot
+    - paper_mario_game_status
+    - fallback_reporting
+    - replacement_hit_miss_summary
+
+checks:
+  visual:
+    - the `kmr_03 ENTRY_5` world scene renders without corruption
+    - baseline-off mode remains visually safe
+  telemetry:
+    - bundle includes ROM hash
+    - bundle includes hi-res pack hash when present
+    - bundle includes config snapshot
+    - bundle includes the active authority mode and active state hash
+    - bootstrap evidence records the title-screen parent state and timeout parameters when bootstrap mode is used
+  traces:
+    - bundle records fallback reasons when replacement is not applied
+    - bundle records semantic world-state evidence for `state_init_world` / `state_step_world`
+
+notes:
+  - The canonical steady-state contract is `load savestate -> settle 3 frames -> screenshot`.
+  - The verified bootstrap path is `title authority -> settle 3 -> step 960 frames -> save`.
+  - The canonical savestate-backed off-mode capture hash is `04ea11ae5d0bd5b64d79851d88e406f3167454a5033630396e6fc492f60052d5`.
+  - The earlier live probe hash `4bd3929dabff3ffb1b7e03a9c10d8ce50e9b6d0f067825d3a788c48a41b6fc62` remains useful as lineage evidence, but it is not the post-load steady-state capture for this fixture.
+  - This fixture exists to broaden validation beyond menus before default-path promotion.

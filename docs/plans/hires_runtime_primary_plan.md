@@ -57,8 +57,60 @@
 - Runtime lookup is still centered on `checksum64 + formatsize + selector` in [`texture_replacement.cpp`](/home/auro/code/parallel-n64/mupen64plus-video-paraLLEl/parallel-rdp/parallel-rdp/texture_replacement.cpp).
 - `PHRB` stores richer identity than the loader actually uses.
 - The sampled-object exact path is still narrow and should be treated as scoped, not complete.
-- Validation remains too concentrated on Paper Mario title/file-select to justify final architectural commitment or cross-game confidence.
+- Validation is still too Paper-Mario-heavy and too shallow in runtime-class breadth to justify final architectural commitment or cross-game confidence.
 - There are still likely general legacy-pack miss classes that should be investigated directly at runtime, especially CI palette parity and `LoadBlock` sampled-shape mismatch.
+
+## Current Implementation State
+
+### Completed Slices
+
+- Validation trust is partially live:
+  - semantic hi-res evidence now participates in pass/fail on the active title-screen and file-select fixtures
+  - authority metadata drift on the active menu fixtures is corrected and covered by a direct contract test
+- The first provider/loader seam preservation slice is in:
+  - structured `PHRB` identity is preserved in memory instead of being discarded at load time
+  - direct provider/package coverage now exists for that preserved identity
+  - native sampled records now have a dedicated structured provider index instead of relying on reverse scans over compatibility-shaped storage
+  - CI low32 fallback families are now explicitly compat-only and no longer silently read native `PHRB` sampled records
+- The exact sampled-object seam is now improved:
+  - the renderer can prefer structured provider lookup on exact sampled-object matches instead of relying only on recomposed legacy-style keys
+  - the seam now reaches texrects plus the current narrow single-texture triangle case, and the active file-select / `kmr_03 ENTRY_5` authorities stayed runtime-neutral under that widening
+- The earliest safe conversion front door exists:
+  - `hts2phrb` is live as a wrapper over the current import/build pipeline
+  - deterministic singleton proxy groups can be auto-selected without widening default runtime behavior
+  - smoke coverage exists for the current skeleton path
+- The first CI palette investigation slice is complete enough to bound the next step:
+  - the obvious palette-CRC and TLUT-shadow candidates have been tested
+  - the remaining gap still needs formal classification instead of open-ended per-family debugging
+- Validation breadth is no longer menu-only:
+  - the first deterministic non-menu Paper Mario authority fixture is now active at `kmr_03 ENTRY_5`
+  - the fixture is savestate-backed, semantically gated in both `off` and `on`, and records the earlier live timeout-probe hash as lineage evidence instead of confusing it with the savestate steady-state capture
+- The bounded `LoadBlock` investigation now has explicit decision artifacts:
+  - the dominant file-select `64x1 fs514` loadblock family classifies as `no-simple-loadblock-retry`
+  - the title `2048x1 fs515` loadblock family lands on the same outcome
+  - those results now live in dedicated offline analyzer reports instead of only in free-form notes
+
+### Still Open
+
+- Structured sampled-object lookup is now indexed natively inside the provider, but it is not yet the primary runtime key across the full renderer path.
+- `.phrb` is not yet the only production runtime source.
+- Ordered-surface runtime preservation is not complete.
+- `tlut_type` is not yet a first-class runtime identity field.
+- Second-game validation has not started.
+
+## Deferred Work Register
+
+Any work item skipped to keep the current slice bounded must stay listed here until it is either completed, explicitly rejected, or moved behind a later gate with evidence.
+
+| Deferred item | Why deferred now | Reactivate when |
+|---|---|---|
+| Widen structured sampled-object lookup beyond the current exact seam | The runtime now preserves native identity, but broader lookup widening should follow classification rather than outrun it. | After the Phase B2 gate and direct tests show which structured fields must become primary. |
+| Make `.phrb` the only production runtime source and treat `.hts` / `.htc` as import-only | The conversion front door and default-path promotion are not ready yet, so runtime source narrowing would outrun the user path. | After Paper Mario breadth passes and the front door is ready to carry the common case. |
+| Add `tlut_type` as a first-class runtime identity field | The current palette work has not finished classifying which palette facts are truly canonical. | When the palette classification gate shows that `tlut_type` is required for native identity, not just legacy parity. |
+| Preserve ordered-surface metadata as a runtime-native concept instead of selector hashes | The first seam slices focused on exact sampled identity and provider preservation, not selector-bearing runtime promotion. | After the structured runtime key space is stable enough to carry richer ordered-surface state without guesswork. |
+| Enable first-load `.hts` to cached `.phrb` auto-conversion | Auto-conversion is a user convenience, not a sequencing shortcut, and enabling it earlier would blur runtime-contract readiness. | Only during default-path promotion, with direct auto-conversion tests and cache-behavior coverage. |
+| Start second-game validation | Cross-game claims are not useful until the Paper Mario menu and non-menu authority set is stable and classification-backed. | After the Paper Mario breadth gate is green and the runtime contract is stable enough to test without new core rules. |
+| Treat representative-pack converter performance and cache behavior as a promotion gate | Correctness and bounded ambiguity came first; operational expectations are only meaningful once the skeleton front door is stable. | Before default-path promotion and before auto-conversion is enabled. |
 
 ## Core Decision
 
@@ -320,6 +372,17 @@ After CI palette parity and `LoadBlock` sampled-shape work are validated on the 
 - The converter and runtime plans reflect those classifications explicitly.
 - No compatibility seam is promoted into canonical runtime identity without passing this gate.
 
+### Current Classification Outcomes
+
+- CI palette parity currently classifies as a bounded compatibility or import diagnostic, not a native identity fact.
+  - raw TLUT entry-count variants, sparse used-index hashing, and emulated loaded-TLUT views did not close the remaining misses
+  - the remaining seam looks more like inherited legacy-pack identity mismatch than a small runtime CRC-formula bug
+  - practical consequence: do not keep widening palette-formula work in the default runtime path; keep it as explicit compat or import-side guidance unless new evidence overturns this
+- `LoadBlock` sampled-shape retry currently classifies as a dead end for simple contiguous runtime retry.
+  - the dominant file-select `64x1 fs514` family and title `2048x1 fs515` family both classify as `no-simple-loadblock-retry`
+  - neither produced exact-surface or area-preserving reinterpretation hits in the active pack under the current bounded analyzer
+  - practical consequence: do not add a permissive simple `LoadBlock` retry path to the default runtime contract
+
 ## Phase C: Validation Breadth
 
 ### Goal
@@ -436,11 +499,15 @@ The project should not declare the native format/runtime seam ready until all of
 
 ## Immediate Next Step
 
-- Start with validation trust preflight: resolve authority drift, activate one non-menu Paper Mario authority, and make semantic hi-res evidence a real gate.
-- Next, land the first Phase A seam slice: preserve structured `PHRB` identity at load time, separate native versus compat records, and add direct provider/package tests.
-- Then run the Phase B1 investigations in parallel with an early Phase A1 `hts2phrb` skeleton.
-- Record the classification results in Phase B2 before promoting either seam into the converter or runtime contract.
-- Only after that widen structured lookup, complete the front door, pass the Paper Mario full gate, and promote `PHRB` to default.
+- The semantic hi-res gate, the first provider preservation slice, direct provider/package coverage, the earliest `hts2phrb` skeleton, the first CI palette pass, the first non-menu Paper Mario authority fixture, and the initial Phase B2 classifications are already in.
+- The provider now also separates native sampled records from explicit compat low32 families:
+  - structured sampled lookup no longer depends on reverse scans over all entries
+  - compat low32 fallbacks no longer use native `PHRB` sampled records as if they were compatibility families
+- The next open work is to apply those classifications to the runtime contract:
+  - do not add simple `LoadBlock` retry behavior to the default path
+  - do not keep widening palette CRC formula variants as if they were native identity fixes
+- Continue with targeted structured lookup widening beyond the current exact seam and `.phrb` runtime-source narrowing only where direct tests and current classifications support it.
+- Keep every skipped item in the deferred register above until it is either completed or explicitly rejected by a gate decision.
 
 ## Outcome
 

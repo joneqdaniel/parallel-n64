@@ -20,6 +20,7 @@ Current tracked fixture seeds:
 
 - [`paper-mario-title-screen.yaml`](/home/auro/code/parallel-n64/tools/fixtures/paper-mario-title-screen.yaml)
 - [`paper-mario-file-select.yaml`](/home/auro/code/parallel-n64/tools/fixtures/paper-mario-file-select.yaml)
+- [`paper-mario-kmr-03-entry-5.yaml`](/home/auro/code/parallel-n64/tools/fixtures/paper-mario-kmr-03-entry-5.yaml)
 - [`paper-mario-hos-05-entry-3.yaml`](/home/auro/code/parallel-n64/tools/fixtures/paper-mario-hos-05-entry-3.yaml)
 - [`paper-mario-authority-graph.yaml`](/home/auro/code/parallel-n64/tools/fixtures/paper-mario-authority-graph.yaml)
 

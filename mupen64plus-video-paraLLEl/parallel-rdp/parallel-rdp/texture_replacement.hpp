@@ -119,11 +119,46 @@ private:
 		uint32_t sampled_width = 0;
 		uint32_t sampled_height = 0;
 		uint32_t sampled_low32 = 0;
+		uint32_t sampled_palette_crc = 0;
 		uint32_t sampled_entry_pcrc = 0;
 		uint32_t sampled_sparse_pcrc = 0;
+		bool has_native_sampled_identity = false;
 		bool is_hires = false;
 		bool inline_blob = false;
 		std::vector<uint8_t> blob;
+	};
+
+	struct SampledLookupKey
+	{
+		uint32_t sampled_fmt = 0;
+		uint32_t sampled_siz = 0;
+		uint32_t sampled_tex_offset = 0;
+		uint32_t sampled_stride = 0;
+		uint32_t sampled_width = 0;
+		uint32_t sampled_height = 0;
+		uint32_t sampled_low32 = 0;
+		uint32_t sampled_palette_crc = 0;
+		uint16_t formatsize = 0;
+		uint64_t selector_checksum64 = 0;
+
+		bool operator==(const SampledLookupKey &other) const
+		{
+			return sampled_fmt == other.sampled_fmt &&
+			       sampled_siz == other.sampled_siz &&
+			       sampled_tex_offset == other.sampled_tex_offset &&
+			       sampled_stride == other.sampled_stride &&
+			       sampled_width == other.sampled_width &&
+			       sampled_height == other.sampled_height &&
+			       sampled_low32 == other.sampled_low32 &&
+			       sampled_palette_crc == other.sampled_palette_crc &&
+			       formatsize == other.formatsize &&
+			       selector_checksum64 == other.selector_checksum64;
+		}
+	};
+
+	struct SampledLookupKeyHash
+	{
+		size_t operator()(const SampledLookupKey &key) const;
 	};
 
 	const Entry *find_entry(uint64_t checksum64, uint16_t formatsize) const;
@@ -145,6 +180,16 @@ private:
 	static bool decode_pixels_rgba8(const Entry &entry, const std::vector<uint8_t> &pixel_data, std::vector<uint8_t> &rgba8);
 	static bool decompress_if_needed(const Entry &entry, const std::vector<uint8_t> &blob, std::vector<uint8_t> &pixel_data);
 	static uint32_t expected_decoded_size(const Entry &entry);
+	static SampledLookupKey make_sampled_lookup_key(uint32_t sampled_fmt,
+	                                                uint32_t sampled_siz,
+	                                                uint32_t sampled_tex_offset,
+	                                                uint32_t sampled_stride,
+	                                                uint32_t sampled_width,
+	                                                uint32_t sampled_height,
+	                                                uint32_t sampled_low32,
+	                                                uint32_t sampled_palette_crc,
+	                                                uint16_t formatsize,
+	                                                uint64_t selector_checksum64);
 	void add_entry(Entry &&entry);
 
 	bool enabled_ = false;
@@ -152,6 +197,8 @@ private:
 	std::vector<Entry> entries_;
 	std::unordered_map<uint64_t, std::vector<size_t>> checksum_index_;
 	std::unordered_map<uint32_t, std::vector<size_t>> checksum_low32_index_;
+	std::unordered_map<uint32_t, std::vector<size_t>> compat_checksum_low32_index_;
+	std::unordered_map<SampledLookupKey, size_t, SampledLookupKeyHash> sampled_index_;
 	std::unordered_map<uint64_t, std::vector<uint64_t>> ordered_surface_selectors_;
 	size_t memory_budget_bytes_ = 0;
 };

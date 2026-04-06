@@ -6,6 +6,16 @@ add_test(
 )
 
 add_test(
+  NAME emu.support.paper_mario_non_menu_fixture_contract
+  COMMAND bash "${EMU_BEHAVIOR_SUPPORT_DIR}/emu_paper_mario_non_menu_fixture_contract.sh"
+)
+
+add_test(
+  NAME emu.support.hires_block_family_probe_contract
+  COMMAND bash "${EMU_BEHAVIOR_SUPPORT_DIR}/emu_hires_block_family_probe_contract.sh"
+)
+
+add_test(
   NAME emu.support.hires_proxy_binding_auto_select_contract
   COMMAND bash "${EMU_BEHAVIOR_SUPPORT_DIR}/emu_hires_proxy_binding_auto_select_contract.sh"
 )

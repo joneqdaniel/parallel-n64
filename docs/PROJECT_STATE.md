@@ -10,12 +10,33 @@
 
 - Phase 0 execution is active
 - The controlling runtime/package plan is now [Hi-Res Runtime Primary Plan](/home/auro/code/parallel-n64/docs/plans/hires_runtime_primary_plan.md)
+- Implementation is now active against that plan, not just staged for it
 - The immediate execution order is now:
   - validation trust and authority cleanup
   - first provider/loader preservation slice for `PHRB`
   - palette parity, `LoadBlock`, and `hts2phrb` skeleton work in parallel
   - identity classification before default-path promotion
-- Planning docs are in place and now back the implementation start
+- The first concrete plan slices are already in:
+  - semantic hi-res evidence now participates in pass/fail on the active title-screen and file-select fixtures
+  - the provider now preserves structured `PHRB` identity at load time instead of discarding it
+  - direct provider/package coverage exists for that seam
+  - native sampled `PHRB` records now have a dedicated structured provider index instead of depending on reverse scans across the whole entry set
+  - CI low32 compatibility families are now explicit compat-only pools and no longer silently treat native sampled `PHRB` records as fallback candidates
+  - the exact sampled-object seam can now prefer structured provider lookup
+  - the current exact-seam widening now includes the narrow single-texture triangle case, and the active file-select plus `kmr_03 ENTRY_5` authorities stayed runtime-neutral under that extension
+  - an initial `hts2phrb` front door exists with smoke coverage
+  - the first CI palette-parity pass has bounded the remaining mismatch instead of leaving it open-ended
+  - the first deterministic non-menu Paper Mario authority fixture is now active at `kmr_03 ENTRY_5`
+  - that fixture is savestate-backed, semantically gated in both `off` and `on`, and keeps the earlier live `960`-frame timeout hash only as lineage evidence
+  - the bounded `LoadBlock` investigation now has two explicit offline classification artifacts:
+    - file select `64x1 fs514` -> `no-simple-loadblock-retry`
+    - title `2048x1 fs515` -> `no-simple-loadblock-retry`
+- Intentionally deferred work is tracked in the controlling plan's `Current Implementation State`, `Deferred Work Register`, and `Immediate Next Step` sections so skipped work does not disappear between slices
+- The current next execution slice is:
+  - apply the current Phase B2 outcomes to the runtime contract
+  - keep simple `LoadBlock` retry and palette-formula chasing out of the default path
+  - then continue targeted structured lookup widening beyond the current exact seam and runtime-source narrowing
+- Planning docs are in place and now back the active implementation sequence
 - The first tracked fixture/scenario seed is the Paper Mario title screen scaffold
 - The tracked title-screen save/load loop is currently stabilized by a frontend-side mitigation: the adapter disables RetroArch savestate thumbnails on the Vulkan HW-frame path
 - The repo-default title-screen scenario now produces a savestate, reloads it, and captures a screenshot with savestate thumbnails disabled and explicit waits after `SAVE_STATE` and `LOAD_STATE_SLOT 0`
@@ -713,11 +734,13 @@
 - First strict Phase 1 fixtures:
   - title screen
   - file select
+  - `kmr_03 ENTRY_5`
 
 ## Paper Mario Fixture Ladder Status
 
 - active: title screen
 - active: file select main menu
+- active: `kmr_03 ENTRY_5`
 - planned: `hos_05 ENTRY_3`
 - planned: `osr_00 ENTRY_3`
 - planned: pause stats/items

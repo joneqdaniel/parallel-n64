@@ -21,11 +21,16 @@ Within the existing phase ladder, the active near-term order is:
 2. first provider/loader preservation slice for `PHRB`
 3. palette parity, `LoadBlock`, and `hts2phrb` skeleton work in parallel
 4. identity classification gate
-5. targeted structured-runtime widening
+5. targeted structured-runtime widening, now starting from a provider that separates native sampled records from compat low32 families
 6. default-path promotion only after the Paper Mario breadth gate
 
 This does not replace the Phase 0 / Phase 1 / Phase 2 backbone. It defines the
 current execution order inside the hi-res replacement phase.
+
+Completed enabling slices and any intentionally deferred work must stay recorded
+in [Hi-Res Runtime Primary Plan](/home/auro/code/parallel-n64/docs/plans/hires_runtime_primary_plan.md),
+especially its `Current Implementation State`, `Deferred Work Register`, and
+`Immediate Next Step` sections.
 
 ## Why This Order
 
@@ -41,9 +46,9 @@ current execution order inside the hi-res replacement phase.
 
 1. active: title screen
 2. active: file select main menu
-3. planned: `hos_05 ENTRY_3`
-4. planned: `osr_00 ENTRY_3`
-5. planned: pause stats/items
+3. active: `kmr_03 ENTRY_5`
+4. planned: `hos_05 ENTRY_3`
+5. planned: `osr_00 ENTRY_3`
 
 ## Global Rules
 

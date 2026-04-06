@@ -19,6 +19,7 @@
 | Required gate | `./run-tests.sh --profile emu-required` |
 | Runtime gate | `./run-tests.sh --profile emu-runtime-conformance` |
 | Dump gate | `./run-dump-tests.sh --provision-validator` |
+| Rebuild live libretro core for ParaLLEl scenarios | `make -j4 -B HAVE_PARALLEL=1 parallel_n64_libretro.so` |
 
 ## Active Scope
 - Current plan sequence: Phase 0 tooling, Phase 1 hi-res replacement, Phase 2 scaling

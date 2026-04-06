@@ -526,6 +526,15 @@ to redesign the provider lookup to use structured sampled-object keys.
 - Preserve `checksum64 + formatsize` as a compatibility fallback for records that
   lack structured fields
 
+### Delivery rule: measurable slices, not big-bang rewrite
+If the provider redesign proceeds, it must land in incremental slices where each
+slice preserves or improves active fixture results. No slice should break existing
+hit rates or require the next slice to become testable. Good early slices:
+- Preserve structured PHRB identity at load time instead of discarding it
+- Separate native records from compatibility aliases in provider internals
+- Add provider/package tests before widening runtime lookup coverage
+- Widen primary structured lookup only after the prior slices are stable and tested
+
 ### If structured keys are not needed:
 - Document why the CRC-based path is sufficient
 - Keep the structured fields in PHRB records for future use

@@ -190,6 +190,11 @@ This slice is the minimum runtime-contract change required before converter work
   - structured records with known fields
   - ambiguity diagnostics
   - no unclassified compatibility behavior baked into default output
+- The converter has explicit smoke coverage:
+  - Paper Mario pack converts end-to-end and reproduces current expected authority behavior
+  - at least one non-Paper-Mario pack converts in zero-config mode without requiring new core runtime rules
+- The converter has explicit round-trip coverage:
+  - legacy entry to `PHRB` record to load path preserves expected key fields and classification-backed behavior
 
 ## Phase B: Scoped Compatibility Mode
 
@@ -365,6 +370,9 @@ No new behavior should be promoted to the default runtime path unless all of the
    - provider lookup behavior
    - selector-bearing native package records
    - compatibility alias fencing
+   - converter smoke behavior for zero-config `hts2phrb`
+   - converter round-trip preservation of emitted identity fields
+   - auto-conversion from `.hts` input to cached `.phrb` output once default promotion work begins
 2. Reuse ideas from the failed branch's replacement-provider tests, but not its runtime mode matrix.
 3. Add focused tool tests for package emission and record identity preservation.
 
@@ -395,9 +403,10 @@ The project should not declare the native format/runtime seam ready until all of
 4. One non-menu Paper Mario authority fixture is active.
 5. Direct provider/package tests exist.
 6. At least one second-game probe exercises the same contract without adding new core runtime key rules.
-7. The legacy-to-`PHRB` conversion path is available through one generic entrypoint.
+7. The legacy-to-`PHRB` conversion path is available through one generic entrypoint, with smoke and round-trip coverage.
 8. The Phase B2 identity-classification gate has been completed for palette parity and `LoadBlock` reinterpretation.
 9. Active authority metadata is internally consistent, and semantic hi-res evidence participates in pass/fail gating.
+10. If default-path auto-conversion is enabled, it is covered by direct tests and does not change native package semantics.
 
 ## Immediate Next Step
 

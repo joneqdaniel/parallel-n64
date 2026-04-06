@@ -739,6 +739,8 @@ The project should not declare the runtime ready until all of:
 8. Compatibility behavior (if any) is explicitly fenced behind a mode flag
 9. At least one unresolved or rejected case is documented as negative data
 10. The Step 7 structured-key decision is recorded with supporting evidence
+11. If auto-conversion is enabled, it is covered by direct tests and does not
+    change native package semantics
 
 ---
 

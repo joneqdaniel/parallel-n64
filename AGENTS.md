@@ -4,6 +4,7 @@
 - [README.md](/home/auro/code/parallel-n64/README.md)
 - [Project State](/home/auro/code/parallel-n64/docs/PROJECT_STATE.md)
 - [Phase Overview](/home/auro/code/parallel-n64/docs/plans/PHASE_OVERVIEW.md)
+- [Hi-Res Runtime Primary Plan](/home/auro/code/parallel-n64/docs/plans/hires_runtime_primary_plan.md)
 - [Workspace Paths](/home/auro/code/parallel-n64/docs/WORKSPACE_PATHS.md)
 - [Project Notebook](/home/auro/code/parallel-n64/PROJECT_NOTES.md)
 
@@ -21,6 +22,12 @@
 
 ## Active Scope
 - Current plan sequence: Phase 0 tooling, Phase 1 hi-res replacement, Phase 2 scaling
+- Current controlling plan for the runtime/package shift: [Hi-Res Runtime Primary Plan](/home/auro/code/parallel-n64/docs/plans/hires_runtime_primary_plan.md)
+- Immediate execution order:
+  - validation trust and authority cleanup
+  - first provider/loader preservation slice for `PHRB`
+  - palette parity, `LoadBlock`, and `hts2phrb` skeleton work in parallel
+  - identity classification before default-path promotion
 - Validation scope is Paper Mario only until the first major milestone is stable
 - `feature off` must stay baseline-safe
 - Evidence bundles are required for fixture runs

@@ -4,6 +4,7 @@
 
 - [Project State](/home/auro/code/parallel-n64/docs/PROJECT_STATE.md)
 - [Phase Overview](/home/auro/code/parallel-n64/docs/plans/PHASE_OVERVIEW.md)
+- [Hi-Res Runtime Primary Plan](/home/auro/code/parallel-n64/docs/plans/hires_runtime_primary_plan.md)
 - [Workspace Paths](/home/auro/code/parallel-n64/docs/WORKSPACE_PATHS.md)
 - [Project Notebook](/home/auro/code/parallel-n64/PROJECT_NOTES.md)
 

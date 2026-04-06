@@ -274,4 +274,4 @@ Records sorted by key hash for binary search at load time.
 | File | Content |
 |------|---------|
 | `/tmp/hires-conversion-analysis/palette-crc-transform-analysis.md` | Palette CRC GLideN64 vs ParaLLEl comparison |
-| `/home/auro/.claude/plans/eager-sprouting-summit.md` | Original plan (observation-first approach) |
+| `/home/auro/code/parallel-n64/docs/plans/hires_runtime_primary_plan.md` | Current controlling runtime/package plan |

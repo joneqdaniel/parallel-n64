@@ -24,11 +24,22 @@ Current validation scope is Paper Mario only.
 The first strict Phase 1 fixtures are title screen and file select.
 The first tracked Phase 0 fixture and scenario are the Paper Mario title screen scaffold.
 
+The current controlling execution plan for the hi-res runtime/package shift is
+[Hi-Res Runtime Primary Plan](/home/auro/code/parallel-n64/docs/plans/hires_runtime_primary_plan.md).
+The immediate sequence is:
+
+1. validation trust and authority cleanup
+2. first `PHRB` provider/loader preservation slice
+3. palette parity, `LoadBlock`, and `hts2phrb` skeleton work in parallel
+4. classification gate
+5. targeted runtime widening and only then default-path promotion
+
 ## Start Here
 
 - [AGENTS.md](/home/auro/code/parallel-n64/AGENTS.md)
 - [Project State](/home/auro/code/parallel-n64/docs/PROJECT_STATE.md)
 - [Phase Overview](/home/auro/code/parallel-n64/docs/plans/PHASE_OVERVIEW.md)
+- [Hi-Res Runtime Primary Plan](/home/auro/code/parallel-n64/docs/plans/hires_runtime_primary_plan.md)
 - [Workspace Paths](/home/auro/code/parallel-n64/docs/WORKSPACE_PATHS.md)
 - [Project Notebook](/home/auro/code/parallel-n64/PROJECT_NOTES.md)
 - [Docs Index](/home/auro/code/parallel-n64/docs/README.md)

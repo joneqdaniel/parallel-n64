@@ -9,6 +9,12 @@
 ## Current Status
 
 - Phase 0 execution is active
+- The controlling runtime/package plan is now [Hi-Res Runtime Primary Plan](/home/auro/code/parallel-n64/docs/plans/hires_runtime_primary_plan.md)
+- The immediate execution order is now:
+  - validation trust and authority cleanup
+  - first provider/loader preservation slice for `PHRB`
+  - palette parity, `LoadBlock`, and `hts2phrb` skeleton work in parallel
+  - identity classification before default-path promotion
 - Planning docs are in place and now back the implementation start
 - The first tracked fixture/scenario seed is the Paper Mario title screen scaffold
 - The tracked title-screen save/load loop is currently stabilized by a frontend-side mitigation: the adapter disables RetroArch savestate thumbnails on the Vulkan HW-frame path

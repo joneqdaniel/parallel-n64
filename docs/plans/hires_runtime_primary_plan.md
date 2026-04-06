@@ -1,4 +1,4 @@
-# Codex Runtime Redirect Plan
+# Hi-Res Runtime Primary Plan
 
 ## Why This Exists
 
@@ -24,6 +24,23 @@
   - validation and confidence docs still define supporting evidence expectations
   - import-model docs still describe useful internal scaffolding
 - The purpose of this document is to keep all of that work pointed at one outcome instead of letting adjacent plans re-fragment the sequence.
+
+## Repo Integration Requirements
+
+- The repo entrypoints must treat this document as the primary plan:
+  - [`README.md`](/home/auro/code/parallel-n64/README.md)
+  - [`AGENTS.md`](/home/auro/code/parallel-n64/AGENTS.md)
+  - [`docs/README.md`](/home/auro/code/parallel-n64/docs/README.md)
+  - [`docs/plans/README.md`](/home/auro/code/parallel-n64/docs/plans/README.md)
+  - [`docs/plans/PHASE_OVERVIEW.md`](/home/auro/code/parallel-n64/docs/plans/PHASE_OVERVIEW.md)
+  - [`docs/PROJECT_STATE.md`](/home/auro/code/parallel-n64/docs/PROJECT_STATE.md)
+- Historical, research, or supporting docs may remain, but they should not present themselves as the active direction unless they explicitly supersede this document.
+- The repo should not retain duplicate “active direction” plan docs that compete with this one for sequencing authority.
+- The user-facing story should remain coherent across the repo:
+  - runtime target: `PHRB`
+  - legacy input path: `.hts` / `.htc`
+  - public conversion front door: `hts2phrb`
+  - auto-conversion convenience only after the promotion gate
 
 ## Current Assessment
 

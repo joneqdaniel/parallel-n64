@@ -154,6 +154,32 @@ The project should not spend the next cycle on:
   - or dead ends that should not shape the architecture
 - If they are retained, the generic converter can incorporate them automatically without introducing game-specific policy as the normal path.
 
+## Phase B2: Identity Classification Gate
+
+### Goal
+
+- Force an explicit architectural decision after the two highest-value compatibility investigations complete.
+
+### Required Decision
+
+After CI palette parity and `LoadBlock` sampled-shape work are validated on the active Paper Mario fixtures, classify each result as one of:
+
+1. Native identity fact
+2. Bounded compatibility helper
+3. Dead end
+
+### Decision Rules
+
+- Classify it as a native identity fact only if it reflects the canonical texture identity ParaLLEl should honor across games, not just a legacy pack lookup convention.
+- Classify it as a bounded compatibility helper if it materially improves legacy-pack behavior but should remain explicit secondary behavior.
+- Classify it as a dead end if it does not generalize cleanly, introduces false positives, or does not materially improve results.
+
+### Exit Criteria
+
+- Both investigations have a written classification outcome.
+- The converter and runtime plans reflect those classifications explicitly.
+- No compatibility seam is promoted into canonical runtime identity without passing this gate.
+
 ## Phase C: Validation Breadth
 
 ### Goal
@@ -169,13 +195,15 @@ The project should not spend the next cycle on:
    - one block-dominated case
    - one CI or TLUT-sensitive case
 4. Resolve authority-graph metadata drift where fixture hashes disagree across planning files and runtime env files.
-5. After the first deeper Paper Mario authority is stable, add one second-game probe with a materially different texture profile.
-6. Keep game-specific bridge or alias rules in import policy instead of allowing them to reshape the core runtime identity model.
+5. Validate the generic conversion path across the Paper Mario title, file-select, and deeper non-menu fixture set before widening scope.
+6. After the first deeper Paper Mario authority is stable, add one second-game probe with a materially different texture profile.
+7. Keep game-specific bridge or alias rules in import policy instead of allowing them to reshape the core runtime identity model.
 
 ### Exit Criteria
 
 - At least one deeper non-menu state is part of the authority set.
 - Architectural changes are evaluated against runtime classes, not only screenshot equality.
+- The generic conversion path works across both menu and non-menu Paper Mario authority scenes before cross-game claims are made.
 - The native runtime contract has at least one non-Paper-Mario validation target before being treated as generally shaped correctly.
 - The generic conversion entrypoint has been exercised on at least one non-Paper-Mario pack without requiring new core runtime key rules.
 
@@ -223,9 +251,11 @@ The project should not declare the native format/runtime seam ready until all of
 5. Direct provider/package tests exist.
 6. At least one second-game probe exercises the same contract without adding new core runtime key rules.
 7. The legacy-to-`PHRB` conversion path is available through one generic entrypoint.
+8. The Phase B2 identity-classification gate has been completed for palette parity and `LoadBlock` reinterpretation.
 
 ## Immediate Next Step
 
 - Start with Phase A and implement a native-first provider record path before adding more compatibility-oriented package promotion work.
 - In parallel, run the two Phase B1 investigations to decide what compatibility behavior is worth preserving as explicit secondary support for legacy packs.
+- Record the classification results in Phase B2 before promoting either seam into the converter or runtime contract.
 - After the provider contract is clear enough, add Phase A1 as the user-facing wrapper so the import experience becomes one command instead of a research pipeline.

@@ -192,38 +192,75 @@ a compatibility hack — they're accuracy improvements.
 **Goal:** A single tool that converts any `.hts`/`.htc` to `.phrb` with no per-game
 configuration.
 
-**What it does:**
-1. Parse all entries from the legacy pack
-2. For each entry, emit a PHRB record with:
-   - `sampled_low32` = the legacy texture CRC (Rice CRC)
-   - Palette CRC computed with corrected GlideN64-compatible algorithm
-   - `formatsize` preserved from legacy entry
-   - RGBA pixel data extracted and stored as raw blob
-3. For entries that look like LoadBlock-shaped uploads (detectable from dimensions
+### Design Principle: Structured Records, Not Legacy Repackaging
+
+The converter must NOT simply wrap Rice CRC keys in PHRB packaging — that would
+make PHRB a glorified `.hts` repackager with no architectural value. Instead, each
+emitted PHRB record should carry **all identity fields the format supports**, even
+if the runtime initially only keys on `checksum64 + formatsize` for lookup:
+
+- **Populated from the legacy entry:** `sampled_low32` (= Rice texture CRC),
+  palette CRC (corrected to match GlideN64), `formatsize`, dimensions, RGBA data
+- **Populated as derivable defaults:** `fmt`, `siz` (extracted from `formatsize`)
+- **Left as zero/unknown for now:** `tile`, `tmem offset`, `line stride`, `tlut_type`
+
+This means:
+- Records are ready for structured sampled-object lookup when that ships later
+- No re-conversion needed when the runtime key model evolves
+- The converter is an orchestration layer over the existing PHRB format, not a
+  dumbed-down shortcut
+
+### What it does:
+1. Parse all entries from the legacy pack (reusing `hires_pack_common.py`)
+2. For each entry, emit a PHRB record with all available identity fields
+3. Apply corrected palette CRC (GlideN64-compatible) at conversion time
+4. For entries that look like LoadBlock-shaped uploads (detectable from dimensions
    and formatsize), also emit a reinterpreted-dimension variant
-4. For CI entries with multiple palette variants in the pack, emit all variants
+5. For CI entries with multiple palette variants in the pack, emit all variants
    as separate PHRB records (the runtime picks the matching one)
 
-**What it does NOT do:**
+### What it does NOT do:
 - No per-game policy files
 - No manual transport selection
 - No surface package modeling
 - No ordered-slot analysis
-- No ROM scanning (that's a future enhancement)
+- No ROM scanning (that's a future enhancement via `--enrich` flag)
 
-**Ambiguity handling:**
+### Enrichment path (future, not required for initial converter):
+
+The same `hts2phrb` front door should eventually support optional enrichment:
+
+```
+# Basic: generic conversion, works for any game
+hts2phrb pack.hts -o pack.phrb
+
+# Enriched: ROM-scan fills in tile/tmem/line/tlut_type fields
+hts2phrb pack.hts --rom game.z64 -o pack.phrb
+
+# Policy-assisted: for games with known ambiguities
+hts2phrb pack.hts --policy game-policy.json -o pack.phrb
+```
+
+The basic path must work with zero extra inputs. Enrichment and policy are opt-in
+for games that need them, accessed through the same front door.
+
+### Ambiguity handling:
 - If multiple legacy entries map to the same PHRB key, emit all of them and let
   the runtime pick the first match (or use replacement dimensions as tiebreaker)
 - Log warnings for ambiguous cases so users can investigate if needed
 - This handles 95%+ of real packs where entries are unambiguous
 
-**Action items:**
+### Action items:
 - [ ] Build `hts2phrb` as a single Python script reusing `hires_pack_common.py`
+      and existing PHRB emission code from `hires_pack_emit_binary_package.py`
+- [ ] Emit structured PHRB records with all available identity fields, not just
+      legacy checksum64
 - [ ] Test on Paper Mario pack — output should reproduce the current hit rates
 - [ ] Test on a second game's pack (OoT, MM, SM64)
 - [ ] Ensure the converter runs in under 60 seconds for typical pack sizes (~2GB)
 
-**Success criteria:** `hts2phrb pack.hts -o pack.phrb` works for any game's pack.
+**Success criteria:** `hts2phrb pack.hts -o pack.phrb` works for any game's pack,
+and the output records carry structured identity ready for future runtime upgrades.
 
 ---
 
@@ -376,25 +413,34 @@ The project should not declare the runtime ready until all of:
 
 ## Relationship to Codex's Plan
 
-This plan agrees with Codex on:
+### Where the plans now converge:
 - PHRB should be the runtime format
 - `.hts`/`.htc` are import inputs, not the product path
+- A single-command generic converter (`hts2phrb`) is the user-facing path
+- The converter should emit structured PHRB records, not flat legacy-key wrappers
 - Compatibility should be explicit and secondary
 - Validation must broaden beyond Paper Mario menu scenes
 - Direct tests should exist for provider/package behavior
+- CI palette parity and LoadBlock reinterpretation are explicit investigation items
+- The converter must work on at least two games without game-specific rules
 
-This plan differs from Codex on:
-- The path to PHRB is a **generic automatic converter**, not per-game tooling
-- The palette CRC and LoadBlock fixes are **correctness improvements**, not
-  "compatibility investigations" — they fix bugs in how ParaLLEl computes
-  texture identity, matching what the N64 hardware actually does
-- These fixes should be Step 1 (immediate, measurable), not Phase B1 (parallel
-  research alongside architectural work)
-- Structured sampled-object lookup is a future enhancement (ROM-scan enrichment),
-  not a prerequisite for the runtime contract
+### Where the plans still differ:
 
-The key constraint both plans must respect: **if it requires manual work per game,
-it won't scale.** The converter must be fully automatic.
+**Sequencing:** Codex wants Phase A (redesign provider lookup to structured
+sampled-object key) before Phase A1 (converter). We put the CRC fixes and
+converter first, then let the results decide if the key structure needs changing.
+
+**Framing:** Codex calls the CRC fixes "compatibility investigations." We call
+them correctness improvements — the packs were authored with GlideN64's algorithm,
+and ParaLLEl computing a different CRC for the same data is a bug.
+
+**Practical resolution:** The converter emits records with all PHRB identity fields
+regardless of which runtime key model is active. This means both orderings work:
+- If we fix CRCs first, the records are ready for structured lookup later
+- If Codex redesigns the provider first, the converter already emits what it needs
+
+The key constraint both plans share: **if it requires manual work per game, it
+won't scale.** The converter must be fully automatic.
 
 ---
 

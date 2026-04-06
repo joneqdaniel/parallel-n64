@@ -931,6 +931,9 @@ bool ReplacementProvider::load_phrb(const std::string &path)
 		std::string policy_key;
 		if (!read_c_string_from_blob(string_blob, string_blob_size, record.policy_key_offset, policy_key))
 			policy_key = "phrb-record";
+		std::string sampled_object_id;
+		if (!read_c_string_from_blob(string_blob, string_blob_size, record.sampled_object_id_offset, sampled_object_id))
+			sampled_object_id.clear();
 
 		uint32_t loaded_asset_count = 0;
 		uint32_t zero_selector_count = 0;
@@ -941,6 +944,8 @@ bool ReplacementProvider::load_phrb(const std::string &path)
 		auto add_sampled_entry = [&](uint32_t palette_crc, uint64_t selector_checksum64, uint32_t width, uint32_t height, uint32_t rgba_offset, uint32_t rgba_size) {
 			Entry entry = {};
 			entry.source_path = path + "#" + policy_key;
+			entry.phrb_policy_key = policy_key;
+			entry.phrb_sampled_object_id = sampled_object_id;
 			entry.checksum64 = (uint64_t(palette_crc) << 32u) | uint64_t(record.sampled_low32);
 			entry.data_offset = 0;
 			entry.data_size = rgba_size;

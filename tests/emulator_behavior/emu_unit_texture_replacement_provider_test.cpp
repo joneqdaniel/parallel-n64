@@ -101,7 +101,14 @@ int main()
 	const std::string dir = make_temp_dir();
 	const std::string path = dir + "/sample.phrb";
 
-	const std::string strings = std::string("policy\0", 7);
+	const std::string policy_key = "policy";
+	const std::string sampled_object_id = "sampled-fmt2-siz1-off288-stride296-wh296x6-fs258-low32940cea6e";
+	std::string strings;
+	strings.append(policy_key);
+	strings.push_back('\0');
+	const uint32_t sampled_object_id_offset = uint32_t(strings.size());
+	strings.append(sampled_object_id);
+	strings.push_back('\0');
 	const std::array<uint8_t, 16> rgba = {
 		0x10, 0x20, 0x30, 0xff,
 		0x40, 0x50, 0x60, 0xff,
@@ -124,6 +131,7 @@ int main()
 
 	PHRBRecordV2 record = {};
 	record.policy_key_offset = 0;
+	record.sampled_object_id_offset = sampled_object_id_offset;
 	record.fmt = 2;
 	record.siz = 1;
 	record.tex_offset = 0x120;
@@ -172,6 +180,8 @@ int main()
 	check(entry.sampled_low32 == record.sampled_low32, "sampled low32 should be preserved");
 	check(entry.sampled_entry_pcrc == record.sampled_entry_pcrc, "sampled entry pcrc should be preserved");
 	check(entry.sampled_sparse_pcrc == record.sampled_sparse_pcrc, "sampled sparse pcrc should be preserved");
+	check(entry.phrb_policy_key == policy_key, "PHRB policy_key should be preserved");
+	check(entry.phrb_sampled_object_id == sampled_object_id, "PHRB sampled_object_id should be preserved");
 	check(entry.selector_checksum64 == asset.selector_checksum64, "selector should be preserved");
 	check(entry.formatsize == record.formatsize, "formatsize should remain preserved");
 

@@ -88,6 +88,8 @@ private:
 	struct Entry
 	{
 		std::string source_path;
+		std::string phrb_policy_key;
+		std::string phrb_sampled_object_id;
 		uint64_t checksum64 = 0;
 		uint64_t data_offset = 0;
 		uint32_t data_size = 0;

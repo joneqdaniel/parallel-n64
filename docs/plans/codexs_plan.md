@@ -197,18 +197,24 @@ After CI palette parity and `LoadBlock` sampled-shape work are validated on the 
    - one texrect-dominated case
    - one block-dominated case
    - one CI or TLUT-sensitive case
-4. Resolve authority-graph metadata drift where fixture hashes disagree across planning files and runtime env files.
-5. Validate the generic conversion path across the Paper Mario title, file-select, and deeper non-menu fixture set before widening scope.
-6. After the first deeper Paper Mario authority is stable, add one second-game probe with a materially different texture profile.
-7. Keep game-specific bridge or alias rules in import policy instead of allowing them to reshape the core runtime identity model.
+4. Make semantic hi-res evidence pass or fail, not just explanatory output. At minimum, require assertions over expected exact, compat, conflict, unresolved, or class-presence signals from `hires-evidence.json`.
+5. Resolve authority-graph and fixture metadata drift where expected capture hashes or lineage data disagree across planning files, fixtures, and runtime env files.
+6. Validate the generic conversion path across the Paper Mario title, file-select, and deeper non-menu fixture set before widening scope.
+7. Record at least one intentionally rejected fallback or unresolved family as negative data before declaring the architecture ready.
+8. After the first deeper Paper Mario authority is stable, add one hi-res-specific second-game probe with a materially different runtime class profile, not just another texrect or UI-heavy scene.
+9. Keep game-specific bridge or alias rules in import policy instead of allowing them to reshape the core runtime identity model.
 
 ### Exit Criteria
 
 - At least one deeper non-menu state is part of the authority set.
 - Architectural changes are evaluated against runtime classes, not only screenshot equality.
+- Authority metadata and expected captures are internally consistent across the active Paper Mario authority set.
 - The generic conversion path works across both menu and non-menu Paper Mario authority scenes before cross-game claims are made.
-- The native runtime contract has at least one non-Paper-Mario validation target before being treated as generally shaped correctly.
+- Semantic hi-res evidence is part of the gate, not just a sidecar artifact.
+- The native runtime contract has at least one non-Paper-Mario hi-res validation target before being treated as generally shaped correctly.
+- The second-game validation exercises a runtime class not already dominant in the active Paper Mario authority scenes.
 - The generic conversion entrypoint has been exercised on at least one non-Paper-Mario pack without requiring new core runtime key rules.
+- At least one unresolved or intentionally rejected fallback case remains explicitly documented as negative data.
 
 ## Phase D: Restore Direct Tests
 
@@ -255,6 +261,7 @@ The project should not declare the native format/runtime seam ready until all of
 6. At least one second-game probe exercises the same contract without adding new core runtime key rules.
 7. The legacy-to-`PHRB` conversion path is available through one generic entrypoint.
 8. The Phase B2 identity-classification gate has been completed for palette parity and `LoadBlock` reinterpretation.
+9. Active authority metadata is internally consistent, and semantic hi-res evidence participates in pass/fail gating.
 
 ## Immediate Next Step
 

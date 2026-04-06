@@ -90,19 +90,22 @@ The project should not spend the next cycle on:
 2. Implement that entrypoint as an orchestration layer over existing import/build code where possible instead of replacing the internal model with a flat legacy-key emitter.
 3. Support `.hts` and `.htc` as generic inputs and `.phrb` as the output artifact.
 4. Ensure conversion succeeds without per-game manual intervention for the common case.
-5. Emit warnings and diagnostics for ambiguous cases instead of silently broadening runtime behavior.
-6. Keep policy-backed or enriched import stages available behind the same front door when the generic case is insufficient.
+5. Emit structured `PHRB` records with all identity fields that are available at conversion time, and leave currently unknowable fields explicit rather than inventing them.
+6. Emit warnings and diagnostics for ambiguous cases instead of silently broadening runtime behavior.
+7. Keep policy-backed or enriched import stages available behind the same front door when the generic case is insufficient.
+8. Support future optional enrichment inputs behind the same entrypoint, for example ROM-backed or policy-assisted augmentation, without changing the basic zero-config conversion path.
 
 ### Non-Goals
 
 - Do not require users to understand the current multi-tool pipeline.
 - Do not collapse `PHRB` into a container for mostly legacy-shaped runtime keys just to make conversion simpler.
 - Do not turn auto-conversion convenience into a substitute for fixing the provider/runtime identity contract.
+- Do not pretend currently unknown sampled-object fields are known just to make the first converter output look complete.
 
 ### Exit Criteria
 
 - A user can run one command to convert a legacy pack into a runtime package.
-- The generated package can carry structured native identity and explicit compatibility records.
+- The generated package can carry structured native identity and explicit compatibility records, including partially populated structured records that are ready for later enrichment.
 - The conversion entrypoint is generic even if the internals still use multiple stages.
 
 ## Phase B: Scoped Compatibility Mode

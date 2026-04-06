@@ -172,6 +172,23 @@ Phase I: Parallel Investigations (1 + 2) ────────┤
 
 **Estimated total: 13-20 days** (parallelization saves 3-8 days vs serial execution)
 
+### Parallelism Rules
+
+**Can run in parallel:**
+- Phase 0 (validation infra) and Phase I (investigations)
+- Step 1 (palette CRC) and Step 2 (LoadBlock)
+- Converter skeleton (Step 3a) starts late Phase I, before classification gate
+- Tests are written alongside their parent steps
+- Second-game fixture preparation can start once Paper Mario authority is stable
+
+**Must remain serial:**
+- Validation infrastructure (Phase 0) before interpreting hit-rate movement
+- Both investigations complete before classification gate (Step 2.5)
+- Classification before converter wires in classified behavior (Step 3b)
+- Paper Mario full gate (Step 4) before default-path promotion (Step 5)
+- Second-game gate (Step 6) before claiming generality
+- All gates before structured-key decision (Step 7)
+
 ---
 
 ## Phase 0: Validation Infrastructure
@@ -512,6 +529,15 @@ for games that need them, accessed through the same front door.
 ### Sub-steps:
 
 **3a. Skeleton** (~1 day, starts late Phase I)
+
+The earliest shippable form of the converter is a skeleton that can run end-to-end
+without classified behavior. It must produce:
+- One command, one input, one output
+- Structured PHRB records with all known identity fields
+- Ambiguity diagnostics for duplicate or conflicting entries
+- No unclassified compatibility behavior baked into default output
+
+Action items:
 - [ ] `.hts` parsing via `hires_pack_common.py`
 - [ ] PHRB record emission with all identity fields
 - [ ] Ambiguity logging

@@ -97,6 +97,7 @@ If work starts now, the priority stack is:
 
 - Phase A should land in measurable slices, not as a single opaque rewrite.
 - Each slice should preserve or improve active fixture results, add or strengthen direct tests, and keep the next step obvious.
+- Tests should be written alongside each slice and investigation, not deferred to the end of the phase.
 - Good early slices include:
   - preserve structured `PHRB` identity at load time instead of discarding it
   - separate native records from compatibility aliases in provider internals
@@ -118,6 +119,14 @@ Before any broad structured-key rollout, land the smallest useful seam fix:
 1. Preserve structured `PHRB` identity at load time instead of discarding it.
 2. Separate native records from compatibility aliases internally.
 3. Add direct provider/package tests for that seam.
+
+Concretely, the first seam slice should be closer to a targeted loader/provider preservation fix than a lookup redesign:
+
+- keep the current lookup behavior stable
+- extend in-memory provider records so structured `PHRB` identity is preserved after load
+- avoid changing primary indices until the preserved fields are test-covered and classification work has progressed
+
+This is intentionally a low-risk enabling slice. Its job is to stop the runtime from throwing away native identity before broader lookup changes are considered.
 
 This slice is the minimum runtime-contract change required before converter work or compatibility investigations are allowed to shape default behavior.
 
@@ -144,6 +153,7 @@ This slice is the minimum runtime-contract change required before converter work
 - Compatibility aliases are explicit secondary records, not the baseline key space.
 - The runtime contract no longer depends on converter-side convenience decisions to express its canonical identity model.
 - The runtime contract reached that state through measurable slices rather than an untestable big-bang rewrite.
+- The first seam slice preserved structured `PHRB` identity in memory before broader lookup redesign was attempted.
 
 ## Phase A1: Generic Conversion Front Door
 

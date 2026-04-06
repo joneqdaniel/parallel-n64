@@ -12,6 +12,7 @@
 - Keep the current repo direction.
 - Do not revive the failed branch's runtime lookup-mode matrix.
 - Redirect the next milestone toward a native-first `PHRB` runtime contract.
+- Treat legacy-pack runtime parity work as bounded compatibility research, not as the primary architecture.
 
 ## Current Assessment
 
@@ -29,6 +30,7 @@
 - `PHRB` stores richer identity than the loader actually uses.
 - The sampled-object exact path is still narrow and should be treated as scoped, not complete.
 - Validation remains too concentrated on Paper Mario title/file-select to justify final architectural commitment or cross-game confidence.
+- There are still likely general legacy-pack miss classes that should be investigated directly at runtime, especially CI palette parity and `LoadBlock` sampled-shape mismatch.
 
 ## Core Decision
 
@@ -37,6 +39,7 @@ The project should continue on the current imported-format and sampled-object pa
 1. Make the native package contract authoritative at runtime.
 2. Reduce compatibility logic to explicit fallback mode.
 3. Broaden validation enough to justify the contract first within Paper Mario and then across at least one second game.
+4. Investigate the highest-value general legacy-pack miss classes without letting them redefine the core runtime key model.
 
 The project should not spend the next cycle on:
 
@@ -85,11 +88,41 @@ The project should not spend the next cycle on:
 2. Keep proxy bindings and transport bridges as transitional import artifacts, not architectural defaults.
 3. Document the sampled-object exact path as intentionally scoped while runtime coverage is incomplete.
 4. Do not widen fallback behavior until the native key path is stable and tested.
+5. Investigate two bounded runtime compatibility seams as explicit research tasks:
+   - CI palette parity with GlideN64 or Rice-era lookup expectations
+   - `LoadBlock` upload-shape versus sampled-shape reinterpretation on miss
+6. Allow those compatibility investigations to ship only as explicit compat behavior unless they can be expressed cleanly without changing the native runtime identity model.
 
 ### Exit Criteria
 
 - Compatibility behavior can be disabled cleanly without changing native package semantics.
 - Native package success on active fixtures does not depend on implicit compatibility broadening.
+- Palette-parity or `LoadBlock` compatibility work, if retained, is documented as secondary runtime behavior rather than the canonical identity path.
+
+## Phase B1: Legacy Compatibility Investigations
+
+### Goal
+
+- Evaluate the strongest general-case ideas from legacy-pack parity work without replacing the native-first architecture.
+
+### Investigation 1: CI Palette Parity
+
+- Compare ParaLLEl CI palette CRC inputs against GlideN64-style lookup expectations for the same runtime event.
+- Determine whether current `tlut_shadow` population or bank-selection semantics diverge in a way that explains active legacy-pack misses.
+- If parity fixes improve legacy `.hts` behavior, keep that as explicit compatibility behavior or import guidance unless it cleanly matches the structured native identity model.
+
+### Investigation 2: `LoadBlock` Sampled-Shape Retry
+
+- Measure the real miss class caused by upload-shape versus sampled-shape disagreement.
+- Prototype a miss-only retry path for `LoadBlock`-backed cases.
+- Keep any such retry path fenced as compatibility behavior unless the same concept can be represented directly in the native package/runtime contract.
+
+### Investigation Exit Criteria
+
+- The project can say clearly whether palette parity and `LoadBlock` reinterpretation are:
+  - required native identity facts
+  - bounded compatibility helpers
+  - or dead ends that should not shape the architecture
 
 ## Phase C: Validation Breadth
 
@@ -162,3 +195,4 @@ The project should not declare the native format/runtime seam ready until all of
 ## Immediate Next Step
 
 - Start with Phase A and implement a native-first provider record path before adding more compatibility-oriented package promotion work.
+- In parallel, run the two Phase B1 investigations to decide what compatibility behavior is worth preserving as explicit secondary support for legacy packs.

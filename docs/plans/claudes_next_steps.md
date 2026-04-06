@@ -24,18 +24,36 @@ the general case work first.
 **Root cause of the gap:**
 The texture CRC is fine. The problems are (1) palette CRC mismatch for CI textures,
 and (2) upload-shape vs sampled-shape mismatch for LoadBlock textures. These are
-general N64 problems, not Paper Mario problems, and should be solved at runtime.
+general N64 problems, not Paper Mario problems, and should be solved generically.
 
 ---
 
-## Strategy: Fix the Runtime, Not the Pack
+## Strategy: PHRB as Runtime Format, Generic Automatic Conversion
 
-GlideN64 already makes these packs work. The packs were authored against Rice/Glide64
-CRC computation. ParaLLEl should compute the same CRCs from the same data, then
-handle the remaining edge cases with a general runtime fallback.
+PHRB is the right runtime format — it's cleaner, faster, and carries richer identity
+than legacy `.hts`/`.htc`. But the path to PHRB must be a **single generic converter**
+that works for any game, not a 39-tool pipeline requiring manual policy per game.
 
-**Do NOT** build more per-game conversion tooling.
-**DO** fix the runtime lookup to handle the general cases automatically.
+The converter needs to solve two identity problems during conversion:
+
+1. **Palette CRC**: Compute the palette CRC exactly as GlideN64 does, so CI texture
+   entries in the legacy pack map to the correct runtime keys.
+2. **LoadBlock dimensions**: Detect entries that were keyed by their sampled tile
+   shape (how Rice/Glide64 saw them) vs their upload shape (how ParaLLEl sees the
+   raw LoadBlock), and emit PHRB records with the correct identity for both views.
+
+If the converter handles these two cases, most legacy pack entries convert 1:1 with
+no ambiguity and no human intervention. The remaining edge cases (same Rice CRC used
+with multiple SetTile configs) can be handled as automatic best-effort or documented
+misses.
+
+**The tool:** `hts2phrb` — one command, one input, one output.
+
+```
+hts2phrb "PAPER MARIO_HIRESTEXTURES.hts" --output paper-mario.phrb
+```
+
+No policy files. No per-game tuning. No surface packages. Just conversion.
 
 ---
 
@@ -43,13 +61,11 @@ handle the remaining edge cases with a general runtime fallback.
 
 **Problem:** ParaLLEl's CI palette CRC doesn't match what pack creators used.
 
-**Root cause analysis:** GlideN64 computes palette CRC like this:
+**Root cause analysis:** GlideN64 computes the hi-res palette CRC like this:
 
 ```
 // On LoadTLUT:
 gDP.TexFilterPalette = raw RDRAM copy (2 bytes per entry, contiguous)
-gDP.paletteCRC16[pal] = CRC_CalculatePalette(0xFFFFFFFF, &TMEM[256 + pal*16], 16)
-gDP.paletteCRC256 = CRC_Calculate(0xFFFFFFFF, paletteCRC16, sizeof(u64)*16)
 
 // On hi-res lookup (CI4):
 palette_data = gDP.TexFilterPalette + (tile->palette << 4)   // 16 entries
@@ -63,15 +79,12 @@ rice_crc = RiceCRC32(palette_data, cimax+1, 1, 2, 512)
 checksum64 = (palette_rice_crc << 32) | texture_rice_crc
 ```
 
-Note: `CRC_CalculatePalette` is used for internal caching, NOT for hi-res lookup.
-The hi-res lookup uses `RiceCRC32` on `TexFilterPalette` (RDRAM bytes), NOT on TMEM.
-
 **What ParaLLEl does:** Uses `rice_crc32_wrapped` on `tlut_shadow` (also RDRAM bytes).
 The algorithm is the same. The question is whether `tlut_shadow` contains the same
 bytes as `TexFilterPalette` at lookup time.
 
 **Key differences to investigate:**
-1. `TexFilterPalette` is populated from raw RDRAM on LoadTLUT
+1. `TexFilterPalette` is populated from raw RDRAM on LoadTLUT via simple `memcpy`
 2. `tlut_shadow` is also populated from raw RDRAM, but the offset/range logic has
    been patched multiple times and may not match GlideN64's simpler `memcpy`
 3. For CI4, GlideN64 indexes by `palette << 4` (16 entries x 2 bytes = 32 bytes),
@@ -96,8 +109,8 @@ bytes as `TexFilterPalette` at lookup time.
 - ParaLLEl tlut_shadow: `parallel-rdp/rdp_renderer.cpp:4100-4150`
 - ParaLLEl texture CRC: `parallel-rdp/texture_keying.hpp:30-58`
 
-**Success criteria:** Paper Mario file-select CI textures match with legacy `.hts`
-pack, no per-game tooling or PHRB packages required.
+**Success criteria:** Paper Mario file-select CI palette CRC matches GlideN64's
+computation for the same RDRAM state.
 
 ---
 
@@ -113,63 +126,101 @@ from `SetTile`/`SetTileSize`, which may describe a completely different shape. P
 creators (using Rice/Glide64) saw the texture as its final sampled shape, not as the
 raw upload shape.
 
-**Proposed runtime fix:** When the primary RDRAM CRC lookup misses on a `LoadBlock`
-upload, compute the sampled dimensions from the tile descriptor and retry:
+**This needs to be solved in two places:**
+
+### 2a. In the runtime lookup (for direct `.hts` fallback during development)
+
+When the primary RDRAM CRC lookup misses on a `LoadBlock` upload, compute the
+sampled dimensions from the tile descriptor and retry:
 
 ```
 if (miss && upload_was_loadblock) {
-    // Get sampled dimensions from SetTile/SetTileSize state
     sampled_w = (tile.sh - tile.sl + 4) >> 2;
     sampled_h = (tile.th - tile.tl + 4) >> 2;
     sampled_fmt = tile.fmt;
     sampled_siz = tile.siz;
 
-    // Recompute Rice CRC with sampled dimensions and the same RDRAM data
     texture_crc = rice_crc32_wrapped(rdram, rdram_size, src_addr,
                                      sampled_w, sampled_h, sampled_siz,
                                      sampled_stride);
-
-    // Retry lookup with sampled-shape key
     retry_result = provider->lookup(checksum64, formatsize_from_sampled);
 }
 ```
 
-**Important:** This is a general N64 property, not game-specific. Any game that uses
-`LoadBlock` for CI4/CI8 textures will have this mismatch.
+### 2b. In the generic converter (`hts2phrb`)
+
+When emitting PHRB records from legacy pack entries, detect LoadBlock-shaped entries
+(where the legacy key dimensions don't match what a LoadBlock upload would produce)
+and emit records keyed to both the legacy shape AND the upload shape. This way the
+PHRB runtime lookup hits regardless of which view the renderer uses.
 
 **Action items:**
 - [ ] Track which uploads are `LoadBlock` vs `LoadTile` (already partially done)
-- [ ] On miss, compute sampled dimensions from tile descriptor state
-- [ ] Recompute Rice CRC with sampled dimensions and correct stride
-- [ ] Retry pack lookup with the reinterpreted key
+- [ ] Implement sampled-dimension retry in the runtime lookup path
+- [ ] Implement dual-key emission in the converter
 - [ ] Validate: the dominant 64x1 fs514 miss family should resolve
 - [ ] Verify no false positives on title screen (which is already 91% hits)
 
-**Success criteria:** Paper Mario file-select block-class misses resolve with legacy
-`.hts` pack, no PHRB package required.
+**Success criteria:** Paper Mario file-select block-class misses resolve.
 
 ---
 
-## Step 3: Make the Fixed Lookup the Default Path
+## Step 3: Build the Generic Converter
 
-**Problem:** The sampled-object lookup and various compatibility tiers are behind
-env vars (`PARALLEL_RDP_HIRES_SAMPLED_OBJECT_LOOKUP`, `PARALLEL_RDP_HIRES_CI_COMPAT`,
-etc.). Users can't benefit from fixes without knowing magic incantations.
+**Goal:** A single tool that converts any `.hts`/`.htc` to `.phrb` with no per-game
+configuration.
+
+**What it does:**
+1. Parse all entries from the legacy pack
+2. For each entry, emit a PHRB record with:
+   - `sampled_low32` = the legacy texture CRC (Rice CRC)
+   - Palette CRC computed with corrected GlideN64-compatible algorithm
+   - `formatsize` preserved from legacy entry
+   - RGBA pixel data extracted and stored as raw blob
+3. For entries that look like LoadBlock-shaped uploads (detectable from dimensions
+   and formatsize), also emit a reinterpreted-dimension variant
+4. For CI entries with multiple palette variants in the pack, emit all variants
+   as separate PHRB records (the runtime picks the matching one)
+
+**What it does NOT do:**
+- No per-game policy files
+- No manual transport selection
+- No surface package modeling
+- No ordered-slot analysis
+- No ROM scanning (that's a future enhancement)
+
+**Ambiguity handling:**
+- If multiple legacy entries map to the same PHRB key, emit all of them and let
+  the runtime pick the first match (or use replacement dimensions as tiebreaker)
+- Log warnings for ambiguous cases so users can investigate if needed
+- This handles 95%+ of real packs where entries are unambiguous
 
 **Action items:**
-- [ ] After Steps 1-2 are validated, make the improved lookup the default
-- [ ] The primary path should be: exact Rice CRC (with corrected palette) first,
-      then LoadBlock reinterpretation as automatic fallback
-- [ ] Remove or demote the debug-only env var gates
-- [ ] Legacy `.hts` packs should "just work" when `hirestex=enabled`
+- [ ] Build `hts2phrb` as a single Python script reusing `hires_pack_common.py`
+- [ ] Test on Paper Mario pack — output should reproduce the current hit rates
+- [ ] Test on a second game's pack (OoT, MM, SM64)
+- [ ] Ensure the converter runs in under 60 seconds for typical pack sizes (~2GB)
 
-**Success criteria:** A user drops a Paper Mario `.hts` pack in the system directory,
-enables hi-res textures, and gets correct replacement on title + file-select without
-any special configuration.
+**Success criteria:** `hts2phrb pack.hts -o pack.phrb` works for any game's pack.
 
 ---
 
-## Step 4: Validate on a Second Game
+## Step 4: Make PHRB the Default Runtime Path
+
+**After** the converter is proven on 2+ games:
+
+- [ ] Make `.phrb` the default runtime format
+- [ ] Add auto-conversion: if user provides `.hts`, convert to `.phrb` on first load
+      and cache the result (like GlideN64's `.htc` compilation)
+- [ ] Keep direct `.hts` loading as a fallback during the transition
+- [ ] Remove debug env var gates — the improved lookup should be the default
+- [ ] Document the user-facing workflow: drop pack in system dir, enable hi-res, play
+
+**Success criteria:** Zero-configuration hi-res for any game with a legacy pack.
+
+---
+
+## Step 5: Validate on a Second Game
 
 **Problem:** All current validation is Paper Mario only. Need proof of generality.
 
@@ -177,7 +228,7 @@ any special configuration.
 - [ ] Pick a second game with a well-known Rice-format hi-res pack
       (Zelda OoT or Mario 64 are good candidates — large community packs exist)
 - [ ] Build a minimal fixture (savestate + scenario) for one representative scene
-- [ ] Run with legacy `.hts` pack and the fixed lookup from Steps 1-2
+- [ ] Run with auto-converted PHRB and the fixed lookup
 - [ ] Compare hit rate against GlideN64 on the same scene
 - [ ] Document any new miss classes that don't appear in Paper Mario
 
@@ -186,44 +237,44 @@ zero game-specific tooling.
 
 ---
 
-## Step 5: Decide What to Do with the PHRB/Sampled-Object Path
+## Step 6: Decide What Else PHRB Needs
 
-After Steps 1-4, reassess. The PHRB path and sampled-object model may still be
-valuable for:
+After Steps 1-5, reassess what the sampled-object model adds beyond the generic
+converter. Possible enhancements:
 
-- **Performance**: Pre-resolved lookups avoid runtime CRC computation
-- **Correctness**: Cases where the Rice CRC path is fundamentally ambiguous
-  (same upload data used with different SetTile configs in the same frame)
-- **New packs**: Future pack creators could author directly against sampled-object
-  identity for perfect LLE alignment
+- **ROM-scan enrichment**: A future tool could parse a game's ROM display lists and
+  emit PHRB records with full sampled-object identity (tile state, TMEM layout).
+  This would resolve the remaining ambiguous cases where Rice CRC is insufficient.
+  But this is an enhancement, not a requirement.
 
-But it should be **optional optimization**, not the required path. The system must
-work with legacy `.hts` packs out of the box.
+- **Native pack authoring**: Future pack creators could author directly against
+  sampled-object identity for perfect LLE alignment. The PHRB format already
+  supports this — it just needs documentation and tooling.
 
-**Decision criteria for promoting PHRB:**
-- Are there real games where Steps 1-2 don't achieve acceptable hit rates?
-- Is the remaining miss class large enough to justify per-game PHRB conversion?
-- Can the conversion be automated enough to not require manual policy authoring?
+- **Performance**: PHRB's sorted numeric keys enable binary search at runtime,
+  avoiding the Rice CRC computation on every draw call. This matters for
+  performance-sensitive scenarios.
 
 ---
 
 ## What to Keep from Current Work
 
+- **PHRB binary format** — becomes the runtime standard
 - **Fixture/scenario framework** — essential for regression testing
-- **PHRB binary format** — well-designed, keep as optional fast path
 - **Evidence bundle infrastructure** — useful for debugging new games
 - **Rice CRC implementation** — already correct for textures
 - **Renderer integration** — clean descriptor-indexed replacement path
-- **Sampled-object identity model** — correct architectural insight, useful for
-  edge cases and future native packs
+- **`hires_pack_common.py`** — core parsing, reused by converter
+- **Sampled-object identity model** — future ROM-scan enrichment path
 
 ## What to Deprioritize
 
-- **39-tool Python conversion pipeline** — don't invest more here until runtime is fixed
+- **38 of the 39 Python tools** — replace with single `hts2phrb` converter
 - **Per-family transport policy** — manual curation doesn't scale
 - **Surface package ordered-slot model** — over-engineered for the current problem
 - **Paper Mario decomp-backed static scans** — useful research but not the fix path
-- **Per-low32 import policies** — runtime should handle this automatically
+- **Per-low32 import policies** — converter should handle this automatically
+- **Proxy/bridge binding machinery** — unnecessary with correct CRC computation
 
 ---
 
@@ -232,14 +283,33 @@ work with legacy `.hts` packs out of the box.
 | Step | Effort | Risk |
 |------|--------|------|
 | 1. Fix palette CRC | 2-4 days | Low — GlideN64 source is clear reference |
-| 2. LoadBlock reinterpretation | 2-3 days | Medium — need to handle stride/dxt correctly |
-| 3. Default path promotion | 1 day | Low — mostly removing env var gates |
-| 4. Second game validation | 2-3 days | Low — just needs a pack and a savestate |
-| 5. PHRB reassessment | 1 day | N/A — decision point, not implementation |
+| 2. LoadBlock reinterpretation | 2-3 days | Medium — stride/dxt needs care |
+| 3. Generic converter | 3-5 days | Low — reuses existing parsing code |
+| 4. Default path promotion | 1-2 days | Low — mostly wiring and cleanup |
+| 5. Second game validation | 2-3 days | Low — just needs a pack and savestate |
+| 6. PHRB enhancement decision | 1 day | N/A — decision point |
 
-**Total: ~8-12 days to a working "any game" legacy pack path.**
+**Total: ~11-18 days to a working "any game" path with PHRB as runtime format.**
 
-Compare with the current trajectory: 15-25 days per game with manual tooling.
+---
+
+## Relationship to Codex's Plan
+
+This plan agrees with Codex on:
+- PHRB should be the runtime format
+- `.hts`/`.htc` are import inputs, not the product path
+- Compatibility should be explicit and secondary
+- Validation must broaden beyond Paper Mario
+
+This plan differs from Codex on:
+- The path to PHRB is a **generic automatic converter**, not per-game tooling
+- The converter solves the identity problems (palette CRC, LoadBlock shape) at
+  conversion time, making structured sampled-object lookup unnecessary for the
+  common case
+- ROM-scan-enriched PHRB is a future enhancement, not a prerequisite
+
+The key constraint both plans must respect: **if it requires manual work per game,
+it won't scale.** The converter must be fully automatic.
 
 ---
 
@@ -258,3 +328,8 @@ Compare with the current trajectory: 15-25 days per game with manual tooling.
    Copy-mode draws, framebuffer-derived textures, and procedurally generated content
    may fall into this category. These should be explicitly excluded from replacement
    rather than guessed at.
+
+4. **Can auto-conversion at first load be fast enough?**
+   A 2GB `.hts` pack needs to be parsed, CRC-corrected, and written as `.phrb` in
+   a reasonable time. If this takes minutes, it should be a one-time operation with
+   the result cached. If it takes seconds, it can happen transparently.

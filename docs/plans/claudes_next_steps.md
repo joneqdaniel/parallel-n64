@@ -551,10 +551,13 @@ Action items:
 - [ ] Test on Paper Mario pack — output should reproduce current hit rates
 - [ ] Test on a second game's pack (OoT, MM, SM64) — zero-config
 - [ ] Ensure converter runs in under 60 seconds for typical pack sizes (~2GB)
+- [ ] Document conversion timing and cache behavior for representative packs
+      (this becomes a gate for default-path promotion at Step 5)
 - [ ] Round-trip test: legacy entry → PHRB record → load → verify key fields
 
 **Success criteria:** `hts2phrb pack.hts -o pack.phrb` works for any game's pack,
 and the output records carry structured identity ready for future runtime upgrades.
+Operational behavior (timing, cache size) is documented for representative packs.
 
 ---
 

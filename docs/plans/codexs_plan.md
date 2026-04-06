@@ -178,6 +178,7 @@ This slice is the minimum runtime-contract change required before converter work
 - Do not collapse `PHRB` into a container for mostly legacy-shaped runtime keys just to make conversion simpler.
 - Do not turn auto-conversion convenience into a substitute for fixing the provider/runtime identity contract.
 - Do not pretend currently unknown sampled-object fields are known just to make the first converter output look complete.
+- Do not introduce first-load `.hts` to `.phrb` auto-conversion before the default-promotion stage; early convenience must not reshape sequencing or runtime semantics.
 
 ### Exit Criteria
 
@@ -195,6 +196,12 @@ This slice is the minimum runtime-contract change required before converter work
   - at least one non-Paper-Mario pack converts in zero-config mode without requiring new core runtime rules
 - The converter has explicit round-trip coverage:
   - legacy entry to `PHRB` record to load path preserves expected key fields and classification-backed behavior
+- The converter has explicit operational coverage:
+  - conversion time and cache behavior are measured for representative pack sizes before default-path promotion
+  - the front door remains usable for typical packs, not just technically correct
+- Partial structured records are allowed:
+  - converted records may carry only the fields knowable at conversion time
+  - partial records do not block the runtime from preferring richer native records when those records exist
 
 ## Phase B: Scoped Compatibility Mode
 
@@ -356,6 +363,7 @@ No new behavior should be promoted to the default runtime path unless all of the
 3. It survives the classification gate.
 4. It does not require game-specific runtime key rules.
 5. It still fits the native-first runtime contract.
+6. If it involves auto-conversion convenience, that convenience remains downstream of the runtime contract and does not alter native package semantics.
 
 ## Phase D: Restore Direct Tests
 
@@ -407,6 +415,7 @@ The project should not declare the native format/runtime seam ready until all of
 8. The Phase B2 identity-classification gate has been completed for palette parity and `LoadBlock` reinterpretation.
 9. Active authority metadata is internally consistent, and semantic hi-res evidence participates in pass/fail gating.
 10. If default-path auto-conversion is enabled, it is covered by direct tests and does not change native package semantics.
+11. Converter operational behavior is acceptable for representative packs, including documented timing and cache expectations.
 
 ## Immediate Next Step
 

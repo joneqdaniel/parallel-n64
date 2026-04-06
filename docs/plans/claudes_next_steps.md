@@ -62,6 +62,83 @@ No policy files. No per-game tuning. No surface packages. Just conversion.
 
 ---
 
+## Why This Sequence: Bugs Before Architecture
+
+The competing plan (Codex Runtime Redirect) proposes the opposite sequencing:
+redesign the provider to structured sampled-object keys first (Phase A), then
+investigate the CRC/LoadBlock issues (Phase B1), then build the converter (Phase A1).
+
+This plan deliberately inverts that order. Here is why.
+
+### The failed branch died from premature architecture
+
+The previous 200-commit attempt rewrote runtime lookup modes, ownership policies,
+and consumer contracts before understanding why textures were actually missing.
+That produced a policy explosion with no measurable improvement to hit rates.
+Codex's Phase A repeats this pattern: redesigning the provider lookup to structured
+keys before the CRC bugs are even investigated. The structured key model may need
+revision once the CRC results are in — meaning the redesign could be wasted work.
+
+### CRC fixes produce measurable results immediately
+
+Step 1 (palette CRC) has a concrete numeric target: file-select hits from 82 to
+~150+. Step 2 (LoadBlock reinterpretation) resolves a documented miss family. Both
+can be validated in days with existing fixtures. A provider redesign to structured
+keys produces zero visible improvement to hit rates — it's a refactoring step that
+only pays off later when the structured fields are populated (which requires ROM-scan
+enrichment that doesn't exist yet).
+
+### The converter can't populate the structured key fields anyway
+
+Codex's Phase A calls for replacing `checksum64 + formatsize` with a key using
+`fmt`, `siz`, `tile`, `tmem`, `line`, `logical size`, and palette identity. But
+Codex's own Phase A1 admits (line 93) that most of these fields are unknowable from
+a legacy `.hts` pack. The converter would emit records with zero-defaulted structured
+fields that the redesigned provider can't meaningfully use for lookup. This means
+the provider redesign is blocked on ROM-scan enrichment tooling that is itself
+blocked on having a working converter — a circular dependency that delays everything.
+
+### Evidence-first sequencing avoids rework
+
+By fixing the CRC bugs first, we learn whether `checksum64 + formatsize` with
+corrected CRCs is sufficient for cross-game lookup. If it is, the structured key
+redesign becomes an optional optimization (Step 8) rather than a prerequisite. If
+it isn't, the classification gate at Step 2.5 tells us exactly which structured
+fields are needed and why — making the eventual provider redesign targeted rather
+than speculative.
+
+### Every intermediate step is shippable
+
+After Step 1 alone, file-select hit rates improve. After Step 3, users have a
+one-command converter. After Step 5, zero-config hi-res works for Paper Mario.
+Codex's sequencing produces no user-visible improvement until Phase A1 ships —
+which is sequenced after the provider redesign (Phase A) and the classification
+gate (Phase B2). That's weeks of invisible infrastructure before anything works
+better than it does today.
+
+### The architectural destination is the same
+
+Both plans end at the same place: PHRB as runtime, generic converter, structured
+identity in records, explicit compat fencing, cross-game validation. The
+disagreement is purely about whether the provider redesign happens before or after
+the CRC fixes. Since the converter emits all PHRB identity fields regardless of
+the current runtime key model, both orderings reach the same destination — but
+ours produces working results at every intermediate step.
+
+---
+
+## Promotion Rule
+
+No new behavior should be promoted to the default runtime path unless all of:
+
+1. It improves active authority fixtures.
+2. It does not break semantic hi-res evidence expectations.
+3. It survives the classification gate (Step 2.5).
+4. It does not require game-specific runtime key rules.
+5. It fits the native-first runtime contract.
+
+---
+
 ## Step 1: Match GlideN64's Palette CRC Exactly
 
 **Problem:** ParaLLEl's CI palette CRC doesn't match what pack creators used.

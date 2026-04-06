@@ -65,13 +65,14 @@ The project should not spend the next cycle on:
 The intended order of work is:
 
 1. Stabilize plan prerequisites and validation trust.
-2. Make the runtime/provider contract native-first.
-3. Run palette parity and `LoadBlock` investigations in parallel against that direction.
+2. Land the smallest useful runtime/provider seam slice.
+3. Run palette parity, `LoadBlock`, and converter-skeleton work in parallel.
 4. Classify those investigations before promoting either seam.
-5. Expose the import path through one generic `hts2phrb` front door.
-6. Prove the path across Paper Mario menu and non-menu authority scenes.
-7. Prove the same contract on a second game with a different runtime class profile.
-8. Make `PHRB` the default runtime path only after the gates are met.
+5. Widen structured runtime lookup only where the classification and evidence say it is needed.
+6. Promote the generic `hts2phrb` front door on top of the improved internals.
+7. Prove the path across Paper Mario menu and non-menu authority scenes.
+8. Make `PHRB` the default runtime path only after the Paper Mario gate is met.
+9. Prove the same contract on a second game with a different runtime class profile.
 
 The key sequencing rule is:
 
@@ -83,13 +84,14 @@ The key sequencing rule is:
 
 If work starts now, the priority stack is:
 
-1. Fix the provider/loader seam so `PHRB` is not reduced back to compatibility keys at load time.
-2. Make the active validation set trustworthy by resolving authority metadata drift and promoting one non-menu Paper Mario authority fixture.
-3. Run the two highest-value investigations:
+1. Make the active validation set trustworthy by resolving authority metadata drift, activating one non-menu Paper Mario authority fixture, and making semantic hi-res evidence participate in pass/fail.
+2. Fix the first provider/loader seam so `PHRB` is not reduced back to compatibility keys at load time.
+3. Add direct provider/package tests for that seam slice.
+4. Run the two highest-value investigations:
    - CI palette parity
    - `LoadBlock` sampled-shape reinterpretation
-4. Capture classification results before allowing either seam into the canonical contract.
-5. Build `hts2phrb` as the single front door over the improved internals.
+5. In parallel, build the earliest safe `hts2phrb` skeleton over the improved internals.
+6. Capture classification results before allowing either seam into the canonical contract.
 
 ### Delivery Rule
 
@@ -100,12 +102,24 @@ If work starts now, the priority stack is:
   - separate native records from compatibility aliases in provider internals
   - add provider/package tests before widening runtime lookup coverage
   - widen primary structured lookup only after the prior slices are stable
+- The first useful Phase A slice is intentionally smaller than a full structured-key rollout.
+- Converter work may start once that first seam slice lands, but it must remain downstream of validation trust and the initial provider/loader fix.
 
 ## Phase A: Native Runtime Contract
 
 ### Goal
 
 - Make `PHRB` the real runtime format instead of a compatibility wrapper around legacy keys.
+
+### First Slice
+
+Before any broad structured-key rollout, land the smallest useful seam fix:
+
+1. Preserve structured `PHRB` identity at load time instead of discarding it.
+2. Separate native records from compatibility aliases internally.
+3. Add direct provider/package tests for that seam.
+
+This slice is the minimum runtime-contract change required before converter work or compatibility investigations are allowed to shape default behavior.
 
 ### Required Changes
 
@@ -161,6 +175,11 @@ If work starts now, the priority stack is:
 - The generated package can carry structured native identity and explicit compatibility records, including partially populated structured records that are ready for later enrichment.
 - The conversion entrypoint is generic even if the internals still use multiple stages.
 - The front door may ship before full structured lookup is the default runtime path, but it must remain a wrapper over the richer model rather than freezing a legacy-shaped contract.
+- The earliest shippable form of the front door is a skeleton:
+  - one command
+  - structured records with known fields
+  - ambiguity diagnostics
+  - no unclassified compatibility behavior baked into default output
 
 ## Phase B: Scoped Compatibility Mode
 
@@ -295,6 +314,24 @@ After CI palette parity and `LoadBlock` sampled-shape work are validated on the 
 - The generic conversion entrypoint has been exercised on at least one non-Paper-Mario pack without requiring new core runtime key rules.
 - At least one unresolved or intentionally rejected fallback case remains explicitly documented as negative data.
 
+## Parallelism Rules
+
+The following work can proceed in parallel after validation trust and the first runtime seam slice are in place:
+
+- CI palette parity investigation
+- `LoadBlock` retry investigation
+- early `hts2phrb` skeleton work
+- direct test authoring
+- second-game fixture preparation once the Paper Mario authority set is stable
+
+The following work must remain serial:
+
+- validation trust before interpreting hit-rate movement
+- classification before promotion
+- targeted structured-key widening before declaring runtime-contract correctness
+- Paper Mario full gate before default-path promotion
+- second-game gate before claiming generality
+
 ## Promotion Rule
 
 No new behavior should be promoted to the default runtime path unless all of the following are true:
@@ -354,10 +391,11 @@ The project should not declare the native format/runtime seam ready until all of
 
 ## Immediate Next Step
 
-- Start with Phase A and implement a native-first provider record path before adding more compatibility-oriented package promotion work.
-- In parallel, run the two Phase B1 investigations to decide what compatibility behavior is worth preserving as explicit secondary support for legacy packs.
+- Start with validation trust preflight: resolve authority drift, activate one non-menu Paper Mario authority, and make semantic hi-res evidence a real gate.
+- Next, land the first Phase A seam slice: preserve structured `PHRB` identity at load time, separate native versus compat records, and add direct provider/package tests.
+- Then run the Phase B1 investigations in parallel with an early Phase A1 `hts2phrb` skeleton.
 - Record the classification results in Phase B2 before promoting either seam into the converter or runtime contract.
-- After the provider contract is clear enough, add Phase A1 as the user-facing wrapper so the import experience becomes one command instead of a research pipeline.
+- Only after that widen structured lookup, complete the front door, pass the Paper Mario full gate, and promote `PHRB` to default.
 
 ## Outcome
 

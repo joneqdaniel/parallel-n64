@@ -28,18 +28,17 @@ general N64 problems, not Paper Mario problems, and should be solved generically
 
 ---
 
-## Strategy: Fix the Bugs, Build the Converter, Then Decide the Architecture
+## Strategy: Investigate, Build, Then Decide the Architecture
 
 The project's previous 200-commit failure was caused by premature architecture:
-redesigning the runtime contract before the actual identity bugs were understood.
-This plan inverts that pattern — fix the concrete, measurable problems first, use
-the results to make informed architectural decisions, and defer structural redesign
-until evidence demands it.
+redesigning the runtime contract before the actual identity issues were understood.
+This plan inverts that pattern — investigate the concrete, measurable problems first,
+use the results to make informed architectural decisions, and defer structural
+redesign until evidence demands it.
 
 **Sequencing principle:** Every step must produce a testable improvement or a
 concrete decision. No step should be a multi-week refactor with no observable
-outcome. If a step doesn't move hit rates or produce a classification verdict,
-it doesn't belong in the early sequence.
+outcome. Tests are written alongside each step, not batched at the end.
 
 **Runtime format:** PHRB is the right runtime format — it's cleaner, faster, and
 carries richer identity than legacy `.hts`/`.htc`. But the path to PHRB must be a
@@ -103,7 +102,7 @@ blocked on having a working converter — a circular dependency that delays ever
 
 By investigating the CRC and LoadBlock issues first, we learn whether
 `checksum64 + formatsize` with corrected CRCs is sufficient for cross-game lookup.
-If it is, the structured key redesign becomes an optional optimization (Step 8)
+If it is, the structured key redesign becomes an optional optimization (Step 7)
 rather than a prerequisite. If it isn't, the classification gate at Step 2.5 tells
 us exactly which structured fields are needed and why — making the eventual provider
 redesign targeted rather than speculative.
@@ -140,7 +139,83 @@ No new behavior should be promoted to the default runtime path unless all of:
 
 ---
 
+## Execution Overview
+
+Work is organized into seven phases. Phases 0 and I run in parallel. The converter
+skeleton starts late in Phase I before the classification gate. Tests are written
+alongside each step, not batched at the end.
+
+```
+Phase 0: Validation Infrastructure ──────────────┐
+Phase I: Parallel Investigations (1 + 2) ────────┤
+                                                  ├─ Phase II: Classification + Provider Fix
+                                                  │
+              Converter skeleton starts ──────────┤
+                                                  ├─ Phase III: Converter Completion
+                                                  │
+                                                  ├─ Phase IV: Paper Mario Validation
+                                                  │
+                                                  ├─ Phase V: Ship (Default Path + Second Game)
+                                                  │
+                                                  └─ Phase VI: Structured Key Decision
+```
+
+| Phase | Steps | Days | Notes |
+|-------|-------|------|-------|
+| 0. Validation infra | 0a-0d | 1-2 | Parallel with Phase I |
+| I. Investigations | 1, 2 | 3-5 | 1 and 2 in parallel |
+| II. Classify + fix | 2.5, 2.75 | 1 | Gate + cheap provider fix |
+| III. Converter | 3 | 2-3 | Skeleton starts late Phase I |
+| IV. PM validation | 4 | 1-2 | Fixtures ready from Phase 0 |
+| V. Ship | 5, 6 | 3-5 | Promotion + second game |
+| VI. Decision | 7 | 0.5-5 | Evidence-driven |
+
+**Estimated total: 13-20 days** (parallelization saves 3-8 days vs serial execution)
+
+---
+
+## Phase 0: Validation Infrastructure
+
+Runs in parallel with the investigations. Zero dependency on CRC or LoadBlock work.
+Goal: when investigation results land, they validate against a broader, more rigorous
+fixture set immediately.
+
+### 0a. Mint Non-Menu Fixture (~0.5 day)
+
+Promote the `hos_05 ENTRY_3` scene to an authoritative fixture. The scenario script,
+runtime env, and authority-graph node already exist. The remaining work is defining
+the controller-input route from file-select into `hos_05`, minting the savestate,
+and hashing steady state.
+
+### 0b. Resolve Metadata Drift (~0.5 day)
+
+Audit `expected_capture_sha256` across fixtures, authority graph, and env files.
+Reconcile or remove stale hashes. Pure docs/fixtures cleanup.
+
+### 0c. Build Evidence-Assertion Harness (~0.5-1 day)
+
+Build a test that reads an evidence bundle and asserts on class presence and
+semantic signal categories (`exact`, `compat`, `conflict`, `unresolved`). Wire it
+into the existing title and file-select scenarios first. The block-family and
+tile-family probe fixtures already define evidence requirements.
+
+### 0d. Wire Semantic Evidence into Pass/Fail (~0.5 day)
+
+Make the test runner fail when `hires-evidence.json` signals degrade from the
+recorded baseline. Current hit rates provide the baseline expectations.
+
+### Exit Criteria
+
+- `hos_05 ENTRY_3` is an active authoritative fixture
+- Metadata is internally consistent across fixtures, authority graph, and env files
+- Semantic evidence assertions run on title and file-select scenarios
+- The assertion harness is ready to absorb investigation results immediately
+
+---
+
 ## Step 1: Investigate Palette CRC Parity
+
+**Runs in parallel with Step 2.** No dependency between the two investigations.
 
 **Problem:** ParaLLEl's CI palette CRC doesn't match what pack creators used.
 
@@ -175,14 +250,23 @@ bytes as `TexFilterPalette` at lookup time.
 4. For CI8, GlideN64 uses the full `TexFilterPalette` (512 bytes),
    ParaLLEl uses `tlut_shadow` from offset 0 with stride 512
 
-**Action items:**
+### Sub-steps:
+
+**1a. Instrumentation** (~1 day)
 - [ ] Add a debug comparison mode that logs both ParaLLEl's computed palette CRC
       and what GlideN64's algorithm would produce given the same RDRAM state
 - [ ] Run on Paper Mario file-select and identify exactly where the CRCs diverge
+
+**1b. Fix** (~1-2 days)
 - [ ] Fix `tlut_shadow` population to match `TexFilterPalette` semantics exactly
 - [ ] Verify CI4 bank offset math matches GlideN64's `palette << 4` indexing
 - [ ] Verify CI8 entry-count logic matches GlideN64's `cimax + 1` computation
 - [ ] Validate: file-select hits should jump from 82 to ~150+ after fix
+
+**1c. Test** (~0.5 day, written alongside 1b)
+- [ ] Unit test: feed known RDRAM byte sequences into both ParaLLEl and GlideN64
+      CRC algorithms, assert matching output
+- [ ] This test exists before the fix ships, catching regressions from day one
 
 **Key files:**
 - GlideN64 palette CRC: `~/code/gliden64-upstream/src/GLideNHQ/TxUtil.cpp:82-116`
@@ -193,16 +277,18 @@ bytes as `TexFilterPalette` at lookup time.
 - ParaLLEl texture CRC: `parallel-rdp/texture_keying.hpp:30-58`
 
 **Success criteria:** Paper Mario file-select CI palette CRC matches GlideN64's
-computation for the same RDRAM state.
+computation for the same RDRAM state. Parity test passes.
 
 **If the fix is partial** (hits reach 60-65% instead of 85%+): do not spiral into
 per-case debugging. Log the remaining misses, classify them by cause, and proceed
-to Step 2. The classification gate at Step 2.5 will determine whether the partial
-fix is a native identity fact or a dead end.
+to Step 2.5. The classification gate will determine whether the partial fix is a
+native identity fact or a dead end.
 
 ---
 
 ## Step 2: Investigate LoadBlock Dimension Reinterpretation
+
+**Runs in parallel with Step 1.** No dependency between the two investigations.
 
 **Problem:** Some textures are uploaded via `LoadBlock` as e.g. 64x1 but sampled as
 16x16 CI4 via `SetTile`/`SetTileSize`. The pack keys them as 16x16, ParaLLEl keys
@@ -242,12 +328,20 @@ When emitting PHRB records from legacy pack entries, detect LoadBlock-shaped ent
 and emit records keyed to both the legacy shape AND the upload shape. This way the
 PHRB runtime lookup hits regardless of which view the renderer uses.
 
-**Action items:**
-- [ ] Track which uploads are `LoadBlock` vs `LoadTile` (already partially done)
+### Sub-steps:
+
+**2a. Instrumentation** (~0.5 day)
+- [ ] Annotate uploads as `LoadBlock` vs `LoadTile` (already partially done)
+- [ ] Log sampled-dimension mismatches to identify the miss class size
+
+**2b. Fix** (~1-2 days)
 - [ ] Implement sampled-dimension retry in the runtime lookup path
-- [ ] Implement dual-key emission in the converter
 - [ ] Validate: the dominant 64x1 fs514 miss family should resolve
 - [ ] Verify no false positives on title screen (which is already 91% hits)
+
+**2c. Test** (~0.5 day, written alongside 2b)
+- [ ] Unit test: known 64x1 LoadBlock upload → retry with sampled 16x16 → hit
+- [ ] Negative test: non-LoadBlock upload does NOT trigger retry path
 
 **False positive risk:** Games with heavy LoadBlock traffic (Zelda OoT, GoldenEye)
 could theoretically surface CRC collisions where the reinterpreted shape matches the
@@ -255,6 +349,7 @@ wrong texture. The retry-on-miss design limits this — only fires when the prim
 lookup fails — but Step 6 must explicitly validate against this risk.
 
 **Success criteria:** Paper Mario file-select block-class misses resolve.
+LoadBlock reinterpretation test passes.
 
 ---
 
@@ -300,10 +395,50 @@ After Steps 1-2 are validated on Paper Mario, explicitly classify the results.
 
 ---
 
+## Step 2.75: Preserve PHRB Identity at Load Time
+
+**A cheap, targeted fix that stops the provider from discarding structured data.**
+
+Currently, `add_sampled_entry` in `texture_replacement.cpp` (line ~941) reads PHRB
+records carrying `fmt`, `siz`, `tex_offset`, `stride`, `sampled_low32`,
+`sampled_entry_pcrc`, and `sampled_sparse_pcrc` — then compiles them down to a flat
+`checksum64` key for the in-memory `Entry` struct, discarding everything else. The
+richer identity PHRB was designed to carry is thrown away at load time.
+
+### Fix:
+- Add `fmt`, `siz`, `tex_offset`, `stride`, and `sampled_low32` fields to the
+  `Entry` struct (~6 lines in the header)
+- Populate them from the PHRB record in `add_sampled_entry` (~6 lines in the cpp)
+
+### What this does NOT change:
+- No lookup key changes — `checksum_index_` and `checksum_low32_index_` stay the same
+- No behavioral changes — `find_entry`, `lookup`, `lookup_with_selector` untouched
+- No calling code changes
+
+### What it enables:
+- The converter (Step 3) can emit fully populated records knowing the runtime
+  preserves them instead of throwing them away
+- Debug/diagnostic tools can query structured identity without re-parsing PHRB
+- Step 7 (structured key decision) has the data in memory, ready for a lookup
+  redesign if needed — without requiring re-conversion or re-loading
+
+**Effort:** ~15-20 lines across 2 files. Half-day task. Zero regression risk.
+
+**Key files:**
+- `texture_replacement.cpp:941-960` (`add_sampled_entry`)
+- `texture_replacement.hpp:88` (`Entry` struct)
+
+---
+
 ## Step 3: Build the Generic Converter
 
 **Goal:** A single tool that converts any `.hts`/`.htc` to `.phrb` with no per-game
 configuration.
+
+**Note:** The converter skeleton (`.hts` parsing, PHRB record emission, identity
+field population) can start late in Phase I, since those parts are format-agnostic
+and don't depend on the classification gate. Palette CRC and LoadBlock behavior slot
+in after Step 2.5.
 
 ### Design Principles
 
@@ -354,8 +489,6 @@ This means:
 
 ### Enrichment path (future, not required for initial converter):
 
-The same `hts2phrb` front door should eventually support optional enrichment:
-
 ```
 # Basic: generic conversion, works for any game
 hts2phrb pack.hts -o pack.phrb
@@ -376,45 +509,45 @@ for games that need them, accessed through the same front door.
 - Log warnings for ambiguous cases so users can investigate if needed
 - This handles 95%+ of real packs where entries are unambiguous
 
-### Action items:
-- [ ] Build `hts2phrb` as a single Python script reusing `hires_pack_common.py`
-      and existing PHRB emission code from `hires_pack_emit_binary_package.py`
-- [ ] Emit structured PHRB records with all available identity fields, not just
-      legacy checksum64
-- [ ] Test on Paper Mario pack — output should reproduce the current hit rates
-- [ ] Test on a second game's pack (OoT, MM, SM64)
-- [ ] Ensure the converter runs in under 60 seconds for typical pack sizes (~2GB)
+### Sub-steps:
+
+**3a. Skeleton** (~1 day, starts late Phase I)
+- [ ] `.hts` parsing via `hires_pack_common.py`
+- [ ] PHRB record emission with all identity fields
+- [ ] Ambiguity logging
+
+**3b. Classified behavior** (~1-2 days, after Step 2.5)
+- [ ] Wire in palette CRC behavior per classification gate
+- [ ] Wire in LoadBlock dual-key emission per classification gate
+- [ ] Handle CI multi-palette variants
+
+**3c. Smoke test + converter test** (~0.5 day)
+- [ ] Test on Paper Mario pack — output should reproduce current hit rates
+- [ ] Test on a second game's pack (OoT, MM, SM64) — zero-config
+- [ ] Ensure converter runs in under 60 seconds for typical pack sizes (~2GB)
+- [ ] Round-trip test: legacy entry → PHRB record → load → verify key fields
 
 **Success criteria:** `hts2phrb pack.hts -o pack.phrb` works for any game's pack,
 and the output records carry structured identity ready for future runtime upgrades.
 
 ---
 
-## Step 4: Broaden Validation Within Paper Mario
+## Step 4: Validate Within Paper Mario
 
-Before going cross-game, validate within Paper Mario beyond menu screens.
+Before going cross-game, validate within Paper Mario beyond menu screens. The
+non-menu fixture and evidence harness are already set up from Phase 0.
 
 ### Validation requirements:
-- [ ] Promote one deterministic non-menu Paper Mario scene to an authoritative
-      fixture (the `960`-frame timeout slice reaching `kmr_03` is already proven
-      deterministic)
-- [ ] Keep title and file-select strict fixtures as baseline gates
-- [ ] Add class-based assertions on top of image hashes:
-  - One texrect-dominated case (title screen strip replacement)
-  - One block-dominated case (file-select CI4 block family)
-  - One CI/TLUT-sensitive case (file-select palette-dependent textures)
-- [ ] Verify the converted PHRB package matches or exceeds legacy `.hts` hit rates
-      across all three fixture classes
-- [ ] Make semantic hi-res evidence (from `hires-evidence.json`) part of the
-      pass/fail gate, not just a sidecar artifact — assert on expected exact, compat,
-      conflict, unresolved, or class-presence signals
-- [ ] Resolve authority-graph and fixture metadata drift where expected capture hashes
-      disagree across planning files, fixtures, and runtime env files
+- [ ] Run converted PHRB against title, file-select, AND `hos_05` fixtures
+- [ ] Verify hit rates match or exceed legacy `.hts` across all three
+- [ ] Class-based assertions pass (texrect, block, CI/TLUT cases)
+- [ ] Semantic evidence assertions pass (from Phase 0 harness)
+- [ ] PHRB output matches legacy `.hts` hit rates on the non-menu fixture
 
 ### Negative data requirement:
 - [ ] Record at least one intentionally rejected fallback or unresolved family as
-      explicit negative data before declaring the architecture ready. The test suite
-      must prove it can say "no" as well as "yes."
+      explicit negative data. The test suite must prove it can say "no" as well as
+      "yes."
 
 **Success criteria:** Non-menu Paper Mario scene passes with converted PHRB.
 Semantic evidence participates in gating. At least one negative case is documented.
@@ -439,8 +572,13 @@ Semantic evidence participates in gating. At least one negative case is document
 - [ ] Native package success on active fixtures must not depend on implicit
       compatibility broadening
 
+### Tests (written alongside this step):
+- [ ] Provider lookup: exact hit, miss, CI fallback
+- [ ] Compatibility alias fencing: compat behavior does not fire when disabled
+- [ ] Auto-conversion: `.hts` input → cached `.phrb` → correct lookup
+
 **Success criteria:** Zero-configuration hi-res for Paper Mario with legacy pack.
-Compatibility behavior, if any, is cleanly fenced.
+Compatibility behavior, if any, is cleanly fenced. Provider tests pass.
 
 ---
 
@@ -477,34 +615,9 @@ zero game-specific tooling. The generic converter handles it with no new rules.
 
 ---
 
-## Step 7: Add Direct Tests
+## Step 7: Structured Sampled-Object Key Decision
 
-Recover the most valuable test discipline from the failed attempt without reviving
-its architecture.
-
-### Test targets:
-- [ ] PHRB parsing and loading (round-trip: emit → load → verify)
-- [ ] Provider lookup behavior (exact hit, miss, CI fallback)
-- [ ] Converter identity preservation (legacy entry → PHRB record → correct key)
-- [ ] LoadBlock reinterpretation (known miss → retry → hit)
-- [ ] Palette CRC computation (ParaLLEl vs GlideN64 parity)
-- [ ] Selector-bearing native package records (if applicable after Step 8)
-- [ ] Compatibility alias fencing (compat behavior does not fire when disabled)
-
-### Design constraints:
-- Tests must run without the emulator or a game ROM
-- Reuse ideas from the failed branch's replacement-provider tests, but not its
-  runtime mode matrix
-- No ownership or consumer policy layering in test fixtures
-
-**Success criteria:** Runtime/package regressions caught without full emulator runs.
-Provider correctness is testable independently from Paper Mario fixture behavior.
-
----
-
-## Step 8: Structured Sampled-Object Key Decision
-
-After Steps 1-7, the runtime has working `checksum64 + formatsize` lookup with
+After Steps 1-6, the runtime has working `checksum64 + formatsize` lookup with
 corrected CRCs, a generic converter, and cross-game validation. Now decide whether
 to redesign the provider lookup to use structured sampled-object keys.
 
@@ -522,6 +635,8 @@ to redesign the provider lookup to use structured sampled-object keys.
   palette identity, `tlut_type`
 - The converter already emits these fields (zero-defaulted when unknown), so no
   re-conversion is needed
+- Step 2.75 already preserves these fields in the in-memory `Entry` struct, so
+  the provider has the data — it just needs a new index path
 - Build the ROM-scan enrichment path (`hts2phrb --rom game.z64`) to populate
   the currently-unknown fields
 - Preserve `checksum64 + formatsize` as a compatibility fallback for records that
@@ -531,7 +646,6 @@ to redesign the provider lookup to use structured sampled-object keys.
 If the provider redesign proceeds, it must land in incremental slices where each
 slice preserves or improves active fixture results. No slice should break existing
 hit rates or require the next slice to become testable. Good early slices:
-- Preserve structured PHRB identity at load time instead of discarding it
 - Separate native records from compatibility aliases in provider internals
 - Add provider/package tests before widening runtime lookup coverage
 - Widen primary structured lookup only after the prior slices are stable and tested
@@ -584,24 +698,6 @@ hit rates or require the next slice to become testable. Good early slices:
 
 ---
 
-## Estimated Effort
-
-| Step | Effort | Risk |
-|------|--------|------|
-| 1. Palette CRC investigation | 2-4 days | Low — GlideN64 source is clear reference |
-| 2. LoadBlock investigation | 2-3 days | Medium — stride/dxt needs care |
-| 2.5. Identity classification gate | 0.5 day | N/A — decision point |
-| 3. Generic converter | 3-5 days | Low — reuses existing parsing code |
-| 4. Paper Mario non-menu validation | 2-3 days | Low — fixtures already exist |
-| 5. Default path promotion | 1-2 days | Low — mostly wiring and cleanup |
-| 6. Second game validation | 2-3 days | Medium — new miss classes possible |
-| 7. Direct tests | 2-3 days | Low — clear scope |
-| 8. Structured key decision | 0.5-5 days | Depends on Step 1-7 results |
-
-**Total: ~16-28 days to a working, tested, "any game" path with PHRB as runtime.**
-
----
-
 ## Decision Gates
 
 The project should not declare the runtime ready until all of:
@@ -613,10 +709,10 @@ The project should not declare the runtime ready until all of:
 5. Semantic hi-res evidence participates in pass/fail gating
 6. One second game works without game-specific rules, exercising a different
    runtime class profile than Paper Mario
-7. Direct provider/package/converter tests exist
+7. Direct provider/package/converter tests exist (written alongside each step)
 8. Compatibility behavior (if any) is explicitly fenced behind a mode flag
 9. At least one unresolved or rejected case is documented as negative data
-10. The Step 8 structured-key decision is recorded with supporting evidence
+10. The Step 7 structured-key decision is recorded with supporting evidence
 
 ---
 
@@ -628,7 +724,7 @@ debugging. Log the remaining misses by class, determine if `tlut_shadow` diverge
 from `TexFilterPalette` for structural reasons (timing, partial TMEM updates,
 multi-frame palette cycling), and classify accordingly. A partial fix that's a
 native identity fact is still worth shipping — the remaining gap may require
-structured keys (Step 8) rather than more CRC patching.
+structured keys (Step 7) rather than more CRC patching.
 
 ### If "no per-game policy" breaks on the second game:
 This is a strong claim. Real packs have per-game quirks (duplicate Rice CRCs,

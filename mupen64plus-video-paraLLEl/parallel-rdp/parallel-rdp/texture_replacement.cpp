@@ -951,6 +951,15 @@ bool ReplacementProvider::load_phrb(const std::string &path)
 			entry.pixel_type = GL_UNSIGNED_BYTE;
 			entry.formatsize = uint16_t(record.formatsize);
 			entry.selector_checksum64 = selector_checksum64;
+			entry.sampled_fmt = record.fmt;
+			entry.sampled_siz = record.siz;
+			entry.sampled_tex_offset = record.tex_offset;
+			entry.sampled_stride = record.stride;
+			entry.sampled_width = record.width;
+			entry.sampled_height = record.height;
+			entry.sampled_low32 = record.sampled_low32;
+			entry.sampled_entry_pcrc = record.sampled_entry_pcrc;
+			entry.sampled_sparse_pcrc = record.sampled_sparse_pcrc;
 			entry.is_hires = true;
 			entry.inline_blob = true;
 			entry.blob.assign(rgba_blob_base + rgba_offset,

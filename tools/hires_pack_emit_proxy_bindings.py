@@ -62,7 +62,7 @@ def build_alias_bindings(base, selected_candidates, policy_record):
     return aliases
 
 
-def build_proxy_bindings(input_path: Path, policy_data: dict):
+def build_proxy_bindings(input_path: Path, policy_data: dict, auto_select_deterministic_singletons: bool = False):
     review = build_proxy_view(load_index(input_path))
     proxy_policy = policy_data.get("transport_proxies", {}) if policy_data else {}
 
@@ -75,6 +75,8 @@ def build_proxy_bindings(input_path: Path, policy_data: dict):
         policy_record = proxy_policy.get(proxy_id, {})
         selected_replacement_id = policy_record.get("selected_replacement_id")
         candidates = list(group.get("transport_candidates", []))
+        auto_selection_reason = None
+        auto_selection_record = None
         base = {
             "policy_key": proxy_id,
             "family_type": "proxy-transport",
@@ -106,6 +108,26 @@ def build_proxy_bindings(input_path: Path, policy_data: dict):
             "upload_pcrcs": [],
         }
 
+        if not selected_replacement_id and auto_select_deterministic_singletons and len(candidates) == 1:
+            status_counts = group.get("source_policy_status_counts", {})
+            policy_statuses = {status for status, count in status_counts.items() if count}
+            if policy_statuses and policy_statuses.issubset({"deterministic"}):
+                selected_replacement_id = candidates[0].get("replacement_id")
+                auto_selection_reason = "deterministic-singleton-source-policy"
+                auto_selection_record = {
+                    "auto_selected": True,
+                    "rule": auto_selection_reason,
+                    "source_policy_status_counts": status_counts,
+                }
+            elif not policy_statuses and proxy.get("runtime_ready"):
+                selected_replacement_id = candidates[0].get("replacement_id")
+                auto_selection_reason = "runtime-ready-singleton"
+                auto_selection_record = {
+                    "auto_selected": True,
+                    "rule": auto_selection_reason,
+                    "source_policy_status_counts": status_counts,
+                }
+
         if selected_replacement_id:
             selected = [candidate for candidate in candidates if candidate.get("replacement_id") == selected_replacement_id]
             if len(selected) != 1:
@@ -120,12 +142,20 @@ def build_proxy_bindings(input_path: Path, policy_data: dict):
                 continue
             bindings.append({
                 **base,
-                "status": policy_record.get("status") or "selected",
-                "selection_reason": policy_record.get("justification") or "proxy-transport-selected",
+                "status": (
+                    policy_record.get("status")
+                    or ("auto-selected" if auto_selection_reason else "selected")
+                ),
+                "selection_reason": (
+                    policy_record.get("justification")
+                    or auto_selection_reason
+                    or "proxy-transport-selected"
+                ),
                 "transport_candidates": selected,
-                "transport_policy": policy_record,
+                "transport_policy": auto_selection_record or policy_record,
             })
-            bindings.extend(build_alias_bindings(base, selected, policy_record))
+            if not auto_selection_reason:
+                bindings.extend(build_alias_bindings(base, selected, policy_record))
         else:
             unresolved.append({
                 **base,
@@ -153,12 +183,21 @@ def main():
     parser = argparse.ArgumentParser(description="Emit sampled-proxy-centered hi-res bindings from an imported index or subset.")
     parser.add_argument("--input", required=True, help="Path to imported_index or imported_subset JSON.")
     parser.add_argument("--policy", help="Optional transport policy JSON with transport_proxies entries.")
+    parser.add_argument(
+        "--auto-select-deterministic-singletons",
+        action="store_true",
+        help="Auto-select singleton transport candidates only when the source policy state is already deterministic or the proxy is directly runtime-ready.",
+    )
     parser.add_argument("--output", help="Optional output JSON path.")
     args = parser.parse_args()
 
     input_path = Path(args.input)
     policy_path = Path(args.policy) if args.policy else None
-    result = build_proxy_bindings(input_path, load_policy(policy_path))
+    result = build_proxy_bindings(
+        input_path,
+        load_policy(policy_path),
+        auto_select_deterministic_singletons=args.auto_select_deterministic_singletons,
+    )
     serialized = json.dumps(result, indent=2) + "\n"
     if args.output:
         Path(args.output).write_text(serialized)

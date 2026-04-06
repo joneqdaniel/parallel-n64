@@ -98,6 +98,15 @@ private:
 		uint16_t pixel_type = 0;
 		uint16_t formatsize = 0;
 		uint64_t selector_checksum64 = 0;
+		uint32_t sampled_fmt = 0;
+		uint32_t sampled_siz = 0;
+		uint32_t sampled_tex_offset = 0;
+		uint32_t sampled_stride = 0;
+		uint32_t sampled_width = 0;
+		uint32_t sampled_height = 0;
+		uint32_t sampled_low32 = 0;
+		uint32_t sampled_entry_pcrc = 0;
+		uint32_t sampled_sparse_pcrc = 0;
 		bool is_hires = false;
 		bool inline_blob = false;
 		std::vector<uint8_t> blob;

@@ -1156,6 +1156,7 @@ scenario_verify_paper_mario_fixture() {
   python - "$bundle_dir" "$output_path" "$fixture_id" "$expected_screenshot_sha256" "$expected_init_symbol" "$expected_step_symbol" <<'PY'
 import json
 import hashlib
+import os
 import sys
 from pathlib import Path
 
@@ -1169,9 +1170,74 @@ expected_step_symbol = sys.argv[6]
 captures = sorted((bundle_dir / "captures").glob("*"))
 semantic_path = bundle_dir / "traces" / "paper-mario-game-status.json"
 hires_path = bundle_dir / "traces" / "hires-evidence.json"
+bundle_meta_path = bundle_dir / "bundle.json"
+
+mode = None
+if bundle_meta_path.is_file():
+    try:
+        mode = json.loads(bundle_meta_path.read_text()).get("mode")
+    except Exception:
+        mode = None
+
+def get_mode_expected(name: str):
+    if mode:
+        mode_key = f"{name}_{mode.upper()}"
+        if mode_key in os.environ:
+            return os.environ[mode_key]
+    return os.environ.get(name)
+
+def parse_expected_bool(name: str):
+    value = get_mode_expected(name)
+    if value is None or value == "":
+        return None
+    normalized = value.strip().lower()
+    if normalized in ("1", "true", "yes", "on"):
+        return True
+    if normalized in ("0", "false", "no", "off"):
+        return False
+    raise ValueError(f"{name} must be a boolean-like value, got {value!r}.")
+
+def parse_expected_int(name: str):
+    value = get_mode_expected(name)
+    if value is None or value == "":
+        return None
+    return int(value)
+
+def parse_expected_list(name: str):
+    value = get_mode_expected(name)
+    if value is None or value.strip() == "":
+        return []
+    return [item.strip() for item in value.split(",") if item.strip()]
+
+expected_hires_provider = get_mode_expected("EXPECTED_HIRES_SUMMARY_PROVIDER")
+expected_provenance_available = parse_expected_bool("EXPECTED_HIRES_PROVENANCE_AVAILABLE")
+expected_draw_usage_available = parse_expected_bool("EXPECTED_HIRES_DRAW_USAGE_AVAILABLE")
+expected_sampler_usage_available = parse_expected_bool("EXPECTED_HIRES_SAMPLER_USAGE_AVAILABLE")
+expected_sampled_object_available = parse_expected_bool("EXPECTED_HIRES_SAMPLED_OBJECT_AVAILABLE")
+expected_source_classes = parse_expected_list("EXPECTED_HIRES_SOURCE_CLASS_PRESENT")
+expected_provenance_classes = parse_expected_list("EXPECTED_HIRES_PROVENANCE_CLASS_PRESENT")
+expected_draw_classes = parse_expected_list("EXPECTED_HIRES_DRAW_CLASS_PRESENT")
+expected_min_exact_hit_count = parse_expected_int("EXPECTED_HIRES_MIN_EXACT_HIT_COUNT")
+expected_min_exact_conflict_miss_count = parse_expected_int("EXPECTED_HIRES_MIN_EXACT_CONFLICT_MISS_COUNT")
+expected_min_exact_unresolved_miss_count = parse_expected_int("EXPECTED_HIRES_MIN_EXACT_UNRESOLVED_MISS_COUNT")
+
+requires_hires_assertions = any([
+    expected_hires_provider is not None,
+    expected_provenance_available is not None,
+    expected_draw_usage_available is not None,
+    expected_sampler_usage_available is not None,
+    expected_sampled_object_available is not None,
+    bool(expected_source_classes),
+    bool(expected_provenance_classes),
+    bool(expected_draw_classes),
+    expected_min_exact_hit_count is not None,
+    expected_min_exact_conflict_miss_count is not None,
+    expected_min_exact_unresolved_miss_count is not None,
+])
 
 result = {
     "fixture_id": fixture_id,
+    "mode": mode,
     "passed": True,
     "checks": {
         "single_capture": False,
@@ -1180,16 +1246,49 @@ result = {
         "semantic_trace_present": semantic_path.is_file(),
         "cur_game_mode_match": None,
         "hires_evidence_present": hires_path.is_file(),
+        "hires_summary_provider_match": None,
+        "hires_provenance_available_match": None,
+        "hires_draw_usage_available_match": None,
+        "hires_sampler_usage_available_match": None,
+        "hires_sampled_object_available_match": None,
+        "hires_source_class_presence": {},
+        "hires_provenance_class_presence": {},
+        "hires_draw_class_presence": {},
+        "hires_exact_hit_count_match": None,
+        "hires_exact_conflict_miss_count_match": None,
+        "hires_exact_unresolved_miss_count_match": None,
     },
     "expected": {
         "screenshot_sha256": expected_screenshot_sha256 or None,
         "init_symbol": expected_init_symbol or None,
         "step_symbol": expected_step_symbol or None,
+        "hires_summary_provider": expected_hires_provider,
+        "hires_provenance_available": expected_provenance_available,
+        "hires_draw_usage_available": expected_draw_usage_available,
+        "hires_sampler_usage_available": expected_sampler_usage_available,
+        "hires_sampled_object_available": expected_sampled_object_available,
+        "hires_source_classes": expected_source_classes,
+        "hires_provenance_classes": expected_provenance_classes,
+        "hires_draw_classes": expected_draw_classes,
+        "hires_min_exact_hit_count": expected_min_exact_hit_count,
+        "hires_min_exact_conflict_miss_count": expected_min_exact_conflict_miss_count,
+        "hires_min_exact_unresolved_miss_count": expected_min_exact_unresolved_miss_count,
     },
     "actual": {
         "capture_path": None,
         "init_symbol": None,
         "step_symbol": None,
+        "hires_summary_provider": None,
+        "hires_provenance_available": None,
+        "hires_draw_usage_available": None,
+        "hires_sampler_usage_available": None,
+        "hires_sampled_object_available": None,
+        "hires_source_class_counts": {},
+        "hires_provenance_class_counts": {},
+        "hires_draw_class_counts": {},
+        "hires_exact_hit_count": None,
+        "hires_exact_conflict_miss_count": None,
+        "hires_exact_unresolved_miss_count": None,
     },
     "failures": [],
 }
@@ -1235,6 +1334,145 @@ if semantic_path.is_file():
 else:
     result["passed"] = False
     result["failures"].append("Missing Paper Mario semantic trace JSON.")
+
+if hires_path.is_file():
+    try:
+        hires = json.loads(hires_path.read_text())
+    except Exception as exc:
+        result["passed"] = False
+        result["failures"].append(f"Failed to parse hi-res evidence JSON: {exc}.")
+        hires = None
+
+    if hires is not None:
+        summary = hires.get("summary") or {}
+        provenance = hires.get("provenance") or {}
+        draw_usage = hires.get("draw_usage") or {}
+        sampler_usage = hires.get("sampler_usage") or {}
+        sampled_object = hires.get("sampled_object_probe") or {}
+
+        result["actual"]["hires_summary_provider"] = summary.get("provider")
+        result["actual"]["hires_provenance_available"] = bool(provenance.get("available"))
+        result["actual"]["hires_draw_usage_available"] = bool(draw_usage.get("available"))
+        result["actual"]["hires_sampler_usage_available"] = bool(sampler_usage.get("available"))
+        result["actual"]["hires_sampled_object_available"] = bool(sampled_object.get("available"))
+        result["actual"]["hires_source_class_counts"] = provenance.get("source_class_counts") or {}
+        result["actual"]["hires_provenance_class_counts"] = provenance.get("provenance_class_counts") or {}
+        result["actual"]["hires_draw_class_counts"] = draw_usage.get("draw_class_counts") or {}
+        result["actual"]["hires_exact_hit_count"] = sampled_object.get("exact_hit_count")
+        result["actual"]["hires_exact_conflict_miss_count"] = sampled_object.get("exact_conflict_miss_count")
+        result["actual"]["hires_exact_unresolved_miss_count"] = sampled_object.get("exact_unresolved_miss_count")
+
+        if expected_hires_provider is not None:
+            matched = summary.get("provider") == expected_hires_provider
+            result["checks"]["hires_summary_provider_match"] = matched
+            if not matched:
+                result["passed"] = False
+                result["failures"].append(
+                    f"Hi-res summary provider mismatch: expected {expected_hires_provider}, got {summary.get('provider')}."
+                )
+
+        if expected_provenance_available is not None:
+            actual = bool(provenance.get("available"))
+            matched = actual == expected_provenance_available
+            result["checks"]["hires_provenance_available_match"] = matched
+            if not matched:
+                result["passed"] = False
+                result["failures"].append(
+                    f"Hi-res provenance availability mismatch: expected {expected_provenance_available}, got {actual}."
+                )
+
+        if expected_draw_usage_available is not None:
+            actual = bool(draw_usage.get("available"))
+            matched = actual == expected_draw_usage_available
+            result["checks"]["hires_draw_usage_available_match"] = matched
+            if not matched:
+                result["passed"] = False
+                result["failures"].append(
+                    f"Hi-res draw-usage availability mismatch: expected {expected_draw_usage_available}, got {actual}."
+                )
+
+        if expected_sampler_usage_available is not None:
+            actual = bool(sampler_usage.get("available"))
+            matched = actual == expected_sampler_usage_available
+            result["checks"]["hires_sampler_usage_available_match"] = matched
+            if not matched:
+                result["passed"] = False
+                result["failures"].append(
+                    f"Hi-res sampler-usage availability mismatch: expected {expected_sampler_usage_available}, got {actual}."
+                )
+
+        if expected_sampled_object_available is not None:
+            actual = bool(sampled_object.get("available"))
+            matched = actual == expected_sampled_object_available
+            result["checks"]["hires_sampled_object_available_match"] = matched
+            if not matched:
+                result["passed"] = False
+                result["failures"].append(
+                    f"Hi-res sampled-object availability mismatch: expected {expected_sampled_object_available}, got {actual}."
+                )
+
+        source_class_counts = provenance.get("source_class_counts") or {}
+        for expected_class in expected_source_classes:
+            present = int(source_class_counts.get(expected_class, 0)) > 0
+            result["checks"]["hires_source_class_presence"][expected_class] = present
+            if not present:
+                result["passed"] = False
+                result["failures"].append(
+                    f"Hi-res source class '{expected_class}' was not present in evidence."
+                )
+
+        provenance_class_counts = provenance.get("provenance_class_counts") or {}
+        for expected_class in expected_provenance_classes:
+            present = int(provenance_class_counts.get(expected_class, 0)) > 0
+            result["checks"]["hires_provenance_class_presence"][expected_class] = present
+            if not present:
+                result["passed"] = False
+                result["failures"].append(
+                    f"Hi-res provenance class '{expected_class}' was not present in evidence."
+                )
+
+        draw_class_counts = draw_usage.get("draw_class_counts") or {}
+        for expected_class in expected_draw_classes:
+            present = int(draw_class_counts.get(expected_class, 0)) > 0
+            result["checks"]["hires_draw_class_presence"][expected_class] = present
+            if not present:
+                result["passed"] = False
+                result["failures"].append(
+                    f"Hi-res draw class '{expected_class}' was not present in evidence."
+                )
+
+        if expected_min_exact_hit_count is not None:
+            actual = int(sampled_object.get("exact_hit_count") or 0)
+            matched = actual >= expected_min_exact_hit_count
+            result["checks"]["hires_exact_hit_count_match"] = matched
+            if not matched:
+                result["passed"] = False
+                result["failures"].append(
+                    f"Hi-res exact-hit count too low: expected >= {expected_min_exact_hit_count}, got {actual}."
+                )
+
+        if expected_min_exact_conflict_miss_count is not None:
+            actual = int(sampled_object.get("exact_conflict_miss_count") or 0)
+            matched = actual >= expected_min_exact_conflict_miss_count
+            result["checks"]["hires_exact_conflict_miss_count_match"] = matched
+            if not matched:
+                result["passed"] = False
+                result["failures"].append(
+                    f"Hi-res exact-conflict miss count too low: expected >= {expected_min_exact_conflict_miss_count}, got {actual}."
+                )
+
+        if expected_min_exact_unresolved_miss_count is not None:
+            actual = int(sampled_object.get("exact_unresolved_miss_count") or 0)
+            matched = actual >= expected_min_exact_unresolved_miss_count
+            result["checks"]["hires_exact_unresolved_miss_count_match"] = matched
+            if not matched:
+                result["passed"] = False
+                result["failures"].append(
+                    f"Hi-res exact-unresolved miss count too low: expected >= {expected_min_exact_unresolved_miss_count}, got {actual}."
+                )
+elif requires_hires_assertions:
+    result["passed"] = False
+    result["failures"].append("Missing hi-res evidence JSON required for semantic assertions.")
 
 output_path.write_text(json.dumps(result, indent=2) + "\n")
 if not result["passed"]:

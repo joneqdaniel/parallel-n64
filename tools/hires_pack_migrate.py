@@ -89,16 +89,21 @@ def build_selector_policy(texture_crc, formatsize, observation, variant_group_li
             "selection_reason": "missing-active-pool",
         }
 
+    exact_deterministic = tier == "exact-authoritative" and len(variant_group_list) == 1
     policy = {
-        "status": "deterministic" if tier in ("compat-unique", "compat-repl-dims-unique") else "manual-disambiguation-required",
+        "status": (
+            "deterministic"
+            if tier in ("compat-unique", "compat-repl-dims-unique") or exact_deterministic
+            else "manual-disambiguation-required"
+        ),
         "selector_basis": base_selector,
         "candidate_variant_group_ids": [group["variant_group_id"] for group in variant_group_list],
         "disambiguation_inputs": disambiguation_inputs,
     }
 
-    if tier in ("compat-unique", "compat-repl-dims-unique") and len(variant_group_list) == 1:
+    if (tier in ("compat-unique", "compat-repl-dims-unique") or exact_deterministic) and len(variant_group_list) == 1:
         policy["selected_variant_group_id"] = variant_group_list[0]["variant_group_id"]
-        policy["selection_reason"] = tier
+        policy["selection_reason"] = "exact-authoritative" if exact_deterministic else tier
     else:
         policy["selection_reason"] = "legacy-family-ambiguous"
 
@@ -209,6 +214,7 @@ def build_canonical_transport(compatibility_aliases, unresolved_families, record
 
 def build_imported_index(entries, requested_pairs, source_cache_path, bundle_context=None, bundle_sampled_context=None, import_policy=None):
     records = []
+    exact_authorities = []
     compatibility_aliases = []
     unresolved_families = []
     bundle_context = bundle_context or {}
@@ -316,7 +322,35 @@ def build_imported_index(entries, requested_pairs, source_cache_path, bundle_con
         if family_policy:
             selector_policy["applied_policy"] = family_policy
 
-        if family_summary["recommended_tier"] in ("compat-unique", "compat-repl-dims-unique"):
+        if family_summary["recommended_tier"] == "exact-authoritative" and selector_policy.get("status") == "deterministic":
+            exact_authorities.append(
+                {
+                    "alias_id": family_policy_key,
+                    "kind": "exact-authoritative",
+                    "match": {
+                        "texture_crc": f"{texture_crc:08x}",
+                        "formatsize": formatsize,
+                        "active_pool": family_summary["active_pool"],
+                    },
+                    "resolution_policy": {
+                        "rule": "exact-authoritative",
+                        "uniform_replacement_dims": family_summary["active_unique_repl_dim_count"] == 1,
+                    },
+                    "policy_key": family_policy_key,
+                    "observed_runtime_context": observation,
+                    "canonical_sampled_objects": sampled_candidates,
+                    "selector_policy": selector_policy,
+                    "candidate_replacement_ids": replacement_ids,
+                    "candidate_variant_group_ids": [group["variant_group_id"] for group in variant_group_list],
+                    "diagnostics": {
+                        "active_unique_palette_count": family_summary["active_unique_palette_count"],
+                        "active_unique_repl_dim_count": family_summary["active_unique_repl_dim_count"],
+                        "active_replacement_dims": family_summary["active_replacement_dims"],
+                        "variant_groups": variant_group_list,
+                    },
+                }
+            )
+        elif family_summary["recommended_tier"] in ("compat-unique", "compat-repl-dims-unique"):
             compatibility_aliases.append(
                 {
                     "alias_id": family_policy_key,
@@ -344,7 +378,7 @@ def build_imported_index(entries, requested_pairs, source_cache_path, bundle_con
                     },
                 }
             )
-        elif family_summary["recommended_tier"] in ("ambiguous-import-or-policy", "missing-active-pool"):
+        elif family_summary["recommended_tier"] in ("ambiguous-import-or-policy", "missing-active-pool", "exact-authoritative"):
             unresolved_families.append(
                 {
                     "policy_key": family_policy_key,
@@ -353,6 +387,8 @@ def build_imported_index(entries, requested_pairs, source_cache_path, bundle_con
                     "reason": (
                         "legacy-family-ambiguous"
                         if family_summary["recommended_tier"] == "ambiguous-import-or-policy"
+                        else "exact-family-ambiguous"
+                        if family_summary["recommended_tier"] == "exact-authoritative"
                         else "missing-active-pool"
                     ),
                     "active_pool": family_summary["active_pool"],
@@ -368,7 +404,7 @@ def build_imported_index(entries, requested_pairs, source_cache_path, bundle_con
             )
 
     record_index = {record["replacement_id"]: record for record in records}
-    transport = build_canonical_transport(compatibility_aliases, unresolved_families, record_index)
+    transport = build_canonical_transport(exact_authorities + compatibility_aliases, unresolved_families, record_index)
 
     return {
         "schema_version": 1,
@@ -381,6 +417,7 @@ def build_imported_index(entries, requested_pairs, source_cache_path, bundle_con
             "schema_version": import_policy.get("schema_version"),
         } if import_policy.get("source_path") else None,
         "records": records,
+        "exact_authorities": exact_authorities,
         "compatibility_aliases": compatibility_aliases,
         "unresolved_families": unresolved_families,
         "canonical_records": transport["canonical_records"],

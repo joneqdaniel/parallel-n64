@@ -25,7 +25,7 @@ nodes:
     steady_state_capture:
       settle_frames: 3
       capture_id: file_select
-      expected_capture_sha256: f81d11bb9946ee49aec6691823fff03916f43e87c5f63f839a614573dd54c644
+      expected_capture_sha256: 6fa8688b382fa1e6f0323f054861a85f593d2d47ca737bb78448e3f268ca63e3
     lineage:
       source: bootstrap
       parent_node_id: title_screen_idle

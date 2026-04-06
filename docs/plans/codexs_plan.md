@@ -91,6 +91,16 @@ If work starts now, the priority stack is:
 4. Capture classification results before allowing either seam into the canonical contract.
 5. Build `hts2phrb` as the single front door over the improved internals.
 
+### Delivery Rule
+
+- Phase A should land in measurable slices, not as a single opaque rewrite.
+- Each slice should preserve or improve active fixture results, add or strengthen direct tests, and keep the next step obvious.
+- Good early slices include:
+  - preserve structured `PHRB` identity at load time instead of discarding it
+  - separate native records from compatibility aliases in provider internals
+  - add provider/package tests before widening runtime lookup coverage
+  - widen primary structured lookup only after the prior slices are stable
+
 ## Phase A: Native Runtime Contract
 
 ### Goal
@@ -119,6 +129,7 @@ If work starts now, the priority stack is:
 - `PHRB` loading uses structured sampled-object identity as the primary runtime key.
 - Compatibility aliases are explicit secondary records, not the baseline key space.
 - The runtime contract no longer depends on converter-side convenience decisions to express its canonical identity model.
+- The runtime contract reached that state through measurable slices rather than an untestable big-bang rewrite.
 
 ## Phase A1: Generic Conversion Front Door
 
@@ -149,6 +160,7 @@ If work starts now, the priority stack is:
 - A user can run one command to convert a legacy pack into a runtime package.
 - The generated package can carry structured native identity and explicit compatibility records, including partially populated structured records that are ready for later enrichment.
 - The conversion entrypoint is generic even if the internals still use multiple stages.
+- The front door may ship before full structured lookup is the default runtime path, but it must remain a wrapper over the richer model rather than freezing a legacy-shaped contract.
 
 ## Phase B: Scoped Compatibility Mode
 
@@ -187,6 +199,8 @@ If work starts now, the priority stack is:
 - Working assumption:
   - palette parity is more likely to reveal a native identity bug than a mere compatibility nicety
   - it still must pass the classification gate before being declared canonical
+- Priority:
+  - this is the first identity investigation to run because it is the strongest candidate for a genuine native-identity correction rather than a legacy convenience rule
 
 ### Investigation 2: `LoadBlock` Sampled-Shape Retry
 

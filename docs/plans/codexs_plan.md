@@ -15,6 +15,16 @@
 - Treat legacy-pack runtime parity work as bounded compatibility research, not as the primary architecture.
 - Provide a single-command generic conversion path for legacy packs, but do not let that convenience define the canonical runtime identity model.
 
+## Plan Authority
+
+- This document is the controlling execution plan for the hi-res runtime/package direction.
+- Other planning docs may provide implementation detail, experiments, or alternate reasoning, but when sequencing or architectural priorities conflict, this document wins.
+- Companion plans are still useful:
+  - converter and parity work can borrow concrete implementation ideas
+  - validation and confidence docs still define supporting evidence expectations
+  - import-model docs still describe useful internal scaffolding
+- The purpose of this document is to keep all of that work pointed at one outcome instead of letting adjacent plans re-fragment the sequence.
+
 ## Current Assessment
 
 ### What Is Working
@@ -50,6 +60,37 @@ The project should not spend the next cycle on:
 - reviving frontend-exposed runtime lookup modes
 - treating `.hts` and `.htc` as long-term runtime formats
 
+## Execution Order
+
+The intended order of work is:
+
+1. Stabilize plan prerequisites and validation trust.
+2. Make the runtime/provider contract native-first.
+3. Run palette parity and `LoadBlock` investigations in parallel against that direction.
+4. Classify those investigations before promoting either seam.
+5. Expose the import path through one generic `hts2phrb` front door.
+6. Prove the path across Paper Mario menu and non-menu authority scenes.
+7. Prove the same contract on a second game with a different runtime class profile.
+8. Make `PHRB` the default runtime path only after the gates are met.
+
+The key sequencing rule is:
+
+- converter convenience does not get to outrun the runtime contract
+- compatibility investigations do not get to pre-decide the native identity model
+- validation gates do not get to remain screenshot-only
+
+## Immediate Priorities
+
+If work starts now, the priority stack is:
+
+1. Fix the provider/loader seam so `PHRB` is not reduced back to compatibility keys at load time.
+2. Make the active validation set trustworthy by resolving authority metadata drift and promoting one non-menu Paper Mario authority fixture.
+3. Run the two highest-value investigations:
+   - CI palette parity
+   - `LoadBlock` sampled-shape reinterpretation
+4. Capture classification results before allowing either seam into the canonical contract.
+5. Build `hts2phrb` as the single front door over the improved internals.
+
 ## Phase A: Native Runtime Contract
 
 ### Goal
@@ -77,6 +118,7 @@ The project should not spend the next cycle on:
 - The provider can resolve native records without reconstructing legacy-style `Entry` keys.
 - `PHRB` loading uses structured sampled-object identity as the primary runtime key.
 - Compatibility aliases are explicit secondary records, not the baseline key space.
+- The runtime contract no longer depends on converter-side convenience decisions to express its canonical identity model.
 
 ## Phase A1: Generic Conversion Front Door
 
@@ -142,12 +184,18 @@ The project should not spend the next cycle on:
 - Compare ParaLLEl CI palette CRC inputs against GlideN64-style lookup expectations for the same runtime event.
 - Determine whether current `tlut_shadow` population or bank-selection semantics diverge in a way that explains active legacy-pack misses.
 - If parity fixes improve legacy `.hts` behavior, keep that as explicit compatibility behavior or import guidance unless it cleanly matches the structured native identity model.
+- Working assumption:
+  - palette parity is more likely to reveal a native identity bug than a mere compatibility nicety
+  - it still must pass the classification gate before being declared canonical
 
 ### Investigation 2: `LoadBlock` Sampled-Shape Retry
 
 - Measure the real miss class caused by upload-shape versus sampled-shape disagreement.
 - Prototype a miss-only retry path for `LoadBlock`-backed cases.
 - Keep any such retry path fenced as compatibility behavior unless the same concept can be represented directly in the native package/runtime contract.
+- Working assumption:
+  - a miss-only retry is compatibility behavior until proven otherwise
+  - `LoadBlock` should not be promoted into canonical identity merely because it improves legacy-pack hit rate
 
 ### Investigation Exit Criteria
 
@@ -216,6 +264,16 @@ After CI palette parity and `LoadBlock` sampled-shape work are validated on the 
 - The generic conversion entrypoint has been exercised on at least one non-Paper-Mario pack without requiring new core runtime key rules.
 - At least one unresolved or intentionally rejected fallback case remains explicitly documented as negative data.
 
+## Promotion Rule
+
+No new behavior should be promoted to the default runtime path unless all of the following are true:
+
+1. It improves active authority fixtures.
+2. It does not break semantic hi-res evidence expectations.
+3. It survives the classification gate.
+4. It does not require game-specific runtime key rules.
+5. It still fits the native-first runtime contract.
+
 ## Phase D: Restore Direct Tests
 
 ### Goal
@@ -269,3 +327,13 @@ The project should not declare the native format/runtime seam ready until all of
 - In parallel, run the two Phase B1 investigations to decide what compatibility behavior is worth preserving as explicit secondary support for legacy packs.
 - Record the classification results in Phase B2 before promoting either seam into the converter or runtime contract.
 - After the provider contract is clear enough, add Phase A1 as the user-facing wrapper so the import experience becomes one command instead of a research pipeline.
+
+## Outcome
+
+If this plan succeeds, the project ends up with:
+
+- a native-first `PHRB` runtime contract
+- a generic one-command legacy conversion path
+- explicit and fenced compatibility behavior
+- validation that is broader than Paper Mario menus and stronger than screenshot hashes
+- a path to more games that does not depend on per-game runtime hacks

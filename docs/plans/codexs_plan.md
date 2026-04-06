@@ -191,6 +191,19 @@ If work starts now, the priority stack is:
 
 - Evaluate the strongest general-case ideas from legacy-pack parity work without replacing the native-first architecture.
 
+### Investigation Discipline
+
+- Investigation work must stay bounded and decision-oriented.
+- If an investigation yields a partial improvement, do not spiral into endless case-by-case debugging before the classification gate.
+- The correct next step for a partial result is:
+  1. record the measurable improvement
+  2. classify the remaining misses by cause
+  3. decide whether the seam looks native, compat, or dead-end
+  4. move the sequence forward
+- Investigation work is successful when it produces either:
+  - a clear improvement with a defensible classification
+  - or a clear rejection with enough evidence to stop investing
+
 ### Investigation 1: CI Palette Parity
 
 - Compare ParaLLEl CI palette CRC inputs against GlideN64-style lookup expectations for the same runtime event.
@@ -201,6 +214,8 @@ If work starts now, the priority stack is:
   - it still must pass the classification gate before being declared canonical
 - Priority:
   - this is the first identity investigation to run because it is the strongest candidate for a genuine native-identity correction rather than a legacy convenience rule
+- Partial-result rule:
+  - if the fix materially improves hit rates but does not close the seam completely, record the residual miss classes and proceed to classification instead of expanding into open-ended per-family debugging
 
 ### Investigation 2: `LoadBlock` Sampled-Shape Retry
 
@@ -210,6 +225,8 @@ If work starts now, the priority stack is:
 - Working assumption:
   - a miss-only retry is compatibility behavior until proven otherwise
   - `LoadBlock` should not be promoted into canonical identity merely because it improves legacy-pack hit rate
+- Partial-result rule:
+  - if the retry improves known miss families but raises unresolved false-positive risk, stop at classification and second-game validation rather than widening the retry path by instinct
 
 ### Investigation Exit Criteria
 

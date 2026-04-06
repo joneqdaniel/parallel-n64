@@ -13,6 +13,7 @@
 - Do not revive the failed branch's runtime lookup-mode matrix.
 - Redirect the next milestone toward a native-first `PHRB` runtime contract.
 - Treat legacy-pack runtime parity work as bounded compatibility research, not as the primary architecture.
+- Provide a single-command generic conversion path for legacy packs, but do not let that convenience define the canonical runtime identity model.
 
 ## Current Assessment
 
@@ -40,6 +41,7 @@ The project should continue on the current imported-format and sampled-object pa
 2. Reduce compatibility logic to explicit fallback mode.
 3. Broaden validation enough to justify the contract first within Paper Mario and then across at least one second game.
 4. Investigate the highest-value general legacy-pack miss classes without letting them redefine the core runtime key model.
+5. Collapse the current import experience into a generic user-facing conversion entrypoint.
 
 The project should not spend the next cycle on:
 
@@ -75,6 +77,33 @@ The project should not spend the next cycle on:
 - The provider can resolve native records without reconstructing legacy-style `Entry` keys.
 - `PHRB` loading uses structured sampled-object identity as the primary runtime key.
 - Compatibility aliases are explicit secondary records, not the baseline key space.
+
+## Phase A1: Generic Conversion Front Door
+
+### Goal
+
+- Replace the current many-step legacy import experience with one generic conversion command while keeping the richer internal model.
+
+### Required Changes
+
+1. Add one user-facing conversion entrypoint such as `hts2phrb`.
+2. Implement that entrypoint as an orchestration layer over existing import/build code where possible instead of replacing the internal model with a flat legacy-key emitter.
+3. Support `.hts` and `.htc` as generic inputs and `.phrb` as the output artifact.
+4. Ensure conversion succeeds without per-game manual intervention for the common case.
+5. Emit warnings and diagnostics for ambiguous cases instead of silently broadening runtime behavior.
+6. Keep policy-backed or enriched import stages available behind the same front door when the generic case is insufficient.
+
+### Non-Goals
+
+- Do not require users to understand the current multi-tool pipeline.
+- Do not collapse `PHRB` into a container for mostly legacy-shaped runtime keys just to make conversion simpler.
+- Do not turn auto-conversion convenience into a substitute for fixing the provider/runtime identity contract.
+
+### Exit Criteria
+
+- A user can run one command to convert a legacy pack into a runtime package.
+- The generated package can carry structured native identity and explicit compatibility records.
+- The conversion entrypoint is generic even if the internals still use multiple stages.
 
 ## Phase B: Scoped Compatibility Mode
 
@@ -123,6 +152,7 @@ The project should not spend the next cycle on:
   - required native identity facts
   - bounded compatibility helpers
   - or dead ends that should not shape the architecture
+- If they are retained, the generic converter can incorporate them automatically without introducing game-specific policy as the normal path.
 
 ## Phase C: Validation Breadth
 
@@ -147,6 +177,7 @@ The project should not spend the next cycle on:
 - At least one deeper non-menu state is part of the authority set.
 - Architectural changes are evaluated against runtime classes, not only screenshot equality.
 - The native runtime contract has at least one non-Paper-Mario validation target before being treated as generally shaped correctly.
+- The generic conversion entrypoint has been exercised on at least one non-Paper-Mario pack without requiring new core runtime key rules.
 
 ## Phase D: Restore Direct Tests
 
@@ -191,8 +222,10 @@ The project should not declare the native format/runtime seam ready until all of
 4. One non-menu Paper Mario authority fixture is active.
 5. Direct provider/package tests exist.
 6. At least one second-game probe exercises the same contract without adding new core runtime key rules.
+7. The legacy-to-`PHRB` conversion path is available through one generic entrypoint.
 
 ## Immediate Next Step
 
 - Start with Phase A and implement a native-first provider record path before adding more compatibility-oriented package promotion work.
 - In parallel, run the two Phase B1 investigations to decide what compatibility behavior is worth preserving as explicit secondary support for legacy packs.
+- After the provider contract is clear enough, add Phase A1 as the user-facing wrapper so the import experience becomes one command instead of a research pipeline.

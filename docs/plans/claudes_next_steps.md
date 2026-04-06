@@ -165,6 +165,28 @@ PHRB runtime lookup hits regardless of which view the renderer uses.
 
 ---
 
+## Step 2.5: Identity Classification Gate
+
+After Steps 1-2 are validated on Paper Mario, explicitly classify the results:
+
+**Are the palette CRC fix and LoadBlock reinterpretation:**
+- **Native identity facts** — meaning they represent how N64 textures actually work,
+  and should be baked into the PHRB format and converter as canonical behavior?
+- **Bounded compatibility helpers** — meaning they're workarounds for legacy pack
+  authoring conventions, and should stay as explicit secondary runtime behavior?
+- **Dead ends** — meaning they don't materially improve hit rates or introduce
+  false positives, and should be dropped?
+
+The answer determines whether these fixes live in the converter (native facts),
+the runtime fallback path (compat helpers), or nowhere (dead ends).
+
+**Expected outcome:** Both are native identity facts. The palette CRC fix is
+correcting a bug in ParaLLEl's CRC computation. The LoadBlock reinterpretation
+reflects how the N64 hardware actually maps uploads to sampled tiles. Neither is
+a compatibility hack — they're accuracy improvements.
+
+---
+
 ## Step 3: Build the Generic Converter
 
 **Goal:** A single tool that converts any `.hts`/`.htc` to `.phrb` with no per-game
@@ -205,22 +227,42 @@ configuration.
 
 ---
 
-## Step 4: Make PHRB the Default Runtime Path
+## Step 4: Broaden Validation Within Paper Mario
 
-**After** the converter is proven on 2+ games:
+Before going cross-game, validate within Paper Mario beyond menu screens.
+
+**Action items:**
+- [ ] Promote one deterministic non-menu Paper Mario scene to an authoritative
+      fixture (the `960`-frame timeout slice reaching `kmr_03` is already proven
+      deterministic)
+- [ ] Keep title and file-select strict fixtures as baseline gates
+- [ ] Add class-based assertions on top of image hashes:
+  - One texrect-dominated case (title screen strip replacement)
+  - One block-dominated case (file-select CI4 block family)
+  - One CI/TLUT-sensitive case (file-select palette-dependent textures)
+- [ ] Verify the converted PHRB package matches or exceeds legacy `.hts` hit rates
+      across all three fixture classes
+
+**Success criteria:** Non-menu Paper Mario scene passes with converted PHRB.
+
+---
+
+## Step 5: Make PHRB the Default Runtime Path
+
+**After** the converter is proven on Paper Mario menu + non-menu scenes:
 
 - [ ] Make `.phrb` the default runtime format
 - [ ] Add auto-conversion: if user provides `.hts`, convert to `.phrb` on first load
       and cache the result (like GlideN64's `.htc` compilation)
-- [ ] Keep direct `.hts` loading as a fallback during the transition
+- [ ] Keep direct `.hts` loading as a development/debug fallback
 - [ ] Remove debug env var gates — the improved lookup should be the default
 - [ ] Document the user-facing workflow: drop pack in system dir, enable hi-res, play
 
-**Success criteria:** Zero-configuration hi-res for any game with a legacy pack.
+**Success criteria:** Zero-configuration hi-res for Paper Mario with legacy pack.
 
 ---
 
-## Step 5: Validate on a Second Game
+## Step 6: Validate on a Second Game
 
 **Problem:** All current validation is Paper Mario only. Need proof of generality.
 
@@ -232,14 +274,36 @@ configuration.
 - [ ] Compare hit rate against GlideN64 on the same scene
 - [ ] Document any new miss classes that don't appear in Paper Mario
 
+**Gate:** The second game must work without adding new core runtime key rules.
+If it requires game-specific logic, the converter or runtime has a gap that needs
+fixing generically, not per-game.
+
 **Success criteria:** Second game achieves comparable hit rate to GlideN64 with
 zero game-specific tooling.
 
 ---
 
-## Step 6: Decide What Else PHRB Needs
+## Step 7: Add Direct Tests
 
-After Steps 1-5, reassess what the sampled-object model adds beyond the generic
+Recover the most valuable test discipline from the failed attempt without reviving
+its architecture.
+
+**Action items:**
+- [ ] Add unit tests for PHRB parsing and loading (round-trip: emit → load → verify)
+- [ ] Add unit tests for provider lookup behavior (exact hit, miss, CI fallback)
+- [ ] Add unit tests for the converter (legacy entry → PHRB record identity)
+- [ ] Add integration tests for LoadBlock reinterpretation (known miss → retry → hit)
+- [ ] Add integration tests for palette CRC computation (ParaLLEl vs GlideN64 parity)
+
+These tests should run without the emulator or a game ROM.
+
+**Success criteria:** Runtime/package regressions caught without full emulator runs.
+
+---
+
+## Step 8: Decide What Else PHRB Needs
+
+After Steps 1-7, reassess what the sampled-object model adds beyond the generic
 converter. Possible enhancements:
 
 - **ROM-scan enrichment**: A future tool could parse a game's ROM display lists and
@@ -284,12 +348,29 @@ converter. Possible enhancements:
 |------|--------|------|
 | 1. Fix palette CRC | 2-4 days | Low — GlideN64 source is clear reference |
 | 2. LoadBlock reinterpretation | 2-3 days | Medium — stride/dxt needs care |
+| 2.5. Identity classification gate | 0.5 day | N/A — decision point |
 | 3. Generic converter | 3-5 days | Low — reuses existing parsing code |
-| 4. Default path promotion | 1-2 days | Low — mostly wiring and cleanup |
-| 5. Second game validation | 2-3 days | Low — just needs a pack and savestate |
-| 6. PHRB enhancement decision | 1 day | N/A — decision point |
+| 4. Paper Mario non-menu validation | 2-3 days | Low — fixtures already exist |
+| 5. Default path promotion | 1-2 days | Low — mostly wiring and cleanup |
+| 6. Second game validation | 2-3 days | Low — just needs a pack and savestate |
+| 7. Direct tests | 2-3 days | Low — clear scope |
+| 8. PHRB enhancement decision | 0.5 day | N/A — decision point |
 
-**Total: ~11-18 days to a working "any game" path with PHRB as runtime format.**
+**Total: ~14-24 days to a working, tested, "any game" path with PHRB as runtime.**
+
+---
+
+## Decision Gates
+
+The project should not declare the runtime ready until all of:
+
+1. PHRB is the default runtime format with auto-conversion from `.hts`
+2. Palette CRC matches GlideN64 for CI textures
+3. LoadBlock reinterpretation is classified and integrated appropriately
+4. One non-menu Paper Mario fixture passes with converted PHRB
+5. One second game works without game-specific rules
+6. Direct provider/package/converter tests exist
+7. Compatibility behavior (if any) is explicitly fenced from the native path
 
 ---
 
@@ -299,14 +380,18 @@ This plan agrees with Codex on:
 - PHRB should be the runtime format
 - `.hts`/`.htc` are import inputs, not the product path
 - Compatibility should be explicit and secondary
-- Validation must broaden beyond Paper Mario
+- Validation must broaden beyond Paper Mario menu scenes
+- Direct tests should exist for provider/package behavior
 
 This plan differs from Codex on:
 - The path to PHRB is a **generic automatic converter**, not per-game tooling
-- The converter solves the identity problems (palette CRC, LoadBlock shape) at
-  conversion time, making structured sampled-object lookup unnecessary for the
-  common case
-- ROM-scan-enriched PHRB is a future enhancement, not a prerequisite
+- The palette CRC and LoadBlock fixes are **correctness improvements**, not
+  "compatibility investigations" — they fix bugs in how ParaLLEl computes
+  texture identity, matching what the N64 hardware actually does
+- These fixes should be Step 1 (immediate, measurable), not Phase B1 (parallel
+  research alongside architectural work)
+- Structured sampled-object lookup is a future enhancement (ROM-scan enrichment),
+  not a prerequisite for the runtime contract
 
 The key constraint both plans must respect: **if it requires manual work per game,
 it won't scale.** The converter must be fully automatic.

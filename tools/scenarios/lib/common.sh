@@ -216,6 +216,9 @@ result = {
         "exact_unresolved_miss_count": 0,
         "unique_exact_unresolved_miss_bucket_count": 0,
         "top_exact_unresolved_miss_buckets": [],
+        "family_line_count": 0,
+        "unique_exact_family_bucket_count": 0,
+        "top_exact_family_buckets": [],
     },
 }
 
@@ -229,7 +232,12 @@ capability_re = re.compile(
 )
 disabled_re = re.compile(r"Hi-res textures requested, but disabled: (.+) \(maxDescriptorSetUpdateAfterBindSampledImages=(\d+), required>=(\d+)\)\.")
 summary_re = re.compile(
-    r"Hi-res keying summary: lookups=(\d+) hits=(\d+) misses=(\d+)(?: filtered=(\d+))?(?: block_probe_hits=(\d+))? provider=(on|off)\."
+    r"Hi-res keying summary: lookups=(\d+) hits=(\d+) misses=(\d+)"
+    r"(?: filtered=(\d+))?"
+    r"(?: block_probe_hits=(\d+))?"
+    r" provider=(on|off)"
+    r"(?: entries=(\d+) native_sampled=(\d+) compat=(\d+) sampled_index=(\d+) sampled_families=(\d+) compat_low32_families=(\d+) sources\(phrb=(\d+) hts=(\d+) htc=(\d+)\))?"
+    r"\."
 )
 hit_miss_re = re.compile(r"Hi-res keying (hit|miss): (.+)")
 filtered_re = re.compile(r"Hi-res keying filtered: reason=([^\s]+) (.+)")
@@ -244,6 +252,7 @@ draw_usage_re = re.compile(r"Hi-res draw usage: (.+)")
 sampled_object_re = re.compile(r"Hi-res sampled-object probe: (.+)")
 sampled_object_exact_hit_re = re.compile(r"Hi-res sampled-object exact hit: (.+)")
 sampled_object_exact_miss_re = re.compile(r"Hi-res sampled-object exact miss: (.+)")
+sampled_object_family_re = re.compile(r"Hi-res sampled-object family: (.+)")
 field_re = re.compile(r"(\w+)=([^\s]+)")
 
 bucket_maps = {
@@ -259,6 +268,7 @@ sampler_usage_buckets = {}
 sampled_object_buckets = {}
 sampled_object_exact_hit_buckets = {}
 sampled_object_exact_miss_buckets = {}
+sampled_object_family_buckets = {}
 
 def parse_fields(detail):
     fields = {}
@@ -454,6 +464,19 @@ def finalize_sampled_object_summary():
     result["sampled_object_probe"]["exact_unresolved_miss_count"] = sum(item["count"] for item in exact_unresolved_items)
     result["sampled_object_probe"]["unique_exact_unresolved_miss_bucket_count"] = len(exact_unresolved_items)
     result["sampled_object_probe"]["top_exact_unresolved_miss_buckets"] = exact_unresolved_items[:10]
+
+    family_items = [
+        {
+            "signature": signature,
+            "count": payload["count"],
+            "fields": payload["fields"],
+            "sample_detail": payload["sample_detail"],
+        }
+        for signature, payload in sampled_object_family_buckets.items()
+    ]
+    family_items.sort(key=lambda item: (-item["count"], item["signature"]))
+    result["sampled_object_probe"]["unique_exact_family_bucket_count"] = len(family_items)
+    result["sampled_object_probe"]["top_exact_family_buckets"] = family_items[:10]
 
 def parse_hts_cache_index(cache_path):
     data = cache_path.read_bytes()
@@ -689,7 +712,7 @@ for line in log_path.read_text(errors="replace").splitlines():
     m = summary_re.search(line)
     if m:
         result["available"] = True
-        result["summary"] = {
+        summary = {
             "lookups": int(m.group(1)),
             "hits": int(m.group(2)),
             "misses": int(m.group(3)),
@@ -697,6 +720,28 @@ for line in log_path.read_text(errors="replace").splitlines():
             "block_probe_hits": int(m.group(5) or 0),
             "provider": m.group(6),
         }
+        if m.group(7) is not None:
+            source_counts = {
+                "phrb": int(m.group(13)),
+                "hts": int(m.group(14)),
+                "htc": int(m.group(15)),
+            }
+            summary["entry_count"] = int(m.group(7))
+            summary["native_sampled_entry_count"] = int(m.group(8))
+            summary["compat_entry_count"] = int(m.group(9))
+            summary["sampled_index_count"] = int(m.group(10))
+            summary["sampled_family_count"] = int(m.group(11))
+            summary["compat_low32_family_count"] = int(m.group(12))
+            summary["source_counts"] = source_counts
+            if source_counts["phrb"] > 0 and source_counts["hts"] == 0 and source_counts["htc"] == 0:
+                summary["source_mode"] = "phrb-only"
+            elif source_counts["phrb"] == 0 and (source_counts["hts"] > 0 or source_counts["htc"] > 0):
+                summary["source_mode"] = "legacy-only"
+            elif source_counts["phrb"] > 0 and (source_counts["hts"] > 0 or source_counts["htc"] > 0):
+                summary["source_mode"] = "mixed"
+            else:
+                summary["source_mode"] = "unknown"
+        result["summary"] = summary
         continue
 
     m = filter_config_re.search(line)
@@ -898,6 +943,69 @@ for line in log_path.read_text(errors="replace").splitlines():
                         "provider_enabled",
                         "provider_entries",
                         "repl",
+                    )
+                    if fields.get(key) is not None
+                },
+                "sample_detail": detail,
+            },
+        )
+        bucket["count"] += 1
+        continue
+
+    m = sampled_object_family_re.search(line)
+    if m:
+        result["available"] = True
+        result["sampled_object_probe"]["available"] = True
+        result["sampled_object_probe"]["family_line_count"] += 1
+        detail = m.group(1).strip()
+        fields = parse_fields(detail)
+        signature = " ".join(
+            f"{key}={fields.get(key)}"
+            for key in (
+                "available",
+                "draw_class",
+                "cycle",
+                "tile",
+                "sampled_low32",
+                "palette_crc",
+                "fs",
+                "selector",
+                "active_is_pool",
+                "sample_policy",
+                "sampled_object",
+            )
+            if fields.get(key) is not None
+        )
+        bucket = sampled_object_family_buckets.setdefault(
+            signature,
+            {
+                "count": 0,
+                "fields": {
+                    key: fields.get(key)
+                    for key in (
+                        "available",
+                        "draw_class",
+                        "cycle",
+                        "tile",
+                        "sampled_low32",
+                        "palette_crc",
+                        "fs",
+                        "selector",
+                        "prefer_exact_fs",
+                        "exact_entries",
+                        "generic_entries",
+                        "active_entries",
+                        "unique_checksums",
+                        "unique_selectors",
+                        "zero_selectors",
+                        "matching_selectors",
+                        "ordered_selectors",
+                        "repl_dims",
+                        "uniform_repl_dims",
+                        "sample_repl",
+                        "active_is_pool",
+                        "sample_policy",
+                        "sampled_object",
                     )
                     if fields.get(key) is not None
                 },
@@ -1210,6 +1318,10 @@ def parse_expected_list(name: str):
     return [item.strip() for item in value.split(",") if item.strip()]
 
 expected_hires_provider = get_mode_expected("EXPECTED_HIRES_SUMMARY_PROVIDER")
+expected_hires_source_mode = get_mode_expected("EXPECTED_HIRES_SUMMARY_SOURCE_MODE")
+expected_min_summary_entry_count = parse_expected_int("EXPECTED_HIRES_MIN_SUMMARY_ENTRY_COUNT")
+expected_min_summary_native_sampled_entry_count = parse_expected_int("EXPECTED_HIRES_MIN_SUMMARY_NATIVE_SAMPLED_ENTRY_COUNT")
+expected_min_summary_source_phrb_count = parse_expected_int("EXPECTED_HIRES_MIN_SUMMARY_SOURCE_PHRB_COUNT")
 expected_provenance_available = parse_expected_bool("EXPECTED_HIRES_PROVENANCE_AVAILABLE")
 expected_draw_usage_available = parse_expected_bool("EXPECTED_HIRES_DRAW_USAGE_AVAILABLE")
 expected_sampler_usage_available = parse_expected_bool("EXPECTED_HIRES_SAMPLER_USAGE_AVAILABLE")
@@ -1223,6 +1335,10 @@ expected_min_exact_unresolved_miss_count = parse_expected_int("EXPECTED_HIRES_MI
 
 requires_hires_assertions = any([
     expected_hires_provider is not None,
+    expected_hires_source_mode is not None,
+    expected_min_summary_entry_count is not None,
+    expected_min_summary_native_sampled_entry_count is not None,
+    expected_min_summary_source_phrb_count is not None,
     expected_provenance_available is not None,
     expected_draw_usage_available is not None,
     expected_sampler_usage_available is not None,
@@ -1247,6 +1363,10 @@ result = {
         "cur_game_mode_match": None,
         "hires_evidence_present": hires_path.is_file(),
         "hires_summary_provider_match": None,
+        "hires_summary_source_mode_match": None,
+        "hires_min_summary_entry_count_match": None,
+        "hires_min_summary_native_sampled_entry_count_match": None,
+        "hires_min_summary_source_phrb_count_match": None,
         "hires_provenance_available_match": None,
         "hires_draw_usage_available_match": None,
         "hires_sampler_usage_available_match": None,
@@ -1263,6 +1383,10 @@ result = {
         "init_symbol": expected_init_symbol or None,
         "step_symbol": expected_step_symbol or None,
         "hires_summary_provider": expected_hires_provider,
+        "hires_summary_source_mode": expected_hires_source_mode,
+        "hires_min_summary_entry_count": expected_min_summary_entry_count,
+        "hires_min_summary_native_sampled_entry_count": expected_min_summary_native_sampled_entry_count,
+        "hires_min_summary_source_phrb_count": expected_min_summary_source_phrb_count,
         "hires_provenance_available": expected_provenance_available,
         "hires_draw_usage_available": expected_draw_usage_available,
         "hires_sampler_usage_available": expected_sampler_usage_available,
@@ -1279,6 +1403,10 @@ result = {
         "init_symbol": None,
         "step_symbol": None,
         "hires_summary_provider": None,
+        "hires_summary_source_mode": None,
+        "hires_summary_entry_count": None,
+        "hires_summary_native_sampled_entry_count": None,
+        "hires_summary_source_phrb_count": None,
         "hires_provenance_available": None,
         "hires_draw_usage_available": None,
         "hires_sampler_usage_available": None,
@@ -1351,6 +1479,10 @@ if hires_path.is_file():
         sampled_object = hires.get("sampled_object_probe") or {}
 
         result["actual"]["hires_summary_provider"] = summary.get("provider")
+        result["actual"]["hires_summary_source_mode"] = summary.get("source_mode")
+        result["actual"]["hires_summary_entry_count"] = summary.get("entry_count")
+        result["actual"]["hires_summary_native_sampled_entry_count"] = summary.get("native_sampled_entry_count")
+        result["actual"]["hires_summary_source_phrb_count"] = (summary.get("source_counts") or {}).get("phrb")
         result["actual"]["hires_provenance_available"] = bool(provenance.get("available"))
         result["actual"]["hires_draw_usage_available"] = bool(draw_usage.get("available"))
         result["actual"]["hires_sampler_usage_available"] = bool(sampler_usage.get("available"))
@@ -1369,6 +1501,45 @@ if hires_path.is_file():
                 result["passed"] = False
                 result["failures"].append(
                     f"Hi-res summary provider mismatch: expected {expected_hires_provider}, got {summary.get('provider')}."
+                )
+
+        if expected_hires_source_mode is not None:
+            matched = summary.get("source_mode") == expected_hires_source_mode
+            result["checks"]["hires_summary_source_mode_match"] = matched
+            if not matched:
+                result["passed"] = False
+                result["failures"].append(
+                    f"Hi-res summary source_mode mismatch: expected {expected_hires_source_mode}, got {summary.get('source_mode')}."
+                )
+
+        if expected_min_summary_entry_count is not None:
+            actual_value = summary.get("entry_count")
+            matched = actual_value is not None and actual_value >= expected_min_summary_entry_count
+            result["checks"]["hires_min_summary_entry_count_match"] = matched
+            if not matched:
+                result["passed"] = False
+                result["failures"].append(
+                    f"Hi-res summary entry_count below minimum: expected >= {expected_min_summary_entry_count}, got {actual_value}."
+                )
+
+        if expected_min_summary_native_sampled_entry_count is not None:
+            actual_value = summary.get("native_sampled_entry_count")
+            matched = actual_value is not None and actual_value >= expected_min_summary_native_sampled_entry_count
+            result["checks"]["hires_min_summary_native_sampled_entry_count_match"] = matched
+            if not matched:
+                result["passed"] = False
+                result["failures"].append(
+                    f"Hi-res summary native_sampled_entry_count below minimum: expected >= {expected_min_summary_native_sampled_entry_count}, got {actual_value}."
+                )
+
+        if expected_min_summary_source_phrb_count is not None:
+            actual_value = (summary.get("source_counts") or {}).get("phrb")
+            matched = actual_value is not None and actual_value >= expected_min_summary_source_phrb_count
+            result["checks"]["hires_min_summary_source_phrb_count_match"] = matched
+            if not matched:
+                result["passed"] = False
+                result["failures"].append(
+                    f"Hi-res summary source_counts.phrb below minimum: expected >= {expected_min_summary_source_phrb_count}, got {actual_value}."
                 )
 
         if expected_provenance_available is not None:

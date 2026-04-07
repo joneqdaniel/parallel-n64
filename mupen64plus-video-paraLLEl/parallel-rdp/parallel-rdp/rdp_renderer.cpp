@@ -1062,13 +1062,34 @@ void Renderer::log_hires_summary() const
 	if (!replacement_provider && !hires_debug)
 		return;
 
-	LOGI("Hi-res keying summary: lookups=%llu hits=%llu misses=%llu filtered=%llu block_probe_hits=%llu provider=%s.\n",
-	     static_cast<unsigned long long>(hires_lookup_total),
-	     static_cast<unsigned long long>(hires_lookup_hits),
-	     static_cast<unsigned long long>(hires_lookup_misses),
-	     static_cast<unsigned long long>(hires_lookup_filtered),
-	     static_cast<unsigned long long>(hires_lookup_block_shape_probe_hits),
-	     replacement_provider ? "on" : "off");
+	if (replacement_provider)
+	{
+		ReplacementProviderStats provider_stats = replacement_provider->get_stats();
+		LOGI("Hi-res keying summary: lookups=%llu hits=%llu misses=%llu filtered=%llu block_probe_hits=%llu provider=on entries=%u native_sampled=%u compat=%u sampled_index=%u sampled_families=%u compat_low32_families=%u sources(phrb=%u hts=%u htc=%u).\n",
+		     static_cast<unsigned long long>(hires_lookup_total),
+		     static_cast<unsigned long long>(hires_lookup_hits),
+		     static_cast<unsigned long long>(hires_lookup_misses),
+		     static_cast<unsigned long long>(hires_lookup_filtered),
+		     static_cast<unsigned long long>(hires_lookup_block_shape_probe_hits),
+		     provider_stats.entry_count,
+		     provider_stats.native_sampled_entry_count,
+		     provider_stats.compat_entry_count,
+		     provider_stats.sampled_index_count,
+		     provider_stats.sampled_family_count,
+		     provider_stats.compat_low32_family_count,
+		     provider_stats.source_phrb_entry_count,
+		     provider_stats.source_hts_entry_count,
+		     provider_stats.source_htc_entry_count);
+	}
+	else
+	{
+		LOGI("Hi-res keying summary: lookups=%llu hits=%llu misses=%llu filtered=%llu block_probe_hits=%llu provider=off.\n",
+		     static_cast<unsigned long long>(hires_lookup_total),
+		     static_cast<unsigned long long>(hires_lookup_hits),
+		     static_cast<unsigned long long>(hires_lookup_misses),
+		     static_cast<unsigned long long>(hires_lookup_filtered),
+		     static_cast<unsigned long long>(hires_lookup_block_shape_probe_hits));
+	}
 }
 
 void Renderer::flush_and_signal()
@@ -1967,7 +1988,19 @@ void Renderer::draw_shaded_primitive(const TriangleSetup &setup, const Attribute
 			}
 			candidate_meta.orig_w = sampled_identity.width_pixels;
 			candidate_meta.orig_h = sampled_identity.height_pixels;
-			if (!resolve_hires_replacement_descriptor(resolved_checksum64, sampled_identity.formatsize, resolved_selector_checksum64, candidate_meta))
+			if (!resolve_hires_sampled_replacement_descriptor(
+					uint32_t(base_meta.fmt),
+					uint32_t(base_meta.size),
+					base_meta.offset,
+					sampled_identity.row_stride_bytes,
+					sampled_identity.width_pixels,
+					sampled_identity.height_pixels,
+					sampled_identity.texture_crc,
+					palette_crc,
+					sampled_identity.formatsize,
+					resolved_checksum64,
+					resolved_selector_checksum64,
+					candidate_meta))
 			{
 				SampledExactMissAttempt attempt = {};
 				attempt.reason = "resolve";
@@ -1992,6 +2025,19 @@ void Renderer::draw_shaded_primitive(const TriangleSetup &setup, const Attribute
 		{
 			for (const auto &attempt : sampled_miss_attempts)
 			{
+				SampledFamilyDiagnostics sampled_family_diag = {};
+				const bool sampled_family_available = replacement_provider->describe_sampled_family(
+					uint32_t(base_meta.fmt),
+					uint32_t(base_meta.size),
+					base_meta.offset,
+					sampled_identity.row_stride_bytes,
+					sampled_identity.width_pixels,
+					sampled_identity.height_pixels,
+					sampled_identity.texture_crc,
+					attempt.palette_crc,
+					sampled_identity.formatsize,
+					attempt.selector_checksum64,
+					&sampled_family_diag);
 				if (std::strcmp(attempt.reason, "resolve") == 0)
 				{
 					LOGI("Hi-res sampled-object exact miss: reason=resolve draw_class=%s cycle=%s tile=%u sampled_low32=%08x palette_crc=%08x fs=%u selector=%016llx repl=%ux%u.\n",
@@ -2017,6 +2063,44 @@ void Renderer::draw_shaded_primitive(const TriangleSetup &setup, const Attribute
 					     static_cast<unsigned long long>(attempt.selector_checksum64),
 					     replacement_provider->enabled() ? 1u : 0u,
 					     replacement_provider->entry_count());
+				}
+				if (sampled_family_available)
+				{
+					LOGI("Hi-res sampled-object family: available=1 draw_class=%s cycle=%s tile=%u sampled_low32=%08x palette_crc=%08x fs=%u selector=%016llx prefer_exact_fs=%u exact_entries=%u generic_entries=%u active_entries=%u unique_checksums=%u unique_selectors=%u zero_selectors=%u matching_selectors=%u ordered_selectors=%u repl_dims=%u uniform_repl_dims=%u sample_repl=%ux%u active_is_pool=%u sample_policy=%s sampled_object=%s.\n",
+					     get_hires_draw_class(draw_class),
+					     get_hires_cycle_class(raster_flags),
+					     base_tile,
+					     sampled_identity.texture_crc,
+					     attempt.palette_crc,
+					     sampled_identity.formatsize,
+					     static_cast<unsigned long long>(attempt.selector_checksum64),
+					     sampled_family_diag.prefer_exact_formatsize ? 1u : 0u,
+					     sampled_family_diag.exact_formatsize_entries,
+					     sampled_family_diag.generic_formatsize_entries,
+					     sampled_family_diag.active_entry_count,
+					     sampled_family_diag.active_unique_checksum_count,
+					     sampled_family_diag.active_unique_selector_count,
+					     sampled_family_diag.active_zero_selector_count,
+					     sampled_family_diag.active_matching_selector_count,
+					     sampled_family_diag.active_ordered_surface_selector_count,
+					     sampled_family_diag.active_unique_repl_dim_count,
+					     sampled_family_diag.active_repl_dims_uniform ? 1u : 0u,
+					     sampled_family_diag.sample_repl_w,
+					     sampled_family_diag.sample_repl_h,
+					     sampled_family_diag.active_is_pool ? 1u : 0u,
+					     sampled_family_diag.sample_policy_key.empty() ? "<none>" : sampled_family_diag.sample_policy_key.c_str(),
+					     sampled_family_diag.sample_sampled_object_id.empty() ? "<none>" : sampled_family_diag.sample_sampled_object_id.c_str());
+				}
+				else
+				{
+					LOGI("Hi-res sampled-object family: available=0 draw_class=%s cycle=%s tile=%u sampled_low32=%08x palette_crc=%08x fs=%u selector=%016llx.\n",
+					     get_hires_draw_class(draw_class),
+					     get_hires_cycle_class(raster_flags),
+					     base_tile,
+					     sampled_identity.texture_crc,
+					     attempt.palette_crc,
+					     sampled_identity.formatsize,
+					     static_cast<unsigned long long>(attempt.selector_checksum64));
 				}
 			}
 		}
@@ -2079,19 +2163,28 @@ void Renderer::draw_shaded_primitive(const TriangleSetup &setup, const Attribute
 		{
 			ReplacementMeta sampled_entry_meta = {};
 			ReplacementMeta sampled_sparse_meta = {};
-			const bool sampled_entry_hit = sampled_identity.entry_crc != 0 && replacement_provider->lookup(
+			const bool sampled_entry_hit = sampled_identity.entry_crc != 0 && replacement_provider->lookup_native_with_selector(
 				detail::compose_hires_checksum64(sampled_identity.texture_crc, sampled_identity.entry_crc),
 				sampled_identity.formatsize,
+				0,
 				&sampled_entry_meta);
-			const bool sampled_sparse_hit = sampled_identity.sparse_crc != 0 && replacement_provider->lookup(
+			const bool sampled_sparse_hit = sampled_identity.sparse_crc != 0 && replacement_provider->lookup_native_with_selector(
 				detail::compose_hires_checksum64(sampled_identity.texture_crc, sampled_identity.sparse_crc),
 				sampled_identity.formatsize,
+				0,
 				&sampled_sparse_meta);
-			CILow32FamilyDiagnostics sampled_family = {};
-			const bool sampled_family_available = replacement_provider->describe_ci_low32_family(
+			SampledFamilyDiagnostics sampled_family = {};
+			const bool sampled_family_available = replacement_provider->describe_sampled_family(
+				uint32_t(base_meta.fmt),
+				uint32_t(base_meta.size),
+				base_meta.offset,
+				sampled_identity.row_stride_bytes,
+				sampled_identity.width_pixels,
+				sampled_identity.height_pixels,
 				sampled_identity.texture_crc,
-				sampled_identity.formatsize,
 				sampled_identity.sparse_crc,
+				sampled_identity.formatsize,
+				texel0_state.checksum64,
 				&sampled_family) && sampled_family.available;
 			LOGI("Hi-res sampled-object probe: draw_class=%s cycle=%s tile=%u fmt=%u siz=%u pal=%u off=%u stride=%u wh=%ux%u upload_low32=%08x upload_pcrc=%08x sampled_low32=%08x sampled_entry_pcrc=%08x sampled_sparse_pcrc=%08x sampled_entry_count=%u sampled_used_count=%u fs=%u entry_hit=%u sparse_hit=%u family=%u unique_repl_dims=%u sample_repl=%ux%u.\n",
 			     get_hires_draw_class(draw_class),
@@ -3591,6 +3684,96 @@ bool Renderer::resolve_hires_replacement_descriptor(uint64_t checksum64, uint16_
 	return resolve_hires_replacement_descriptor(checksum64, formatsize, 0, meta);
 }
 
+bool Renderer::resolve_hires_compat_replacement_descriptor(uint64_t checksum64, uint16_t formatsize, ReplacementMeta &meta)
+{
+	return resolve_hires_compat_replacement_descriptor(checksum64, formatsize, 0, meta);
+}
+
+bool Renderer::resolve_hires_sampled_replacement_descriptor(uint32_t sampled_fmt,
+                                                            uint32_t sampled_siz,
+                                                            uint32_t sampled_tex_offset,
+                                                            uint32_t sampled_stride,
+                                                            uint32_t sampled_width,
+                                                            uint32_t sampled_height,
+                                                            uint32_t sampled_low32,
+                                                            uint32_t palette_crc,
+                                                            uint16_t formatsize,
+                                                            uint64_t resolved_checksum64,
+                                                            uint64_t selector_checksum64,
+                                                            ReplacementMeta &meta)
+{
+	meta.vk_image_index = detail::hires_invalid_descriptor_index();
+
+	if (!replacement_provider || !caps.hires_replacement_shader)
+		return false;
+
+	HiresKey key = {};
+	key.checksum64 = resolved_checksum64;
+	key.formatsize = formatsize;
+	key.selector_checksum64 = selector_checksum64;
+	key.source = HiresKeySource::NativeSampled;
+	auto itr = hires_resources.resident_images.find(key);
+	if (itr != hires_resources.resident_images.end())
+	{
+		meta.vk_image_index = itr->second.descriptor_index;
+		meta.repl_w = itr->second.repl_w;
+		meta.repl_h = itr->second.repl_h;
+		return true;
+	}
+
+	if (!hires_resources.bindless_pool || hires_resources.next_descriptor >= hires_resources.capacity)
+		return false;
+
+	ReplacementImage replacement = {};
+	if (!replacement_provider->decode_sampled_rgba8_with_selector(
+			sampled_fmt,
+			sampled_siz,
+			sampled_tex_offset,
+			sampled_stride,
+			sampled_width,
+			sampled_height,
+			sampled_low32,
+			palette_crc,
+			formatsize,
+			selector_checksum64,
+			&replacement))
+		return false;
+	if (replacement.rgba8.empty() || replacement.meta.repl_w == 0 || replacement.meta.repl_h == 0)
+		return false;
+
+	zero_transparent_replacement_rgb(replacement.rgba8);
+
+	Vulkan::ImageInitialData initial = {};
+	initial.data = replacement.rgba8.data();
+	initial.row_length = replacement.meta.repl_w;
+	initial.image_height = replacement.meta.repl_h;
+
+	auto image = device->create_image(
+			Vulkan::ImageCreateInfo::immutable_2d_image(
+					replacement.meta.repl_w,
+					replacement.meta.repl_h,
+					VK_FORMAT_R8G8B8A8_UNORM,
+					false),
+			&initial);
+	if (!image)
+		return false;
+
+	const uint32_t descriptor_index = hires_resources.next_descriptor++;
+	hires_resources.bindless_pool->set_texture(descriptor_index, image->get_view());
+
+	HiresResidentImage resident = {};
+	resident.image = std::move(image);
+	resident.descriptor_index = descriptor_index;
+	resident.repl_w = static_cast<uint16_t>(replacement.meta.repl_w);
+	resident.repl_h = static_cast<uint16_t>(replacement.meta.repl_h);
+	hires_resources.resident_images.emplace(key, std::move(resident));
+
+	meta.vk_image_index = descriptor_index;
+	meta.repl_w = replacement.meta.repl_w;
+	meta.repl_h = replacement.meta.repl_h;
+	return true;
+}
+
 bool Renderer::resolve_hires_replacement_descriptor(uint64_t checksum64, uint16_t formatsize, uint64_t selector_checksum64, ReplacementMeta &meta)
 {
 	meta.vk_image_index = detail::hires_invalid_descriptor_index();
@@ -3602,6 +3785,7 @@ bool Renderer::resolve_hires_replacement_descriptor(uint64_t checksum64, uint16_
 	key.checksum64 = checksum64;
 	key.formatsize = formatsize;
 	key.selector_checksum64 = selector_checksum64;
+	key.source = HiresKeySource::Generic;
 	auto itr = hires_resources.resident_images.find(key);
 	if (itr != hires_resources.resident_images.end())
 	{
@@ -3616,6 +3800,69 @@ bool Renderer::resolve_hires_replacement_descriptor(uint64_t checksum64, uint16_
 
 	ReplacementImage replacement = {};
 	if (!replacement_provider->decode_rgba8_with_selector(checksum64, formatsize, selector_checksum64, &replacement))
+		return false;
+	if (replacement.rgba8.empty() || replacement.meta.repl_w == 0 || replacement.meta.repl_h == 0)
+		return false;
+
+	zero_transparent_replacement_rgb(replacement.rgba8);
+
+	Vulkan::ImageInitialData initial = {};
+	initial.data = replacement.rgba8.data();
+	initial.row_length = replacement.meta.repl_w;
+	initial.image_height = replacement.meta.repl_h;
+
+	auto image = device->create_image(
+			Vulkan::ImageCreateInfo::immutable_2d_image(
+					replacement.meta.repl_w,
+					replacement.meta.repl_h,
+					VK_FORMAT_R8G8B8A8_UNORM,
+					false),
+			&initial);
+	if (!image)
+		return false;
+
+	const uint32_t descriptor_index = hires_resources.next_descriptor++;
+	hires_resources.bindless_pool->set_texture(descriptor_index, image->get_view());
+
+	HiresResidentImage resident = {};
+	resident.image = std::move(image);
+	resident.descriptor_index = descriptor_index;
+	resident.repl_w = static_cast<uint16_t>(replacement.meta.repl_w);
+	resident.repl_h = static_cast<uint16_t>(replacement.meta.repl_h);
+	hires_resources.resident_images.emplace(key, std::move(resident));
+
+	meta.vk_image_index = descriptor_index;
+	meta.repl_w = replacement.meta.repl_w;
+	meta.repl_h = replacement.meta.repl_h;
+	return true;
+}
+
+bool Renderer::resolve_hires_compat_replacement_descriptor(uint64_t checksum64, uint16_t formatsize, uint64_t selector_checksum64, ReplacementMeta &meta)
+{
+	meta.vk_image_index = detail::hires_invalid_descriptor_index();
+
+	if (!replacement_provider || !caps.hires_replacement_shader)
+		return false;
+
+	HiresKey key = {};
+	key.checksum64 = checksum64;
+	key.formatsize = formatsize;
+	key.selector_checksum64 = selector_checksum64;
+	key.source = HiresKeySource::Compat;
+	auto itr = hires_resources.resident_images.find(key);
+	if (itr != hires_resources.resident_images.end())
+	{
+		meta.vk_image_index = itr->second.descriptor_index;
+		meta.repl_w = itr->second.repl_w;
+		meta.repl_h = itr->second.repl_h;
+		return true;
+	}
+
+	if (!hires_resources.bindless_pool || hires_resources.next_descriptor >= hires_resources.capacity)
+		return false;
+
+	ReplacementImage replacement = {};
+	if (!replacement_provider->decode_rgba8_compat_with_selector(checksum64, formatsize, selector_checksum64, &replacement))
 		return false;
 	if (replacement.rgba8.empty() || replacement.meta.repl_w == 0 || replacement.meta.repl_h == 0)
 		return false;
@@ -4265,7 +4512,7 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 					{
 						selected_meta.orig_w = key_width_pixels;
 						selected_meta.orig_h = key_height_pixels;
-						if (resolve_hires_replacement_descriptor(selected_checksum64, formatsize, selected_meta))
+						if (resolve_hires_compat_replacement_descriptor(selected_checksum64, formatsize, selected_meta))
 						{
 							repl_meta = selected_meta;
 							resolved_checksum64 = selected_checksum64;
@@ -4287,7 +4534,7 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 				{
 					compat_meta.orig_w = key_width_pixels;
 					compat_meta.orig_h = key_height_pixels;
-					if (resolve_hires_replacement_descriptor(compat_checksum64, formatsize, compat_meta))
+					if (resolve_hires_compat_replacement_descriptor(compat_checksum64, formatsize, compat_meta))
 					{
 						repl_meta = compat_meta;
 						resolved_checksum64 = compat_checksum64;
@@ -4332,7 +4579,7 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 				{
 					fallback_meta.orig_w = key_width_pixels;
 					fallback_meta.orig_h = key_height_pixels;
-					if (resolve_hires_replacement_descriptor(fallback_checksum64, formatsize, fallback_meta))
+					if (resolve_hires_compat_replacement_descriptor(fallback_checksum64, formatsize, fallback_meta))
 					{
 						repl_meta = fallback_meta;
 						resolved_checksum64 = fallback_checksum64;

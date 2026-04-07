@@ -81,3 +81,10 @@ Use [Workspace Paths](/home/auro/code/parallel-n64/docs/WORKSPACE_PATHS.md) for 
 - `./run-dump-tests.sh --provision-validator`
 
 See [EMU_TESTING.md](/home/auro/code/parallel-n64/docs/EMU_TESTING.md) for the current test tiers.
+
+Current runtime-conformance note:
+
+- `emu-runtime-conformance` now includes both explicit Paper Mario selected-package lanes in addition to the existing lavapipe checks:
+  - `emu.conformance.paper_mario_selected_package_authorities`
+  - `emu.conformance.paper_mario_selected_package_timeout_validation`
+- those lanes are opt-in through `EMU_ENABLE_RUNTIME_CONFORMANCE=1` and skip cleanly when the local selected `PHRB` package or Paper Mario prerequisites are missing

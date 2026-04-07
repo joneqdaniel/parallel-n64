@@ -232,6 +232,20 @@ private:
 	bool init_hires_resources(unsigned requested_capacity);
 	bool resolve_hires_replacement_descriptor(uint64_t checksum64, uint16_t formatsize, ReplacementMeta &meta);
 	bool resolve_hires_replacement_descriptor(uint64_t checksum64, uint16_t formatsize, uint64_t selector_checksum64, ReplacementMeta &meta);
+	bool resolve_hires_compat_replacement_descriptor(uint64_t checksum64, uint16_t formatsize, ReplacementMeta &meta);
+	bool resolve_hires_compat_replacement_descriptor(uint64_t checksum64, uint16_t formatsize, uint64_t selector_checksum64, ReplacementMeta &meta);
+	bool resolve_hires_sampled_replacement_descriptor(uint32_t sampled_fmt,
+	                                                 uint32_t sampled_siz,
+	                                                 uint32_t sampled_tex_offset,
+	                                                 uint32_t sampled_stride,
+	                                                 uint32_t sampled_width,
+	                                                 uint32_t sampled_height,
+	                                                 uint32_t sampled_low32,
+	                                                 uint32_t palette_crc,
+	                                                 uint16_t formatsize,
+	                                                 uint64_t resolved_checksum64,
+	                                                 uint64_t selector_checksum64,
+	                                                 ReplacementMeta &meta);
 	void apply_hires_tile_binding(unsigned tile, const ReplacementTileState &state);
 	void clear_hires_tile_binding(unsigned tile);
 
@@ -466,16 +480,25 @@ private:
 
 	std::unique_ptr<WorkerThread<Vulkan::DeferredPipelineCompile, PipelineExecutor>> pipeline_worker;
 
+	enum class HiresKeySource : uint8_t
+	{
+		Generic = 0,
+		NativeSampled = 1,
+		Compat = 2
+	};
+
 	struct HiresKey
 	{
 		uint64_t checksum64 = 0;
 		uint16_t formatsize = 0;
 		uint64_t selector_checksum64 = 0;
+		HiresKeySource source = HiresKeySource::Generic;
 
 		bool operator==(const HiresKey &other) const
 		{
 			return checksum64 == other.checksum64 && formatsize == other.formatsize &&
-			       selector_checksum64 == other.selector_checksum64;
+			       selector_checksum64 == other.selector_checksum64 &&
+			       source == other.source;
 		}
 	};
 
@@ -483,7 +506,8 @@ private:
 	{
 		size_t operator()(const HiresKey &key) const
 		{
-			return size_t(key.checksum64 ^ (uint64_t(key.formatsize) << 48) ^ key.selector_checksum64);
+			return size_t(key.checksum64 ^ (uint64_t(key.formatsize) << 48) ^
+			              key.selector_checksum64 ^ (uint64_t(key.source) << 60));
 		}
 	};
 

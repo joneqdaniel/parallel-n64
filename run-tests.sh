@@ -148,7 +148,7 @@ case "$selected_profile" in
     ;;
   emu-runtime-conformance)
     enable_runtime_conformance=1
-    ctest_args+=(-R "^emu\\.conformance\\.(runtime_smoke_lavapipe|lavapipe_frame_hash|lavapipe_vi_filters_hash|lavapipe_vi_filters_mixed_hash|lavapipe_vi_downscale_hash|lavapipe_sm64_frame_hash)$")
+    ctest_args+=(-R "^emu\\.conformance\\.(runtime_smoke_lavapipe|lavapipe_frame_hash|lavapipe_vi_filters_hash|lavapipe_vi_filters_mixed_hash|lavapipe_vi_downscale_hash|lavapipe_sm64_frame_hash|paper_mario_selected_package_authorities|paper_mario_selected_package_timeout_validation)$")
     ;;
   emu-dump)
     ctest_args+=(-R "^emu\\.dump\\.")

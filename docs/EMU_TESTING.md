@@ -21,7 +21,7 @@ These rules matter because runtime emulator tests consume significant local reso
   - `./run-tests.sh --profile emu-required`
 - Optional conformance gate:
   - `./run-tests.sh --profile emu-conformance`
-- Optional runtime lavapipe conformance gate:
+- Optional runtime conformance gate:
   - `./run-tests.sh --profile emu-runtime-conformance`
 - Optional dump-replay gate (provisions validator if missing):
   - `./run-dump-tests.sh --provision-validator`
@@ -38,7 +38,7 @@ These rules matter because runtime emulator tests consume significant local reso
 - `emu-required`: `emu.unit.*`
 - `emu-optional`: `emu.conformance.*` + `emu.dump.*`
 - `emu-conformance`: `emu.conformance.*`
-- `emu-runtime-conformance`: runtime lavapipe conformance (`runtime_smoke_lavapipe` + `lavapipe_frame_hash` + `lavapipe_vi_filters_hash` + `lavapipe_vi_filters_mixed_hash` + `lavapipe_vi_downscale_hash` + `lavapipe_sm64_frame_hash`) with opt-in env automatically set
+- `emu-runtime-conformance`: runtime conformance (`runtime_smoke_lavapipe` + `lavapipe_frame_hash` + `lavapipe_vi_filters_hash` + `lavapipe_vi_filters_mixed_hash` + `lavapipe_vi_downscale_hash` + `lavapipe_sm64_frame_hash` + `paper_mario_selected_package_authorities` + `paper_mario_selected_package_timeout_validation`) with opt-in env automatically set
 - `emu-dump`: `emu.dump.*`
 - `emu-tsan`: `emu.unit.command_ring_policy` + `emu.unit.worker_thread` with ThreadSanitizer flags
 
@@ -59,6 +59,9 @@ These rules matter because runtime emulator tests consume significant local reso
 
 - `ctest` execution in `run-tests.sh` is serial unless extra parallel flags are added manually.
 - `run-tests.sh` parallelizes the build step, not the runtime test execution step.
+- `emu.conformance.paper_mario_selected_package_authorities` and `emu.conformance.paper_mario_selected_package_timeout_validation` skip cleanly when the local selected `PHRB` package or Paper Mario prerequisites are absent.
+- Set `EMU_RUNTIME_PM64_SELECTED_PHRB` to override the default selected-package path.
+- Set `EMU_RUNTIME_PM64_SELECTED_LOADER_MANIFEST`, `EMU_RUNTIME_PM64_SELECTED_TRANSPORT_REVIEW`, or `EMU_RUNTIME_PM64_SELECTED_TIMEOUT_ON_HASH` to override the deeper timeout-lane defaults.
 - `emu.dump.*` is skip-by-default without `rdp-validate-dump`.
 - Baseline fixture is committed at `tests/rdp_dumps/baseline_minimal_eof.rdp`.
 - Remote CI enforcement is intentionally disabled for now; run tiers locally.

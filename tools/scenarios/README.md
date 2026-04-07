@@ -32,6 +32,7 @@ Current tracked scenario seeds:
 - [`paper-mario-file-select-block-family-probe.sh`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-file-select-block-family-probe.sh)
 - [`paper-mario-file-select-tile-family-probe.sh`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-file-select-tile-family-probe.sh)
 - [`paper-mario-title-timeout-probe.sh`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-title-timeout-probe.sh)
+- [`paper-mario-selected-package-authority-validation.sh`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-selected-package-authority-validation.sh)
 - [`paper-mario-savefile-start.runtime.env`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-savefile-start.runtime.env)
 - [`paper-mario-hos-05-entry-3.sh`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-hos-05-entry-3.sh)
 - [`paper-mario-hos-05-entry-3.runtime.env`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-hos-05-entry-3.runtime.env)
@@ -51,6 +52,7 @@ Current Paper Mario runtime note:
 - tracked Paper Mario scenarios now force the intended ParaLLEl/Vulkan path with `PARALLEL_N64_GFX_PLUGIN_OVERRIDE=parallel` and bundle-local core options
 - the tracked adapter now supports `WAIT_CORE_MEMORY_HEX`, which lets local scenario flows wait on exact RAM signatures for deterministic probes
 - the canonical steady-state Paper Mario workflow is `load savestate -> settle 3 frames -> capture`
+- [`paper-mario-selected-package-authority-validation.sh`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-selected-package-authority-validation.sh) is now the explicit `PHRB` authority-lane proof: it runs title screen, file select, and `kmr_03 ENTRY_5` against a selected package without changing the default legacy authority lane
 - the new file-select input-probe scenario is the controlled Phase 1 exploration path for widening CI family evidence from the authoritative file-select state
 - it now supports explicit `--step-chunk-frames`, and the first savefile-backed deep branch is proven byte-identical with `30`-frame chunks instead of one-frame stepping
 - on the heavier hi-res path, `STEP_FRAME` log acknowledgements are no longer treated as authoritative; the adapter now lets `WAIT_STATUS_FRAME` prove progress, which is what made the chunked deep probes reliable again

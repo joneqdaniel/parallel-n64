@@ -79,12 +79,33 @@
   - `hts2phrb` is live as a wrapper over the current import/build pipeline
   - deterministic singleton proxy groups can be auto-selected without widening default runtime behavior
   - smoke coverage exists for the current skeleton path
+  - round-trip coverage now proves the emitted `PHRB` record preserves the structured identity and asset metadata carried through migration, binding, and materialization
 - The first CI palette investigation slice is complete enough to bound the next step:
   - the obvious palette-CRC and TLUT-shadow candidates have been tested
   - the remaining gap still needs formal classification instead of open-ended per-family debugging
 - Validation breadth is no longer menu-only:
   - the first deterministic non-menu Paper Mario authority fixture is now active at `kmr_03 ENTRY_5`
   - the fixture is savestate-backed, semantically gated in both `off` and `on`, and records the earlier live timeout-probe hash as lineage evidence instead of confusing it with the savestate steady-state capture
+- Native selected-package review is now explicit on deeper validation bundles:
+  - timeout selected-package summaries now keep exact-hit, exact-miss, conflict-miss, and unresolved-miss counts together instead of collapsing back to hits versus misses only
+  - sampled selector review can now classify top conflict/unresolved families against a package loader manifest as `absent-from-package`, `present-selector-conflict`, or stronger matches
+  - the same review can now also classify whether absent families still have legacy transport candidates or are already candidate-free under the current `.hts` transport model
+- Native pool-conflict diagnostics are now part of the runtime contract:
+  - the provider keeps a family-level native sampled index in addition to exact selector keys
+  - direct provider/package coverage now proves that multi-selector sampled families stay visible as pools without silently collapsing selector conflicts
+  - sampled exact-miss debug logging can now report whether the runtime is looking at an absent family, a selector conflict, or a native pool conflict, along with the preserved `policy_key` and `sampled_object_id`
+- Mixed-source runtime precedence is now explicit:
+  - cache-directory loading now prefers `PHRB` records over legacy `.hts` / `.htc` duplicates regardless of filename sort order
+  - direct provider coverage now proves mixed cache directories keep compat entries available without allowing them to override duplicate `PHRB` keys by load-order accident
+  - the provider now also keeps explicit native-checksum and compat-checksum duplicate indices, so exact duplicate families can be addressed intentionally instead of only through “latest entry wins” behavior
+  - practical consequence: compat exact helpers and compat low32 unique lookup now stay inside the compat pool even when a native `PHRB` duplicate with the same checksum is present
+  - the renderer now mirrors that split for CI fallback descriptors as well, so compat-selected checksum keys get their own resident-image cache namespace and decode path instead of slipping back through the generic/native descriptor cache
+  - proof bundle: [`20260406-225500-title-timeout-selected-package-compat-resolver-split/validation-summary.md`](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260406-225500-title-timeout-selected-package-compat-resolver-split/validation-summary.md)
+  - current effect: the explicit selected-package `PHRB` lane stays hash-identical and `phrb-only`, while mixed-cache compat CI resolutions are fenced away from native duplicate descriptor reuse
+- The first intentionally rejected family case is now explicit negative data:
+  - re-adding `28916d63` to the active `1b85` gameplay package increases native exact hits and converts many `960`-frame misses into selector conflicts
+  - but it revives the previously dropped strict title/file hashes and leaves the `960` gameplay image unchanged
+  - practical consequence: `28916d63` stays rejected for promotion in the current active package context unless new evidence changes that verdict
 - The bounded `LoadBlock` investigation now has explicit decision artifacts:
   - the dominant file-select `64x1 fs514` loadblock family classifies as `no-simple-loadblock-retry`
   - the title `2048x1 fs515` loadblock family lands on the same outcome
@@ -96,6 +117,39 @@
 - `.phrb` is not yet the only production runtime source.
 - Ordered-surface runtime preservation is not complete.
 - `tlut_type` is not yet a first-class runtime identity field.
+- The current timeout worklist is now led by sampled families that are absent from the active package, especially the dominant `2cycle` triangle families `91887078`, `6af0d9ca`, and `e0d4d0dc`.
+- The timeout worklist is now split more sharply:
+  - the dominant absent `2cycle` triangle families `91887078`, `6af0d9ca`, and `e0d4d0dc` are already candidate-free under the current legacy `.hts` transport model
+  - `28916d63` remains absent from the active package, but it is candidate-backed negative data rather than an open promotion target
+- The remaining active-package seam on the current `960` bundle is `1b8530fb`, but it now classifies more narrowly as a `present-pool-selector-conflict`.
+  - practical consequence: this is not a simple one-record selector alias; any future attempt to close it must preserve the pool semantics instead of collapsing `33` candidates onto one selector.
+  - the fresh runtime review artifact now makes that deferment explicit instead of implicit:
+    - markdown: [`20260406-174541-title-timeout-selected-package-family-runtime/on/timeout-960/traces/hires-sampled-selector-review.md`](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260406-174541-title-timeout-selected-package-family-runtime/on/timeout-960/traces/hires-sampled-selector-review.md)
+    - json: [`20260406-174541-title-timeout-selected-package-family-runtime/on/timeout-960/traces/hires-sampled-selector-review.json`](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260406-174541-title-timeout-selected-package-family-runtime/on/timeout-960/traces/hires-sampled-selector-review.json)
+    - current recommendation: `defer-runtime-pool-semantics` because the active package exposes `33` candidate selectors while the runtime miss stream still presents a family-level selector with `0` matching selectors.
+- The exact sampled runtime path no longer re-enters the provider through checksum-shaped decode after a native sampled lookup succeeds.
+  - `rdp_renderer.cpp` now resolves exact sampled descriptors through a direct sampled-entry decode path, using the same resident-image cache key but bypassing checksum-index re-selection.
+  - latest proof bundle: [`20260406-180724-title-timeout-selected-package-direct-sampled-decode/validation-summary.md`](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260406-180724-title-timeout-selected-package-direct-sampled-decode/validation-summary.md)
+  - current outcome: the rendered `960` frame stays byte-identical to the prior bundle and the `Pool Families` recommendation for `1b8530fb` is unchanged.
+  - note: small exact-unresolved deltas have not stayed stable across equivalent selected-package reruns. The same `960` frame and semantic state have now reproduced with totals of `90877`, `90885`, and one earlier `90869`, all on the same `phrb-only` lane. Treat those low-count triangle shifts as non-gating telemetry until a change survives repeated reruns with a real behavioral delta.
+- Runtime summary logs can now report how hybrid the loaded provider still is.
+  - `log_hires_summary()` now includes total entries, native-sampled vs compat entry counts, sampled-family counts, compat-low32 family counts, and per-source entry counts (`.phrb`, `.hts`, `.htc`).
+  - practical consequence: the next runtime-source narrowing step can be measured directly instead of inferred.
+- Selected-package validation summaries now surface that provider composition directly.
+  - fresh proof bundle: [`20260406-194500-title-timeout-selected-package-provider-summary/validation-summary.md`](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260406-194500-title-timeout-selected-package-provider-summary/validation-summary.md)
+  - current outcome on the active `960` package probe: `source_mode=phrb-only`, `entries=195`, `native_sampled=195`, `compat=0`, `sampled_families=10`, `sources(phrb=195, hts=0, htc=0)`.
+  - selected-package timeout validation now enforces that contract directly instead of only reporting it: explicit selected-package probes fail if `source_mode` drifts away from `phrb-only` or if native sampled / `PHRB` entry counts fall to zero.
+- The explicit selected-package authority lane is now proven across Paper Mario menu and non-menu authorities without changing the default legacy authority lane.
+  - proof bundle: [`20260406-201200-selected-package-authorities/validation-summary.md`](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260406-201200-selected-package-authorities/validation-summary.md)
+  - current outcome: title screen, file select, and `kmr_03 ENTRY_5` all pass semantically under an explicit selected `PHRB` package with `source_mode=phrb-only`, `entries=195`, and `native_sampled=195`.
+  - runtime-conformance coverage now exists for that lane through `emu.conformance.paper_mario_selected_package_authorities`, gated behind `EMU_ENABLE_RUNTIME_CONFORMANCE=1`.
+- The deeper selected-package timeout lane is now also in runtime conformance instead of being manual-only.
+  - proof bundle: [`20260406-231500-title-timeout-selected-package-native-probe-family/validation-summary.md`](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260406-231500-title-timeout-selected-package-native-probe-family/validation-summary.md)
+  - current outcome: the `960` probe still lands on `state_init_world` / `state_step_world`, `kmr_03`, `entry 5`, with `source_mode=phrb-only`, `on_hash=664c0d0784f12cdd6424bce6ae53e828bb08da22a66db0a50f08d6e2de97b3d9`, and the active `1b8530fb` pool-family deferment unchanged.
+  - runtime-conformance coverage now exists for that lane through `emu.conformance.paper_mario_selected_package_timeout_validation`, gated behind `EMU_ENABLE_RUNTIME_CONFORMANCE=1`.
+- Fresh authority reruns make the current runtime split explicit:
+  - the active title-screen, file-select, and `kmr_03 ENTRY_5` authorities still run through the legacy default pack path with `source_mode=legacy-only`, `native_sampled=0`, and `sources(phrb=0, hts=15168, htc=0)`
+  - practical consequence: provider-composition minima are now available to the fixture gate, but they should not be promoted into the active authority envs until those authorities intentionally move onto a `PHRB` runtime lane or the default-path promotion phase starts
 - Second-game validation has not started.
 
 ## Deferred Work Register
@@ -108,7 +162,9 @@ Any work item skipped to keep the current slice bounded must stay listed here un
 | Make `.phrb` the only production runtime source and treat `.hts` / `.htc` as import-only | The conversion front door and default-path promotion are not ready yet, so runtime source narrowing would outrun the user path. | After Paper Mario breadth passes and the front door is ready to carry the common case. |
 | Add `tlut_type` as a first-class runtime identity field | The current palette work has not finished classifying which palette facts are truly canonical. | When the palette classification gate shows that `tlut_type` is required for native identity, not just legacy parity. |
 | Preserve ordered-surface metadata as a runtime-native concept instead of selector hashes | The first seam slices focused on exact sampled identity and provider preservation, not selector-bearing runtime promotion. | After the structured runtime key space is stable enough to carry richer ordered-surface state without guesswork. |
+| Implement runtime pool semantics for `present-pool-selector-conflict` families like `1b8530fb` | The provider can now describe native pool conflicts directly, but the current evidence still says fixed-slot replay is the wrong behavior for the rotating-stream-edge-dwell case. | After a pool-preserving selector model is defined and direct runtime evidence says it improves the seam without regressing strict authorities. |
 | Enable first-load `.hts` to cached `.phrb` auto-conversion | Auto-conversion is a user convenience, not a sequencing shortcut, and enabling it earlier would blur runtime-contract readiness. | Only during default-path promotion, with direct auto-conversion tests and cache-behavior coverage. |
+| Promote native-`PHRB` provider-composition minima into the active authority fixtures | The fixture gate can now verify source mode and native/compat counts, but the active title/file-select/`kmr_03` authorities still intentionally validate the legacy default `.hts` runtime path. | After the authority lane itself moves to explicit `PHRB` inputs or the default runtime path promotion begins. |
 | Start second-game validation | Cross-game claims are not useful until the Paper Mario menu and non-menu authority set is stable and classification-backed. | After the Paper Mario breadth gate is green and the runtime contract is stable enough to test without new core rules. |
 | Treat representative-pack converter performance and cache behavior as a promotion gate | Correctness and bounded ambiguity came first; operational expectations are only meaningful once the skeleton front door is stable. | Before default-path promotion and before auto-conversion is enabled. |
 
@@ -503,10 +559,29 @@ The project should not declare the native format/runtime seam ready until all of
 - The provider now also separates native sampled records from explicit compat low32 families:
   - structured sampled lookup no longer depends on reverse scans over all entries
   - compat low32 fallbacks no longer use native `PHRB` sampled records as if they were compatibility families
+- The provider can now also describe sampled native families without changing behavior:
+  - multi-selector native families stay visible as pools instead of collapsing into exact selector misses
+  - sampled exact-miss debug logs can now report the preserved `policy_key`, `sampled_object_id`, selector counts, and whether the family is a pool
+- Selected-package timeout validation now also preserves the conflict/unresolved split, and sampled selector review can classify the main families against the current loader manifest.
+- The current runtime source split is now explicit instead of inferred:
+  - active Paper Mario authorities are still `legacy-only`
+  - selected-package timeout validation is `phrb-only`
+  - selected-package authority validation is also now `phrb-only` across title screen, file select, and `kmr_03 ENTRY_5`
+  - do not promote native-`PHRB` provider-composition minima into the active authority envs until the authority lane itself moves
+- The timeout selected-package review path can now also tell whether each family still has legacy transport candidates:
+  - the dominant absent triangle families `91887078`, `6af0d9ca`, and `e0d4d0dc` are now explicitly candidate-free under the current `.hts` transport model
+  - `28916d63` stays candidate-backed negative data, not an open transport mystery
+- The first negative-data package experiment is now settled:
+  - `28916d63` add-back is rejected in the current active package context because it changes the strict title/file authorities while leaving the `960` gameplay image unchanged
 - The next open work is to apply those classifications to the runtime contract:
   - do not add simple `LoadBlock` retry behavior to the default path
   - do not keep widening palette CRC formula variants as if they were native identity fixes
-- Continue with targeted structured lookup widening beyond the current exact seam and `.phrb` runtime-source narrowing only where direct tests and current classifications support it.
+- Continue with targeted structured runtime/package work only where direct tests and current classifications support it:
+  - do not keep treating candidate-free absent families as if they were one transport-policy tweak away from promotion
+  - treat `present-pool-selector-conflict` families like `1b8530fb` as a later runtime/pool-semantics task, not as a naive selector-alias task
+  - keep the generated `Pool Families` review artifact current when that deferment changes, so runtime pool work only resumes from an explicit recommendation rather than from stale memory
+  - use the explicit selected-package authority lane as the current `PHRB` correctness proof instead of reading the legacy default authorities as if they had already moved
+  - the next actionable package/runtime work now needs either a new candidate source for the candidate-free triangle families or a bounded pool-semantics design for `1b8530fb`
 - Keep every skipped item in the deferred register above until it is either completed or explicitly rejected by a gate decision.
 
 ## Outcome

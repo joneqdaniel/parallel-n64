@@ -21,8 +21,20 @@ Within the existing phase ladder, the active near-term order is:
 2. first provider/loader preservation slice for `PHRB`
 3. palette parity, `LoadBlock`, and `hts2phrb` skeleton work in parallel
 4. identity classification gate
-5. targeted structured-runtime widening, now starting from a provider that separates native sampled records from compat low32 families
+5. targeted structured-runtime widening, now starting from a provider that separates native sampled records from compat low32 families, explicitly prefers `PHRB` over legacy duplicate keys in mixed cache dirs, can describe native sampled pools directly, resolves exact sampled descriptors through native sampled decode instead of checksum-only re-selection, keeps compat CI fallback descriptors in a separate compat cache path instead of re-entering generic/native duplicates, and from a selected-package review path that distinguishes candidate-free absent families from already-rejected selector-conflict and pool-conflict families, emits explicit pool-family deferment recommendations, and surfaces provider composition in validation summaries
+   - the provider also now keeps explicit native-versus-compat checksum duplicate indices, so later runtime widening does not have to infer that split from load order
 6. default-path promotion only after the Paper Mario breadth gate
+
+Current runtime split:
+
+- active Paper Mario authorities still validate the legacy default `.hts` path
+- selected-package timeout validation is the current deeper `PHRB` runtime lane
+- selected-package authority validation now also proves the same explicit `PHRB` lane across title screen, file select, and `kmr_03 ENTRY_5`
+- both selected-package lanes are now part of the opt-in runtime-conformance tier:
+  - `emu.conformance.paper_mario_selected_package_authorities`
+  - `emu.conformance.paper_mario_selected_package_timeout_validation`
+- both explicit selected-package lanes now fail closed if provider composition drifts away from `phrb-only`
+- provider-composition gates can now distinguish those lanes explicitly via `source_mode`, so native-`PHRB` minimums should not be promoted into the authority fixtures until that lane actually moves
 
 This does not replace the Phase 0 / Phase 1 / Phase 2 backbone. It defines the
 current execution order inside the hi-res replacement phase.

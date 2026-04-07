@@ -8,6 +8,8 @@ CACHE_PATH="${PARALLEL_RDP_HIRES_CACHE_PATH:-}"
 BUNDLE_ROOT=""
 STEP_LIST="960 1200 1500"
 RUN_PROBES=1
+LOADER_MANIFEST_PATH=""
+TRANSPORT_REVIEW_PATH=""
 
 usage() {
   cat <<'USAGE'
@@ -17,6 +19,10 @@ Usage:
 Options:
   --cache-path PATH     Selected PHRB package to validate (defaults to env PARALLEL_RDP_HIRES_CACHE_PATH)
   --bundle-root PATH    Root directory for emitted on/off probe bundles
+  --loader-manifest PATH
+                       Optional loader-manifest.json used to classify sampled families against the active package
+  --transport-review PATH
+                       Optional sampled transport review JSON used to classify whether legacy candidates exist
   --steps "..."        Space-separated timeout checkpoints (default: "960 1200 1500")
   --reuse               Reuse existing bundles instead of rerunning probes
   -h, --help            Show this help
@@ -36,6 +42,14 @@ while (($#)); do
     --steps)
       shift
       STEP_LIST="${1:-}"
+      ;;
+    --loader-manifest)
+      shift
+      LOADER_MANIFEST_PATH="${1:-}"
+      ;;
+    --transport-review)
+      shift
+      TRANSPORT_REVIEW_PATH="${1:-}"
       ;;
     --reuse)
       RUN_PROBES=0
@@ -59,6 +73,14 @@ if [[ -z "$CACHE_PATH" ]]; then
 fi
 if [[ ! -f "$CACHE_PATH" ]]; then
   echo "Selected package not found: $CACHE_PATH" >&2
+  exit 2
+fi
+if [[ -n "$LOADER_MANIFEST_PATH" && ! -f "$LOADER_MANIFEST_PATH" ]]; then
+  echo "Loader manifest not found: $LOADER_MANIFEST_PATH" >&2
+  exit 2
+fi
+if [[ -n "$TRANSPORT_REVIEW_PATH" && ! -f "$TRANSPORT_REVIEW_PATH" ]]; then
+  echo "Transport review not found: $TRANSPORT_REVIEW_PATH" >&2
   exit 2
 fi
 if [[ -z "$BUNDLE_ROOT" ]]; then
@@ -93,6 +115,22 @@ for step in $STEP_LIST; do
   if [[ ! -d "$on_bundle" || ! -d "$off_bundle" ]]; then
     echo "Missing bundles for step $step under $BUNDLE_ROOT" >&2
     exit 1
+  fi
+  if [[ -n "$LOADER_MANIFEST_PATH" || -n "$TRANSPORT_REVIEW_PATH" ]]; then
+    review_cmd=(
+      python3
+      "$REPO_ROOT/tools/hires_sampled_selector_review.py"
+      --bundle-dir "$on_bundle"
+      --output "$on_bundle/traces/hires-sampled-selector-review.md"
+      --output-json "$on_bundle/traces/hires-sampled-selector-review.json"
+    )
+    if [[ -n "$LOADER_MANIFEST_PATH" ]]; then
+      review_cmd+=(--loader-manifest "$LOADER_MANIFEST_PATH")
+    fi
+    if [[ -n "$TRANSPORT_REVIEW_PATH" ]]; then
+      review_cmd+=(--transport-review "$TRANSPORT_REVIEW_PATH")
+    fi
+    "${review_cmd[@]}"
   fi
 done
 
@@ -137,6 +175,17 @@ for off_dir in sorted((bundle_root / 'off').iterdir()):
 
     on_semantic = json.loads((on_dir / 'traces' / 'paper-mario-game-status.json').read_text())
     on_hires = json.loads((on_dir / 'traces' / 'hires-evidence.json').read_text())
+    hires_summary = on_hires.get('summary') or {}
+    if hires_summary.get('provider') != 'on':
+        raise SystemExit(f'expected on-bundle hi-res provider to be "on" in {on_dir}, found {hires_summary.get("provider")!r}')
+    if hires_summary.get('source_mode') != 'phrb-only':
+        raise SystemExit(f'expected selected-package source_mode=phrb-only in {on_dir}, found {hires_summary.get("source_mode")!r}')
+    if int(hires_summary.get('native_sampled_entry_count') or 0) < 1:
+        raise SystemExit(f'expected native sampled entries in {on_dir}, found {hires_summary.get("native_sampled_entry_count")!r}')
+    if int((hires_summary.get('source_counts') or {}).get('phrb') or 0) < 1:
+        raise SystemExit(f'expected PHRB-backed entries in {on_dir}, found {(hires_summary.get("source_counts") or {}).get("phrb")!r}')
+    review_md = on_dir / 'traces' / 'hires-sampled-selector-review.md'
+    review_json = on_dir / 'traces' / 'hires-sampled-selector-review.json'
     summary['steps'].append({
         'step_frames': step,
         'off_bundle': str(off_dir),
@@ -152,10 +201,19 @@ for off_dir in sorted((bundle_root / 'off').iterdir()):
             'init_symbol': on_semantic.get('paper_mario_us', {}).get('cur_game_mode', {}).get('init_symbol'),
             'step_symbol': on_semantic.get('paper_mario_us', {}).get('cur_game_mode', {}).get('step_symbol'),
         },
+        'hires_summary': hires_summary,
         'sampled_object_probe': {
             'exact_hit_count': on_hires.get('sampled_object_probe', {}).get('exact_hit_count'),
             'exact_miss_count': on_hires.get('sampled_object_probe', {}).get('exact_miss_count'),
+            'exact_conflict_miss_count': on_hires.get('sampled_object_probe', {}).get('exact_conflict_miss_count'),
+            'exact_unresolved_miss_count': on_hires.get('sampled_object_probe', {}).get('exact_unresolved_miss_count'),
             'top_exact_hit_buckets': on_hires.get('sampled_object_probe', {}).get('top_exact_hit_buckets', [])[:5],
+            'top_exact_conflict_miss_buckets': on_hires.get('sampled_object_probe', {}).get('top_exact_conflict_miss_buckets', [])[:5],
+            'top_exact_unresolved_miss_buckets': on_hires.get('sampled_object_probe', {}).get('top_exact_unresolved_miss_buckets', [])[:5],
+        },
+        'sampled_selector_review': {
+            'markdown_path': str(review_md) if review_md.is_file() else None,
+            'json_path': str(review_json) if review_json.is_file() else None,
         },
     })
 
@@ -179,10 +237,33 @@ for step in summary['steps']:
         f'- AE: `{step["ae"]}`',
         f'- RMSE: `{step["rmse"]}`',
         f'- Semantic: `{step["semantic"]["init_symbol"]}` / `{step["semantic"]["step_symbol"]}`, map `{step["semantic"]["map_name_candidate"]}`, entry `{step["semantic"]["entry_id"]}`',
+    ])
+    hires_summary = step.get('hires_summary') or {}
+    summary_line = f'- Hi-res summary: provider `{hires_summary.get("provider")}`'
+    if hires_summary.get('source_mode') is not None:
+        summary_line += f', source mode `{hires_summary.get("source_mode")}`'
+    if hires_summary.get('entry_count') is not None:
+        summary_line += (
+            f', entries `{hires_summary.get("entry_count")}`'
+            f', native sampled `{hires_summary.get("native_sampled_entry_count")}`'
+            f', compat `{hires_summary.get("compat_entry_count")}`'
+            f', sampled families `{hires_summary.get("sampled_family_count")}`'
+            f', source PHRB `{(hires_summary.get("source_counts") or {}).get("phrb")}`'
+        )
+    md.extend([
+        summary_line,
         f'- Sampled exact hits: `{step["sampled_object_probe"]["exact_hit_count"]}`',
         f'- Sampled exact misses: `{step["sampled_object_probe"]["exact_miss_count"]}`',
-        '',
+        f'- Sampled conflict misses: `{step["sampled_object_probe"]["exact_conflict_miss_count"]}`',
+        f'- Sampled unresolved misses: `{step["sampled_object_probe"]["exact_unresolved_miss_count"]}`',
     ])
+    review_md = step.get('sampled_selector_review', {}).get('markdown_path')
+    review_json = step.get('sampled_selector_review', {}).get('json_path')
+    if review_md:
+        md.append(f'- Sampled selector review: [{Path(review_md).name}]({review_md})')
+    if review_json:
+        md.append(f'- Sampled selector review JSON: [{Path(review_json).name}]({review_json})')
+    md.append('')
 (bundle_root / 'validation-summary.md').write_text('\n'.join(md) + '\n')
 print(summary_path)
 print(bundle_root / 'validation-summary.md')

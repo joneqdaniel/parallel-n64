@@ -11,6 +11,16 @@ add_test(
 )
 
 add_test(
+  NAME emu.support.paper_mario_selected_package_authority_validation_contract
+  COMMAND bash "${EMU_BEHAVIOR_SUPPORT_DIR}/emu_paper_mario_selected_package_authority_validation_contract.sh"
+)
+
+add_test(
+  NAME emu.support.paper_mario_title_timeout_selected_package_validation_contract
+  COMMAND bash "${EMU_BEHAVIOR_SUPPORT_DIR}/emu_paper_mario_title_timeout_selected_package_validation_contract.sh"
+)
+
+add_test(
   NAME emu.support.hires_block_family_probe_contract
   COMMAND bash "${EMU_BEHAVIOR_SUPPORT_DIR}/emu_hires_block_family_probe_contract.sh"
 )
@@ -21,8 +31,23 @@ add_test(
 )
 
 add_test(
+  NAME emu.support.hires_sampled_selector_review_contract
+  COMMAND bash "${EMU_BEHAVIOR_SUPPORT_DIR}/emu_hires_sampled_selector_review_contract.sh"
+)
+
+add_test(
+  NAME emu.support.hires_sampled_family_probe_contract
+  COMMAND bash "${EMU_BEHAVIOR_SUPPORT_DIR}/emu_hires_sampled_family_probe_contract.sh"
+)
+
+add_test(
   NAME emu.support.hts2phrb_smoke
   COMMAND bash "${EMU_BEHAVIOR_SUPPORT_DIR}/emu_hts2phrb_smoke.sh"
+)
+
+add_test(
+  NAME emu.support.hts2phrb_round_trip
+  COMMAND bash "${EMU_BEHAVIOR_SUPPORT_DIR}/emu_hts2phrb_round_trip.sh"
 )
 
 add_executable(emu_unit_smoke_test
@@ -418,6 +443,18 @@ add_test(
   COMMAND bash "${CMAKE_CURRENT_SOURCE_DIR}/support/emu_conformance_lavapipe_sm64_frame_hash.sh"
 )
 set_tests_properties(emu.conformance.lavapipe_sm64_frame_hash PROPERTIES SKIP_RETURN_CODE 77)
+
+add_test(
+  NAME emu.conformance.paper_mario_selected_package_authorities
+  COMMAND bash "${CMAKE_CURRENT_SOURCE_DIR}/support/emu_conformance_paper_mario_selected_package_authorities.sh"
+)
+set_tests_properties(emu.conformance.paper_mario_selected_package_authorities PROPERTIES SKIP_RETURN_CODE 77)
+
+add_test(
+  NAME emu.conformance.paper_mario_selected_package_timeout_validation
+  COMMAND bash "${CMAKE_CURRENT_SOURCE_DIR}/support/emu_conformance_paper_mario_selected_package_timeout_validation.sh"
+)
+set_tests_properties(emu.conformance.paper_mario_selected_package_timeout_validation PROPERTIES SKIP_RETURN_CODE 77)
 
 add_test(
   NAME emu.unit.test_runner_profile_contract

@@ -54,6 +54,24 @@ inline uint64_t compose_ordered_surface_index_key(uint64_t checksum64, uint16_t 
 	return checksum64 ^ (uint64_t(formatsize) << 48);
 }
 
+inline int cache_source_priority(const std::string &path)
+{
+	const char suffix[] = ".phrb";
+	if (path.size() < sizeof(suffix) - 1)
+		return 0;
+	const size_t base = path.size() - (sizeof(suffix) - 1);
+	for (size_t i = 0; i < sizeof(suffix) - 1; i++)
+	{
+		char a = path[base + i];
+		char b = suffix[i];
+		if (a >= 'A' && a <= 'Z')
+			a = char(a - 'A' + 'a');
+		if (a != b)
+			return 0;
+	}
+	return 1;
+}
+
 
 struct PHRBHeader
 {
@@ -254,6 +272,21 @@ size_t ReplacementProvider::SampledLookupKeyHash::operator()(const SampledLookup
 	return seed;
 }
 
+size_t ReplacementProvider::SampledFamilyLookupKeyHash::operator()(const SampledFamilyLookupKey &key) const
+{
+	size_t seed = 0;
+	hash_combine(seed, key.sampled_fmt);
+	hash_combine(seed, key.sampled_siz);
+	hash_combine(seed, key.sampled_tex_offset);
+	hash_combine(seed, key.sampled_stride);
+	hash_combine(seed, key.sampled_width);
+	hash_combine(seed, key.sampled_height);
+	hash_combine(seed, key.sampled_low32);
+	hash_combine(seed, key.sampled_palette_crc);
+	hash_combine(seed, key.formatsize);
+	return seed;
+}
+
 ReplacementProvider::SampledLookupKey ReplacementProvider::make_sampled_lookup_key(uint32_t sampled_fmt,
                                                                                     uint32_t sampled_siz,
                                                                                     uint32_t sampled_tex_offset,
@@ -279,6 +312,29 @@ ReplacementProvider::SampledLookupKey ReplacementProvider::make_sampled_lookup_k
 	return key;
 }
 
+ReplacementProvider::SampledFamilyLookupKey ReplacementProvider::make_sampled_family_lookup_key(uint32_t sampled_fmt,
+                                                                                                 uint32_t sampled_siz,
+                                                                                                 uint32_t sampled_tex_offset,
+                                                                                                 uint32_t sampled_stride,
+                                                                                                 uint32_t sampled_width,
+                                                                                                 uint32_t sampled_height,
+                                                                                                 uint32_t sampled_low32,
+                                                                                                 uint32_t sampled_palette_crc,
+                                                                                                 uint16_t formatsize)
+{
+	SampledFamilyLookupKey key = {};
+	key.sampled_fmt = sampled_fmt;
+	key.sampled_siz = sampled_siz;
+	key.sampled_tex_offset = sampled_tex_offset;
+	key.sampled_stride = sampled_stride;
+	key.sampled_width = sampled_width;
+	key.sampled_height = sampled_height;
+	key.sampled_low32 = sampled_low32;
+	key.sampled_palette_crc = sampled_palette_crc;
+	key.formatsize = formatsize;
+	return key;
+}
+
 void ReplacementProvider::add_entry(Entry &&entry)
 {
 	const size_t index = entries_.size();
@@ -286,6 +342,10 @@ void ReplacementProvider::add_entry(Entry &&entry)
 	const Entry &stored = entries_.back();
 	checksum_index_[stored.checksum64].push_back(index);
 	checksum_low32_index_[uint32_t(stored.checksum64 & 0xffffffffu)].push_back(index);
+	if (stored.has_native_sampled_identity)
+		native_checksum_index_[stored.checksum64].push_back(index);
+	else
+		compat_checksum_index_[stored.checksum64].push_back(index);
 	if (!stored.has_native_sampled_identity)
 		compat_checksum_low32_index_[uint32_t(stored.checksum64 & 0xffffffffu)].push_back(index);
 	if (stored.has_native_sampled_identity)
@@ -302,6 +362,18 @@ void ReplacementProvider::add_entry(Entry &&entry)
 			stored.formatsize,
 			stored.selector_checksum64);
 		sampled_index_[sampled_key] = index;
+
+		auto sampled_family_key = make_sampled_family_lookup_key(
+			stored.sampled_fmt,
+			stored.sampled_siz,
+			stored.sampled_tex_offset,
+			stored.sampled_stride,
+			stored.sampled_width,
+			stored.sampled_height,
+			stored.sampled_low32,
+			stored.sampled_palette_crc,
+			stored.formatsize);
+		sampled_family_index_[sampled_family_key].push_back(index);
 	}
 	if (is_ordered_surface_selector(stored.selector_checksum64))
 	{
@@ -315,9 +387,12 @@ void ReplacementProvider::clear()
 	cache_dir_.clear();
 	entries_.clear();
 	checksum_index_.clear();
+	native_checksum_index_.clear();
+	compat_checksum_index_.clear();
 	checksum_low32_index_.clear();
 	compat_checksum_low32_index_.clear();
 	sampled_index_.clear();
+	sampled_family_index_.clear();
 	ordered_surface_selectors_.clear();
 }
 
@@ -358,7 +433,13 @@ bool ReplacementProvider::load_cache_dir(const std::string &path)
 		return false;
 	}
 
-	std::sort(files.begin(), files.end());
+	std::sort(files.begin(), files.end(), [](const std::string &a, const std::string &b) {
+		const int a_priority = cache_source_priority(a);
+		const int b_priority = cache_source_priority(b);
+		if (a_priority != b_priority)
+			return a_priority < b_priority;
+		return a < b;
+	});
 	for (const auto &file : files)
 	{
 		if (has_suffix(file, ".hts"))
@@ -377,17 +458,20 @@ const ReplacementProvider::Entry *ReplacementProvider::find_entry(uint64_t check
 	return find_entry(checksum64, formatsize, 0);
 }
 
-const ReplacementProvider::Entry *ReplacementProvider::find_entry(uint64_t checksum64, uint16_t formatsize, uint64_t selector_checksum64) const
+const ReplacementProvider::Entry *ReplacementProvider::find_indexed_entry(const std::unordered_map<uint64_t, std::vector<size_t>> &index_map,
+                                                                          uint64_t checksum64,
+                                                                          uint16_t formatsize,
+                                                                          uint64_t selector_checksum64) const
 {
-	auto it = checksum_index_.find(checksum64);
-	if (it == checksum_index_.end())
+	auto it = index_map.find(checksum64);
+	if (it == index_map.end())
 		return nullptr;
 
 	const auto &indices = it->second;
-	auto find_matching = [&](uint16_t candidate_formatsize, uint64_t candidate_selector) -> const Entry * {
+	auto find_matching = [&](uint16_t candidate_formatsize, uint64_t candidate_selector) -> const ReplacementProvider::Entry * {
 		for (auto itr = indices.rbegin(); itr != indices.rend(); ++itr)
 		{
-			const Entry &entry = entries_[*itr];
+			const auto &entry = entries_[*itr];
 			if (entry.formatsize == candidate_formatsize && entry.selector_checksum64 == candidate_selector)
 				return &entry;
 		}
@@ -396,21 +480,36 @@ const ReplacementProvider::Entry *ReplacementProvider::find_entry(uint64_t check
 
 	if (selector_checksum64 != 0)
 	{
-		if (const Entry *entry = find_matching(formatsize, selector_checksum64))
+		if (const auto *entry = find_matching(formatsize, selector_checksum64))
 			return entry;
-		if (const Entry *entry = find_matching(0, selector_checksum64))
+		if (const auto *entry = find_matching(0, selector_checksum64))
 			return entry;
 	}
 
-	if (const Entry *entry = find_matching(formatsize, 0))
+	if (const auto *entry = find_matching(formatsize, 0))
 		return entry;
-	if (const Entry *entry = find_matching(0, 0))
+	if (const auto *entry = find_matching(0, 0))
 		return entry;
 
 	if (selector_checksum64 == 0 && formatsize == 0 && !indices.empty())
 		return &entries_[indices.back()];
 
 	return nullptr;
+}
+
+const ReplacementProvider::Entry *ReplacementProvider::find_entry(uint64_t checksum64, uint16_t formatsize, uint64_t selector_checksum64) const
+{
+	return find_indexed_entry(checksum_index_, checksum64, formatsize, selector_checksum64);
+}
+
+const ReplacementProvider::Entry *ReplacementProvider::find_native_entry(uint64_t checksum64, uint16_t formatsize, uint64_t selector_checksum64) const
+{
+	return find_indexed_entry(native_checksum_index_, checksum64, formatsize, selector_checksum64);
+}
+
+const ReplacementProvider::Entry *ReplacementProvider::find_compat_entry(uint64_t checksum64, uint16_t formatsize, uint64_t selector_checksum64) const
+{
+	return find_indexed_entry(compat_checksum_index_, checksum64, formatsize, selector_checksum64);
 }
 
 const ReplacementProvider::Entry *ReplacementProvider::find_sampled_entry(uint32_t sampled_fmt,
@@ -507,6 +606,44 @@ bool ReplacementProvider::lookup_with_selector(uint64_t checksum64, uint16_t for
 	return true;
 }
 
+bool ReplacementProvider::lookup_native_with_selector(uint64_t checksum64, uint16_t formatsize, uint64_t selector_checksum64, ReplacementMeta *out) const
+{
+	if (!enabled_ || !out)
+		return false;
+
+	const Entry *entry = find_native_entry(checksum64, formatsize, selector_checksum64);
+	if (!entry)
+		return false;
+
+	out->repl_w = entry->width;
+	out->repl_h = entry->height;
+	out->orig_w = 0;
+	out->orig_h = 0;
+	out->vk_image_index = 0xffffffffu;
+	out->has_mips = false;
+	out->srgb = false;
+	return true;
+}
+
+bool ReplacementProvider::lookup_compat_with_selector(uint64_t checksum64, uint16_t formatsize, uint64_t selector_checksum64, ReplacementMeta *out) const
+{
+	if (!enabled_ || !out)
+		return false;
+
+	const Entry *entry = find_compat_entry(checksum64, formatsize, selector_checksum64);
+	if (!entry)
+		return false;
+
+	out->repl_w = entry->width;
+	out->repl_h = entry->height;
+	out->orig_w = 0;
+	out->orig_h = 0;
+	out->vk_image_index = 0xffffffffu;
+	out->has_mips = false;
+	out->srgb = false;
+	return true;
+}
+
 bool ReplacementProvider::lookup_sampled_with_selector(uint32_t sampled_fmt,
                                                        uint32_t sampled_siz,
                                                        uint32_t sampled_tex_offset,
@@ -544,6 +681,44 @@ bool ReplacementProvider::lookup_sampled_with_selector(uint32_t sampled_fmt,
 	out->vk_image_index = 0xffffffffu;
 	out->has_mips = false;
 	out->srgb = false;
+	if (resolved_checksum64)
+		*resolved_checksum64 = entry->checksum64;
+	return true;
+}
+
+bool ReplacementProvider::decode_sampled_rgba8_with_selector(uint32_t sampled_fmt,
+                                                             uint32_t sampled_siz,
+                                                             uint32_t sampled_tex_offset,
+                                                             uint32_t sampled_stride,
+                                                             uint32_t sampled_width,
+                                                             uint32_t sampled_height,
+                                                             uint32_t sampled_low32,
+                                                             uint32_t palette_crc,
+                                                             uint16_t formatsize,
+                                                             uint64_t selector_checksum64,
+                                                             ReplacementImage *out,
+                                                             uint64_t *resolved_checksum64) const
+{
+	if (!enabled_ || !out)
+		return false;
+
+	const Entry *entry = find_sampled_entry(
+		sampled_fmt,
+		sampled_siz,
+		sampled_tex_offset,
+		sampled_stride,
+		sampled_width,
+		sampled_height,
+		sampled_low32,
+		palette_crc,
+		formatsize,
+		selector_checksum64);
+	if (!entry)
+		return false;
+
+	if (!decode_entry_rgba8(*entry, out))
+		return false;
+
 	if (resolved_checksum64)
 		*resolved_checksum64 = entry->checksum64;
 	return true;
@@ -591,7 +766,7 @@ bool ReplacementProvider::lookup_ci_low32_unique(uint32_t checksum_low32,
 		return false;
 
 	const uint64_t checksum64 = unique.front();
-	const Entry *entry = find_entry(checksum64, formatsize);
+	const Entry *entry = find_compat_entry(checksum64, formatsize, 0);
 	if (!entry)
 		return false;
 
@@ -761,6 +936,102 @@ bool ReplacementProvider::lookup_ci_low32_any(uint32_t checksum_low32,
 		*resolved_checksum64 = entry->checksum64;
 	if (matched_preferred_palette)
 		*matched_preferred_palette = matched_preferred;
+	return true;
+}
+
+bool ReplacementProvider::describe_sampled_family(uint32_t sampled_fmt,
+                                                  uint32_t sampled_siz,
+                                                  uint32_t sampled_tex_offset,
+                                                  uint32_t sampled_stride,
+                                                  uint32_t sampled_width,
+                                                  uint32_t sampled_height,
+                                                  uint32_t sampled_low32,
+                                                  uint32_t palette_crc,
+                                                  uint16_t formatsize,
+                                                  uint64_t requested_selector_checksum64,
+                                                  SampledFamilyDiagnostics *out) const
+{
+	if (!enabled_ || !out)
+		return false;
+
+	auto find_family = [&](uint16_t candidate_formatsize) -> const std::vector<size_t> * {
+		auto key = make_sampled_family_lookup_key(
+			sampled_fmt,
+			sampled_siz,
+			sampled_tex_offset,
+			sampled_stride,
+			sampled_width,
+			sampled_height,
+			sampled_low32,
+			palette_crc,
+			candidate_formatsize);
+		auto it = sampled_family_index_.find(key);
+		if (it == sampled_family_index_.end())
+			return nullptr;
+		return &it->second;
+	};
+
+	const std::vector<size_t> *exact_family = find_family(formatsize);
+	const std::vector<size_t> *generic_family = find_family(0);
+	if (!exact_family && !generic_family)
+		return false;
+
+	SampledFamilyDiagnostics diag = {};
+	diag.available = true;
+	diag.exact_formatsize_entries = exact_family ? uint32_t(exact_family->size()) : 0;
+	diag.generic_formatsize_entries = generic_family ? uint32_t(generic_family->size()) : 0;
+	diag.prefer_exact_formatsize = exact_family != nullptr;
+
+	const std::vector<size_t> &active_family = exact_family ? *exact_family : *generic_family;
+	std::vector<uint64_t> unique_checksums;
+	std::vector<uint64_t> unique_selectors;
+	std::vector<uint64_t> unique_repl_dims;
+
+	for (size_t index : active_family)
+	{
+		const Entry &entry = entries_[index];
+		diag.active_entry_count++;
+		push_unique(unique_checksums, entry.checksum64);
+		push_unique(unique_repl_dims, (uint64_t(entry.width) << 32) | uint64_t(entry.height));
+		if (entry.selector_checksum64 != 0)
+		{
+			push_unique(unique_selectors, entry.selector_checksum64);
+			diag.active_has_any_selector = true;
+			if (entry.selector_checksum64 == requested_selector_checksum64)
+				diag.active_matching_selector_count++;
+			if (is_ordered_surface_selector(entry.selector_checksum64))
+			{
+				diag.active_has_ordered_surface_selectors = true;
+				diag.active_ordered_surface_selector_count++;
+			}
+		}
+		else
+			diag.active_zero_selector_count++;
+
+		if (diag.sample_repl_w == 0 && diag.sample_repl_h == 0)
+		{
+			diag.sample_repl_w = entry.width;
+			diag.sample_repl_h = entry.height;
+		}
+		if (diag.sample_policy_key.empty())
+			diag.sample_policy_key = entry.phrb_policy_key;
+		if (diag.sample_sampled_object_id.empty())
+			diag.sample_sampled_object_id = entry.phrb_sampled_object_id;
+	}
+
+	diag.active_unique_checksum_count = uint32_t(unique_checksums.size());
+	diag.active_unique_selector_count = uint32_t(unique_selectors.size());
+	diag.active_unique_repl_dim_count = uint32_t(unique_repl_dims.size());
+	diag.active_repl_dims_uniform = diag.active_unique_repl_dim_count == 1 && diag.active_entry_count > 0;
+	if (diag.active_repl_dims_uniform && !unique_repl_dims.empty())
+	{
+		diag.sample_repl_w = uint32_t(unique_repl_dims.front() >> 32);
+		diag.sample_repl_h = uint32_t(unique_repl_dims.front() & 0xffffffffu);
+	}
+	diag.active_is_pool =
+		diag.active_unique_selector_count > 1 ||
+		(diag.active_entry_count > 1 && diag.active_matching_selector_count == 0);
+	*out = diag;
 	return true;
 }
 
@@ -1013,23 +1284,81 @@ bool ReplacementProvider::decode_rgba8_with_selector(uint64_t checksum64, uint16
 	if (!entry)
 		return false;
 
+	return decode_entry_rgba8(*entry, out);
+}
+
+bool ReplacementProvider::decode_rgba8_native_with_selector(uint64_t checksum64, uint16_t formatsize, uint64_t selector_checksum64, ReplacementImage *out) const
+{
+	if (!enabled_ || !out)
+		return false;
+
+	const Entry *entry = find_native_entry(checksum64, formatsize, selector_checksum64);
+	if (!entry)
+		return false;
+
+	return decode_entry_rgba8(*entry, out);
+}
+
+bool ReplacementProvider::decode_rgba8_compat_with_selector(uint64_t checksum64, uint16_t formatsize, uint64_t selector_checksum64, ReplacementImage *out) const
+{
+	if (!enabled_ || !out)
+		return false;
+
+	const Entry *entry = find_compat_entry(checksum64, formatsize, selector_checksum64);
+	if (!entry)
+		return false;
+
+	return decode_entry_rgba8(*entry, out);
+}
+
+bool ReplacementProvider::decode_entry_rgba8(const Entry &entry, ReplacementImage *out) const
+{
+	if (!out)
+		return false;
+
 	std::vector<uint8_t> blob;
-	if (!read_blob(*entry, blob))
+	if (!read_blob(entry, blob))
 		return false;
 
 	std::vector<uint8_t> pixels;
-	if (!decompress_if_needed(*entry, blob, pixels))
+	if (!decompress_if_needed(entry, blob, pixels))
 		return false;
 
 	ReplacementImage image;
-	image.meta.repl_w = entry->width;
-	image.meta.repl_h = entry->height;
+	image.meta.repl_w = entry.width;
+	image.meta.repl_h = entry.height;
 	image.meta.vk_image_index = 0xffffffffu;
-	if (!decode_pixels_rgba8(*entry, pixels, image.rgba8))
+	if (!decode_pixels_rgba8(entry, pixels, image.rgba8))
 		return false;
 
 	*out = std::move(image);
 	return true;
+}
+
+ReplacementProviderStats ReplacementProvider::get_stats() const
+{
+	ReplacementProviderStats stats = {};
+	stats.entry_count = uint32_t(entries_.size());
+	stats.sampled_index_count = uint32_t(sampled_index_.size());
+	stats.sampled_family_count = uint32_t(sampled_family_index_.size());
+	stats.compat_low32_family_count = uint32_t(compat_checksum_low32_index_.size());
+
+	for (const auto &entry : entries_)
+	{
+		if (entry.has_native_sampled_identity)
+			stats.native_sampled_entry_count++;
+		else
+			stats.compat_entry_count++;
+
+		if (entry.source_path.find(".phrb") != std::string::npos)
+			stats.source_phrb_entry_count++;
+		else if (entry.source_path.find(".hts") != std::string::npos)
+			stats.source_hts_entry_count++;
+		else if (entry.source_path.find(".htc") != std::string::npos)
+			stats.source_htc_entry_count++;
+	}
+
+	return stats;
 }
 
 

@@ -261,10 +261,10 @@ if not log_path.is_file():
     raise SystemExit(0)
 
 cache_loaded_re = re.compile(
-    r"Hi-res replacement cache loaded: (\d+) entries from (.+?)(?: \(source mode [^)]+\))?$"
+    r"Hi-res replacement cache loaded: (\d+) entries from (.+?)(?: \(source mode ([^)]+)\))?$"
 )
 cache_failed_re = re.compile(
-    r"Hi-res replacement cache load failed for path: (.+?)(?: \(source mode [^)]+\))?$"
+    r"Hi-res replacement cache load failed for path: (.+?)(?: \(source mode ([^)]+)\))?$"
 )
 capability_re = re.compile(
     r"Hi-res capability check: descriptor_indexing=(\d+) runtime_descriptor_array=(\d+) sampled_image_array_non_uniform_indexing=(\d+) descriptor_binding_variable_descriptor_count=(\d+) descriptor_binding_partially_bound=(\d+) descriptor_binding_update_after_bind=(\d+) maxDescriptorSetUpdateAfterBindSampledImages=(\d+) cache_path=(.+)\."
@@ -817,6 +817,8 @@ for line in log_path.read_text(errors="replace").splitlines():
         result["available"] = True
         result["cache_load_failed"] = True
         result["cache_path"] = m.group(1).strip()
+        if m.group(2) is not None:
+            result["source_policy"] = m.group(2).strip()
         continue
 
     m = cache_loaded_re.search(line)
@@ -825,6 +827,8 @@ for line in log_path.read_text(errors="replace").splitlines():
         result["cache_loaded"] = True
         result["cache_entries"] = int(m.group(1))
         result["cache_path"] = m.group(2).strip()
+        if m.group(3) is not None:
+            result["source_policy"] = m.group(3).strip()
         continue
 
     m = summary_re.search(line)
@@ -873,6 +877,8 @@ for line in log_path.read_text(errors="replace").splitlines():
                 summary["source_mode"] = "mixed"
             else:
                 summary["source_mode"] = "unknown"
+            if result.get("source_policy") is not None:
+                summary["source_policy"] = result.get("source_policy")
             summary["entry_class"] = classify_entry_class(
                 summary.get("native_sampled_entry_count"),
                 summary.get("compat_entry_count"),
@@ -1652,6 +1658,7 @@ def parse_expected_list(name: str):
 
 expected_hires_provider = get_mode_expected("EXPECTED_HIRES_SUMMARY_PROVIDER")
 expected_hires_source_mode = get_mode_expected("EXPECTED_HIRES_SUMMARY_SOURCE_MODE")
+expected_hires_source_policy = get_mode_expected("EXPECTED_HIRES_SUMMARY_SOURCE_POLICY")
 expected_min_summary_entry_count = parse_expected_int("EXPECTED_HIRES_MIN_SUMMARY_ENTRY_COUNT")
 expected_min_summary_native_sampled_entry_count = parse_expected_int("EXPECTED_HIRES_MIN_SUMMARY_NATIVE_SAMPLED_ENTRY_COUNT")
 expected_min_summary_source_phrb_count = parse_expected_int("EXPECTED_HIRES_MIN_SUMMARY_SOURCE_PHRB_COUNT")
@@ -1669,6 +1676,7 @@ expected_min_exact_unresolved_miss_count = parse_expected_int("EXPECTED_HIRES_MI
 requires_hires_assertions = any([
     expected_hires_provider is not None,
     expected_hires_source_mode is not None,
+    expected_hires_source_policy is not None,
     expected_min_summary_entry_count is not None,
     expected_min_summary_native_sampled_entry_count is not None,
     expected_min_summary_source_phrb_count is not None,
@@ -1697,6 +1705,7 @@ result = {
         "hires_evidence_present": hires_path.is_file(),
         "hires_summary_provider_match": None,
         "hires_summary_source_mode_match": None,
+        "hires_summary_source_policy_match": None,
         "hires_min_summary_entry_count_match": None,
         "hires_min_summary_native_sampled_entry_count_match": None,
         "hires_min_summary_source_phrb_count_match": None,
@@ -1717,6 +1726,7 @@ result = {
         "step_symbol": expected_step_symbol or None,
         "hires_summary_provider": expected_hires_provider,
         "hires_summary_source_mode": expected_hires_source_mode,
+        "hires_summary_source_policy": expected_hires_source_policy,
         "hires_min_summary_entry_count": expected_min_summary_entry_count,
         "hires_min_summary_native_sampled_entry_count": expected_min_summary_native_sampled_entry_count,
         "hires_min_summary_source_phrb_count": expected_min_summary_source_phrb_count,
@@ -1737,6 +1747,7 @@ result = {
         "step_symbol": None,
         "hires_summary_provider": None,
         "hires_summary_source_mode": None,
+        "hires_summary_source_policy": None,
         "hires_summary_entry_count": None,
         "hires_summary_native_sampled_entry_count": None,
         "hires_summary_source_phrb_count": None,
@@ -1813,6 +1824,7 @@ if hires_path.is_file():
 
         result["actual"]["hires_summary_provider"] = summary.get("provider")
         result["actual"]["hires_summary_source_mode"] = summary.get("source_mode")
+        result["actual"]["hires_summary_source_policy"] = summary.get("source_policy")
         result["actual"]["hires_summary_entry_count"] = summary.get("entry_count")
         result["actual"]["hires_summary_native_sampled_entry_count"] = summary.get("native_sampled_entry_count")
         result["actual"]["hires_summary_compat_entry_count"] = summary.get("compat_entry_count")
@@ -1846,6 +1858,15 @@ if hires_path.is_file():
                 result["passed"] = False
                 result["failures"].append(
                     f"Hi-res summary source_mode mismatch: expected {expected_hires_source_mode}, got {summary.get('source_mode')}."
+                )
+
+        if expected_hires_source_policy is not None:
+            matched = summary.get("source_policy") == expected_hires_source_policy
+            result["checks"]["hires_summary_source_policy_match"] = matched
+            if not matched:
+                result["passed"] = False
+                result["failures"].append(
+                    f"Hi-res summary source_policy mismatch: expected {expected_hires_source_policy}, got {summary.get('source_policy')}."
                 )
 
         if expected_min_summary_entry_count is not None:

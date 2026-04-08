@@ -244,7 +244,9 @@
   - practical consequence: the next runtime-source narrowing step can be measured directly instead of inferred.
 - Runtime source policy now has an explicit mixed-cache bridge mode.
   - `PARALLEL_RDP_HIRES_RUNTIME_SOURCE_MODE=auto` now prefers `.phrb` inputs automatically when a cache directory contains both native and legacy formats, but still falls back to legacy-only when no `.phrb` exists.
-  - current guardrail: empty or unset source-policy env still keeps the old default (`all`) so the repo has an opt-in bridge toward `PHRB`-first behavior without silently changing baseline runtime loading.
+  - current baseline: empty or unset source-policy env now also defaults to `auto`, so the runtime default matches the repo's `PHRB`-first direction while still preserving the same legacy fallback when no usable `.phrb` content exists.
+  - explicit opt-out: `PARALLEL_RDP_HIRES_RUNTIME_SOURCE_MODE=all` still remains available for lanes that intentionally want mixed-source loading.
+  - hi-res evidence summaries now carry both `source_policy` (requested loader policy) and `source_mode` (actual loaded source mix), so default-path bundles can prove `auto` policy without losing the stronger `phrb-only` provider-composition assertion.
 - Selected-package validation summaries now surface that provider composition directly.
   - fresh proof bundle: [`20260406-194500-title-timeout-selected-package-provider-summary/validation-summary.md`](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260406-194500-title-timeout-selected-package-provider-summary/validation-summary.md)
   - current outcome on the active `960` package probe: `source_mode=phrb-only`, `entries=195`, `native_sampled=195`, `compat=0`, `sampled_families=10`, `sources(phrb=195, hts=0, htc=0)`.
@@ -285,7 +287,7 @@
   - builder support: [`tools/hires_pack_build_selected_package.py`](/home/auro/code/parallel-n64/tools/hires_pack_build_selected_package.py) now accepts `--review-profile`
   - current outcome: the tracked review profile reproduces the explicit duplicate-review plus alias-group-review package byte-for-byte
   - practical consequence: the selected-package build path can now absorb those proven review-only inputs coherently without pretending they are already default behavior
-- The explicit selected-package authority lane is now proven across Paper Mario menu and non-menu authorities without changing the default legacy authority lane.
+- The explicit selected-package authority lane is now proven across Paper Mario menu and non-menu authorities as a complementary `PHRB` proof alongside the promoted default full-cache authority lane.
   - proof bundle: [`20260406-201200-selected-package-authorities/validation-summary.md`](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260406-201200-selected-package-authorities/validation-summary.md)
   - current outcome: title screen, file select, and `kmr_03 ENTRY_5` all pass semantically under an explicit selected `PHRB` package with `source_mode=phrb-only`, `entries=195`, and `native_sampled=195`.
   - runtime-conformance coverage now exists for that lane through `emu.conformance.paper_mario_selected_package_authorities`, gated behind `EMU_ENABLE_RUNTIME_CONFORMANCE=1`.
@@ -762,7 +764,7 @@ The project should not declare the native format/runtime seam ready until all of
   - the smallest `1b8530fb` tail-slot alias experiment is now also explicit negative data for promotion: it stays authority-safe and hash-neutral, but only converts the seam into a much larger duplicate-selector problem
   - the latest pool-stream diagnostics now make that deferment sharper: the active mapped set rotates across `33` unique observed selectors with no repeats, so the unresolved dwell remains an extra edge state outside the mapped set rather than another mapped-slot replay
   - keep the generated `Pool Families` review artifact and the runtime seam register current when that deferment changes, so runtime pool work only resumes from explicit evidence rather than from stale memory
-  - use the explicit selected-package authority lane as the current `PHRB` correctness proof instead of reading the legacy default authorities as if they had already moved
+  - use the explicit selected-package authority lane as the deeper bounded `PHRB` correctness proof alongside the promoted default full-cache Paper Mario authorities
   - the `7701ac09` duplicate and broader asset-alias paths are now both proven as review-only offline package-shaping slices, and the tracked review profile keeps those steps reproducible without making them default-path behavior, so they no longer need to lead the next runtime step
   - the next actionable package/runtime work now needs either a tighter source-backed selector/scene-bounding model for the triangle candidates or a real pool-preserving model for `1b8530fb`; `1b8530fb` pool work stays deferred until there is a real pool-preserving model instead of another selector-alias experiment
 - Keep every skipped item in the deferred register above until it is either completed or explicitly rejected by a gate decision.

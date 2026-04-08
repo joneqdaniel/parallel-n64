@@ -55,7 +55,8 @@ Current runtime split:
   - practical consequence: the timeout lane is now a runtime-contract proof for the explicit `PHRB` path rather than a visible-improvement proof, and deferred `1b8530fb` pool evidence now falls back to the historical pool-regression review when live draw-sequence reconstruction is unavailable
 - both explicit selected-package lanes now fail closed if provider composition drifts away from `phrb-only`
 - runtime source policy now also has an explicit `auto` bridge mode for mixed cache directories:
-  - `auto` prefers `.phrb` when native and legacy cache formats coexist, but empty / unset policy still keeps the current default `all`
+  - `auto` prefers `.phrb` when native and legacy cache formats coexist, and empty / unset policy now also defaults to that same `auto` bridge mode unless a lane pins a stricter policy explicitly
+  - validation evidence now keeps that distinction explicit by recording both `source_policy` (requested loader policy) and `source_mode` (actual loaded source mix)
 - selected-package timeout validation now also emits live sampled selector and sampled pool reviews when transport review input is present
   - current `1b8530fb` outcome stays `defer-runtime-pool-semantics` at the family level and `keep-flat-runtime-binding` at the pool-shape level
   - the live selected-package timeout summary now also carries the active pool replacement id, currently `legacy-038a968c-9afc43ab-fs0-1184x24`

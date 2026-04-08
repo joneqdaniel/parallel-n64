@@ -25,16 +25,47 @@ trap cleanup EXIT
 
 ZERO_DIR="$TMPDIR_RUN/zero"
 CONTEXT_DIR="$TMPDIR_RUN/context"
+MAX_TOTAL_MS="10000"
+MAX_BINARY_PACKAGE_BYTES="2100000000"
 
 python3 "$REPO_ROOT/tools/hts2phrb.py" \
   --cache "$CACHE_PATH" \
   --output-dir "$ZERO_DIR" \
+  --minimum-outcome partial-runtime-package \
+  --expect-context-class zero-context \
+  --max-total-ms "$MAX_TOTAL_MS" \
+  --max-binary-package-bytes "$MAX_BINARY_PACKAGE_BYTES" \
   --stdout-format json >/dev/null
 
 python3 "$REPO_ROOT/tools/hts2phrb.py" \
   --cache "$CACHE_PATH" \
   --context-bundle "$CONTEXT_ROOT" \
   --output-dir "$CONTEXT_DIR" \
+  --minimum-outcome partial-runtime-package \
+  --expect-context-class context-enriched \
+  --max-total-ms "$MAX_TOTAL_MS" \
+  --max-binary-package-bytes "$MAX_BINARY_PACKAGE_BYTES" \
+  --stdout-format json >/dev/null
+
+python3 "$REPO_ROOT/tools/hts2phrb.py" \
+  --cache "$CACHE_PATH" \
+  --output-dir "$ZERO_DIR" \
+  --minimum-outcome partial-runtime-package \
+  --expect-context-class zero-context \
+  --max-total-ms "$MAX_TOTAL_MS" \
+  --max-binary-package-bytes "$MAX_BINARY_PACKAGE_BYTES" \
+  --reuse-existing \
+  --stdout-format json >/dev/null
+
+python3 "$REPO_ROOT/tools/hts2phrb.py" \
+  --cache "$CACHE_PATH" \
+  --context-bundle "$CONTEXT_ROOT" \
+  --output-dir "$CONTEXT_DIR" \
+  --minimum-outcome partial-runtime-package \
+  --expect-context-class context-enriched \
+  --max-total-ms "$MAX_TOTAL_MS" \
+  --max-binary-package-bytes "$MAX_BINARY_PACKAGE_BYTES" \
+  --reuse-existing \
   --stdout-format json >/dev/null
 
 python3 - "$ZERO_DIR/hts2phrb-report.json" "$CONTEXT_DIR/hts2phrb-report.json" <<'PY'
@@ -61,6 +92,9 @@ expected_zero = {
     "context_bundle_class": "zero-context",
     "context_bundle_input_count": 0,
     "context_bundle_resolution_count": 0,
+    "minimum_outcome": "partial-runtime-package",
+    "gate_success": True,
+    "reused_existing": True,
 }
 
 expected_context = {
@@ -79,6 +113,9 @@ expected_context = {
     "context_bundle_class": "context-enriched",
     "context_bundle_input_count": 1,
     "context_bundle_resolution_count": 3,
+    "minimum_outcome": "partial-runtime-package",
+    "gate_success": True,
+    "reused_existing": True,
 }
 
 for label, report, expected in (
@@ -91,6 +128,12 @@ for label, report, expected in (
             raise SystemExit(
                 f"FAIL: {label} report expected {key}={expected_value!r}, got {actual!r}."
             )
+    if report.get("gate_failures"):
+        raise SystemExit(f"FAIL: {label} report unexpectedly recorded gate failures: {report.get('gate_failures')!r}.")
+    if float(report.get("total_runtime_ms") or 0.0) <= 0.0:
+        raise SystemExit(f"FAIL: {label} report did not record total_runtime_ms: {report!r}.")
+    if int(report.get("binary_package_bytes") or 0) <= 0:
+        raise SystemExit(f"FAIL: {label} report did not record binary_package_bytes: {report!r}.")
 PY
 
 echo "emu_hts2phrb_paper_mario_full_cache_contract: PASS"

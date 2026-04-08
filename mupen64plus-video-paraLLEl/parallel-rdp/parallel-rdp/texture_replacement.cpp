@@ -583,7 +583,7 @@ size_t ReplacementProvider::entry_count() const
 
 bool ReplacementProvider::load_cache_dir(const std::string &path)
 {
-	return load_cache_dir(path, CacheSourcePolicy::All);
+	return load_cache_dir(path, CacheSourcePolicy::Auto);
 }
 
 bool ReplacementProvider::load_cache_dir(const std::string &path, CacheSourcePolicy policy)

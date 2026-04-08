@@ -260,7 +260,7 @@ int main()
 	if (const char *load_path = std::getenv("PARALLEL_N64_PROVIDER_LOAD_CACHE_PATH"))
 	{
 		ReplacementProvider provider;
-		ReplacementProvider::CacheSourcePolicy policy = ReplacementProvider::CacheSourcePolicy::All;
+		ReplacementProvider::CacheSourcePolicy policy = ReplacementProvider::CacheSourcePolicy::Auto;
 		if (const char *policy_env = std::getenv("PARALLEL_N64_PROVIDER_LOAD_CACHE_POLICY"))
 		{
 			const std::string value = policy_env;
@@ -857,27 +857,28 @@ int main()
 		1,
 		mixed_compat_rgba);
 
-	ReplacementProvider mixed_provider;
-	check(mixed_provider.load_cache_dir(mixed_dir), "provider should load mixed-source cache directories");
-	mixed_provider.set_enabled(true);
-	check(mixed_provider.entry_count() == 2, "mixed-source provider should load both native and compat entries");
-	check(mixed_provider.native_checksum_index_.size() == 1, "mixed-source provider should keep a native checksum family index");
-	check(mixed_provider.compat_checksum_index_.size() == 1, "mixed-source provider should keep a compat checksum family index");
-	const auto *mixed_entry = mixed_provider.find_entry(mixed_checksum64, 258);
-	check(mixed_entry != nullptr, "mixed-source provider should resolve duplicate checksum entries");
+	ReplacementProvider mixed_all_provider;
+	check(mixed_all_provider.load_cache_dir(mixed_dir, ReplacementProvider::CacheSourcePolicy::All),
+	      "explicit all-policy provider should still load mixed-source cache directories");
+	mixed_all_provider.set_enabled(true);
+	check(mixed_all_provider.entry_count() == 2, "all-policy provider should load both native and compat entries");
+	check(mixed_all_provider.native_checksum_index_.size() == 1, "all-policy provider should keep a native checksum family index");
+	check(mixed_all_provider.compat_checksum_index_.size() == 1, "all-policy provider should keep a compat checksum family index");
+	const auto *mixed_entry = mixed_all_provider.find_entry(mixed_checksum64, 258);
+	check(mixed_entry != nullptr, "all-policy provider should resolve duplicate checksum entries");
 	check(mixed_entry->source_path.find(".phrb") != std::string::npos,
-	      "directory load should prefer PHRB entries over later-sorting legacy files");
-	const auto *mixed_native_entry = mixed_provider.find_native_entry(mixed_checksum64, 258, 0);
-	check(mixed_native_entry != nullptr, "mixed-source provider should expose the native duplicate explicitly");
+	      "all-policy directory load should still prefer PHRB entries over later-sorting legacy files");
+	const auto *mixed_native_entry = mixed_all_provider.find_native_entry(mixed_checksum64, 258, 0);
+	check(mixed_native_entry != nullptr, "all-policy provider should expose the native duplicate explicitly");
 	check(mixed_native_entry->source_path.find(".phrb") != std::string::npos,
-	      "native duplicate lookup should resolve the PHRB entry");
-	const auto *mixed_compat_entry = mixed_provider.find_compat_entry(mixed_checksum64, 258, 0);
-	check(mixed_compat_entry != nullptr, "mixed-source provider should expose the compat duplicate explicitly");
+	      "all-policy native duplicate lookup should resolve the PHRB entry");
+	const auto *mixed_compat_entry = mixed_all_provider.find_compat_entry(mixed_checksum64, 258, 0);
+	check(mixed_compat_entry != nullptr, "all-policy provider should expose the compat duplicate explicitly");
 	check(mixed_compat_entry->source_path.find(".htc") != std::string::npos,
-	      "compat duplicate lookup should resolve the legacy entry");
+	      "all-policy compat duplicate lookup should resolve the legacy entry");
 	ReplacementMeta mixed_native_meta = {};
 	NativeSampledIdentity mixed_native_identity = {};
-	check(mixed_provider.lookup_native_with_selector(
+	check(mixed_all_provider.lookup_native_with_selector(
 	          mixed_checksum64,
 	          258,
 	          0,
@@ -901,7 +902,7 @@ int main()
 	      "mixed-source native lookup should report the resolved checksum");
 	ReplacementMeta mixed_lookup_meta = {};
 	NativeSampledIdentity mixed_lookup_identity = {};
-	check(mixed_provider.lookup_with_selector_and_identity(
+	check(mixed_all_provider.lookup_with_selector_and_identity(
 	          mixed_checksum64,
 	          258,
 	          0,
@@ -919,7 +920,7 @@ int main()
 	check(resolved_checksum64 == mixed_checksum64,
 	      "mixed-source generic lookup helper should report the resolved checksum");
 	uint64_t mixed_resolved_selector_checksum64 = 0xffffffffu;
-	check(mixed_provider.lookup_sampled_family_unique(
+	check(mixed_all_provider.lookup_sampled_family_unique(
 	          2,
 	          1,
 	          32,
@@ -938,36 +939,51 @@ int main()
 	check(resolved_checksum64 == mixed_checksum64,
 	      "family-unique sampled lookup should preserve the singleton checksum");
 	ReplacementMeta mixed_compat_meta = {};
-	check(mixed_provider.lookup_compat_with_selector(mixed_checksum64, 258, 0, &mixed_compat_meta),
-	      "mixed-source compat lookup should resolve duplicate checksum entries");
+	check(mixed_all_provider.lookup_compat_with_selector(mixed_checksum64, 258, 0, &mixed_compat_meta),
+	      "all-policy compat lookup should resolve duplicate checksum entries");
 	check(mixed_compat_meta.repl_w == 4 && mixed_compat_meta.repl_h == 1,
-	      "mixed-source compat lookup should preserve compat replacement dimensions");
+	      "all-policy compat lookup should preserve compat replacement dimensions");
 	ReplacementImage mixed_image = {};
-	check(mixed_provider.decode_rgba8(mixed_checksum64, 258, &mixed_image),
-	      "mixed-source checksum decode should resolve duplicate entries");
+	check(mixed_all_provider.decode_rgba8(mixed_checksum64, 258, &mixed_image),
+	      "all-policy checksum decode should resolve duplicate entries");
 	check(!mixed_image.rgba8.empty() && mixed_image.rgba8[0] == mixed_native_rgba[0],
-	      "mixed-source checksum decode should prefer the native PHRB payload");
+	      "all-policy checksum decode should prefer the native PHRB payload");
 	ReplacementImage mixed_native_image = {};
-	check(mixed_provider.decode_rgba8_native_with_selector(mixed_checksum64, 258, 0, &mixed_native_image),
-	      "mixed-source native decode should resolve the PHRB duplicate explicitly");
+	check(mixed_all_provider.decode_rgba8_native_with_selector(mixed_checksum64, 258, 0, &mixed_native_image),
+	      "all-policy native decode should resolve the PHRB duplicate explicitly");
 	check(!mixed_native_image.rgba8.empty() && mixed_native_image.rgba8[0] == mixed_native_rgba[0],
-	      "mixed-source native decode should expose the PHRB payload");
+	      "all-policy native decode should expose the PHRB payload");
 	ReplacementImage mixed_compat_image = {};
-	check(mixed_provider.decode_rgba8_compat_with_selector(mixed_checksum64, 258, 0, &mixed_compat_image),
-	      "mixed-source compat decode should resolve the legacy duplicate explicitly");
+	check(mixed_all_provider.decode_rgba8_compat_with_selector(mixed_checksum64, 258, 0, &mixed_compat_image),
+	      "all-policy compat decode should resolve the legacy duplicate explicitly");
 	check(!mixed_compat_image.rgba8.empty() && mixed_compat_image.rgba8[0] == mixed_compat_rgba[0],
-	      "mixed-source compat decode should expose the legacy payload");
+	      "all-policy compat decode should expose the legacy payload");
 	ReplacementMeta mixed_compat_low32_meta = {};
-	check(mixed_provider.lookup_ci_low32_unique(uint32_t(mixed_checksum64 & 0xffffffffu), 258, &mixed_compat_low32_meta),
-	      "compat low32 unique lookup should still resolve the compat duplicate in mixed-source caches");
+	check(mixed_all_provider.lookup_ci_low32_unique(uint32_t(mixed_checksum64 & 0xffffffffu), 258, &mixed_compat_low32_meta),
+	      "compat low32 unique lookup should still resolve the compat duplicate in all-policy mixed-source caches");
 	check(mixed_compat_low32_meta.repl_w == 4 && mixed_compat_low32_meta.repl_h == 1,
 	      "compat low32 unique lookup should stay inside the compat pool even when a native duplicate exists");
-	ReplacementProviderStats mixed_stats = mixed_provider.get_stats();
-	check(mixed_stats.entry_count == 2, "mixed-source stats should report total entry count");
-	check(mixed_stats.native_sampled_entry_count == 1, "mixed-source stats should preserve native sampled entry count");
-	check(mixed_stats.compat_entry_count == 1, "mixed-source stats should preserve compat entry count");
-	check(mixed_stats.source_phrb_entry_count == 1, "mixed-source stats should preserve PHRB source count");
-	check(mixed_stats.source_htc_entry_count == 1, "mixed-source stats should preserve HTC source count");
+	ReplacementProviderStats mixed_stats = mixed_all_provider.get_stats();
+	check(mixed_stats.entry_count == 2, "all-policy stats should report total entry count");
+	check(mixed_stats.native_sampled_entry_count == 1, "all-policy stats should preserve native sampled entry count");
+	check(mixed_stats.compat_entry_count == 1, "all-policy stats should preserve compat entry count");
+	check(mixed_stats.source_phrb_entry_count == 1, "all-policy stats should preserve PHRB source count");
+	check(mixed_stats.source_htc_entry_count == 1, "all-policy stats should preserve HTC source count");
+
+	ReplacementProvider default_provider;
+	check(default_provider.load_cache_dir(mixed_dir),
+	      "default provider load should now use auto source policy for mixed-source cache directories");
+	default_provider.set_enabled(true);
+	check(default_provider.entry_count() == 1,
+	      "default provider load should prefer the native PHRB entry when mixed-source cache directories contain both formats");
+	check(default_provider.find_entry(mixed_checksum64, 258) != nullptr,
+	      "default provider load should still resolve the preferred native PHRB duplicate");
+	check(default_provider.find_compat_entry(mixed_checksum64, 258, 0) == nullptr,
+	      "default provider load should fence out compat entries in mixed-source auto mode");
+	ReplacementProviderStats default_stats = default_provider.get_stats();
+	check(default_stats.source_phrb_entry_count == 1, "default load stats should preserve the preferred PHRB source count");
+	check(default_stats.source_htc_entry_count == 0, "default load stats should exclude HTC-backed entries in mixed-source auto mode");
+	check(default_stats.compat_entry_count == 0, "default load stats should exclude compat entries in mixed-source auto mode");
 
 	ReplacementProvider phrb_only_provider;
 	check(phrb_only_provider.load_cache_dir(mixed_dir, ReplacementProvider::CacheSourcePolicy::PHRBOnly),

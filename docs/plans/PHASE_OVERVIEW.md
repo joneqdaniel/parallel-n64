@@ -60,6 +60,7 @@ Current runtime split:
 - both explicit selected-package lanes now fail closed if provider composition drifts away from `phrb-only`
 - runtime source policy now also has an explicit `auto` bridge mode for mixed cache directories:
   - `auto` prefers `.phrb` when native and legacy cache formats coexist, and empty / unset policy now also defaults to that same `auto` bridge mode unless a lane pins a stricter policy explicitly
+  - the low-level provider default now also uses that same `auto` mode, so direct cache-directory loads no longer silently broaden back to `all` unless a caller opts in
   - validation evidence now keeps that distinction explicit by recording both `source_policy` (requested loader policy) and `source_mode` (actual loaded source mix)
 - selected-package timeout validation now also emits live sampled selector and sampled pool reviews when transport review input is present
   - current `1b8530fb` outcome stays `defer-runtime-pool-semantics` at the family level and `keep-flat-runtime-binding` at the pool-shape level

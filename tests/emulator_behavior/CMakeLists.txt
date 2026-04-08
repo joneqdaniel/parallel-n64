@@ -275,6 +275,11 @@ add_test(
   COMMAND bash "${EMU_BEHAVIOR_SUPPORT_DIR}/emu_hts2phrb_reuse_existing_runtime_ready_consistency.sh"
 )
 
+add_test(
+  NAME emu.support.hts2phrb_reuse_existing_runtime_class_consistency
+  COMMAND bash "${EMU_BEHAVIOR_SUPPORT_DIR}/emu_hts2phrb_reuse_existing_runtime_class_consistency.sh"
+)
+
 add_executable(emu_unit_smoke_test
   emu_unit_smoke_test.cpp
   "${EMU_BEHAVIOR_SUPPORT_DIR}/rdp_memory_fixture.cpp"

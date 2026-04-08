@@ -325,6 +325,26 @@ def _count_runtime_ready_records(manifest_path: Path):
     }
 
 
+def _runtime_stats_are_self_consistent(stats):
+    if int(stats["runtime_ready_record_count"]) + int(stats["runtime_deferred_record_count"]) != int(stats["record_count"]):
+        return False
+    if int(stats["runtime_ready_native_sampled_record_count"]) + int(stats["runtime_ready_compat_record_count"]) != int(stats["runtime_ready_record_count"]):
+        return False
+    if int(stats["runtime_deferred_native_sampled_record_count"]) + int(stats["runtime_deferred_compat_record_count"]) != int(stats["runtime_deferred_record_count"]):
+        return False
+    if str(stats["runtime_ready_record_class"]) != classify_runtime_record_class(
+        stats["runtime_ready_native_sampled_record_count"],
+        stats["runtime_ready_compat_record_count"],
+    ):
+        return False
+    if str(stats["runtime_deferred_record_class"]) != classify_runtime_record_class(
+        stats["runtime_deferred_native_sampled_record_count"],
+        stats["runtime_deferred_compat_record_count"],
+    ):
+        return False
+    return True
+
+
 def reusable_report_artifacts_are_consistent(report):
     loader_manifest_path = Path(report.get("loader_manifest_path") or "")
     package_dir = Path(report.get("package_dir") or "")
@@ -339,22 +359,50 @@ def reusable_report_artifacts_are_consistent(report):
         return False
     if package_stats["runtime_ready_record_count"] != package_stats["runtime_ready_records_from_entries"]:
         return False
-    if package_stats["runtime_ready_record_count"] + package_stats["runtime_deferred_record_count"] != package_stats["record_count"]:
-        return False
     if package_stats["runtime_deferred_record_count"] != package_stats["runtime_deferred_records_from_entries"]:
+        return False
+    if not _runtime_stats_are_self_consistent(package_stats):
         return False
     if loader_stats["runtime_ready_record_count"] != loader_stats["runtime_ready_records_from_entries"]:
         return False
     if loader_stats["runtime_deferred_record_count"] != loader_stats["runtime_deferred_records_from_entries"]:
         return False
+    if not _runtime_stats_are_self_consistent(loader_stats):
+        return False
     if package_stats["runtime_ready_record_count"] != loader_stats["runtime_ready_record_count"]:
         return False
     if package_stats["runtime_deferred_record_count"] != loader_stats["runtime_deferred_record_count"]:
+        return False
+    if package_stats["runtime_ready_native_sampled_record_count"] != loader_stats["runtime_ready_native_sampled_record_count"]:
+        return False
+    if package_stats["runtime_ready_compat_record_count"] != loader_stats["runtime_ready_compat_record_count"]:
+        return False
+    if package_stats["runtime_deferred_native_sampled_record_count"] != loader_stats["runtime_deferred_native_sampled_record_count"]:
+        return False
+    if package_stats["runtime_deferred_compat_record_count"] != loader_stats["runtime_deferred_compat_record_count"]:
+        return False
+    if package_stats["runtime_ready_record_class"] != loader_stats["runtime_ready_record_class"]:
+        return False
+    if package_stats["runtime_deferred_record_class"] != loader_stats["runtime_deferred_record_class"]:
         return False
 
     report_runtime_ready_count = report.get("package_manifest_runtime_ready_record_count")
     if report_runtime_ready_count is not None and int(report_runtime_ready_count) != package_stats["runtime_ready_record_count"]:
         return False
+    report_runtime_deferred_count = report.get("package_manifest_runtime_deferred_record_count")
+    if report_runtime_deferred_count is not None and int(report_runtime_deferred_count) != package_stats["runtime_deferred_record_count"]:
+        return False
+    for report_key, stats_key in (
+        ("package_manifest_runtime_ready_native_sampled_record_count", "runtime_ready_native_sampled_record_count"),
+        ("package_manifest_runtime_ready_compat_record_count", "runtime_ready_compat_record_count"),
+        ("package_manifest_runtime_deferred_native_sampled_record_count", "runtime_deferred_native_sampled_record_count"),
+        ("package_manifest_runtime_deferred_compat_record_count", "runtime_deferred_compat_record_count"),
+        ("package_manifest_runtime_ready_record_class", "runtime_ready_record_class"),
+        ("package_manifest_runtime_deferred_record_class", "runtime_deferred_record_class"),
+    ):
+        report_value = report.get(report_key)
+        if report_value is not None and report_value != package_stats[stats_key]:
+            return False
 
     return True
 

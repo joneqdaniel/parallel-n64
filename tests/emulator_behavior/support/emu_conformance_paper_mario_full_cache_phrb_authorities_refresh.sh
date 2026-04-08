@@ -160,6 +160,10 @@ for fixture in fixtures:
         raise SystemExit(
             f"FAIL: refresh fixture {label} expected source_mode=phrb-only, got {hires.get('source_mode')!r}."
         )
+    if hires.get("source_policy") != "phrb-only":
+        raise SystemExit(
+            f"FAIL: refresh fixture {label} expected source_policy=phrb-only, got {hires.get('source_policy')!r}."
+        )
     if int(hires.get("native_sampled_entry_count") or 0) != fixture_expected["native_sampled_entry_count"]:
         raise SystemExit(
             f"FAIL: refresh fixture {label} expected native_sampled_entry_count="

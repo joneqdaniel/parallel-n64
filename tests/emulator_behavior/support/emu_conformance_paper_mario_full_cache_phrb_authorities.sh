@@ -190,6 +190,11 @@ for fixture in fixtures:
             f"FAIL: fixture {fixture.get('label')} expected source_mode=phrb-only, "
             f"got {hires.get('source_mode')!r}."
         )
+    if hires.get("source_policy") != "phrb-only":
+        raise SystemExit(
+            f"FAIL: fixture {fixture.get('label')} expected source_policy=phrb-only, "
+            f"got {hires.get('source_policy')!r}."
+        )
     if int(hires.get("entry_count") or 0) < 1:
         raise SystemExit(f"FAIL: fixture {fixture.get('label')} has no hi-res entries.")
     if int(hires.get("source_phrb_count") or 0) < 1:

@@ -102,14 +102,26 @@ for fixture in "${FIXTURES[@]}"; do
   bundle_dir="$BUNDLE_ROOT/$label"
 
   if (( RUN_PROBES )); then
+    mkdir -p "$bundle_dir"
+    runtime_env_source="$REPO_ROOT/${scenario_path%.sh}.runtime.env"
+    if [[ ! -f "$runtime_env_source" ]]; then
+      echo "Missing runtime env for $scenario_path at $runtime_env_source" >&2
+      exit 1
+    fi
+    runtime_env_override="$bundle_dir/runtime.override.env"
+    cat > "$runtime_env_override" <<EOF
+source "$runtime_env_source"
+EXPECTED_HIRES_SUMMARY_SOURCE_MODE_ON="$EXPECTED_SOURCE_MODE"
+EXPECTED_HIRES_SUMMARY_SOURCE_POLICY_ON="$EXPECTED_SOURCE_POLICY"
+EXPECTED_HIRES_MIN_SUMMARY_ENTRY_COUNT_ON="1"
+EXPECTED_HIRES_MIN_SUMMARY_NATIVE_SAMPLED_ENTRY_COUNT_ON="$MIN_NATIVE_SAMPLED_COUNT"
+EXPECTED_HIRES_MIN_SUMMARY_SOURCE_PHRB_COUNT_ON="1"
+EOF
+
+    RUNTIME_ENV_OVERRIDE="$runtime_env_override" \
     PARALLEL_RDP_HIRES_CACHE_PATH="$CACHE_PATH" \
     PARALLEL_RDP_HIRES_RUNTIME_SOURCE_MODE="${PARALLEL_RDP_HIRES_RUNTIME_SOURCE_MODE:-phrb-only}" \
     DISABLE_SCREENSHOT_VERIFY=1 \
-    EXPECTED_HIRES_SUMMARY_SOURCE_MODE_ON="$EXPECTED_SOURCE_MODE" \
-    EXPECTED_HIRES_SUMMARY_SOURCE_POLICY_ON="$EXPECTED_SOURCE_POLICY" \
-    EXPECTED_HIRES_MIN_SUMMARY_ENTRY_COUNT_ON="1" \
-    EXPECTED_HIRES_MIN_SUMMARY_NATIVE_SAMPLED_ENTRY_COUNT_ON="$MIN_NATIVE_SAMPLED_COUNT" \
-    EXPECTED_HIRES_MIN_SUMMARY_SOURCE_PHRB_COUNT_ON="1" \
     "$REPO_ROOT/$scenario_path" \
       --mode on \
       --authority-mode authoritative \

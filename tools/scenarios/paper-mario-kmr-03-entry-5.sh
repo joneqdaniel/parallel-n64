@@ -74,7 +74,7 @@ if [[ -z "$BUNDLE_DIR" ]]; then
 fi
 
 ROM_PATH="$REPO_ROOT/assets/Paper Mario (USA).zip"
-PACK_PATH="$REPO_ROOT/assets/PAPER MARIO_HIRESTEXTURES.hts"
+PACK_PATH="$(scenario_default_paper_mario_hires_cache "$REPO_ROOT")"
 RETROARCH_PATH="/home/auro/code/RetroArch"
 AUTHORITY_GRAPH_PATH="$REPO_ROOT/tools/fixtures/paper-mario-authority-graph.yaml"
 AUTHORITY_NODE_ID="kmr_03_entry_5_idle"

@@ -24,6 +24,26 @@ scenario_sha256_file() {
   fi
 }
 
+scenario_default_paper_mario_hires_cache() {
+  local repo_root="$1"
+  local -a candidates=(
+    "$repo_root/artifacts/hts2phrb-review/20260408-pm64-all-families-authority-context-abs-summary/package.phrb"
+    "$repo_root/artifacts/hts2phrb-review/20260407-pm64-all-families-authority-context-root/package.phrb"
+    "$repo_root/artifacts/hts2phrb/paper-mario-hirestextures-9fa7bc07-all-families/package.phrb"
+    "$repo_root/assets/PAPER MARIO_HIRESTEXTURES.hts"
+  )
+
+  local candidate
+  for candidate in "${candidates[@]}"; do
+    if [[ -f "$candidate" ]]; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+  done
+
+  printf '%s\n' "$repo_root/assets/PAPER MARIO_HIRESTEXTURES.hts"
+}
+
 scenario_configure_hires_runtime_env_for_cache() {
   local cache_path="$1"
   local suffix="${cache_path##*.}"

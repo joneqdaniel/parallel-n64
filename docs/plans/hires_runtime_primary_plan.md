@@ -301,8 +301,9 @@
   - the same runtime-conformance lane now also emits an alternate-source review, proving those candidate-free-under-legacy families have source-backed review candidates before any runtime promotion is attempted.
   - runtime-conformance coverage now exists for that lane through `emu.conformance.paper_mario_selected_package_timeout_validation`, gated behind `EMU_ENABLE_RUNTIME_CONFORMANCE=1`.
 - Fresh authority reruns make the current runtime split explicit:
-  - the active title-screen, file-select, and `kmr_03 ENTRY_5` authorities still run through the legacy default pack path with `source_mode=legacy-only`, `native_sampled=0`, and `sources(phrb=0, hts=15168, htc=0)`
-  - practical consequence: provider-composition minima are now available to the fixture gate, but they should not be promoted into the active authority envs until those authorities intentionally move onto a `PHRB` runtime lane or the default-path promotion phase starts
+  - the repo-default title-screen, file-select, and `kmr_03 ENTRY_5` authority scenarios now prefer the current enriched full-cache `PHRB` artifact at [`artifacts/hts2phrb-review/20260408-pm64-all-families-authority-context-abs-summary/package.phrb`](/home/auro/code/parallel-n64/artifacts/hts2phrb-review/20260408-pm64-all-families-authority-context-abs-summary/package.phrb), then fall back through the older enriched artifact, the zero-config full-cache artifact, and finally the legacy `.hts` cache only if no `PHRB` is present
+  - fresh default-path proof: title screen, file select, and `kmr_03 ENTRY_5` now all pass with no cache override, each reporting `source_mode=phrb-only`, `entry_count=12754`, `native_sampled_entry_count=503`, and `descriptor_path_class=sampled-only`; the promoted screenshot hashes are `0e854083b48ccf48e0a372e39ca439c17f0e66523423fb2c3b68b94181c72ad5`, `43bd91dab1dfa4001365caee5ba03bc4ae1999fd012f5e943093615b4c858ca9`, and `212ffb9329b8d78e608874e524534ca54505a26204abe78524ef8fca97a1b638`
+  - practical consequence: the active authority lane has now intentionally moved onto the enriched full-cache `PHRB` runtime path; the remaining default-path work is broader promotion beyond this Paper Mario proof set, not whether the authority lane itself should still be treated as legacy-default
 - Second-game validation has not started.
 
 ## Deferred Work Register
@@ -319,7 +320,7 @@ Any work item skipped to keep the current slice bounded must stay listed here un
 | Implement runtime pool semantics for `present-pool-selector-conflict` families like `1b8530fb` | The provider can now describe native pool conflicts directly, but the current evidence still says fixed-slot replay is the wrong behavior for the rotating-stream-edge-dwell case. | After a pool-preserving selector model is defined and direct runtime evidence says it improves the seam without regressing strict authorities. |
 | Promote review-only offline duplicate and asset-alias shaping for exact pixel-identical families like `7701ac09` into the canonical selected-package build | Both the selector-local dedupe candidate and the broader asset-alias candidate are now proven stable on selected-package authorities and the `960` timeout lane, and a tracked review profile now bundles those inputs reproducibly, but default build promotion is still intentionally deferred. | After repeated review bundles keep the duplicate seam eliminated without new regressions, and the default selected-package build can absorb those review decisions without obscuring which steps were review-only. |
 | Enable first-load `.hts` to cached `.phrb` auto-conversion | Auto-conversion is a user convenience, not a sequencing shortcut, and enabling it earlier would blur runtime-contract readiness. | Only during default-path promotion, with direct auto-conversion tests and cache-behavior coverage. |
-| Promote native-`PHRB` provider-composition minima into the active authority fixtures | The fixture gate can now verify source mode and native/compat counts, but the active title/file-select/`kmr_03` authorities still intentionally validate the legacy default `.hts` runtime path. | After the authority lane itself moves to explicit `PHRB` inputs or the default runtime path promotion begins. |
+| Promote native-`PHRB` provider-composition minima beyond the three active Paper Mario authority fixtures | The active title/file-select/`kmr_03` authority lane now prefers the enriched full-cache `PHRB` artifact by default and proves sampled-only descriptor traffic. | After the broader default-path promotion phase starts outside the current Paper Mario authority set. |
 | Start second-game validation | Cross-game claims are not useful until the Paper Mario menu and non-menu authority set is stable and classification-backed. | After the Paper Mario breadth gate is green and the runtime contract is stable enough to test without new core rules. |
 | Treat representative-pack converter performance and cache behavior as a promotion gate | Correctness and bounded ambiguity came first; operational expectations are only meaningful once the skeleton front door is stable. | Before default-path promotion and before auto-conversion is enabled. |
 
@@ -739,10 +740,10 @@ The project should not declare the native format/runtime seam ready until all of
   - sampled exact-miss debug logs can now report the preserved `policy_key`, `sampled_object_id`, selector counts, and whether the family is a pool
 - Selected-package timeout validation now also preserves the conflict/unresolved split, and sampled selector review can classify the main families against the current loader manifest.
 - The current runtime source split is now explicit instead of inferred:
-  - active Paper Mario authorities are still `legacy-only`
+  - active Paper Mario authorities now prefer the enriched full-cache `PHRB` artifact by default and currently run `phrb-only`
   - selected-package timeout validation is `phrb-only`
   - selected-package authority validation is also now `phrb-only` across title screen, file select, and `kmr_03 ENTRY_5`
-  - do not promote native-`PHRB` provider-composition minima into the active authority envs until the authority lane itself moves
+  - if the preferred `PHRB` artifacts are absent, the shared default cache resolver still falls back to legacy `.hts` rather than failing open
 - The timeout selected-package review path can now also tell whether each family still has legacy transport candidates:
   - the dominant absent triangle families `91887078`, `6af0d9ca`, and `e0d4d0dc` are now explicitly candidate-free under the current `.hts` transport model
   - the new alternate-source review lane now gives those same families a bounded review-only source path instead of leaving them as abstract future work

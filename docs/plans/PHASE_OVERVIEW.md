@@ -41,7 +41,7 @@ Within the existing phase ladder, the active near-term order is:
 
 Current runtime split:
 
-- active Paper Mario authorities still validate the legacy default `.hts` path
+- active Paper Mario authorities now prefer the current enriched full-cache `PHRB` artifact by default and fall back to legacy `.hts` only if no preferred `PHRB` artifact is available
 - selected-package timeout validation is the current deeper `PHRB` runtime lane
 - selected-package authority validation now also proves the same explicit `PHRB` lane across title screen, file select, and `kmr_03 ENTRY_5`
 - both selected-package lanes are now part of the opt-in runtime-conformance tier:

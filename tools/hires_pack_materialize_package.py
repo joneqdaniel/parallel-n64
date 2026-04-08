@@ -14,6 +14,18 @@ def load_loader_manifest(path: Path):
     return json.loads(path.read_text())
 
 
+def classify_runtime_record_class(native_count, compat_count):
+    native_count = int(native_count or 0)
+    compat_count = int(compat_count or 0)
+    if native_count > 0 and compat_count == 0:
+        return 'native-sampled-only'
+    if native_count == 0 and compat_count > 0:
+        return 'compat-only'
+    if native_count > 0 and compat_count > 0:
+        return 'mixed-native-and-compat'
+    return 'none'
+
+
 def _build_materialized_package(loader_manifest_path: Path,
                                 output_dir: Path | None,
                                 emit_png_assets: bool,
@@ -57,6 +69,8 @@ def _build_materialized_package(loader_manifest_path: Path,
     package_records = []
     runtime_ready_record_count = 0
     runtime_deferred_record_count = 0
+    runtime_ready_record_kind_counts = {}
+    runtime_deferred_record_kind_counts = {}
     total_asset_candidate_count = 0
     records = manifest.get('records', [])
     total_records = len(records)
@@ -145,8 +159,12 @@ def _build_materialized_package(loader_manifest_path: Path,
             )
         if runtime_ready:
             runtime_ready_record_count += 1
+            record_kind = str(record.get('record_kind') or 'unknown')
+            runtime_ready_record_kind_counts[record_kind] = runtime_ready_record_kind_counts.get(record_kind, 0) + 1
         else:
             runtime_deferred_record_count += 1
+            record_kind = str(record.get('record_kind') or 'unknown')
+            runtime_deferred_record_kind_counts[record_kind] = runtime_deferred_record_kind_counts.get(record_kind, 0) + 1
         package_records.append(
             {
                 'policy_key': record.get('policy_key'),
@@ -174,6 +192,11 @@ def _build_materialized_package(loader_manifest_path: Path,
                 }
             )
 
+    runtime_ready_native_sampled_record_count = int(runtime_ready_record_kind_counts.get('canonical-sampled', 0))
+    runtime_deferred_native_sampled_record_count = int(runtime_deferred_record_kind_counts.get('canonical-sampled', 0))
+    runtime_ready_compat_record_count = int(runtime_ready_record_count - runtime_ready_native_sampled_record_count)
+    runtime_deferred_compat_record_count = int(runtime_deferred_record_count - runtime_deferred_native_sampled_record_count)
+
     package_manifest = {
         'schema_version': 1,
         'source_loader_manifest_path': str(loader_manifest_path),
@@ -181,6 +204,20 @@ def _build_materialized_package(loader_manifest_path: Path,
         'record_count': len(package_records),
         'runtime_ready_record_count': runtime_ready_record_count,
         'runtime_deferred_record_count': runtime_deferred_record_count,
+        'runtime_ready_record_kind_counts': dict(sorted(runtime_ready_record_kind_counts.items())),
+        'runtime_deferred_record_kind_counts': dict(sorted(runtime_deferred_record_kind_counts.items())),
+        'runtime_ready_native_sampled_record_count': runtime_ready_native_sampled_record_count,
+        'runtime_ready_compat_record_count': runtime_ready_compat_record_count,
+        'runtime_deferred_native_sampled_record_count': runtime_deferred_native_sampled_record_count,
+        'runtime_deferred_compat_record_count': runtime_deferred_compat_record_count,
+        'runtime_ready_record_class': classify_runtime_record_class(
+            runtime_ready_native_sampled_record_count,
+            runtime_ready_compat_record_count,
+        ),
+        'runtime_deferred_record_class': classify_runtime_record_class(
+            runtime_deferred_native_sampled_record_count,
+            runtime_deferred_compat_record_count,
+        ),
         'asset_candidate_total': total_asset_candidate_count,
         'records': package_records,
         'duplicate_record_count': len(duplicate_groups),

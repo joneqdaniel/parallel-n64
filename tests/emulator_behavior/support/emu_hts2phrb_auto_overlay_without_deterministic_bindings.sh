@@ -82,6 +82,8 @@ from pathlib import Path
 
 out_dir = Path(sys.argv[1])
 report = json.loads((out_dir / "hts2phrb-report.json").read_text())
+loader_manifest = json.loads((out_dir / "loader-manifest.json").read_text())
+package_manifest = json.loads((out_dir / "package" / "package-manifest.json").read_text())
 
 if report["runtime_overlay_mode"] != "auto":
     raise SystemExit(f"unexpected runtime overlay mode: {report['runtime_overlay_mode']!r}")
@@ -97,6 +99,14 @@ if (out_dir / "bindings.json").exists() or (out_dir / "runtime-loader-manifest.j
     raise SystemExit("runtime overlay artifacts should not be emitted when no deterministic bindings exist")
 if report["package_manifest_record_count"] != 1 or report["package_manifest_runtime_ready_record_count"] != 1:
     raise SystemExit(f"unexpected runtime-ready package summary: {report!r}")
+if loader_manifest["runtime_ready_record_count"] != 1 or loader_manifest["runtime_deferred_record_count"] != 0:
+    raise SystemExit(f"unexpected canonical loader runtime counts: {loader_manifest!r}")
+if loader_manifest["runtime_ready_record_class"] != "compat-only":
+    raise SystemExit(f"unexpected canonical loader runtime-ready class: {loader_manifest['runtime_ready_record_class']!r}")
+if package_manifest["runtime_ready_record_count"] != 1 or package_manifest["runtime_deferred_record_count"] != 0:
+    raise SystemExit(f"unexpected package-manifest runtime counts: {package_manifest!r}")
+if package_manifest["runtime_ready_record_class"] != "compat-only":
+    raise SystemExit(f"unexpected package-manifest runtime-ready class: {package_manifest['runtime_ready_record_class']!r}")
 if report["binding_count"] != 0 or report["unresolved_count"] != 0:
     raise SystemExit(f"expected zero bindings and zero unresolved transport cases, got {report!r}")
 if report["conversion_outcome"] != "promotable-runtime-package":

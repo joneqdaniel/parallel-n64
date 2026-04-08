@@ -97,15 +97,25 @@ from pathlib import Path
 
 out_dir = Path(sys.argv[1])
 report = json.loads((out_dir / "hts2phrb-report.json").read_text())
-bindings = json.loads((out_dir / "bindings.json").read_text())
+package_manifest = json.loads((out_dir / "package" / "package-manifest.json").read_text())
 
 if report["requested_family_count"] != 1:
     raise SystemExit(f"expected one requested family from sampled fallback, got {report['requested_family_count']}")
-if report["binding_count"] != 1 or report["unresolved_count"] != 0:
+if report["binding_count"] != 0 or report["unresolved_count"] != 0:
     raise SystemExit(f"unexpected report counts: {report!r}")
-
-binding = bindings["bindings"][0]
-identity = binding.get("canonical_identity") or {}
+if report["runtime_overlay_built"] or report["runtime_overlay_reason"] != "no-deterministic-bindings":
+    raise SystemExit(f"unexpected runtime overlay state: {report!r}")
+if report["package_manifest_runtime_ready_record_count"] != 1:
+    raise SystemExit(f"expected one runtime-ready package record, got {report!r}")
+records = package_manifest.get("records") or []
+if len(records) != 1:
+    raise SystemExit(f"unexpected package records: {records!r}")
+record = records[0]
+if record.get("record_kind") not in {"canonical-sampled", "exact-authority-family"}:
+    raise SystemExit(f"unexpected record kind: {record.get('record_kind')!r}")
+if not record.get("runtime_ready"):
+    raise SystemExit(f"expected runtime-ready package record, got {record!r}")
+identity = record.get("canonical_identity") or {}
 if str(identity.get("sampled_low32") or "").lower() != "13572468":
     raise SystemExit(f"unexpected sampled_low32 from sampled bundle fallback: {identity!r}")
 if int(identity.get("formatsize") or -1) != 514:

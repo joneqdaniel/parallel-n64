@@ -116,6 +116,8 @@ from hires_pack_inspect_binary_package import inspect_binary_package
 
 report = json.loads((out_dir / "hts2phrb-report.json").read_text())
 plan = json.loads((out_dir / "migration-plan.json").read_text())
+loader_manifest = json.loads((out_dir / "loader-manifest.json").read_text())
+runtime_loader_manifest = json.loads((out_dir / "runtime-loader-manifest.json").read_text())
 bindings = json.loads((out_dir / "bindings.json").read_text())
 package_manifest = json.loads((out_dir / "package" / "package-manifest.json").read_text())
 binary = inspect_binary_package(Path(report["binary_package"]["output_path"]))
@@ -202,6 +204,16 @@ if report["binary_package"]["record_count"] != 1 or report["binary_package"]["as
     raise SystemExit("binary package counts in report do not match round-trip expectation")
 if report["package_manifest_runtime_ready_record_count"] != 1 or report["package_manifest_runtime_deferred_record_count"] != 0:
     raise SystemExit(f"unexpected package runtime-ready counts: {report!r}")
+if loader_manifest["runtime_ready_record_count"] != 1 or loader_manifest["runtime_deferred_record_count"] != 0:
+    raise SystemExit(f"unexpected canonical loader runtime counts: {loader_manifest!r}")
+if loader_manifest["runtime_ready_record_class"] != "native-sampled-only":
+    raise SystemExit(f"unexpected canonical loader runtime-ready class: {loader_manifest['runtime_ready_record_class']!r}")
+if runtime_loader_manifest["runtime_ready_record_count"] != 1 or runtime_loader_manifest["runtime_deferred_record_count"] != 0:
+    raise SystemExit(f"unexpected runtime loader runtime counts: {runtime_loader_manifest!r}")
+if runtime_loader_manifest["runtime_ready_record_class"] != "compat-only":
+    raise SystemExit(f"unexpected runtime loader runtime-ready class: {runtime_loader_manifest['runtime_ready_record_class']!r}")
+if package_manifest["runtime_ready_record_class"] != "native-sampled-only" or package_manifest["runtime_deferred_record_class"] != "none":
+    raise SystemExit(f"unexpected package-manifest runtime classes: {package_manifest!r}")
 if report["package_dir_bytes"] <= 0 or report["package_manifest_bytes"] <= 0:
     raise SystemExit(f"expected positive package byte counts, got report={report!r}")
 family_states = report.get("requested_family_states") or {}

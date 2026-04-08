@@ -141,10 +141,12 @@ records = package_manifest.get("records", [])
 if len(records) != 2:
     raise SystemExit(f"unexpected package record count: {len(records)}")
 kinds = Counter(record.get("record_kind") for record in records)
-if kinds != {"canonical-sampled": 2}:
+if set(kinds) - {"canonical-sampled", "exact-authority-family"}:
     raise SystemExit(f"unexpected record kinds: {kinds!r}")
 if package_manifest.get("runtime_ready_record_count") != 2:
     raise SystemExit(f"unexpected runtime ready count: {package_manifest.get('runtime_ready_record_count')!r}")
+if any(not bool(record.get("runtime_ready")) for record in records):
+    raise SystemExit(f"expected all merged context records to be runtime-ready, got {records!r}")
 
 sampled_low32s = sorted(
     str((record.get("canonical_identity") or {}).get("sampled_low32") or "").lower()

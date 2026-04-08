@@ -71,6 +71,58 @@ def normalize_upload_values(items):
     return normalized
 
 
+def classify_runtime_record_class(native_count, compat_count):
+    native_count = int(native_count or 0)
+    compat_count = int(compat_count or 0)
+    if native_count > 0 and compat_count == 0:
+        return "native-sampled-only"
+    if native_count == 0 and compat_count > 0:
+        return "compat-only"
+    if native_count > 0 and compat_count > 0:
+        return "mixed-native-and-compat"
+    return "none"
+
+
+def summarize_runtime_records(records):
+    runtime_ready_record_count = 0
+    runtime_deferred_record_count = 0
+    runtime_ready_record_kind_counts = {}
+    runtime_deferred_record_kind_counts = {}
+    for record in records:
+        record_kind = str(record.get("record_kind") or "unknown")
+        if bool(record.get("runtime_ready")):
+            runtime_ready_record_count += 1
+            runtime_ready_record_kind_counts[record_kind] = runtime_ready_record_kind_counts.get(record_kind, 0) + 1
+        else:
+            runtime_deferred_record_count += 1
+            runtime_deferred_record_kind_counts[record_kind] = runtime_deferred_record_kind_counts.get(record_kind, 0) + 1
+
+    runtime_ready_native_sampled_record_count = int(runtime_ready_record_kind_counts.get("canonical-sampled", 0))
+    runtime_deferred_native_sampled_record_count = int(runtime_deferred_record_kind_counts.get("canonical-sampled", 0))
+    runtime_ready_compat_record_count = int(runtime_ready_record_count - runtime_ready_native_sampled_record_count)
+    runtime_deferred_compat_record_count = int(runtime_deferred_record_count - runtime_deferred_native_sampled_record_count)
+
+    return {
+        "record_count": len(records),
+        "runtime_ready_record_count": runtime_ready_record_count,
+        "runtime_deferred_record_count": runtime_deferred_record_count,
+        "runtime_ready_record_kind_counts": dict(sorted(runtime_ready_record_kind_counts.items())),
+        "runtime_deferred_record_kind_counts": dict(sorted(runtime_deferred_record_kind_counts.items())),
+        "runtime_ready_native_sampled_record_count": runtime_ready_native_sampled_record_count,
+        "runtime_ready_compat_record_count": runtime_ready_compat_record_count,
+        "runtime_deferred_native_sampled_record_count": runtime_deferred_native_sampled_record_count,
+        "runtime_deferred_compat_record_count": runtime_deferred_compat_record_count,
+        "runtime_ready_record_class": classify_runtime_record_class(
+            runtime_ready_native_sampled_record_count,
+            runtime_ready_compat_record_count,
+        ),
+        "runtime_deferred_record_class": classify_runtime_record_class(
+            runtime_deferred_native_sampled_record_count,
+            runtime_deferred_compat_record_count,
+        ),
+    }
+
+
 def build_loader_manifest(bindings_data, bindings_path: Path):
     records = []
     for binding in bindings_data.get("bindings", []):
@@ -94,11 +146,22 @@ def build_loader_manifest(bindings_data, bindings_path: Path):
             }
         )
 
+    summary = summarize_runtime_records(records)
     return {
         "schema_version": 1,
         "source_bindings_path": str(bindings_path),
         "bundle_path": bindings_data.get("bundle_path"),
-        "record_count": len(records),
+        "record_count": summary["record_count"],
+        "runtime_ready_record_count": summary["runtime_ready_record_count"],
+        "runtime_deferred_record_count": summary["runtime_deferred_record_count"],
+        "runtime_ready_record_kind_counts": summary["runtime_ready_record_kind_counts"],
+        "runtime_deferred_record_kind_counts": summary["runtime_deferred_record_kind_counts"],
+        "runtime_ready_native_sampled_record_count": summary["runtime_ready_native_sampled_record_count"],
+        "runtime_ready_compat_record_count": summary["runtime_ready_compat_record_count"],
+        "runtime_deferred_native_sampled_record_count": summary["runtime_deferred_native_sampled_record_count"],
+        "runtime_deferred_compat_record_count": summary["runtime_deferred_compat_record_count"],
+        "runtime_ready_record_class": summary["runtime_ready_record_class"],
+        "runtime_deferred_record_class": summary["runtime_deferred_record_class"],
         "records": records,
         "unresolved_transport_cases": bindings_data.get("unresolved_transport_cases", []),
     }
@@ -215,10 +278,21 @@ def build_canonical_loader_manifest(imported_index_data, imported_index_path: Pa
     for record in records:
         record["asset_candidate_count"] = len(record.get("asset_candidates", []))
 
+    summary = summarize_runtime_records(records)
     return {
         "schema_version": 1,
         "source_imported_index_path": str(imported_index_path),
-        "record_count": len(records),
+        "record_count": summary["record_count"],
+        "runtime_ready_record_count": summary["runtime_ready_record_count"],
+        "runtime_deferred_record_count": summary["runtime_deferred_record_count"],
+        "runtime_ready_record_kind_counts": summary["runtime_ready_record_kind_counts"],
+        "runtime_deferred_record_kind_counts": summary["runtime_deferred_record_kind_counts"],
+        "runtime_ready_native_sampled_record_count": summary["runtime_ready_native_sampled_record_count"],
+        "runtime_ready_compat_record_count": summary["runtime_ready_compat_record_count"],
+        "runtime_deferred_native_sampled_record_count": summary["runtime_deferred_native_sampled_record_count"],
+        "runtime_deferred_compat_record_count": summary["runtime_deferred_compat_record_count"],
+        "runtime_ready_record_class": summary["runtime_ready_record_class"],
+        "runtime_deferred_record_class": summary["runtime_deferred_record_class"],
         "records": records,
         "unresolved_transport_cases": [],
     }

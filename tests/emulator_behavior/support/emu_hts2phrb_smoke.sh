@@ -107,6 +107,9 @@ from pathlib import Path
 out_dir = Path(sys.argv[1])
 report = json.loads((out_dir / "hts2phrb-report.json").read_text())
 progress = json.loads((out_dir / "hts2phrb-progress.json").read_text())
+loader_manifest = json.loads((out_dir / "loader-manifest.json").read_text())
+runtime_loader_manifest = json.loads((out_dir / "runtime-loader-manifest.json").read_text())
+package_manifest = json.loads((out_dir / "package" / "package-manifest.json").read_text())
 bindings = json.loads((out_dir / "bindings.json").read_text())
 plan = json.loads((out_dir / "migration-plan.json").read_text())
 summary_text = (out_dir / "hts2phrb-summary.md").read_text()
@@ -139,6 +142,24 @@ if report["package_manifest_runtime_deferred_native_sampled_record_count"] != 0 
         f"got native={report['package_manifest_runtime_deferred_native_sampled_record_count']!r} "
         f"compat={report['package_manifest_runtime_deferred_compat_record_count']!r}"
     )
+if loader_manifest["runtime_ready_record_count"] != 1 or loader_manifest["runtime_deferred_record_count"] != 0:
+    raise SystemExit(f"unexpected canonical loader runtime counts: {loader_manifest!r}")
+if loader_manifest["runtime_ready_native_sampled_record_count"] != 1 or loader_manifest["runtime_ready_compat_record_count"] != 0:
+    raise SystemExit(f"unexpected canonical loader runtime-ready class counts: {loader_manifest!r}")
+if loader_manifest["runtime_ready_record_class"] != "native-sampled-only":
+    raise SystemExit(f"unexpected canonical loader runtime-ready class: {loader_manifest['runtime_ready_record_class']!r}")
+if runtime_loader_manifest["runtime_ready_record_count"] != 1 or runtime_loader_manifest["runtime_deferred_record_count"] != 0:
+    raise SystemExit(f"unexpected runtime loader runtime counts: {runtime_loader_manifest!r}")
+if runtime_loader_manifest["runtime_ready_native_sampled_record_count"] != 0 or runtime_loader_manifest["runtime_ready_compat_record_count"] != 1:
+    raise SystemExit(f"unexpected runtime loader runtime-ready class counts: {runtime_loader_manifest!r}")
+if runtime_loader_manifest["runtime_ready_record_class"] != "compat-only":
+    raise SystemExit(f"unexpected runtime loader runtime-ready class: {runtime_loader_manifest['runtime_ready_record_class']!r}")
+if package_manifest["runtime_ready_record_count"] != 1 or package_manifest["runtime_deferred_record_count"] != 0:
+    raise SystemExit(f"unexpected package-manifest runtime counts: {package_manifest!r}")
+if package_manifest["runtime_ready_native_sampled_record_count"] != 1 or package_manifest["runtime_ready_compat_record_count"] != 0:
+    raise SystemExit(f"unexpected package-manifest runtime-ready class counts: {package_manifest!r}")
+if package_manifest["runtime_ready_record_class"] != "native-sampled-only":
+    raise SystemExit(f"unexpected package-manifest runtime-ready class: {package_manifest['runtime_ready_record_class']!r}")
 if report["package_asset_storage"] != "legacy-blobs":
     raise SystemExit(f"unexpected package asset storage: {report['package_asset_storage']!r}")
 if report["conversion_outcome"] != "promotable-runtime-package":

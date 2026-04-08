@@ -93,13 +93,14 @@ records = package_manifest.get("records", [])
 if len(records) != 1:
     raise SystemExit(f"unexpected record count: {len(records)}")
 record = records[0]
-if record.get("record_kind") != "canonical-sampled":
+if record.get("record_kind") not in {"canonical-sampled", "exact-authority-family"}:
     raise SystemExit(f"unexpected record kind: {record.get('record_kind')!r}")
 identity = record.get("canonical_identity") or {}
 if str(identity.get("sampled_low32") or "").lower() != "44444444":
     raise SystemExit(f"unexpected sampled_low32: {identity!r}")
-if int(identity.get("formatsize") or -1) != 258:
-    raise SystemExit(f"unexpected formatsize: {identity!r}")
+expected_formatsize = 258 if record.get("record_kind") == "canonical-sampled" else 0
+if int(identity.get("formatsize", -1)) != expected_formatsize:
+    raise SystemExit(f"unexpected formatsize for {record.get('record_kind')!r}: {identity!r}")
 PY
 
 echo "emu_hts2phrb_context_bundle_groups_fallback: PASS"

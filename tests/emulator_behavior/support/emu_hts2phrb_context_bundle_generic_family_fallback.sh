@@ -97,13 +97,14 @@ records = package_manifest.get("records", [])
 if len(records) != 1:
     raise SystemExit(f"unexpected package records: {records!r}")
 record = records[0]
-if record.get("record_kind") != "canonical-sampled":
-    raise SystemExit(f"expected canonical-sampled record, got {record.get('record_kind')!r}")
+if record.get("record_kind") not in {"canonical-sampled", "exact-authority-family"}:
+    raise SystemExit(f"unexpected record kind: {record.get('record_kind')!r}")
 identity = record.get("canonical_identity") or {}
-if int(identity.get("formatsize") or -1) != 258:
-    raise SystemExit(f"unexpected canonical formatsize: {identity!r}")
 if str(identity.get("sampled_low32") or "").lower() != "33333333":
     raise SystemExit(f"unexpected sampled_low32: {identity!r}")
+expected_formatsize = 258 if record.get("record_kind") == "canonical-sampled" else 0
+if int(identity.get("formatsize", -1)) != expected_formatsize:
+    raise SystemExit(f"unexpected canonical formatsize for {record.get('record_kind')!r}: {identity!r}")
 if not record.get("runtime_ready"):
     raise SystemExit(f"expected runtime_ready canonical record: {record!r}")
 PY

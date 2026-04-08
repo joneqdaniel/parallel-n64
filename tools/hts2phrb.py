@@ -1326,13 +1326,14 @@ def build_conversion(args):
         loader_manifest_record_count=canonical_loader_manifest.get("record_count", 0),
     )
 
-    runtime_overlay_built, runtime_overlay_reason = resolve_runtime_overlay_plan(args, canonical_loader_manifest)
+    runtime_overlay_planned, runtime_overlay_reason = resolve_runtime_overlay_plan(args, canonical_loader_manifest)
+    runtime_overlay_built = runtime_overlay_planned
     runtime_overlay_artifacts_emitted = False
-    if runtime_overlay_built and resume_from_progress and bindings_path.exists():
+    if runtime_overlay_planned and resume_from_progress and bindings_path.exists():
         bindings = json.loads(bindings_path.read_text())
         stage_timings_ms["build_bindings"] = 0.0
         reused_stage_names.append("build_bindings")
-    elif runtime_overlay_built:
+    elif runtime_overlay_planned:
         stage_started = time.perf_counter()
         bindings = build_proxy_bindings(
             migration_plan_path,
@@ -1343,6 +1344,9 @@ def build_conversion(args):
     else:
         bindings = make_runtime_overlay_placeholder(migration_plan_path, runtime_overlay_reason)
         stage_timings_ms["build_bindings"] = 0.0
+    if runtime_overlay_planned and args.runtime_overlay_mode == "auto" and int(bindings.get("binding_count", 0) or 0) <= 0:
+        runtime_overlay_built = False
+        runtime_overlay_reason = "no-deterministic-bindings"
     if runtime_overlay_built:
         bindings_path.write_text(json.dumps(bindings, indent=2) + "\n")
         runtime_overlay_artifacts_emitted = True
@@ -1443,6 +1447,15 @@ def build_conversion(args):
             warnings.append(
                 "Runtime overlay was skipped because canonical packaging produced no runtime-ready records for the requested slice."
             )
+        elif runtime_overlay_reason == "no-deterministic-bindings":
+            if runtime_ready_package_record_count > 0:
+                warnings.append(
+                    "Runtime overlay was skipped because binding selection produced no deterministic runtime bindings. The generated package still contains runtime-ready canonical records."
+                )
+            else:
+                warnings.append(
+                    "Runtime overlay was skipped because binding selection produced no deterministic runtime bindings."
+                )
         elif runtime_ready_package_record_count > 0:
             warnings.append(
                 "Runtime overlay was skipped because no bundle or explicit runtime context was supplied. The generated package still contains runtime-ready canonical records, but no runtime overlay artifacts were emitted."

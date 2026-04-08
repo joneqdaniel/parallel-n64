@@ -418,6 +418,8 @@ for off_dir in sorted((bundle_root / 'off').iterdir()):
         raise SystemExit(f'expected on-bundle hi-res provider to be "on" in {on_dir}, found {hires_summary.get("provider")!r}')
     if hires_summary.get('source_mode') != 'phrb-only':
         raise SystemExit(f'expected selected-package source_mode=phrb-only in {on_dir}, found {hires_summary.get("source_mode")!r}')
+    if hires_summary.get('source_policy') != 'phrb-only':
+        raise SystemExit(f'expected selected-package source_policy=phrb-only in {on_dir}, found {hires_summary.get("source_policy")!r}')
     if int(hires_summary.get('native_sampled_entry_count') or 0) < 1:
         raise SystemExit(f'expected native sampled entries in {on_dir}, found {hires_summary.get("native_sampled_entry_count")!r}')
     if int((hires_summary.get('source_counts') or {}).get('phrb') or 0) < 1:
@@ -615,6 +617,8 @@ for step in summary['steps']:
     summary_line = f'- Hi-res summary: provider `{hires_summary.get("provider")}`'
     if hires_summary.get('source_mode') is not None:
         summary_line += f', source mode `{hires_summary.get("source_mode")}`'
+    if hires_summary.get('source_policy') is not None:
+        summary_line += f', source policy `{hires_summary.get("source_policy")}`'
     if hires_summary.get('entry_count') is not None:
         summary_line += (
             f', entries `{hires_summary.get("entry_count")}`'

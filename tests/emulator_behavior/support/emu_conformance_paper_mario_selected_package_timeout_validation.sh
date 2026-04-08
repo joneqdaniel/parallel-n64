@@ -275,6 +275,8 @@ if semantic.get("init_symbol") != "state_init_world" or semantic.get("step_symbo
 hires = step.get("hires_summary") or {}
 if hires.get("source_mode") != "phrb-only":
     raise SystemExit(f"FAIL: expected source_mode=phrb-only, got {hires.get('source_mode')!r}.")
+if hires.get("source_policy") != "phrb-only":
+    raise SystemExit(f"FAIL: expected source_policy=phrb-only, got {hires.get('source_policy')!r}.")
 if int(hires.get("entry_count") or 0) < 1:
     raise SystemExit("FAIL: selected-package timeout lane has no hi-res entries.")
 if int(hires.get("native_sampled_entry_count") or 0) < 1:

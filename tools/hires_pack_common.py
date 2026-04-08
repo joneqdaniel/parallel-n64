@@ -1,12 +1,100 @@
 #!/usr/bin/env python3
 import gzip
 import json
+import re
 import struct
 import zlib
 from collections import Counter
 from pathlib import Path
 
 TXCACHE_FORMAT_VERSION = 0x08000000
+REPO_ROOT = Path(__file__).resolve().parent.parent
+LEGACY_CACHE_SUFFIXES = (".htc", ".hts")
+LEGACY_CACHE_ARCHIVAL_MARKERS = (".pre-", ".bak", ".old", ".orig", ".disabled")
+FIELD_RE = re.compile(r"(\w+)=([^\s]+)")
+PROVENANCE_LINE_RE = re.compile(
+    r"Hi-res keying provenance: "
+    r"outcome=(?P<outcome>\w+) "
+    r"source_class=(?P<source_class>[\w-]+) "
+    r"provenance_class=(?P<provenance_class>[\w-]+) "
+    r"mode=(?P<mode>\w+) "
+    r"addr=0x(?P<addr>[0-9a-f]+) "
+    r"tile=(?P<tile>\d+) "
+    r"fmt=(?P<fmt>\d+) "
+    r"siz=(?P<siz>\d+) "
+    r"pal=(?P<pal>\d+) "
+    r"wh=(?P<width>\d+)x(?P<height>\d+) "
+    r"key=(?P<key>[0-9a-f]+) "
+    r"pcrc=(?P<pcrc>[0-9a-f]+) "
+    r"fs=(?P<formatsize>\d+) "
+    r"upload=(?P<upload>\w+) "
+    r"cycle=(?P<cycle>[\w-]+) "
+    r"copy=(?P<copy>\d+) "
+    r"tlut=(?P<tlut>\d+) "
+    r"tlut_type=(?P<tlut_type>\d+) "
+    r"framebuffer=(?P<framebuffer>\d+) "
+    r"color_fb=(?P<color_fb>\d+) "
+    r"depth_fb=(?P<depth_fb>\d+) "
+    r"tmem=0x(?P<tmem>[0-9a-f]+) "
+    r"line=(?P<line>\d+) "
+    r"key_xy=(?P<key_x>\d+)x(?P<key_y>\d+)",
+    re.IGNORECASE,
+)
+
+
+def _legacy_cache_archival_rank(cache_path: Path):
+    name = cache_path.name.lower()
+    return 1 if any(marker in name for marker in LEGACY_CACHE_ARCHIVAL_MARKERS) else 0
+
+
+def _legacy_cache_sort_key(cache_path: Path):
+    suffix_priority = 0 if cache_path.suffix.lower() == ".htc" else 1
+    return (
+        _legacy_cache_archival_rank(cache_path),
+        suffix_priority,
+        len(cache_path.name),
+        cache_path.name.lower(),
+    )
+
+
+def resolve_legacy_cache_path(cache_input_path: Path):
+    if cache_input_path.is_file():
+        if cache_input_path.suffix.lower() not in LEGACY_CACHE_SUFFIXES:
+            raise ValueError(f"Unsupported cache format: {cache_input_path}")
+        return {
+            "input_path": str(cache_input_path),
+            "input_kind": "file",
+            "resolved_path": str(cache_input_path),
+            "resolved_storage": cache_input_path.suffix.lower().lstrip("."),
+            "selection_reason": "direct-file",
+            "candidate_count": 1,
+            "candidate_paths": [str(cache_input_path)],
+        }
+
+    if cache_input_path.is_dir():
+        candidates = sorted(
+            (
+                path
+                for path in cache_input_path.iterdir()
+                if path.is_file() and path.suffix.lower() in LEGACY_CACHE_SUFFIXES
+            ),
+            key=_legacy_cache_sort_key,
+        )
+        if not candidates:
+            raise ValueError(f"No legacy .hts/.htc cache files found in directory: {cache_input_path}")
+
+        resolved_path = candidates[0]
+        return {
+            "input_path": str(cache_input_path),
+            "input_kind": "directory",
+            "resolved_path": str(resolved_path),
+            "resolved_storage": resolved_path.suffix.lower().lstrip("."),
+            "selection_reason": "directory-singleton" if len(candidates) == 1 else "directory-ranked-current-first",
+            "candidate_count": len(candidates),
+            "candidate_paths": [str(path) for path in candidates],
+        }
+
+    raise ValueError(f"Legacy cache input does not exist or is not supported: {cache_input_path}")
 
 
 def parse_hts_entries(cache_path: Path):
@@ -146,6 +234,209 @@ def parse_cache_entries(cache_path: Path):
     raise ValueError(f"Unsupported cache format: {cache_path}")
 
 
+def resolve_summary_bundle_reference(summary_path: Path, bundle_reference: str):
+    raw_path = Path(bundle_reference)
+    candidates = []
+    if raw_path.is_absolute():
+        candidates.append(("absolute", raw_path))
+    else:
+        candidates.append(("summary-relative", (summary_path.parent / raw_path).resolve()))
+        repo_root_relative = (REPO_ROOT / raw_path).resolve()
+        if repo_root_relative not in {candidate_path for _, candidate_path in candidates}:
+            candidates.append(("repo-root-relative", repo_root_relative))
+        cwd_relative = raw_path.resolve()
+        if cwd_relative not in {candidate_path for _, candidate_path in candidates}:
+            candidates.append(("cwd-relative", cwd_relative))
+
+    for reference_mode, candidate_path in candidates:
+        hires_candidate = candidate_path / "traces" / "hires-evidence.json"
+        if hires_candidate.is_file():
+            return candidate_path, hires_candidate, reference_mode
+
+    resolved_bundle_path = candidates[0][1]
+    hires_path = resolved_bundle_path / "traces" / "hires-evidence.json"
+    return resolved_bundle_path, hires_path, candidates[0][0]
+
+
+def parse_detail_fields(detail: str):
+    fields = {}
+    for key, value in FIELD_RE.findall(detail):
+        fields[key] = value.rstrip(".")
+    return fields
+
+
+def parse_int_field(value, default=0):
+    if value is None:
+        return default
+    try:
+        return int(str(value), 0)
+    except ValueError:
+        return default
+
+
+def resolve_artifact_path(bundle_path: Path, raw_path: str | None):
+    if not raw_path:
+        return None
+    candidate = Path(raw_path)
+    if candidate.is_absolute():
+        return candidate if candidate.exists() else None
+    for resolved in (
+        candidate,
+        (REPO_ROOT / candidate),
+        (bundle_path / candidate),
+        (bundle_path.parent / candidate),
+    ):
+        if resolved.exists():
+            return resolved
+    return None
+
+
+def resolve_bundle_input_path(bundle_input_path: Path, step_frames=None, mode="on"):
+
+    if bundle_input_path.is_dir():
+        hires_path = bundle_input_path / "traces" / "hires-evidence.json"
+        if hires_path.is_file():
+            return {
+                "input_path": str(bundle_input_path),
+                "input_kind": "bundle-dir",
+                "resolved_bundle_path": str(bundle_input_path),
+                "resolved_hires_path": str(hires_path),
+                "selection_reason": "direct-bundle-dir",
+            }
+        if bundle_input_path.name == "traces":
+            hires_path = bundle_input_path / "hires-evidence.json"
+            if hires_path.is_file():
+                return {
+                    "input_path": str(bundle_input_path),
+                    "input_kind": "traces-dir",
+                    "resolved_bundle_path": str(bundle_input_path.parent),
+                    "resolved_hires_path": str(hires_path),
+                    "selection_reason": "traces-dir-parent-bundle",
+                }
+        raise ValueError(f"Bundle directory does not contain traces/hires-evidence.json: {bundle_input_path}")
+
+    if not bundle_input_path.is_file():
+        raise ValueError(f"Bundle input does not exist: {bundle_input_path}")
+
+    if bundle_input_path.name == "hires-evidence.json":
+        traces_dir = bundle_input_path.parent
+        bundle_dir = traces_dir.parent if traces_dir.name == "traces" else traces_dir
+        return {
+            "input_path": str(bundle_input_path),
+            "input_kind": "hires-evidence-json",
+            "resolved_bundle_path": str(bundle_dir),
+            "resolved_hires_path": str(bundle_input_path),
+            "selection_reason": "direct-hires-evidence",
+        }
+
+    summary_path = bundle_input_path
+    if bundle_input_path.name == "validation-summary.md":
+        sibling_json = bundle_input_path.with_suffix(".json")
+        if not sibling_json.is_file():
+            raise ValueError(f"Validation summary markdown has no sibling JSON: {bundle_input_path}")
+        summary_path = sibling_json
+
+    if summary_path.name == "validation-summary.json":
+        data = json.loads(summary_path.read_text())
+        steps = data.get("steps", [])
+        if not steps:
+            raise ValueError(f"Validation summary contains no steps: {summary_path}")
+
+        selected_step = None
+        selection_reason = "validation-summary-single-step"
+        if step_frames is not None:
+            for step in steps:
+                if int(step.get("step_frames", -1)) == int(step_frames):
+                    selected_step = step
+                    selection_reason = "validation-summary-step-match"
+                    break
+            if selected_step is None:
+                raise ValueError(f"Validation summary does not contain step {step_frames}: {summary_path}")
+        elif len(steps) == 1:
+            selected_step = steps[0]
+        else:
+            selected_step = steps[0]
+            selection_reason = "validation-summary-first-step"
+
+        bundle_key = f"{mode}_bundle"
+        resolved_bundle = selected_step.get(bundle_key)
+        if not resolved_bundle:
+            raise ValueError(f"Validation summary step has no {bundle_key}: {summary_path}")
+        resolved_bundle_path, hires_path, bundle_reference_mode = resolve_summary_bundle_reference(summary_path, resolved_bundle)
+        if not hires_path.is_file():
+            raise ValueError(f"Resolved validation bundle has no hires-evidence.json: {resolved_bundle_path}")
+        result = {
+            "input_path": str(bundle_input_path),
+            "input_kind": "validation-summary",
+            "resolved_bundle_path": str(resolved_bundle_path),
+            "resolved_hires_path": str(hires_path),
+            "bundle_reference_mode": bundle_reference_mode,
+            "selection_reason": selection_reason,
+            "selected_step_frames": int(selected_step.get("step_frames", 0)),
+            "selected_bundle_mode": mode,
+            "available_step_frames": [int(step.get("step_frames", 0)) for step in steps],
+        }
+        return result
+
+    raise ValueError(f"Unsupported bundle input: {bundle_input_path}")
+
+
+def resolve_context_bundle_input_paths(bundle_input_path: Path, step_frames=None, mode="on"):
+    if bundle_input_path.is_dir():
+        hires_path = bundle_input_path / "traces" / "hires-evidence.json"
+        if hires_path.is_file():
+            return [resolve_bundle_input_path(bundle_input_path, step_frames=step_frames, mode=mode)]
+
+        summary_json = bundle_input_path / "validation-summary.json"
+        summary_md = bundle_input_path / "validation-summary.md"
+        if summary_json.is_file():
+            bundle_input_path = summary_json
+        elif summary_md.is_file():
+            bundle_input_path = summary_md
+        else:
+            raise ValueError(
+                f"Context bundle directory must contain traces/hires-evidence.json or validation-summary.json: {bundle_input_path}"
+            )
+
+    if bundle_input_path.is_file():
+        summary_path = bundle_input_path
+        if bundle_input_path.name == "validation-summary.md":
+            sibling_json = bundle_input_path.with_suffix(".json")
+            if not sibling_json.is_file():
+                raise ValueError(f"Validation summary markdown has no sibling JSON: {bundle_input_path}")
+            summary_path = sibling_json
+
+        if summary_path.name == "validation-summary.json":
+            data = json.loads(summary_path.read_text())
+            fixtures = data.get("fixtures", [])
+            if fixtures:
+                resolutions = []
+                for fixture in fixtures:
+                    resolved_bundle = fixture.get("bundle_dir")
+                    if not resolved_bundle:
+                        raise ValueError(f"Fixture validation summary has no bundle_dir: {summary_path}")
+                    resolved_bundle_path, hires_path, bundle_reference_mode = resolve_summary_bundle_reference(
+                        summary_path, resolved_bundle
+                    )
+                    if not hires_path.is_file():
+                        raise ValueError(f"Resolved fixture bundle has no hires-evidence.json: {resolved_bundle_path}")
+                    resolutions.append(
+                        {
+                            "input_path": str(bundle_input_path),
+                            "input_kind": "fixture-validation-summary",
+                            "resolved_bundle_path": str(resolved_bundle_path),
+                            "resolved_hires_path": str(hires_path),
+                            "bundle_reference_mode": bundle_reference_mode,
+                            "selection_reason": "validation-summary-fixtures",
+                            "fixture_label": fixture.get("label"),
+                            "fixture_id": fixture.get("fixture_id"),
+                        }
+                    )
+                return resolutions
+
+    return [resolve_bundle_input_path(bundle_input_path, step_frames=step_frames, mode=mode)]
+
+
 def parse_bundle_families(bundle_path: Path):
     hires_path = bundle_path / "traces" / "hires-evidence.json"
     data = json.loads(hires_path.read_text())
@@ -156,6 +447,21 @@ def parse_bundle_families(bundle_path: Path):
         if low32 is None or formatsize is None:
             continue
         families.append((int(low32, 16), int(formatsize)))
+    if families:
+        return families
+
+    seen = set()
+    for group in data.get("sampled_object_probe", {}).get("top_groups", []):
+        fields = group.get("fields", {})
+        low32 = fields.get("sampled_low32")
+        formatsize = fields.get("fs")
+        if low32 is None or formatsize is None:
+            continue
+        pair = (int(low32, 16), int(formatsize))
+        if pair in seen:
+            continue
+        seen.add(pair)
+        families.append(pair)
     return families
 
 
@@ -256,10 +562,77 @@ def parse_bundle_sampled_object_context(bundle_path: Path):
     context = {}
     runtime_sampled_objects = []
     runtime_sampled_ids = set()
+    runtime_sampled_by_id = {}
+
+    def ingest_sampled_object(sampled_object):
+        sampled_object_id = sampled_object.get("sampled_object_id")
+        if not sampled_object_id:
+            return
+        formatsize = int(sampled_object.get("formatsize") or 0)
+        if sampled_object_id in runtime_sampled_ids:
+            existing = runtime_sampled_by_id[sampled_object_id]
+            existing_low32s = {
+                item.get("value")
+                for item in existing.get("upload_low32s", [])
+                if item.get("value")
+            }
+            for upload in sampled_object.get("upload_low32s", []) or []:
+                value = upload.get("value")
+                if value and value not in existing_low32s:
+                    existing.setdefault("upload_low32s", []).append(upload)
+                    existing_low32s.add(value)
+            existing_pcrcs = {
+                item.get("value")
+                for item in existing.get("upload_pcrcs", [])
+                if item.get("value")
+            }
+            for upload in sampled_object.get("upload_pcrcs", []) or []:
+                value = upload.get("value")
+                if value and value not in existing_pcrcs:
+                    existing.setdefault("upload_pcrcs", []).append(upload)
+                    existing_pcrcs.add(value)
+            existing["runtime_ready"] = bool(existing.get("runtime_ready") or sampled_object.get("runtime_ready"))
+            target_sampled_object = existing
+        else:
+            runtime_sampled_ids.add(sampled_object_id)
+            runtime_sampled_by_id[sampled_object_id] = sampled_object
+            runtime_sampled_objects.append(sampled_object)
+            target_sampled_object = sampled_object
+
+        for upload in target_sampled_object.get("upload_low32s", []):
+            value = upload.get("value")
+            if not value:
+                continue
+            key = (int(value, 16), formatsize)
+            existing = context.setdefault(key, [])
+            if not any(obj.get("sampled_object_id") == target_sampled_object["sampled_object_id"] for obj in existing):
+                existing.append(target_sampled_object)
 
     def ingest_runtime_sampled_probe(sampled_probe_payload):
-        for group in sampled_probe_payload.get("top_groups", []):
-            fields = group.get("fields", {})
+        raw_groups = []
+        raw_groups.extend(sampled_probe_payload.get("groups") or [])
+        raw_groups.extend(sampled_probe_payload.get("top_groups") or [])
+        for group in raw_groups:
+            fields = group.get("fields", group)
+            family_available = fields.get("family") == "1"
+            unique_repl_dims = parse_int_field(fields.get("unique_repl_dims"), 0)
+            sample_repl = fields.get("sample_repl")
+            draw_class = (fields.get("draw_class") or "").lower()
+            has_concrete_family_signal = (
+                family_available or
+                unique_repl_dims > 0 or
+                (sample_repl is not None and sample_repl != "0x0")
+            )
+            if draw_class == "triangle" and not has_concrete_family_signal:
+                continue
+            upload_low32s = group.get("upload_low32s")
+            if upload_low32s is None:
+                upload_low32 = fields.get("upload_low32")
+                upload_low32s = [{"value": upload_low32}] if upload_low32 else []
+            upload_pcrcs = group.get("upload_pcrcs")
+            if upload_pcrcs is None:
+                upload_pcrc = fields.get("upload_pcrc")
+                upload_pcrcs = [{"value": upload_pcrc}] if upload_pcrc else []
             formatsize = int(fields.get("fs", "0"))
             sampled_object = {
                 "sampled_object_id": (
@@ -285,22 +658,124 @@ def parse_bundle_sampled_object_context(bundle_path: Path):
                 "runtime_ready": bool(fields.get("sampled_entry_pcrc") or fields.get("sampled_sparse_pcrc")),
                 "pack_exact_entry_hit": fields.get("entry_hit") == "1",
                 "pack_exact_sparse_hit": fields.get("sparse_hit") == "1",
-                "pack_family_available": fields.get("family") == "1",
-                "unique_replacement_dims": int(fields.get("unique_repl_dims", "0")),
-                "sample_replacement_dims": fields.get("sample_repl"),
-                "upload_low32s": group.get("upload_low32s", []),
-                "upload_pcrcs": group.get("upload_pcrcs", []),
+                "pack_family_available": family_available,
+                "unique_replacement_dims": unique_repl_dims,
+                "sample_replacement_dims": sample_repl,
+                "upload_low32s": upload_low32s,
+                "upload_pcrcs": upload_pcrcs,
             }
-            sampled_object_id = sampled_object["sampled_object_id"]
-            if sampled_object_id in runtime_sampled_ids:
-                continue
-            runtime_sampled_ids.add(sampled_object_id)
-            runtime_sampled_objects.append(sampled_object)
-            for upload in group.get("upload_low32s", []):
-                key = (int(upload.get("value"), 16), formatsize)
-                context.setdefault(key, []).append(sampled_object)
+            ingest_sampled_object(sampled_object)
 
     ingest_runtime_sampled_probe(sampled_probe)
+
+    def ingest_runtime_provenance_log(log_path_value):
+        log_path = resolve_artifact_path(bundle_path, log_path_value)
+        if log_path is None or not log_path.exists():
+            return
+        for line in log_path.read_text(errors="replace").splitlines():
+            match = PROVENANCE_LINE_RE.search(line)
+            if not match:
+                continue
+            row = match.groupdict()
+            if row.get("outcome") != "hit":
+                continue
+            sampled_low32 = (row.get("key") or "")[-8:].lower()
+            if not sampled_low32:
+                continue
+            pcrc = (row.get("pcrc") or "").lower()
+            upload_pcrcs = []
+            if pcrc and pcrc != "00000000":
+                upload_pcrcs.append({"value": pcrc})
+            sampled_object = {
+                "sampled_object_id": (
+                    f"sampled-fmt{int(row.get('fmt', 0))}-siz{int(row.get('siz', 0))}-"
+                    f"off{int(row.get('tmem', '0'), 16)}-stride{int(row.get('line', 0))}-"
+                    f"wh{row.get('width')}x{row.get('height')}-fs{int(row.get('formatsize', 0))}-low32{sampled_low32}"
+                ),
+                "candidate_origin": "runtime-provenance-hit",
+                "transport_hint": None,
+                "evidence_authority": "runtime-provenance-hit",
+                "draw_class": None,
+                "cycle": row.get("cycle"),
+                "fmt": int(row.get("fmt", 0)),
+                "siz": int(row.get("siz", 0)),
+                "off": int(row.get("tmem", "0"), 16),
+                "stride": int(row.get("line", 0)),
+                "wh": f"{row.get('width')}x{row.get('height')}",
+                "formatsize": int(row.get("formatsize", 0)),
+                "sampled_low32": sampled_low32,
+                "sampled_entry_pcrc": pcrc,
+                "sampled_sparse_pcrc": pcrc,
+                "sampled_entry_count": None,
+                "sampled_used_count": None,
+                "runtime_ready": True,
+                "pack_exact_entry_hit": True,
+                "pack_exact_sparse_hit": True,
+                "pack_family_available": True,
+                "unique_replacement_dims": None,
+                "sample_replacement_dims": None,
+                "upload_low32s": [{"value": sampled_low32}],
+                "upload_pcrcs": upload_pcrcs,
+            }
+            ingest_sampled_object(sampled_object)
+
+    ingest_runtime_provenance_log(data.get("log_path"))
+
+    def ingest_runtime_provenance_hits(provenance_payload):
+        for bucket in provenance_payload.get("top_buckets") or []:
+            fields = bucket.get("fields") or {}
+            if fields.get("outcome") != "hit":
+                continue
+            sample_detail = bucket.get("sample_detail") or ""
+            detail_fields = parse_detail_fields(sample_detail)
+            key_value = detail_fields.get("key")
+            if not key_value:
+                continue
+            sampled_low32 = key_value[-8:].lower()
+            formatsize = parse_int_field(detail_fields.get("fs", fields.get("fs")), 0)
+            fmt = parse_int_field(detail_fields.get("fmt", fields.get("fmt")), 0)
+            siz = parse_int_field(detail_fields.get("siz", fields.get("siz")), 0)
+            wh = detail_fields.get("wh", fields.get("wh")) or "0x0"
+            off = parse_int_field(detail_fields.get("tmem"), 0)
+            stride = parse_int_field(detail_fields.get("line"), 0)
+            pcrc = detail_fields.get("pcrc")
+            upload_pcrcs = []
+            if pcrc and pcrc != "00000000":
+                upload_pcrcs.append({"value": pcrc.lower()})
+            sampled_object = {
+                "sampled_object_id": (
+                    f"sampled-fmt{fmt}-siz{siz}-"
+                    f"off{off}-stride{stride}-"
+                    f"wh{wh}-fs{formatsize}-low32{sampled_low32}"
+                ),
+                "candidate_origin": "runtime-provenance-hit",
+                "transport_hint": None,
+                "evidence_authority": "runtime-provenance-hit",
+                "draw_class": None,
+                "cycle": fields.get("cycle") or detail_fields.get("cycle"),
+                "fmt": fmt,
+                "siz": siz,
+                "off": off,
+                "stride": stride,
+                "wh": wh,
+                "formatsize": formatsize,
+                "sampled_low32": sampled_low32,
+                "sampled_entry_pcrc": pcrc,
+                "sampled_sparse_pcrc": pcrc,
+                "sampled_entry_count": None,
+                "sampled_used_count": None,
+                "runtime_ready": True,
+                "pack_exact_entry_hit": True,
+                "pack_exact_sparse_hit": True,
+                "pack_family_available": True,
+                "unique_replacement_dims": None,
+                "sample_replacement_dims": None,
+                "upload_low32s": [{"value": sampled_low32}],
+                "upload_pcrcs": upload_pcrcs,
+            }
+            ingest_sampled_object(sampled_object)
+
+    ingest_runtime_provenance_hits(data.get("provenance", {}))
 
     def matching_runtime_proxies(fmt, siz, stride, wh):
         proxies = []
@@ -467,7 +942,16 @@ def build_family_summary(entries, texture_crc, formatsize):
 
 
 def collect_family_entries(entries, texture_crc):
+    if isinstance(entries, dict):
+        return list(entries.get(texture_crc, []))
     return [entry for entry in entries if entry["texture_crc"] == texture_crc]
+
+
+def index_entries_by_texture_crc(entries):
+    indexed = {}
+    for entry in entries:
+        indexed.setdefault(int(entry["texture_crc"]), []).append(entry)
+    return indexed
 
 
 GL_TEXFMT_GZ = 0x80000000
@@ -522,13 +1006,18 @@ def expected_decoded_size(entry):
     return width * height * bpp if bpp else 0
 
 
-def read_entry_blob(cache_path: Path, entry):
+def read_entry_blob(cache_path: Path, entry, cache_bytes=None):
     if entry.get("inline_blob"):
         return entry.get("blob", b"")
     data_offset = entry.get("data_offset")
     data_size = entry.get("data_size")
     if data_offset is None or data_size is None:
         raise ValueError("Entry is missing blob location metadata.")
+    if cache_bytes is not None:
+        blob = cache_bytes[int(data_offset):int(data_offset) + int(data_size)]
+        if len(blob) != int(data_size):
+            raise ValueError("Failed to read full entry blob from cached bytes.")
+        return blob
     with cache_path.open("rb") as fp:
         fp.seek(int(data_offset))
         blob = fp.read(int(data_size))
@@ -637,7 +1126,7 @@ def find_cache_entry(entries, checksum64, formatsize):
     return exact or generic
 
 
-def decode_entry_rgba8(cache_path: Path, entry):
-    blob = read_entry_blob(cache_path, entry)
+def decode_entry_rgba8(cache_path: Path, entry, cache_bytes=None):
+    blob = read_entry_blob(cache_path, entry, cache_bytes=cache_bytes)
     pixel_data = decompress_entry_blob(entry, blob)
     return decode_pixels_rgba8(entry, pixel_data)

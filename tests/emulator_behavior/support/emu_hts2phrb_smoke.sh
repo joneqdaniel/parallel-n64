@@ -96,6 +96,7 @@ PY
 python3 "$ROOT_DIR/tools/hts2phrb.py" \
   --cache "$CACHE_PATH" \
   --bundle "$BUNDLE_DIR" \
+  --stdout-format json \
   --output-dir "$OUTPUT_DIR"
 
 python3 - "$OUTPUT_DIR" <<'PY'
@@ -105,17 +106,124 @@ from pathlib import Path
 
 out_dir = Path(sys.argv[1])
 report = json.loads((out_dir / "hts2phrb-report.json").read_text())
+progress = json.loads((out_dir / "hts2phrb-progress.json").read_text())
 bindings = json.loads((out_dir / "bindings.json").read_text())
 plan = json.loads((out_dir / "migration-plan.json").read_text())
+summary_text = (out_dir / "hts2phrb-summary.md").read_text()
+family_inventory_json = out_dir / "hts2phrb-family-inventory.json"
+family_inventory_md = out_dir / "hts2phrb-family-inventory.md"
 
 if report["binding_count"] != 1:
     raise SystemExit(f"expected one binding, got {report['binding_count']}")
+if report["runtime_overlay_mode"] != "auto" or not report["runtime_overlay_built"]:
+    raise SystemExit(f"expected runtime overlay to build in bundle mode, got mode={report['runtime_overlay_mode']!r} built={report['runtime_overlay_built']!r}")
+if report["runtime_overlay_reason"] != "runtime-context-available":
+    raise SystemExit(f"unexpected runtime overlay reason: {report['runtime_overlay_reason']!r}")
 if report["unresolved_count"] != 0:
     raise SystemExit(f"expected zero unresolved cases, got {report['unresolved_count']}")
 if report["package_manifest_record_count"] != 1:
     raise SystemExit(f"expected one package record, got {report['package_manifest_record_count']}")
+if report["package_manifest_runtime_ready_record_count"] != 1 or report["package_manifest_runtime_deferred_record_count"] != 0:
+    raise SystemExit(f"unexpected package runtime-ready counts: {report!r}")
+if report["package_manifest_runtime_ready_native_sampled_record_count"] != 1:
+    raise SystemExit(
+        f"expected one runtime-ready native-sampled record, got {report['package_manifest_runtime_ready_native_sampled_record_count']!r}"
+    )
+if report["package_manifest_runtime_ready_compat_record_count"] != 0:
+    raise SystemExit(
+        f"expected zero runtime-ready compat records, got {report['package_manifest_runtime_ready_compat_record_count']!r}"
+    )
+if report["package_manifest_runtime_deferred_native_sampled_record_count"] != 0 or report["package_manifest_runtime_deferred_compat_record_count"] != 0:
+    raise SystemExit(
+        "expected zero runtime-deferred native/compat records, "
+        f"got native={report['package_manifest_runtime_deferred_native_sampled_record_count']!r} "
+        f"compat={report['package_manifest_runtime_deferred_compat_record_count']!r}"
+    )
+if report["package_asset_storage"] != "legacy-blobs":
+    raise SystemExit(f"unexpected package asset storage: {report['package_asset_storage']!r}")
+if report["conversion_outcome"] != "promotable-runtime-package":
+    raise SystemExit(f"unexpected conversion outcome: {report['conversion_outcome']!r}")
+if report.get("minimum_outcome") is not None or report.get("require_promotable"):
+    raise SystemExit(f"expected no explicit outcome gate metadata, got {report!r}")
+if report["output_dir_was_default"]:
+    raise SystemExit(f"did not expect default output dir for explicit output path: {report!r}")
+if not report.get("gate_success", False) or report.get("gate_failures"):
+    raise SystemExit(f"expected no gate failures without explicit gates, got {report!r}")
 if report["warnings"]:
     raise SystemExit(f"expected no warnings, got {report['warnings']}")
+if report["binding_policy_keys"] != ["sampled-fmt2-siz1-off0-stride2-wh2x2-fs258-low3211111111"]:
+    raise SystemExit(f"unexpected binding policy keys: {report['binding_policy_keys']!r}")
+if report["binding_sampled_low32s"] != ["11111111"]:
+    raise SystemExit(f"unexpected binding sampled_low32s: {report['binding_sampled_low32s']!r}")
+if report["unresolved_policy_keys"] or report["unresolved_sampled_low32s"]:
+    raise SystemExit(
+        f"expected no unresolved summaries, got keys={report['unresolved_policy_keys']!r} low32s={report['unresolved_sampled_low32s']!r}"
+    )
+if report["input_cache_bytes"] <= 0:
+    raise SystemExit(f"expected positive input_cache_bytes, got {report['input_cache_bytes']}")
+if report["binary_package_bytes"] <= 0:
+    raise SystemExit(f"expected positive binary_package_bytes, got {report['binary_package_bytes']}")
+if report["progress_path"] != str(out_dir / "hts2phrb-progress.json"):
+    raise SystemExit(f"unexpected progress path: {report['progress_path']!r}")
+if report.get("family_inventory_json_path") != str(family_inventory_json):
+    raise SystemExit(f"unexpected family inventory json path: {report.get('family_inventory_json_path')!r}")
+if report.get("family_inventory_markdown_path") != str(family_inventory_md):
+    raise SystemExit(f"unexpected family inventory markdown path: {report.get('family_inventory_markdown_path')!r}")
+if not family_inventory_json.exists() or not family_inventory_md.exists():
+    raise SystemExit("missing family inventory artifacts")
+if progress.get("status") != "complete":
+    raise SystemExit(f"expected complete progress report, got {progress!r}")
+if progress.get("binary_package", {}).get("record_count") != 1:
+    raise SystemExit(f"unexpected progress binary summary: {progress!r}")
+migration_summary = report.get("migration_plan_summary") or {}
+if migration_summary.get("family_count") != 1:
+    raise SystemExit(f"unexpected migration family count: {migration_summary!r}")
+if migration_summary.get("tier_counts") != {"exact-authoritative": 1}:
+    raise SystemExit(f"unexpected migration tier counts: {migration_summary!r}")
+index_summary = report.get("imported_index_summary") or {}
+if index_summary.get("exact_authority_count") != 1 or index_summary.get("canonical_record_count") != 1:
+    raise SystemExit(f"unexpected imported index summary: {index_summary!r}")
+family_states = report.get("requested_family_states") or {}
+if family_states.get("runtime_state_counts") != {"runtime-bound": 1}:
+    raise SystemExit(f"unexpected runtime state counts: {family_states!r}")
+if family_states.get("import_state_counts") != {"exact-authority": 1}:
+    raise SystemExit(f"unexpected import state counts: {family_states!r}")
+if report.get("runtime_state_counts") != {"runtime-bound": 1}:
+    raise SystemExit(f"unexpected top-level runtime state counts: {report.get('runtime_state_counts')!r}")
+if report.get("import_state_counts") != {"exact-authority": 1}:
+    raise SystemExit(f"unexpected top-level import state counts: {report.get('import_state_counts')!r}")
+if float(report.get("total_runtime_ms") or 0.0) <= 0.0:
+    raise SystemExit(f"expected positive total_runtime_ms, got {report.get('total_runtime_ms')!r}")
+families = family_states.get("families") or []
+if len(families) != 1:
+    raise SystemExit(f"expected one family state, got {families!r}")
+family = families[0]
+if family["family_key"] != "11111111:fs258" or family["runtime_state"] != "runtime-bound" or family["import_state"] != "exact-authority":
+    raise SystemExit(f"unexpected family state: {family!r}")
+if report.get("promotion_blockers"):
+    raise SystemExit(f"expected no promotion blockers, got {report['promotion_blockers']!r}")
+if "Outcome: `promotable-runtime-package`" not in summary_text:
+    raise SystemExit(f"expected summary markdown to include outcome, got {summary_text!r}")
+if "Family inventory:" not in summary_text:
+    raise SystemExit(f"expected summary markdown to link family inventory, got {summary_text!r}")
+stage_timings = report.get("stage_timings_ms") or {}
+required_stages = {
+    "parse_cache",
+    "resolve_requested_pairs",
+    "build_migration_plan",
+    "build_canonical_loader_manifest",
+    "build_bindings",
+    "build_runtime_loader_manifest",
+    "materialize_package",
+    "emit_binary_package",
+    "total",
+}
+missing_stages = sorted(required_stages.difference(stage_timings))
+if missing_stages:
+    raise SystemExit(f"missing stage timings: {missing_stages}")
+for stage_name in required_stages:
+    if float(stage_timings[stage_name]) < 0:
+        raise SystemExit(f"expected non-negative stage timing for {stage_name}, got {stage_timings[stage_name]!r}")
 
 binding = bindings["bindings"][0]
 if binding.get("selection_reason") != "deterministic-singleton-source-policy":

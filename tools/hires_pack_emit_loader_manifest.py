@@ -4,9 +4,71 @@ import json
 import sys
 from pathlib import Path
 
+RUNTIME_READY_FLAG = 1 << 0
+
 
 def load_bindings(path: Path):
     return json.loads(path.read_text())
+
+
+def make_asset_candidate_from_candidate(candidate, selector_checksum64=None):
+    source = candidate.get("source", {})
+    asset = candidate.get("replacement_asset", {})
+    return {
+        "replacement_id": candidate.get("replacement_id"),
+        "legacy_checksum64": source.get("legacy_checksum64"),
+        "legacy_texture_crc": source.get("legacy_texture_crc"),
+        "legacy_palette_crc": source.get("legacy_palette_crc"),
+        "selector_checksum64": selector_checksum64 if selector_checksum64 is not None else candidate.get("selector_checksum64"),
+        "legacy_formatsize": source.get("legacy_formatsize"),
+        "legacy_storage": source.get("legacy_storage"),
+        "legacy_source_path": source.get("legacy_source_path"),
+        "variant_group_id": candidate.get("variant_group_id"),
+        "width": asset.get("width"),
+        "height": asset.get("height"),
+        "format": asset.get("format"),
+        "texture_format": asset.get("texture_format"),
+        "pixel_type": asset.get("pixel_type"),
+        "data_size": asset.get("data_size"),
+        "is_hires": asset.get("is_hires"),
+    }
+
+
+def make_asset_candidate_from_import_record(record, selector_checksum64="0000000000000000"):
+    source = record.get("source", {})
+    asset = record.get("replacement_asset", {})
+    diagnostics = record.get("diagnostics", {})
+    return {
+        "replacement_id": record.get("replacement_id"),
+        "legacy_checksum64": source.get("legacy_checksum64"),
+        "legacy_texture_crc": source.get("legacy_texture_crc"),
+        "legacy_palette_crc": source.get("legacy_palette_crc"),
+        "selector_checksum64": selector_checksum64,
+        "legacy_formatsize": source.get("legacy_formatsize"),
+        "legacy_storage": source.get("legacy_storage"),
+        "legacy_source_path": source.get("legacy_source_path"),
+        "variant_group_id": diagnostics.get("variant_group_id"),
+        "width": asset.get("width"),
+        "height": asset.get("height"),
+        "format": asset.get("format"),
+        "texture_format": asset.get("texture_format"),
+        "pixel_type": asset.get("pixel_type"),
+        "data_size": asset.get("data_size"),
+        "is_hires": asset.get("is_hires"),
+    }
+
+
+def normalize_upload_values(items):
+    normalized = []
+    for item in items or []:
+        if isinstance(item, dict):
+            value = item.get("value")
+            if value is None:
+                continue
+            normalized.append({"value": value})
+        else:
+            normalized.append({"value": item})
+    return normalized
 
 
 def build_loader_manifest(bindings_data, bindings_path: Path):
@@ -14,32 +76,14 @@ def build_loader_manifest(bindings_data, bindings_path: Path):
     for binding in bindings_data.get("bindings", []):
         asset_candidates = []
         for candidate in binding.get("transport_candidates", []):
-            source = candidate.get("source", {})
-            asset = candidate.get("replacement_asset", {})
-            asset_candidates.append(
-                {
-                    "replacement_id": candidate.get("replacement_id"),
-                    "legacy_checksum64": source.get("legacy_checksum64"),
-                    "legacy_texture_crc": source.get("legacy_texture_crc"),
-                    "legacy_palette_crc": source.get("legacy_palette_crc"),
-                    "selector_checksum64": candidate.get("selector_checksum64"),
-                    "legacy_formatsize": source.get("legacy_formatsize"),
-                    "legacy_storage": source.get("legacy_storage"),
-                    "legacy_source_path": source.get("legacy_source_path"),
-                    "variant_group_id": candidate.get("variant_group_id"),
-                    "width": asset.get("width"),
-                    "height": asset.get("height"),
-                    "format": asset.get("format"),
-                    "texture_format": asset.get("texture_format"),
-                    "pixel_type": asset.get("pixel_type"),
-                    "data_size": asset.get("data_size"),
-                    "is_hires": asset.get("is_hires"),
-                }
-            )
+            asset_candidates.append(make_asset_candidate_from_candidate(candidate))
         records.append(
             {
                 "policy_key": binding.get("policy_key"),
                 "sampled_object_id": binding.get("sampled_object_id"),
+                "record_kind": binding.get("family_type") or "runtime-proxy-binding",
+                "record_flags": RUNTIME_READY_FLAG,
+                "runtime_ready": True,
                 "canonical_identity": binding.get("canonical_identity", {}),
                 "candidate_origin": binding.get("canonical_identity", {}).get("candidate_origin"),
                 "transport_hint": binding.get("canonical_identity", {}).get("transport_hint"),
@@ -57,6 +101,126 @@ def build_loader_manifest(bindings_data, bindings_path: Path):
         "record_count": len(records),
         "records": records,
         "unresolved_transport_cases": bindings_data.get("unresolved_transport_cases", []),
+    }
+
+
+def build_canonical_loader_manifest(imported_index_data, imported_index_path: Path):
+    imported_records = {
+        record.get("replacement_id"): record
+        for record in imported_index_data.get("records", [])
+        if record.get("replacement_id")
+    }
+
+    def make_family_runtime_stub(family_type, family):
+        match = family.get("match", {})
+        low32 = family.get("family_low32") or match.get("texture_crc")
+        formatsize = family.get("formatsize")
+        if formatsize is None:
+            formatsize = match.get("formatsize") or 0
+        policy_key = family.get("policy_key") or family.get("alias_id") or f"legacy-family-{low32}-fs{formatsize}"
+        transport_hint = family.get("active_pool") or match.get("active_pool")
+        candidate_replacement_ids = family.get("candidate_replacement_ids", [])
+        runtime_ready = family_type != "unresolved-family" and bool(candidate_replacement_ids)
+        return {
+            "policy_key": policy_key,
+            "sampled_object_id": policy_key,
+            "record_kind": family_type,
+            "record_flags": RUNTIME_READY_FLAG if runtime_ready else 0,
+            "runtime_ready": runtime_ready,
+            "canonical_identity": {
+                "candidate_origin": f"legacy-family-{family_type}",
+                "transport_hint": transport_hint,
+                "evidence_authority": (family.get("observed_runtime_context") or {}).get("mode"),
+                "draw_class": "legacy-family",
+                "cycle": "unknown",
+                "fmt": 0,
+                "siz": 0,
+                "off": 0,
+                "stride": 0,
+                "wh": "0x0",
+                "formatsize": int(formatsize or 0),
+                "sampled_low32": low32,
+                "sampled_entry_pcrc": 0,
+                "sampled_sparse_pcrc": 0,
+                "runtime_ready": runtime_ready,
+            },
+            "candidate_origin": f"legacy-family-{family_type}",
+            "transport_hint": transport_hint,
+            "upload_low32s": [{"value": low32}] if low32 else [],
+            "upload_pcrcs": [],
+            "asset_candidates": [
+                make_asset_candidate_from_import_record(imported_records[replacement_id])
+                for replacement_id in candidate_replacement_ids
+                if replacement_id in imported_records
+            ],
+        }
+
+    records = []
+    for record in imported_index_data.get("canonical_records", []):
+        policy_keys = sorted(policy_key for policy_key in record.get("linked_policy_keys", []) if policy_key)
+        policy_key = policy_keys[0] if policy_keys else (record.get("sampled_object_id") or "canonical-record")
+        asset_candidates = []
+        for candidate in record.get("transport_candidates", []):
+            asset_candidates.append(make_asset_candidate_from_candidate(candidate, selector_checksum64="0000000000000000"))
+        if not asset_candidates:
+            for replacement_id in record.get("linked_replacement_ids", []):
+                source_record = imported_records.get(replacement_id)
+                if source_record:
+                    asset_candidates.append(make_asset_candidate_from_import_record(source_record))
+
+        records.append(
+            {
+                "policy_key": policy_key,
+                "sampled_object_id": record.get("sampled_object_id"),
+                "record_kind": "canonical-sampled",
+                "record_flags": RUNTIME_READY_FLAG if record.get("runtime_ready") else 0,
+                "runtime_ready": bool(record.get("runtime_ready")),
+                "canonical_identity": {
+                    "candidate_origin": record.get("candidate_origin"),
+                    "transport_hint": record.get("transport_hint"),
+                    "evidence_authority": record.get("evidence_authority"),
+                    "draw_class": record.get("draw_class"),
+                    "cycle": record.get("cycle"),
+                    "fmt": int(record.get("fmt") or 0),
+                    "siz": int(record.get("siz") or 0),
+                    "off": int(record.get("off") or 0),
+                    "stride": int(record.get("stride") or 0),
+                    "wh": record.get("wh") or "0x0",
+                    "formatsize": int(record.get("formatsize") or 0),
+                    "sampled_low32": record.get("sampled_low32"),
+                    "sampled_entry_pcrc": record.get("sampled_entry_pcrc"),
+                    "sampled_sparse_pcrc": record.get("sampled_sparse_pcrc"),
+                    "runtime_ready": bool(record.get("runtime_ready")),
+                },
+                "candidate_origin": record.get("candidate_origin"),
+                "transport_hint": record.get("transport_hint"),
+                "upload_low32s": normalize_upload_values(record.get("upload_low32s", [])),
+                "upload_pcrcs": normalize_upload_values(record.get("upload_pcrcs", [])),
+                "linked_policy_keys": policy_keys,
+                "linked_replacement_ids": list(record.get("linked_replacement_ids", [])),
+                "asset_candidates": asset_candidates,
+            }
+        )
+
+    for family_type, families in (
+        ("exact-authority-family", imported_index_data.get("exact_authorities", [])),
+        ("compatibility-alias-family", imported_index_data.get("compatibility_aliases", [])),
+        ("unresolved-family", imported_index_data.get("unresolved_families", [])),
+    ):
+        for family in families:
+            if family.get("canonical_sampled_objects"):
+                continue
+            records.append(make_family_runtime_stub(family_type, family))
+
+    for record in records:
+        record["asset_candidate_count"] = len(record.get("asset_candidates", []))
+
+    return {
+        "schema_version": 1,
+        "source_imported_index_path": str(imported_index_path),
+        "record_count": len(records),
+        "records": records,
+        "unresolved_transport_cases": [],
     }
 
 

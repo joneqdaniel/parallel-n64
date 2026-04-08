@@ -9,8 +9,13 @@ MAGIC = b'PHRB'
 HEADER_STRUCT = struct.Struct('<4sIIIIIII')
 RECORD_STRUCT_V1 = struct.Struct('<IIIIIIIIII')
 RECORD_STRUCT_V2 = struct.Struct('<IIIIIIIIIIIII')
+RECORD_STRUCT_V4 = struct.Struct('<IIIIIIIIIIIIII')
 ASSET_STRUCT_V2 = struct.Struct('<IIIIIIIIIIII')
 ASSET_STRUCT_V3 = struct.Struct('<IIIIIIIIIIQII')
+ASSET_STRUCT_V5 = struct.Struct('<IIIIIIIIIIQQII')
+ASSET_STRUCT_V6 = struct.Struct('<IIIIIIIIIIQQQQ')
+ASSET_STRUCT_V7 = struct.Struct('<IIIIIIIIIIIQQQQ')
+RECORD_FLAG_RUNTIME_READY = 1 << 0
 
 
 def read_c_string(blob, offset):
@@ -27,25 +32,31 @@ def inspect_binary_package(path: Path):
     magic, version, record_count, asset_count, record_off, asset_off, string_off, blob_off = HEADER_STRUCT.unpack_from(data, 0)
     if magic != MAGIC:
         raise ValueError(f'Unexpected magic: {magic!r}')
-    if version not in (1, 2, 3):
+    if version not in (1, 2, 3, 4, 5, 6, 7):
         raise ValueError(f'Unsupported version: {version}')
 
     string_blob = data[string_off:blob_off]
     records = []
-    record_struct = RECORD_STRUCT_V2 if version >= 2 else RECORD_STRUCT_V1
+    record_struct = RECORD_STRUCT_V4 if version >= 4 else RECORD_STRUCT_V2 if version >= 2 else RECORD_STRUCT_V1
     for i in range(record_count):
         off = record_off + i * record_struct.size
-        if version >= 2:
+        if version >= 4:
+            (policy_key_off, sampled_object_id_off, record_flags, fmt, siz, tex_off, stride, width, height, formatsize, sampled_low32, sampled_entry_pcrc, sampled_sparse_pcrc, asset_candidate_count) = record_struct.unpack_from(data, off)
+        elif version >= 2:
             (policy_key_off, sampled_object_id_off, fmt, siz, tex_off, stride, width, height, formatsize, sampled_low32, sampled_entry_pcrc, sampled_sparse_pcrc, asset_candidate_count) = record_struct.unpack_from(data, off)
+            record_flags = RECORD_FLAG_RUNTIME_READY
         else:
             (policy_key_off, sampled_object_id_off, fmt, siz, tex_off, stride, width, height, formatsize, asset_candidate_count) = record_struct.unpack_from(data, off)
             sampled_low32 = 0
             sampled_entry_pcrc = 0
             sampled_sparse_pcrc = 0
+            record_flags = RECORD_FLAG_RUNTIME_READY
         records.append({
             'record_index': i,
             'policy_key': read_c_string(string_blob, policy_key_off),
             'sampled_object_id': read_c_string(string_blob, sampled_object_id_off),
+            'record_flags': record_flags,
+            'runtime_ready': bool(record_flags & RECORD_FLAG_RUNTIME_READY),
             'canonical_identity': {
                 'fmt': fmt,
                 'siz': siz,
@@ -61,16 +72,34 @@ def inspect_binary_package(path: Path):
             'asset_candidates': [],
         })
 
-    asset_struct = ASSET_STRUCT_V3 if version >= 3 else ASSET_STRUCT_V2
+    asset_struct = ASSET_STRUCT_V7 if version >= 7 else ASSET_STRUCT_V6 if version >= 6 else ASSET_STRUCT_V5 if version >= 5 else ASSET_STRUCT_V3 if version >= 3 else ASSET_STRUCT_V2
     for i in range(asset_count):
         off = asset_off + i * asset_struct.size
-        if version >= 3:
+        if version >= 7:
+            (record_index, replacement_id_off, legacy_source_path_off, rgba_rel_path_off, variant_group_id_off,
+             width, height, format_value, texture_format, pixel_type, legacy_formatsize, selector_checksum64, legacy_checksum64,
+             rgba_blob_off, rgba_blob_size) = asset_struct.unpack_from(data, off)
+        elif version >= 6:
+            (record_index, replacement_id_off, legacy_source_path_off, rgba_rel_path_off, variant_group_id_off,
+             width, height, texture_format, pixel_type, legacy_formatsize, selector_checksum64, legacy_checksum64,
+             rgba_blob_off, rgba_blob_size) = asset_struct.unpack_from(data, off)
+            format_value = 0x8058
+        elif version >= 5:
+            (record_index, replacement_id_off, legacy_source_path_off, rgba_rel_path_off, variant_group_id_off,
+             width, height, texture_format, pixel_type, legacy_formatsize, selector_checksum64, legacy_checksum64,
+             rgba_blob_off, rgba_blob_size) = asset_struct.unpack_from(data, off)
+            format_value = 0x8058
+        elif version >= 3:
             (record_index, replacement_id_off, legacy_source_path_off, rgba_rel_path_off, variant_group_id_off,
              width, height, texture_format, pixel_type, legacy_formatsize, selector_checksum64, rgba_blob_off, rgba_blob_size) = asset_struct.unpack_from(data, off)
+            legacy_checksum64 = 0
+            format_value = 0x8058
         else:
             (record_index, replacement_id_off, legacy_source_path_off, rgba_rel_path_off, variant_group_id_off,
              width, height, texture_format, pixel_type, legacy_formatsize, rgba_blob_off, rgba_blob_size) = asset_struct.unpack_from(data, off)
             selector_checksum64 = 0
+            legacy_checksum64 = 0
+            format_value = 0x8058
         records[record_index]['asset_candidates'].append({
             'replacement_id': read_c_string(string_blob, replacement_id_off),
             'legacy_source_path': read_c_string(string_blob, legacy_source_path_off),
@@ -78,10 +107,12 @@ def inspect_binary_package(path: Path):
             'variant_group_id': read_c_string(string_blob, variant_group_id_off),
             'width': width,
             'height': height,
+            'format': format_value,
             'texture_format': texture_format,
             'pixel_type': pixel_type,
             'legacy_formatsize': legacy_formatsize,
             'selector_checksum64': f'{selector_checksum64:016x}',
+            'legacy_checksum64': f'{legacy_checksum64:016x}',
             'rgba_blob_offset': rgba_blob_off,
             'rgba_blob_size': rgba_blob_size,
         })

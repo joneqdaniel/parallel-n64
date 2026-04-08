@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "status": "review-only",
+  "description": "Current proven selected-package shaping inputs for the 7701ac09 duplicate and broader asset-alias group. This profile stays review-only until the canonical selected-package build absorbs it intentionally.",
+  "duplicate_review_paths": [
+    "../artifacts/paper-mario-probes/validation/20260407-selected-package-duplicate-review/on/timeout-960/traces/hires-sampled-duplicate-review-7701ac09.json"
+  ],
+  "alias_group_review_paths": [
+    "../artifacts/hires-pack-review/20260407-selected-plus-timeout-960-v1-dedupe-7701ac09-alias-group-review/review.json"
+  ]
+}

@@ -37,8 +37,8 @@ require_pattern "ctest_args+=(-R \"^emu\\\\.conformance\\\\.\")" \
 require_pattern "ctest_args+=(-R \"^emu\\\\.dump\\\\.\")" \
   "emu-dump regex mapping missing"
 
-# Runtime conformance profile should include all dedicated lavapipe runtime tests.
-require_pattern "ctest_args+=(-R \"^emu\\\\.conformance\\\\.(runtime_smoke_lavapipe|lavapipe_frame_hash|lavapipe_vi_filters_hash|lavapipe_vi_filters_mixed_hash|lavapipe_vi_downscale_hash|lavapipe_sm64_frame_hash|paper_mario_selected_package_authorities|paper_mario_selected_package_timeout_validation)$\")" \
+# Runtime conformance profile should include all dedicated lavapipe/runtime-contract tests.
+require_pattern "ctest_args+=(-R \"^emu\\\\.conformance\\\\.(runtime_smoke_lavapipe|lavapipe_frame_hash|lavapipe_vi_filters_hash|lavapipe_vi_filters_mixed_hash|lavapipe_vi_downscale_hash|lavapipe_sm64_frame_hash|paper_mario_full_cache_phrb_authorities|paper_mario_full_cache_phrb_authorities_refresh|paper_mario_full_cache_phrb_authorities_zero_config_refresh|paper_mario_selected_package_authorities|paper_mario_selected_package_timeout_validation)$\")" \
   "emu-runtime-conformance regex mapping missing expected runtime tests"
 require_pattern "export EMU_ENABLE_RUNTIME_CONFORMANCE=1" \
   "emu-runtime-conformance env enablement missing"

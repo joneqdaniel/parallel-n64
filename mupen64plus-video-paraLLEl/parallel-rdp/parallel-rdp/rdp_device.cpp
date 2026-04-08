@@ -31,6 +31,7 @@
 #include "rdp_tex_rect_policy.hpp"
 #include "rdp_triangle_setup_policy.hpp"
 #include <chrono>
+#include <cstdlib>
 #include <string>
 
 #ifdef __SSE2__
@@ -57,6 +58,43 @@ static bool parse_optional_bool_env(const char *env, bool fallback)
 	if (!env || !*env)
 		return fallback;
 	return strtol(env, nullptr, 0) > 0;
+}
+
+static ReplacementProvider::CacheSourcePolicy parse_hires_cache_source_policy_env(const char *env)
+{
+	if (!env || !*env)
+		return ReplacementProvider::CacheSourcePolicy::All;
+
+	std::string token(env);
+	for (char &c : token)
+	{
+		if (c >= 'A' && c <= 'Z')
+			c = char(c - 'A' + 'a');
+	}
+
+	if (token == "auto")
+		return ReplacementProvider::CacheSourcePolicy::Auto;
+	if (token == "phrb-only" || token == "phrb")
+		return ReplacementProvider::CacheSourcePolicy::PHRBOnly;
+	if (token == "legacy-only" || token == "legacy")
+		return ReplacementProvider::CacheSourcePolicy::LegacyOnly;
+	return ReplacementProvider::CacheSourcePolicy::All;
+}
+
+static const char *hires_cache_source_policy_name(ReplacementProvider::CacheSourcePolicy policy)
+{
+	switch (policy)
+	{
+	case ReplacementProvider::CacheSourcePolicy::Auto:
+		return "auto";
+	case ReplacementProvider::CacheSourcePolicy::PHRBOnly:
+		return "phrb-only";
+	case ReplacementProvider::CacheSourcePolicy::LegacyOnly:
+		return "legacy-only";
+	case ReplacementProvider::CacheSourcePolicy::All:
+	default:
+		return "all";
+	}
 }
 
 static std::unordered_set<std::string> parse_hires_filter_signatures_env(const char *env)
@@ -924,16 +962,20 @@ void CommandProcessor::configure_hires_replacement(bool enable, const char *cach
 		return;
 	}
 
-	const bool load_ok = replacement_provider.load_cache_dir(cache_path);
+	const auto cache_source_policy =
+		parse_hires_cache_source_policy_env(getenv("PARALLEL_RDP_HIRES_RUNTIME_SOURCE_MODE"));
+	const bool load_ok = replacement_provider.load_cache_dir(cache_path, cache_source_policy);
 	outcome = detail::classify_hires_configure_outcome(enable, cache_path, load_ok);
 	if (outcome == detail::HiresConfigureOutcome::LoadFailed)
 	{
-		LOGW("Hi-res replacement cache load failed for path: %s\n", cache_path);
+		LOGW("Hi-res replacement cache load failed for path: %s (source mode %s)\n",
+		     cache_path, hires_cache_source_policy_name(cache_source_policy));
 		return;
 	}
 
-	LOGI("Hi-res replacement cache loaded: %zu entries from %s\n",
-	     replacement_provider.entry_count(), cache_path);
+	LOGI("Hi-res replacement cache loaded: %zu entries from %s (source mode %s)\n",
+	     replacement_provider.entry_count(), cache_path,
+	     hires_cache_source_policy_name(cache_source_policy));
 	if (detail::should_attach_hires_provider(outcome))
 		renderer.set_replacement_provider(&replacement_provider);
 }

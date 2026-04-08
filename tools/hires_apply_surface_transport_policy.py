@@ -51,10 +51,13 @@ def apply_selector_mode(record: dict, policy_path: Path, selector_cfg: dict):
     if not selector_mode:
         raise SystemExit('surface_selector_modes entries require selector_mode')
     record['selector_mode'] = selector_mode
+    if 'allow_runtime_selector_compile' in selector_cfg:
+        record['allow_runtime_selector_compile'] = bool(selector_cfg.get('allow_runtime_selector_compile'))
     annotate_provenance(record, 'selector_mode', {
         'policy_path': str(policy_path),
         'surface_id': record.get('surface', {}).get('surface_id'),
         'selector_mode': selector_mode,
+        'allow_runtime_selector_compile': bool(record.get('allow_runtime_selector_compile')),
         'reason': selector_cfg.get('reason', ''),
     })
 
@@ -78,19 +81,7 @@ def build_surface_clone(source_record: dict, clone_id: str, clone_cfg: dict, pol
     return record
 
 
-def main() -> int:
-    parser = argparse.ArgumentParser(description='Apply tracked surface transport policy to a surface package.')
-    parser.add_argument('--surface-package', required=True, help='Input phrs-surface-package JSON path.')
-    parser.add_argument('--policy', required=True, help='Surface transport policy JSON path.')
-    parser.add_argument('--output', required=True, help='Output surface package JSON path.')
-    args = parser.parse_args()
-
-    surface_path = Path(args.surface_package)
-    policy_path = Path(args.policy)
-    output_path = Path(args.output)
-
-    data = load_json(surface_path)
-    policy = load_json(policy_path)
+def apply_surface_transport_policy(data: dict, policy: dict, policy_path: Path):
     surface_aliases = policy.get('surface_aliases', {})
     surface_selector_modes = policy.get('surface_selector_modes', {})
     surface_clones = policy.get('surface_clones', {})
@@ -122,6 +113,23 @@ def main() -> int:
             apply_selector_mode(record, policy_path, selector_cfg)
 
     data['surfaces'] = records
+    return data
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description='Apply tracked surface transport policy to a surface package.')
+    parser.add_argument('--surface-package', required=True, help='Input phrs-surface-package JSON path.')
+    parser.add_argument('--policy', required=True, help='Surface transport policy JSON path.')
+    parser.add_argument('--output', required=True, help='Output surface package JSON path.')
+    args = parser.parse_args()
+
+    surface_path = Path(args.surface_package)
+    policy_path = Path(args.policy)
+    output_path = Path(args.output)
+
+    data = load_json(surface_path)
+    policy = load_json(policy_path)
+    data = apply_surface_transport_policy(data, policy, policy_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(json.dumps(data, indent=2) + '\n')
     print(output_path)

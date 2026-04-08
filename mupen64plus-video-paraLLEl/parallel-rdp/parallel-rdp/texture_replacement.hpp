@@ -61,6 +61,7 @@ struct SampledFamilyDiagnostics
 	uint32_t sample_repl_w = 0;
 	uint32_t sample_repl_h = 0;
 	std::string sample_policy_key;
+	std::string sample_replacement_id;
 	std::string sample_sampled_object_id;
 };
 
@@ -78,6 +79,8 @@ struct ReplacementProviderStats
 	uint32_t native_sampled_entry_count = 0;
 	uint32_t compat_entry_count = 0;
 	uint32_t sampled_index_count = 0;
+	uint32_t sampled_duplicate_key_count = 0;
+	uint32_t sampled_duplicate_entry_count = 0;
 	uint32_t sampled_family_count = 0;
 	uint32_t compat_low32_family_count = 0;
 	uint32_t source_phrb_entry_count = 0;
@@ -85,15 +88,74 @@ struct ReplacementProviderStats
 	uint32_t source_htc_entry_count = 0;
 };
 
+struct SampledDuplicateDiagnostics
+{
+	uint32_t sampled_fmt = 0;
+	uint32_t sampled_siz = 0;
+	uint32_t sampled_tex_offset = 0;
+	uint32_t sampled_stride = 0;
+	uint32_t sampled_width = 0;
+	uint32_t sampled_height = 0;
+	uint32_t sampled_low32 = 0;
+	uint32_t sampled_palette_crc = 0;
+	uint16_t formatsize = 0;
+	uint64_t selector_checksum64 = 0;
+	uint32_t total_entry_count = 0;
+	uint32_t duplicate_entry_count = 0;
+	uint64_t active_checksum64 = 0;
+	uint32_t active_repl_w = 0;
+	uint32_t active_repl_h = 0;
+	std::string active_source_path;
+	std::string active_policy_key;
+	std::string active_replacement_id;
+	std::string active_sampled_object_id;
+};
+
+struct NativeSampledIdentity
+{
+	bool valid = false;
+	uint32_t sampled_fmt = 0;
+	uint32_t sampled_siz = 0;
+	uint32_t sampled_tex_offset = 0;
+	uint32_t sampled_stride = 0;
+	uint32_t sampled_width = 0;
+	uint32_t sampled_height = 0;
+	uint32_t sampled_low32 = 0;
+	uint32_t sampled_palette_crc = 0;
+	uint16_t formatsize = 0;
+	uint64_t selector_checksum64 = 0;
+};
+
 class ReplacementProvider
 {
 public:
+	enum class CacheSourcePolicy
+	{
+		Auto,
+		All,
+		PHRBOnly,
+		LegacyOnly,
+	};
+
 	bool enabled() const;
 	void set_enabled(bool enable);
 	bool load_cache_dir(const std::string &path);
+	bool load_cache_dir(const std::string &path, CacheSourcePolicy policy);
 	bool lookup(uint64_t checksum64, uint16_t formatsize, ReplacementMeta *out) const;
 	bool lookup_with_selector(uint64_t checksum64, uint16_t formatsize, uint64_t selector_checksum64, ReplacementMeta *out) const;
-	bool lookup_native_with_selector(uint64_t checksum64, uint16_t formatsize, uint64_t selector_checksum64, ReplacementMeta *out) const;
+	bool lookup_with_selector_and_identity(uint64_t checksum64,
+	                                       uint16_t formatsize,
+	                                       uint64_t selector_checksum64,
+	                                       ReplacementMeta *out,
+	                                       NativeSampledIdentity *identity,
+	                                       uint64_t *resolved_checksum64 = nullptr,
+	                                       uint64_t *resolved_selector_checksum64 = nullptr) const;
+	bool lookup_native_with_selector(uint64_t checksum64,
+	                                 uint16_t formatsize,
+	                                 uint64_t selector_checksum64,
+	                                 ReplacementMeta *out,
+	                                 NativeSampledIdentity *identity = nullptr,
+	                                 uint64_t *resolved_checksum64 = nullptr) const;
 	bool lookup_compat_with_selector(uint64_t checksum64, uint16_t formatsize, uint64_t selector_checksum64, ReplacementMeta *out) const;
 	bool lookup_sampled_with_selector(uint32_t sampled_fmt,
 	                                  uint32_t sampled_siz,
@@ -107,6 +169,18 @@ public:
 	                                  uint64_t selector_checksum64,
 	                                  ReplacementMeta *out,
 	                                  uint64_t *resolved_checksum64 = nullptr) const;
+	bool lookup_sampled_family_unique(uint32_t sampled_fmt,
+	                                  uint32_t sampled_siz,
+	                                  uint32_t sampled_tex_offset,
+	                                  uint32_t sampled_stride,
+	                                  uint32_t sampled_width,
+	                                  uint32_t sampled_height,
+	                                  uint32_t sampled_low32,
+	                                  uint32_t palette_crc,
+	                                  uint16_t formatsize,
+	                                  ReplacementMeta *out,
+	                                  uint64_t *resolved_checksum64 = nullptr,
+	                                  uint64_t *resolved_selector_checksum64 = nullptr) const;
 	bool decode_sampled_rgba8_with_selector(uint32_t sampled_fmt,
 	                                        uint32_t sampled_siz,
 	                                        uint32_t sampled_tex_offset,
@@ -156,6 +230,7 @@ public:
 	bool decode_rgba8_native_with_selector(uint64_t checksum64, uint16_t formatsize, uint64_t selector_checksum64, ReplacementImage *out) const;
 	bool decode_rgba8_compat_with_selector(uint64_t checksum64, uint16_t formatsize, uint64_t selector_checksum64, ReplacementImage *out) const;
 	ReplacementProviderStats get_stats() const;
+	std::vector<SampledDuplicateDiagnostics> get_sampled_duplicate_diagnostics(size_t limit = 0) const;
 	void trim_to_budget(size_t bytes);
 	void clear();
 	size_t entry_count() const;
@@ -165,6 +240,7 @@ private:
 	{
 		std::string source_path;
 		std::string phrb_policy_key;
+		std::string phrb_replacement_id;
 		std::string phrb_sampled_object_id;
 		uint64_t checksum64 = 0;
 		uint64_t data_offset = 0;
@@ -187,6 +263,7 @@ private:
 		uint32_t sampled_entry_pcrc = 0;
 		uint32_t sampled_sparse_pcrc = 0;
 		bool has_native_sampled_identity = false;
+		bool is_runtime_family_compat = false;
 		bool is_hires = false;
 		bool inline_blob = false;
 		std::vector<uint8_t> blob;
@@ -274,6 +351,16 @@ private:
 	                                uint32_t palette_crc,
 	                                uint16_t formatsize,
 	                                uint64_t selector_checksum64) const;
+	const Entry *find_unique_sampled_family_entry(uint32_t sampled_fmt,
+	                                              uint32_t sampled_siz,
+	                                              uint32_t sampled_tex_offset,
+	                                              uint32_t sampled_stride,
+	                                              uint32_t sampled_width,
+	                                              uint32_t sampled_height,
+	                                              uint32_t sampled_low32,
+	                                              uint32_t palette_crc,
+	                                              uint16_t formatsize,
+	                                              uint64_t *resolved_selector_checksum64 = nullptr) const;
 	bool load_hts(const std::string &path);
 	bool load_htc(const std::string &path);
 	bool load_phrb(const std::string &path);
@@ -301,6 +388,7 @@ private:
 	                                                             uint32_t sampled_low32,
 	                                                             uint32_t sampled_palette_crc,
 	                                                             uint16_t formatsize);
+	static bool prefer_sampled_duplicate_candidate(const Entry &active, const Entry &candidate);
 	void add_entry(Entry &&entry);
 
 	bool enabled_ = false;
@@ -312,6 +400,7 @@ private:
 	std::unordered_map<uint32_t, std::vector<size_t>> checksum_low32_index_;
 	std::unordered_map<uint32_t, std::vector<size_t>> compat_checksum_low32_index_;
 	std::unordered_map<SampledLookupKey, size_t, SampledLookupKeyHash> sampled_index_;
+	std::unordered_map<SampledLookupKey, uint32_t, SampledLookupKeyHash> sampled_duplicate_index_;
 	std::unordered_map<SampledFamilyLookupKey, std::vector<size_t>, SampledFamilyLookupKeyHash> sampled_family_index_;
 	std::unordered_map<uint64_t, std::vector<uint64_t>> ordered_surface_selectors_;
 	size_t memory_budget_bytes_ = 0;

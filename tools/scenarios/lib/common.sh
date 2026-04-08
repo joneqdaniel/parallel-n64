@@ -220,13 +220,32 @@ result = {
         "unique_exact_family_bucket_count": 0,
         "top_exact_family_buckets": [],
     },
+    "sampled_pool_stream_probe": {
+        "available": False,
+        "line_count": 0,
+        "unique_bucket_count": 0,
+        "top_buckets": [],
+        "family_count": 0,
+        "top_families": [],
+    },
+    "sampled_duplicate_probe": {
+        "available": False,
+        "line_count": 0,
+        "unique_bucket_count": 0,
+        "top_buckets": [],
+    },
 }
 
 if not log_path.is_file():
     output_path.write_text(json.dumps(result, indent=2) + "\n")
     raise SystemExit(0)
 
-cache_loaded_re = re.compile(r"Hi-res replacement cache loaded: (\d+) entries from (.+)")
+cache_loaded_re = re.compile(
+    r"Hi-res replacement cache loaded: (\d+) entries from (.+?)(?: \(source mode [^)]+\))?$"
+)
+cache_failed_re = re.compile(
+    r"Hi-res replacement cache load failed for path: (.+?)(?: \(source mode [^)]+\))?$"
+)
 capability_re = re.compile(
     r"Hi-res capability check: descriptor_indexing=(\d+) runtime_descriptor_array=(\d+) sampled_image_array_non_uniform_indexing=(\d+) descriptor_binding_variable_descriptor_count=(\d+) descriptor_binding_partially_bound=(\d+) descriptor_binding_update_after_bind=(\d+) maxDescriptorSetUpdateAfterBindSampledImages=(\d+) cache_path=(.+)\."
 )
@@ -236,8 +255,15 @@ summary_re = re.compile(
     r"(?: filtered=(\d+))?"
     r"(?: block_probe_hits=(\d+))?"
     r" provider=(on|off)"
-    r"(?: entries=(\d+) native_sampled=(\d+) compat=(\d+) sampled_index=(\d+) sampled_families=(\d+) compat_low32_families=(\d+) sources\(phrb=(\d+) hts=(\d+) htc=(\d+)\))?"
+    r"(?: entries=(\d+) native_sampled=(\d+) compat=(\d+) sampled_index=(\d+)"
+    r"(?: sampled_dupe_keys=(\d+) sampled_dupe_entries=(\d+))?"
+    r" sampled_families=(\d+) compat_low32_families=(\d+) sources\(phrb=(\d+) hts=(\d+) htc=(\d+)\))?"
+    r"(?: descriptor_paths\(sampled=(\d+) native_checksum=(\d+) generic=(\d+) compat=(\d+)\))?"
+    r"(?: generic_detail\(identity_assisted=(\d+) plain=(\d+)\))?"
     r"\."
+)
+native_checksum_detail_re = re.compile(
+    r"Hi-res native checksum detail: exact=(\d+) identity_assisted=(\d+) generic_fallback=(\d+)\."
 )
 hit_miss_re = re.compile(r"Hi-res keying (hit|miss): (.+)")
 filtered_re = re.compile(r"Hi-res keying filtered: reason=([^\s]+) (.+)")
@@ -253,6 +279,8 @@ sampled_object_re = re.compile(r"Hi-res sampled-object probe: (.+)")
 sampled_object_exact_hit_re = re.compile(r"Hi-res sampled-object exact hit: (.+)")
 sampled_object_exact_miss_re = re.compile(r"Hi-res sampled-object exact miss: (.+)")
 sampled_object_family_re = re.compile(r"Hi-res sampled-object family: (.+)")
+sampled_pool_stream_re = re.compile(r"Hi-res sampled pool stream: (.+)")
+sampled_duplicate_re = re.compile(r"Hi-res sampled duplicate: (.+)")
 field_re = re.compile(r"(\w+)=([^\s]+)")
 
 bucket_maps = {
@@ -269,6 +297,9 @@ sampled_object_buckets = {}
 sampled_object_exact_hit_buckets = {}
 sampled_object_exact_miss_buckets = {}
 sampled_object_family_buckets = {}
+sampled_pool_stream_buckets = {}
+sampled_pool_stream_family_buckets = {}
+sampled_duplicate_buckets = {}
 
 def parse_fields(detail):
     fields = {}
@@ -278,7 +309,7 @@ def parse_fields(detail):
 
 def get_bucket_identity(kind, fields):
     if kind in ("hit", "miss"):
-        return tuple((key, fields.get(key)) for key in ("mode", "fmt", "siz", "wh", "fs", "tile"))
+        return tuple((key, fields.get(key)) for key in ("mode", "fmt", "siz", "wh", "fs", "tile", "descriptor_path"))
     if kind == "filtered":
         return tuple((key, fields.get(key)) for key in ("reason", "mode", "fmt", "siz", "wh", "fs", "tile"))
     return tuple((key, fields.get(key)) for key in ("bytes", "tile"))
@@ -336,6 +367,30 @@ def increment_counter(counter_map, key):
     if not key:
         return
     counter_map[key] = counter_map.get(key, 0) + 1
+
+def classify_entry_class(native_sampled_entry_count, compat_entry_count):
+    native_sampled_entry_count = int(native_sampled_entry_count or 0)
+    compat_entry_count = int(compat_entry_count or 0)
+    if native_sampled_entry_count > 0 and compat_entry_count == 0:
+        return "native-sampled-only"
+    if native_sampled_entry_count == 0 and compat_entry_count > 0:
+        return "compat-only"
+    if native_sampled_entry_count > 0 and compat_entry_count > 0:
+        return "mixed-native-and-compat"
+    return "none"
+
+def classify_descriptor_path_class(descriptor_path_counts):
+    descriptor_path_counts = descriptor_path_counts or {}
+    active_paths = [
+        key
+        for key in ("sampled", "native_checksum", "generic", "compat")
+        if int(descriptor_path_counts.get(key, 0) or 0) > 0
+    ]
+    if not active_paths:
+        return "none"
+    if len(active_paths) == 1:
+        return f"{active_paths[0]}-only"
+    return "mixed-" + "-".join(active_paths)
 
 def finalize_provenance_summary():
     items = [
@@ -397,6 +452,7 @@ def finalize_sampled_object_summary():
         )
     items.sort(key=lambda item: (-item["count"], item["signature"]))
     result["sampled_object_probe"]["unique_group_count"] = len(items)
+    result["sampled_object_probe"]["groups"] = [item["fields"] for item in items[:20]]
     result["sampled_object_probe"]["top_groups"] = items[:10]
 
     exact_hit_items = [
@@ -477,6 +533,47 @@ def finalize_sampled_object_summary():
     family_items.sort(key=lambda item: (-item["count"], item["signature"]))
     result["sampled_object_probe"]["unique_exact_family_bucket_count"] = len(family_items)
     result["sampled_object_probe"]["top_exact_family_buckets"] = family_items[:10]
+
+def finalize_sampled_duplicate_summary():
+    items = [
+        {
+            "signature": signature,
+            "count": payload["count"],
+            "fields": payload["fields"],
+            "sample_detail": payload["sample_detail"],
+        }
+        for signature, payload in sampled_duplicate_buckets.items()
+    ]
+    items.sort(key=lambda item: (-item["count"], item["signature"]))
+    result["sampled_duplicate_probe"]["unique_bucket_count"] = len(items)
+    result["sampled_duplicate_probe"]["top_buckets"] = items[:10]
+
+def finalize_sampled_pool_stream_summary():
+    items = [
+        {
+            "signature": signature,
+            "count": payload["count"],
+            "fields": payload["fields"],
+            "sample_detail": payload["sample_detail"],
+        }
+        for signature, payload in sampled_pool_stream_buckets.items()
+    ]
+    items.sort(key=lambda item: (-item["count"], item["signature"]))
+    result["sampled_pool_stream_probe"]["unique_bucket_count"] = len(items)
+    result["sampled_pool_stream_probe"]["top_buckets"] = items[:10]
+
+    family_items = [
+        {
+            "signature": signature,
+            "count": payload["count"],
+            "fields": payload["fields"],
+            "sample_detail": payload["sample_detail"],
+        }
+        for signature, payload in sampled_pool_stream_family_buckets.items()
+    ]
+    family_items.sort(key=lambda item: (-item["count"], item["signature"]))
+    result["sampled_pool_stream_probe"]["family_count"] = len(family_items)
+    result["sampled_pool_stream_probe"]["top_families"] = family_items[:10]
 
 def parse_hts_cache_index(cache_path):
     data = cache_path.read_bytes()
@@ -695,10 +792,11 @@ for line in log_path.read_text(errors="replace").splitlines():
         }
         continue
 
-    if "Hi-res replacement cache load failed for path:" in line:
+    m = cache_failed_re.search(line)
+    if m:
         result["available"] = True
         result["cache_load_failed"] = True
-        result["cache_path"] = line.rsplit(":", 1)[-1].strip()
+        result["cache_path"] = m.group(1).strip()
         continue
 
     m = cache_loaded_re.search(line)
@@ -722,17 +820,31 @@ for line in log_path.read_text(errors="replace").splitlines():
         }
         if m.group(7) is not None:
             source_counts = {
-                "phrb": int(m.group(13)),
-                "hts": int(m.group(14)),
-                "htc": int(m.group(15)),
+                "phrb": int(m.group(15)),
+                "hts": int(m.group(16)),
+                "htc": int(m.group(17)),
             }
             summary["entry_count"] = int(m.group(7))
             summary["native_sampled_entry_count"] = int(m.group(8))
             summary["compat_entry_count"] = int(m.group(9))
             summary["sampled_index_count"] = int(m.group(10))
-            summary["sampled_family_count"] = int(m.group(11))
-            summary["compat_low32_family_count"] = int(m.group(12))
+            summary["sampled_duplicate_key_count"] = int(m.group(11) or 0)
+            summary["sampled_duplicate_entry_count"] = int(m.group(12) or 0)
+            summary["sampled_family_count"] = int(m.group(13))
+            summary["compat_low32_family_count"] = int(m.group(14))
             summary["source_counts"] = source_counts
+            if m.group(18) is not None:
+                summary["descriptor_path_counts"] = {
+                    "sampled": int(m.group(18)),
+                    "native_checksum": int(m.group(19)),
+                    "generic": int(m.group(20)),
+                    "compat": int(m.group(21)),
+                }
+            if m.group(22) is not None:
+                summary["descriptor_path_detail_counts"] = {
+                    "generic_identity_assisted": int(m.group(22)),
+                    "generic_plain": int(m.group(23)),
+                }
             if source_counts["phrb"] > 0 and source_counts["hts"] == 0 and source_counts["htc"] == 0:
                 summary["source_mode"] = "phrb-only"
             elif source_counts["phrb"] == 0 and (source_counts["hts"] > 0 or source_counts["htc"] > 0):
@@ -741,6 +853,28 @@ for line in log_path.read_text(errors="replace").splitlines():
                 summary["source_mode"] = "mixed"
             else:
                 summary["source_mode"] = "unknown"
+            summary["entry_class"] = classify_entry_class(
+                summary.get("native_sampled_entry_count"),
+                summary.get("compat_entry_count"),
+            )
+            summary["descriptor_path_class"] = classify_descriptor_path_class(
+                summary.get("descriptor_path_counts"),
+            )
+        result["summary"] = summary
+        continue
+
+    m = native_checksum_detail_re.search(line)
+    if m:
+        result["available"] = True
+        summary = result.get("summary") or {}
+        detail_counts = summary.get("descriptor_path_detail_counts") or {}
+        detail_counts["native_checksum_exact"] = int(m.group(1))
+        detail_counts["native_checksum_identity_assisted"] = int(m.group(2))
+        detail_counts["native_checksum_generic_fallback"] = int(m.group(3))
+        summary["descriptor_path_detail_counts"] = detail_counts
+        summary["descriptor_path_class"] = classify_descriptor_path_class(
+            summary.get("descriptor_path_counts"),
+        )
         result["summary"] = summary
         continue
 
@@ -972,6 +1106,7 @@ for line in log_path.read_text(errors="replace").splitlines():
                 "selector",
                 "active_is_pool",
                 "sample_policy",
+                "sample_replacement_id",
                 "sampled_object",
             )
             if fields.get(key) is not None
@@ -1005,7 +1140,183 @@ for line in log_path.read_text(errors="replace").splitlines():
                         "sample_repl",
                         "active_is_pool",
                         "sample_policy",
+                        "sample_replacement_id",
                         "sampled_object",
+                    )
+                    if fields.get(key) is not None
+                },
+                "sample_detail": detail,
+            },
+        )
+        bucket["count"] += 1
+        continue
+
+    m = sampled_pool_stream_re.search(line)
+    if m:
+        result["available"] = True
+        result["sampled_pool_stream_probe"]["available"] = True
+        result["sampled_pool_stream_probe"]["line_count"] += 1
+        detail = m.group(1).strip()
+        fields = parse_fields(detail)
+        signature = " ".join(
+            f"{key}={fields.get(key)}"
+            for key in (
+                "sampled_low32",
+                "palette_crc",
+                "fs",
+                "observed_selector",
+                "observed_selector_source",
+                "sample_policy",
+                "sampled_object",
+            )
+            if fields.get(key) is not None
+        )
+        bucket = sampled_pool_stream_buckets.setdefault(
+            signature,
+            {
+                "count": 0,
+                "fields": {
+                    key: fields.get(key)
+                    for key in (
+                        "draw_class",
+                        "cycle",
+                        "tile",
+                        "sampled_low32",
+                        "palette_crc",
+                        "fs",
+                        "selector",
+                        "observed_selector",
+                        "observed_selector_source",
+                        "observed_count",
+                        "unique_observed_selectors",
+                        "transition_count",
+                        "repeat_count",
+                        "current_run",
+                        "max_run",
+                        "active_entries",
+                        "runtime_unique_selectors",
+                        "ordered_selectors",
+                        "sample_policy",
+                        "sample_replacement_id",
+                        "sampled_object",
+                    )
+                    if fields.get(key) is not None
+                },
+                "sample_detail": detail,
+            },
+        )
+        bucket["count"] += 1
+
+        family_signature = " ".join(
+            f"{key}={fields.get(key)}"
+            for key in (
+                "sampled_low32",
+                "palette_crc",
+                "fs",
+                "sample_policy",
+                "sampled_object",
+            )
+            if fields.get(key) is not None
+        )
+        family_bucket = sampled_pool_stream_family_buckets.setdefault(
+            family_signature,
+            {
+                "count": 0,
+                "fields": {
+                    key: fields.get(key)
+                    for key in (
+                        "draw_class",
+                        "cycle",
+                        "tile",
+                        "sampled_low32",
+                        "palette_crc",
+                        "fs",
+                        "selector",
+                        "observed_selector",
+                        "observed_selector_source",
+                        "observed_count",
+                        "unique_observed_selectors",
+                        "transition_count",
+                        "repeat_count",
+                        "current_run",
+                        "max_run",
+                        "active_entries",
+                        "runtime_unique_selectors",
+                        "ordered_selectors",
+                        "sample_policy",
+                        "sample_replacement_id",
+                        "sampled_object",
+                    )
+                    if fields.get(key) is not None
+                },
+                "sample_detail": detail,
+            },
+        )
+        family_bucket["count"] += 1
+        family_bucket["sample_detail"] = detail
+        for key in (
+            "selector",
+            "observed_selector",
+            "observed_selector_source",
+            "observed_count",
+            "unique_observed_selectors",
+            "transition_count",
+            "repeat_count",
+            "current_run",
+            "max_run",
+            "active_entries",
+            "runtime_unique_selectors",
+            "ordered_selectors",
+            "sample_replacement_id",
+        ):
+            if fields.get(key) is not None:
+                family_bucket["fields"][key] = fields.get(key)
+        continue
+
+    m = sampled_duplicate_re.search(line)
+    if m:
+        result["available"] = True
+        result["sampled_duplicate_probe"]["available"] = True
+        result["sampled_duplicate_probe"]["line_count"] += 1
+        detail = m.group(1).strip()
+        fields = parse_fields(detail)
+        signature = " ".join(
+            f"{key}={fields.get(key)}"
+            for key in (
+                "sampled_low32",
+                "palette_crc",
+                "fs",
+                "selector",
+                "policy",
+                "replacement_id",
+                "sampled_object",
+            )
+            if fields.get(key) is not None
+        )
+        bucket = sampled_duplicate_buckets.setdefault(
+            signature,
+            {
+                "count": 0,
+                "fields": {
+                    key: fields.get(key)
+                    for key in (
+                        "sampled_fmt",
+                        "sampled_siz",
+                        "tex_offset",
+                        "stride",
+                        "wh",
+                        "sampled_low32",
+                        "palette_crc",
+                        "fs",
+                        "selector",
+                        "total_entries",
+                        "duplicate_entries",
+                        "active_checksum",
+                        "repl",
+                        "policy",
+                        "replacement_id",
+                        "sampled_object",
+                        "source",
                     )
                     if fields.get(key) is not None
                 },
@@ -1247,6 +1558,8 @@ finalize_provenance_summary()
 finalize_draw_usage_summary()
 finalize_sampler_usage_summary()
 finalize_sampled_object_summary()
+finalize_sampled_pool_stream_summary()
+finalize_sampled_duplicate_summary()
 finalize_pack_crosscheck()
 
 output_path.write_text(json.dumps(result, indent=2) + "\n")
@@ -1482,6 +1795,9 @@ if hires_path.is_file():
         result["actual"]["hires_summary_source_mode"] = summary.get("source_mode")
         result["actual"]["hires_summary_entry_count"] = summary.get("entry_count")
         result["actual"]["hires_summary_native_sampled_entry_count"] = summary.get("native_sampled_entry_count")
+        result["actual"]["hires_summary_compat_entry_count"] = summary.get("compat_entry_count")
+        result["actual"]["hires_summary_entry_class"] = summary.get("entry_class")
+        result["actual"]["hires_summary_descriptor_path_class"] = summary.get("descriptor_path_class")
         result["actual"]["hires_summary_source_phrb_count"] = (summary.get("source_counts") or {}).get("phrb")
         result["actual"]["hires_provenance_available"] = bool(provenance.get("available"))
         result["actual"]["hires_draw_usage_available"] = bool(draw_usage.get("available"))

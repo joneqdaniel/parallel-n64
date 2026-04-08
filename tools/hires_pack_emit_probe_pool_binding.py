@@ -9,6 +9,13 @@ def load_json(path: Path):
     return json.loads(path.read_text())
 
 
+def find_cross_scene_family(review, sampled_low32: str):
+    for family in review.get("families", []):
+        if str(family.get("sampled_low32") or "").lower() == sampled_low32.lower():
+            return family
+    return None
+
+
 def build_transport_candidate(candidate, cache_path: Path, sampled_low32: str, selector_mode: str):
     selector_checksum64 = candidate["checksum64"] if selector_mode == "legacy" else "0000000000000000"
     return {
@@ -47,6 +54,8 @@ def build_binding(
     max_candidates: int | None = None,
     selected_replacement_id: str | None = None,
     selector_mode: str = "legacy",
+    cross_scene_family_review: dict | None = None,
+    allow_shared_scene_family: bool = False,
 ):
     target_group = None
     for group in review.get("groups", []):
@@ -91,6 +100,18 @@ def build_binding(
         for candidate in candidate_rows
     ]
 
+    if selector_mode == "zero" and cross_scene_family_review is not None:
+        promotion_status = cross_scene_family_review.get("promotion_status")
+        if promotion_status in {
+            "no-runtime-discriminator-observed",
+            "partial-overlap-runtime-signatures",
+            "target-not-observed",
+        } and not allow_shared_scene_family:
+            raise SystemExit(
+                f"sampled_low32 {sampled_low32} has cross-scene promotion_status={promotion_status!r}; "
+                "refuse selector_mode='zero' without --allow-shared-scene-family"
+            )
+
     binding = {
         "policy_key": f"{sampled_object_id}-pool",
         "family_type": "review-only-transport-pool",
@@ -118,6 +139,15 @@ def build_binding(
         "transport_candidate_dims": target_group.get("transport_candidate_dims", []),
         "selector_mode": selector_mode,
     }
+    if cross_scene_family_review is not None:
+        binding["cross_scene_review"] = {
+            "promotion_status": cross_scene_family_review.get("promotion_status"),
+            "recommendation": cross_scene_family_review.get("recommendation"),
+            "target_labels": cross_scene_family_review.get("target_labels") or [],
+            "guard_labels": cross_scene_family_review.get("guard_labels") or [],
+            "shared_signature_count": cross_scene_family_review.get("shared_signature_count"),
+            "target_exclusive_signature_count": cross_scene_family_review.get("target_exclusive_signature_count"),
+        }
 
     return {
         "schema_version": 1,
@@ -136,11 +166,29 @@ def main():
     parser.add_argument("--max-candidates", type=int, help="Optional cap on emitted transport candidates")
     parser.add_argument("--selected-replacement-id", help="Optional exact replacement_id to emit from the review pool")
     parser.add_argument("--selector-mode", choices=("legacy", "zero"), default="legacy", help="Selector mode for emitted transport candidates")
+    parser.add_argument("--cross-scene-review", help="Optional sampled cross-scene review JSON used to guard selector_mode=zero promotion.")
+    parser.add_argument("--allow-shared-scene-family", action="store_true", help="Override the cross-scene guard and allow selector_mode=zero even when the family is shared across target and guard scenes.")
     parser.add_argument("--output", help="Optional output path")
     args = parser.parse_args()
 
     review_path = Path(args.review)
-    result = build_binding(load_json(review_path), args.sampled_low32, args.max_candidates, args.selected_replacement_id, args.selector_mode)
+    cross_scene_family_review = None
+    if args.cross_scene_review:
+        cross_scene_review = load_json(Path(args.cross_scene_review))
+        cross_scene_family_review = find_cross_scene_family(cross_scene_review, args.sampled_low32)
+        if cross_scene_family_review is None:
+            raise SystemExit(
+                f"sampled_low32 {args.sampled_low32} not found in cross-scene review {args.cross_scene_review}"
+            )
+    result = build_binding(
+        load_json(review_path),
+        args.sampled_low32,
+        args.max_candidates,
+        args.selected_replacement_id,
+        args.selector_mode,
+        cross_scene_family_review=cross_scene_family_review,
+        allow_shared_scene_family=args.allow_shared_scene_family,
+    )
     serialized = json.dumps(result, indent=2) + "\n"
     if args.output:
         output_path = Path(args.output)

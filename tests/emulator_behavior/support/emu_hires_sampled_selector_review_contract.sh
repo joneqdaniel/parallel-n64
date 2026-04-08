@@ -79,6 +79,7 @@ probe = {
                 "active_is_pool": "0",
                 "matching_selectors": "0",
                 "sample_policy": "sampled-low32-28916d63-fs258",
+                "sample_replacement_id": "legacy-28916d63-a",
                 "sampled_object": "sampled-low3228916d63-fs258",
             }
         },
@@ -92,6 +93,7 @@ probe = {
                 "active_is_pool": "1",
                 "matching_selectors": "0",
                 "sample_policy": "sampled-fmt2-siz1-off0-stride296-wh296x6-fs258-low321b8530fb-pool",
+                "sample_replacement_id": "legacy-1b8530fb-a",
                 "sampled_object": "sampled-fmt2-siz1-off0-stride296-wh296x6-fs258-low321b8530fb",
             }
         },
@@ -172,6 +174,8 @@ pool_probe = {
                 "active_is_pool": "1",
                 "matching_selectors": "0",
                 "sample_policy": "sampled-fmt2-siz1-off0-stride296-wh296x6-fs258-low321b8530fb-pool",
+                "sample_replacement_id": "legacy-1b8530fb-a",
+                "sampled_object": "sampled-fmt2-siz1-off0-stride296-wh296x6-fs258-low321b8530fb",
             }
         }
     ]
@@ -210,13 +214,14 @@ check(pool["transport_status"] == "legacy-transport-candidates-available", f"une
 check(pool["matching_asset_candidate_count"] == 3, f"unexpected pool candidate count: {pool}")
 check(pool["pool_recommendation"] == "defer-runtime-pool-semantics", f"unexpected pool recommendation: {pool}")
 check(pool["matching_sampled_object_ids"] == ["sampled-fmt2-siz1-off0-stride296-wh296x6-fs258-low321b8530fb"], f"unexpected pool object ids: {pool}")
+check(pool["runtime_sample_replacement_id"] == "legacy-1b8530fb-a", f"unexpected pool runtime replacement id: {pool}")
 
 with tempfile.TemporaryDirectory() as tmpdir:
     bundle = Path(tmpdir)
     logs_dir = bundle / "logs"
     logs_dir.mkdir(parents=True)
     (logs_dir / "retroarch.log").write_text(
-        "Hi-res sampled-object family: available=1 draw_class=texrect cycle=copy tile=0 sampled_low32=1b8530fb palette_crc=52e0d253 fs=258 selector=52e0d2531b8530fb prefer_exact_fs=1 exact_entries=33 generic_entries=0 active_entries=33 unique_checksums=1 unique_selectors=33 zero_selectors=0 matching_selectors=0 ordered_selectors=0 repl_dims=1 uniform_repl_dims=1 sample_repl=1184x24 active_is_pool=1 sample_policy=sampled-fmt2-siz1-off0-stride296-wh296x6-fs258-low321b8530fb-pool sampled_object=sampled-fmt2-siz1-off0-stride296-wh296x6-fs258-low321b8530fb.\n"
+        "Hi-res sampled-object family: available=1 draw_class=texrect cycle=copy tile=0 sampled_low32=1b8530fb palette_crc=52e0d253 fs=258 selector=52e0d2531b8530fb prefer_exact_fs=1 exact_entries=33 generic_entries=0 active_entries=33 unique_checksums=1 unique_selectors=33 zero_selectors=0 matching_selectors=0 ordered_selectors=0 repl_dims=1 uniform_repl_dims=1 sample_repl=1184x24 active_is_pool=1 sample_policy=sampled-fmt2-siz1-off0-stride296-wh296x6-fs258-low321b8530fb-pool sample_replacement_id=legacy-1b8530fb-a sampled_object=sampled-fmt2-siz1-off0-stride296-wh296x6-fs258-low321b8530fb.\n"
         "Hi-res sampled-object family: available=0 draw_class=triangle cycle=2cycle tile=0 sampled_low32=91887078 palette_crc=00000000 fs=4 selector=00000000de3dac2a.\n"
     )
     family_items = module.load_runtime_family_items(bundle, {"top_exact_family_buckets": []})
@@ -224,6 +229,7 @@ with tempfile.TemporaryDirectory() as tmpdir:
     family_index = module.build_runtime_family_index(family_items)
     runtime_pool = module.build_runtime_family_annotation(pool_row, family_index)
     check(runtime_pool["runtime_family_status"] == "runtime-pool-family", f"unexpected parsed runtime pool: {runtime_pool}")
+    check(runtime_pool["runtime_sample_replacement_id"] == "legacy-1b8530fb-a", f"unexpected parsed runtime replacement id: {runtime_pool}")
     missing_family = module.build_runtime_family_annotation(candidate_free_row, family_index)
     check(missing_family["runtime_family_status"] == "runtime-family-missing", f"unexpected parsed missing runtime family: {missing_family}")
 

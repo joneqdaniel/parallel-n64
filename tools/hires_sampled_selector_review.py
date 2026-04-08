@@ -311,6 +311,7 @@ def build_runtime_family_annotation(row, runtime_family_index):
 
     statuses = []
     sample_policy = None
+    sample_replacement_id = None
     sample_object = None
     sample_fields = None
     for item in matching:
@@ -320,6 +321,8 @@ def build_runtime_family_annotation(row, runtime_family_index):
             statuses.append(status)
         if sample_policy is None and fields.get("sample_policy"):
             sample_policy = fields.get("sample_policy")
+        if sample_replacement_id is None and fields.get("sample_replacement_id"):
+            sample_replacement_id = fields.get("sample_replacement_id")
         if sample_object is None and fields.get("sampled_object"):
             sample_object = fields.get("sampled_object")
         if sample_fields is None:
@@ -330,6 +333,7 @@ def build_runtime_family_annotation(row, runtime_family_index):
         "runtime_family_statuses": statuses,
         "matching_runtime_family_count": len(matching),
         "runtime_sample_policy": sample_policy,
+        "runtime_sample_replacement_id": sample_replacement_id,
         "runtime_sampled_object": sample_object,
     }
     if sample_fields is not None:
@@ -435,6 +439,8 @@ def render_markdown(review: dict) -> str:
                 )
             if row.get("runtime_sample_policy"):
                 lines.append(f"  runtime-policy `{row['runtime_sample_policy']}`")
+            if row.get("runtime_sample_replacement_id"):
+                lines.append(f"  runtime-replacement `{row['runtime_sample_replacement_id']}`")
             for policy_key in row.get("matching_policy_keys", [])[:4]:
                 lines.append(f"  policy `{policy_key}`")
             for selector in row['selectors'][:8]:
@@ -459,6 +465,8 @@ def render_markdown(review: dict) -> str:
                 )
             if row.get("runtime_sample_policy"):
                 lines.append(f"  runtime-policy `{row['runtime_sample_policy']}`")
+            if row.get("runtime_sample_replacement_id"):
+                lines.append(f"  runtime-replacement `{row['runtime_sample_replacement_id']}`")
             for policy_key in row.get("matching_policy_keys", [])[:4]:
                 lines.append(f"  policy `{policy_key}`")
             for selector in row['selectors'][:8]:
@@ -484,6 +492,8 @@ def render_markdown(review: dict) -> str:
             )
             if row.get("runtime_sample_policy"):
                 lines.append(f"  runtime-policy `{row['runtime_sample_policy']}`")
+            if row.get("runtime_sample_replacement_id"):
+                lines.append(f"  runtime-replacement `{row['runtime_sample_replacement_id']}`")
             if row.get("runtime_sampled_object"):
                 lines.append(f"  runtime-object `{row['runtime_sampled_object']}`")
             for sampled_object_id in row.get("matching_sampled_object_ids", [])[:4]:

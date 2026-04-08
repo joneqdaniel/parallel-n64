@@ -1,0 +1,21 @@
+{
+  "schema_version": 2,
+  "surface_aliases": {
+    "surface-1b8530fb": {
+      "slot_aliases": {
+        "33": {
+          "replacement_id": "legacy-5f6dd165-f978d303-fs0-1184x24",
+          "reason": "review-only tail-slot fill from the last resolved right-edge dwell stripe"
+        }
+      }
+    }
+  },
+  "surface_selector_modes": {
+    "surface-1b8530fb": {
+      "selector_mode": "dual",
+      "allow_runtime_selector_compile": true,
+      "reason": "review-only 1b8530fb tail-slot experiment; keep ordered selectors explicit without promoting runtime pool semantics"
+    }
+  },
+  "surface_clones": {}
+}

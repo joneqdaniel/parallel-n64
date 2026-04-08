@@ -8,12 +8,78 @@ def load_json(path: Path):
     return json.loads(path.read_text())
 
 
-def review_group(review: dict, sampled_low32: str):
+def review_group(
+    review: dict,
+    sampled_low32: str,
+    *,
+    formatsize: int | None = None,
+    draw_class: str | None = None,
+    cycle: str | None = None,
+    replacement_dims: str | None = None,
+):
+    matches = []
     for group in review.get("groups", []):
         signature = group.get("signature", {})
-        if signature.get("sampled_low32") == sampled_low32:
-            return group
-    raise SystemExit(f"no review group for sampled_low32={sampled_low32}")
+        if signature.get("sampled_low32") != sampled_low32:
+            continue
+        if formatsize is not None and int(signature.get("formatsize") or -1) != int(formatsize):
+            continue
+        if draw_class is not None and signature.get("draw_class") != draw_class:
+            continue
+        if cycle is not None and signature.get("cycle") != cycle:
+            continue
+        matches.append(group)
+
+    if not matches:
+        raise SystemExit(
+            "no review group for "
+            f"sampled_low32={sampled_low32} formatsize={formatsize} "
+            f"draw_class={draw_class!r} cycle={cycle!r}"
+        )
+
+    if replacement_dims is not None:
+        exact_dims = [
+            group
+            for group in matches
+            if (group.get("signature", {}) or {}).get("replacement_dims") == replacement_dims
+        ]
+        if exact_dims:
+            matches = exact_dims
+
+    if len(matches) == 1:
+        return matches[0]
+
+    # Prefer candidate-bearing groups over probe-only placeholder groups such as 0x0 replacements.
+    candidate_sorted = sorted(
+        matches,
+        key=lambda group: (
+            -len(group.get("transport_candidates", [])),
+            -(int(group.get("probe_event_count") or 0)),
+            (group.get("signature", {}) or {}).get("replacement_dims") or "",
+        ),
+    )
+    top = candidate_sorted[0]
+    top_score = (
+        len(top.get("transport_candidates", [])),
+        int(top.get("probe_event_count") or 0),
+        (top.get("signature", {}) or {}).get("replacement_dims") or "",
+    )
+    ambiguous = []
+    for group in candidate_sorted[1:]:
+        score = (
+            len(group.get("transport_candidates", [])),
+            int(group.get("probe_event_count") or 0),
+            (group.get("signature", {}) or {}).get("replacement_dims") or "",
+        )
+        if score == top_score:
+            ambiguous.append(group)
+    if ambiguous:
+        raise SystemExit(
+            "ambiguous review group matches for "
+            f"sampled_low32={sampled_low32} formatsize={formatsize} draw_class={draw_class!r} "
+            f"cycle={cycle!r} replacement_dims={replacement_dims!r}"
+        )
+    return top
 
 
 def candidate_key(candidate: dict):
@@ -95,13 +161,24 @@ def main():
     parser.add_argument("--sequence", required=True)
     parser.add_argument("--review", required=True)
     parser.add_argument("--sampled-low32", required=True)
+    parser.add_argument("--formatsize", type=int)
+    parser.add_argument("--draw-class")
+    parser.add_argument("--cycle")
+    parser.add_argument("--replacement-dims")
     parser.add_argument("--output-json")
     parser.add_argument("--output-markdown")
     args = parser.parse_args()
 
     sequence = load_json(Path(args.sequence))
     review = load_json(Path(args.review))
-    group = review_group(review, args.sampled_low32)
+    group = review_group(
+        review,
+        args.sampled_low32,
+        formatsize=args.formatsize,
+        draw_class=args.draw_class,
+        cycle=args.cycle,
+        replacement_dims=args.replacement_dims,
+    )
     result = build_map(sequence, group, args.sampled_low32)
     serialized = json.dumps(result, indent=2) + "\n"
     if args.output_json:

@@ -8,6 +8,7 @@ from pathlib import Path
 from hires_pack_common import (
     build_family_summary,
     collect_family_entries,
+    index_entries_by_texture_crc,
     parse_bundle_ci_context,
     parse_bundle_families,
     parse_bundle_sampled_object_context,
@@ -16,7 +17,8 @@ from hires_pack_common import (
 
 
 def build_migration_plan(entries, requested_pairs):
-    families = [build_family_summary(entries, texture_crc, formatsize) for texture_crc, formatsize in requested_pairs]
+    indexed_entries = index_entries_by_texture_crc(entries)
+    families = [build_family_summary(indexed_entries, texture_crc, formatsize) for texture_crc, formatsize in requested_pairs]
     tier_counts = Counter(family["recommended_tier"] for family in families)
 
     plan = {
@@ -110,7 +112,7 @@ def build_selector_policy(texture_crc, formatsize, observation, variant_group_li
     return policy
 
 
-def build_canonical_transport(compatibility_aliases, unresolved_families, record_index):
+def build_canonical_transport(exact_authorities, compatibility_aliases, unresolved_families, record_index):
     canonical_records = {}
     legacy_transport_aliases = []
 
@@ -198,6 +200,8 @@ def build_canonical_transport(compatibility_aliases, unresolved_families, record
                 if upload not in record["upload_pcrcs"]:
                     record["upload_pcrcs"].append(upload)
 
+    for family in exact_authorities:
+        ingest_family(family, "exact-authority")
     for family in compatibility_aliases:
         ingest_family(family, "compatibility")
     for family in unresolved_families:
@@ -220,12 +224,35 @@ def build_imported_index(entries, requested_pairs, source_cache_path, bundle_con
     bundle_context = bundle_context or {}
     bundle_sampled_context = bundle_sampled_context or {}
     import_policy = import_policy or {"families": {}}
+    indexed_entries = index_entries_by_texture_crc(entries)
+
+    def fallback_sampled_candidates(texture_crc, requested_formatsize):
+        sampled_candidates = list(bundle_sampled_context.get((texture_crc, requested_formatsize), []))
+        if sampled_candidates or requested_formatsize != 0:
+            return sampled_candidates
+
+        seen = {
+            candidate.get("sampled_object_id")
+            for candidate in sampled_candidates
+            if candidate.get("sampled_object_id")
+        }
+        for (candidate_low32, _candidate_formatsize), candidate_list in bundle_sampled_context.items():
+            if int(candidate_low32) != int(texture_crc):
+                continue
+            for candidate in candidate_list:
+                sampled_object_id = candidate.get("sampled_object_id")
+                if sampled_object_id and sampled_object_id in seen:
+                    continue
+                sampled_candidates.append(candidate)
+                if sampled_object_id:
+                    seen.add(sampled_object_id)
+        return sampled_candidates
 
     for texture_crc, formatsize in requested_pairs:
-        family_summary = build_family_summary(entries, texture_crc, formatsize)
-        family_entries = collect_family_entries(entries, texture_crc)
+        family_summary = build_family_summary(indexed_entries, texture_crc, formatsize)
+        family_entries = collect_family_entries(indexed_entries, texture_crc)
         observation = bundle_context.get((texture_crc, formatsize))
-        sampled_candidates = bundle_sampled_context.get((texture_crc, formatsize), [])
+        sampled_candidates = fallback_sampled_candidates(texture_crc, formatsize)
         family_policy_key = make_family_policy_key(texture_crc, formatsize)
         family_policy = import_policy["families"].get(family_policy_key)
         active_entries = [
@@ -404,7 +431,7 @@ def build_imported_index(entries, requested_pairs, source_cache_path, bundle_con
             )
 
     record_index = {record["replacement_id"]: record for record in records}
-    transport = build_canonical_transport(exact_authorities + compatibility_aliases, unresolved_families, record_index)
+    transport = build_canonical_transport(exact_authorities, compatibility_aliases, unresolved_families, record_index)
 
     return {
         "schema_version": 1,

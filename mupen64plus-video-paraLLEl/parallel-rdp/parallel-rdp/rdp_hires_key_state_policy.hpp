@@ -21,6 +21,8 @@ template <typename TileState>
 inline void write_hires_lookup_tile_state(TileState &state,
                                           bool hit,
                                           uint64_t checksum64,
+                                          uint64_t upload_checksum64,
+                                          uint64_t selector_checksum64,
                                           uint16_t formatsize,
                                           uint32_t orig_w,
                                           uint32_t orig_h)
@@ -28,6 +30,8 @@ inline void write_hires_lookup_tile_state(TileState &state,
 	state.valid = true;
 	state.hit = hit;
 	state.checksum64 = checksum64;
+	state.upload_checksum64 = upload_checksum64;
+	state.selector_checksum64 = selector_checksum64;
 	state.formatsize = formatsize;
 	state.orig_w = clamp_hires_dimension_u16(orig_w);
 	state.orig_h = clamp_hires_dimension_u16(orig_h);

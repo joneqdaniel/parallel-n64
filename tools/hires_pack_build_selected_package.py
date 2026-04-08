@@ -1,16 +1,32 @@
 #!/usr/bin/env python3
 import argparse
+import copy
 import json
 import sys
 from pathlib import Path
 
+from hires_apply_surface_transport_policy import apply_surface_transport_policy, load_json as load_surface_policy_json
+from hires_pack_apply_alias_group_review import apply_alias_group_reviews
 from hires_compile_surface_package import compile_surface_package
+from hires_pack_apply_duplicate_review import dedupe_loader_manifest
 from hires_pack_emit_binary_package import emit_binary_package
 from hires_pack_emit_loader_manifest import build_loader_manifest
 from hires_pack_emit_probe_pool_binding import build_binding as build_review_pool_binding
 from hires_pack_emit_proxy_bindings import build_proxy_bindings, load_policy
 from hires_pack_emit_transport_bridge_bindings import build_transport_bridge_bindings
 from hires_pack_materialize_package import materialize_package
+
+
+def merge_unique_strings(*groups):
+    merged = []
+    seen = set()
+    for group in groups:
+        for value in group or []:
+            if value in seen:
+                continue
+            seen.add(value)
+            merged.append(value)
+    return merged
 
 
 def load_binding_payload(path: Path):
@@ -20,6 +36,46 @@ def load_binding_payload(path: Path):
     if missing:
         raise SystemExit(f'binding input {path} is missing keys: {sorted(missing)}')
     return data
+
+
+def load_review_profile(path: Path):
+    data = json.loads(path.read_text())
+    schema_version = int(data.get('schema_version') or 0)
+    if schema_version != 1:
+        raise SystemExit(f'review profile {path} must have schema_version=1')
+
+    def resolve_paths(key):
+        values = data.get(key) or []
+        if not isinstance(values, list):
+            raise SystemExit(f'review profile {path} key {key} must be a list')
+        resolved = []
+        for value in values:
+            if not isinstance(value, str) or not value:
+                raise SystemExit(f'review profile {path} key {key} must contain non-empty strings')
+            candidate = Path(value)
+            if not candidate.is_absolute():
+                candidate = (path.parent / candidate).resolve()
+            resolved.append(str(candidate))
+        return resolved
+
+    def read_string_list(key):
+        values = data.get(key) or []
+        if not isinstance(values, list):
+            raise SystemExit(f'review profile {path} key {key} must be a list')
+        for value in values:
+            if not isinstance(value, str) or not value:
+                raise SystemExit(f'review profile {path} key {key} must contain non-empty strings')
+        return list(values)
+
+    return {
+        'path': str(path),
+        'duplicate_review_paths': resolve_paths('duplicate_review_paths'),
+        'alias_group_review_paths': resolve_paths('alias_group_review_paths'),
+        'surface_transport_policy_paths': resolve_paths('surface_transport_policy_paths'),
+        'review_input_paths': resolve_paths('review_input_paths'),
+        'review_pool_keys': read_string_list('review_pool_keys'),
+        'review_pool_group_keys': read_string_list('review_pool_group_keys'),
+    }
 
 
 def resolve_review_pool_keys(policy_data, selected_keys, group_keys):
@@ -140,6 +196,25 @@ def merge_bindings(binding_payloads):
     }
 
 
+def materialize_reviewed_surface_package(surface_package_input_path: Path, policy_paths, output_dir: Path):
+    data = load_surface_policy_json(surface_package_input_path)
+    if not policy_paths:
+        return surface_package_input_path
+
+    reviewed_dir = output_dir / 'reviewed-surface-packages'
+    reviewed_dir.mkdir(parents=True, exist_ok=True)
+    reviewed_name = surface_package_input_path.name
+    reviewed_path = reviewed_dir / reviewed_name
+    if reviewed_path == surface_package_input_path:
+        reviewed_path = reviewed_dir / f"{surface_package_input_path.stem}-reviewed{surface_package_input_path.suffix}"
+
+    for policy_path in policy_paths:
+        data = apply_surface_transport_policy(copy.deepcopy(data), load_surface_policy_json(policy_path), policy_path)
+
+    reviewed_path.write_text(json.dumps(data, indent=2) + '\n')
+    return reviewed_path
+
+
 def main():
     parser = argparse.ArgumentParser(
         description='Build a selected canonical hi-res package directly from imported index/subset inputs, ordered surfaces, and transport policy.'
@@ -147,11 +222,15 @@ def main():
     parser.add_argument('--input', action='append', help='Path to imported_index or imported_subset JSON. Pass multiple times to merge sources.')
     parser.add_argument('--bindings-input', action='append', help='Path to an existing bindings.json payload. Pass multiple times to extend a selected package.')
     parser.add_argument('--surface-package-input', action='append', help='Path to a phrs-surface-package-v1 or phrs-surface-package-v2 JSON. Pass multiple times to fold ordered surfaces into the build.')
+    parser.add_argument('--surface-transport-policy', action='append', help='Review-only surface transport policy JSON to apply to every --surface-package-input before compile. Pass multiple times.')
     parser.add_argument('--review-input', action='append', help='Path to sampled transport review JSON. Pass multiple times to provide transport-pool review sources.')
+    parser.add_argument('--review-profile', action='append', help='Review-only profile JSON that bundles duplicate/alias/pool/surface review inputs. Pass multiple times to layer tracked review decisions.')
     parser.add_argument('--review-pool-key', action='append', help='Policy key from transport_review_pools to include in this package build. Pass multiple times.')
     parser.add_argument('--review-pool-group-key', action='append', help='Group key from transport_review_pool_groups to include in this package build. Pass multiple times.')
     parser.add_argument('--bridge-key', action='append', help='Policy key from transport_synthetic_bridges to include in this package build. Pass multiple times.')
     parser.add_argument('--cache', help='Legacy .hts/.htc cache path required when using --bridge-key.')
+    parser.add_argument('--duplicate-review', action='append', help='Review-only duplicate-review JSON to apply as offline loader-manifest dedupe before materialization. Pass multiple times.')
+    parser.add_argument('--alias-group-review', action='append', help='Review-only alias-group review JSON to apply as offline asset-level aliasing before materialization. Pass multiple times.')
     parser.add_argument('--policy', required=True, help='Transport policy JSON path.')
     parser.add_argument('--output-dir', required=True, help='Output directory for bindings, manifest, package dir, and binary package.')
     parser.add_argument('--package-name', default='package.phrb', help='Binary package filename relative to output-dir.')
@@ -161,11 +240,52 @@ def main():
     input_paths = [Path(path) for path in (args.input or [])]
     bindings_input_paths = [Path(path) for path in (args.bindings_input or [])]
     surface_package_input_paths = [Path(path) for path in (args.surface_package_input or [])]
+    surface_transport_policy_paths = [Path(path) for path in (args.surface_transport_policy or [])]
     review_input_paths = [Path(path) for path in (args.review_input or [])]
+    duplicate_review_paths = [Path(path) for path in (args.duplicate_review or [])]
+    alias_group_review_paths = [Path(path) for path in (args.alias_group_review or [])]
+    review_profile_paths = [Path(path) for path in (args.review_profile or [])]
     review_pool_keys = args.review_pool_key or []
     review_pool_group_keys = args.review_pool_group_key or []
     bridge_keys = args.bridge_key or []
     cache_path = Path(args.cache) if args.cache else None
+    loaded_review_profiles = [load_review_profile(path) for path in review_profile_paths]
+    surface_transport_policy_paths = [
+        Path(path)
+        for path in merge_unique_strings(
+            [str(path) for path in surface_transport_policy_paths],
+            *[profile['surface_transport_policy_paths'] for profile in loaded_review_profiles],
+        )
+    ]
+    review_input_paths = [
+        Path(path)
+        for path in merge_unique_strings(
+            [str(path) for path in review_input_paths],
+            *[profile['review_input_paths'] for profile in loaded_review_profiles],
+        )
+    ]
+    duplicate_review_paths = [
+        Path(path)
+        for path in merge_unique_strings(
+            [str(path) for path in duplicate_review_paths],
+            *[profile['duplicate_review_paths'] for profile in loaded_review_profiles],
+        )
+    ]
+    alias_group_review_paths = [
+        Path(path)
+        for path in merge_unique_strings(
+            [str(path) for path in alias_group_review_paths],
+            *[profile['alias_group_review_paths'] for profile in loaded_review_profiles],
+        )
+    ]
+    review_pool_keys = merge_unique_strings(
+        review_pool_keys,
+        *[profile['review_pool_keys'] for profile in loaded_review_profiles],
+    )
+    review_pool_group_keys = merge_unique_strings(
+        review_pool_group_keys,
+        *[profile['review_pool_group_keys'] for profile in loaded_review_profiles],
+    )
     if (review_pool_keys or review_pool_group_keys) and not review_input_paths:
         raise SystemExit('--review-pool-key/--review-pool-group-key requires at least one --review-input')
     if bridge_keys and cache_path is None:
@@ -183,8 +303,15 @@ def main():
         binding_payloads.append((input_path, build_proxy_bindings(input_path, policy_data)))
     for bindings_input_path in bindings_input_paths:
         binding_payloads.append((bindings_input_path, load_binding_payload(bindings_input_path)))
+    reviewed_surface_package_paths = []
     for surface_package_input_path in surface_package_input_paths:
-        binding_payloads.append((surface_package_input_path, compile_surface_package(surface_package_input_path)))
+        compiled_surface_package_path = materialize_reviewed_surface_package(
+            surface_package_input_path,
+            surface_transport_policy_paths,
+            output_dir,
+        )
+        reviewed_surface_package_paths.append(str(compiled_surface_package_path))
+        binding_payloads.append((compiled_surface_package_path, compile_surface_package(compiled_surface_package_path)))
     resolved_review_pool_keys = resolve_review_pool_keys(policy_data, review_pool_keys, review_pool_group_keys)
     if review_input_paths and resolved_review_pool_keys:
         binding_payloads.append((Path('review-pools'), build_review_pool_bindings(review_input_paths, policy_data, resolved_review_pool_keys)))
@@ -205,6 +332,14 @@ def main():
     bindings_path.write_text(json.dumps(bindings, indent=2) + '\n')
 
     loader_manifest = build_loader_manifest(bindings, bindings_path)
+    duplicate_review_changes = []
+    alias_group_review_changes = []
+    if duplicate_review_paths:
+        duplicate_review_docs = [json.loads(path.read_text()) for path in duplicate_review_paths]
+        loader_manifest, duplicate_review_changes = dedupe_loader_manifest(loader_manifest, duplicate_review_docs)
+    if alias_group_review_paths:
+        alias_group_review_docs = [json.loads(path.read_text()) for path in alias_group_review_paths]
+        loader_manifest, alias_group_review_changes = apply_alias_group_reviews(loader_manifest, alias_group_review_docs)
     loader_manifest_path = output_dir / 'loader-manifest.json'
     loader_manifest_path.write_text(json.dumps(loader_manifest, indent=2) + '\n')
 
@@ -217,7 +352,12 @@ def main():
         'input_paths': [str(path) for path in input_paths],
         'bindings_input_paths': [str(path) for path in bindings_input_paths],
         'surface_package_input_paths': [str(path) for path in surface_package_input_paths],
+        'surface_transport_policy_paths': [str(path) for path in surface_transport_policy_paths],
+        'reviewed_surface_package_paths': reviewed_surface_package_paths,
         'review_input_paths': [str(path) for path in review_input_paths],
+        'review_profile_paths': [str(path) for path in review_profile_paths],
+        'duplicate_review_paths': [str(path) for path in duplicate_review_paths],
+        'alias_group_review_paths': [str(path) for path in alias_group_review_paths],
         'review_pool_keys': review_pool_keys,
         'review_pool_group_keys': review_pool_group_keys,
         'resolved_review_pool_keys': resolved_review_pool_keys,
@@ -229,6 +369,10 @@ def main():
         'package_dir': str(package_dir),
         'binding_count': bindings.get('binding_count', 0),
         'unresolved_count': len(unresolved),
+        'duplicate_review_change_count': len(duplicate_review_changes),
+        'duplicate_review_changes': duplicate_review_changes,
+        'alias_group_review_change_count': len(alias_group_review_changes),
+        'alias_group_review_changes': alias_group_review_changes,
         'package_manifest_record_count': package_manifest.get('record_count', 0),
         'binary_package': binary_result,
     }

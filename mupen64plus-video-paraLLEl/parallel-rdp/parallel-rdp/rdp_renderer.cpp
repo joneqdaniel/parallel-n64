@@ -956,12 +956,22 @@ void Renderer::set_replacement_provider(const ReplacementProvider *provider)
 	memset(tlut_tmem_shadow, 0, sizeof(tlut_tmem_shadow));
 	hires_lookup_filtered = 0;
 	hires_lookup_block_shape_probe_hits = 0;
+	hires_descriptor_sampled_resolutions = 0;
+	hires_descriptor_native_checksum_resolutions = 0;
+	hires_descriptor_native_checksum_exact_resolutions = 0;
+	hires_descriptor_native_checksum_identity_assisted_resolutions = 0;
+	hires_descriptor_native_checksum_generic_fallback_resolutions = 0;
+	hires_descriptor_generic_resolutions = 0;
+	hires_descriptor_generic_identity_assisted_resolutions = 0;
+	hires_descriptor_generic_plain_resolutions = 0;
+	hires_descriptor_compat_resolutions = 0;
 	hires_block_shape_probe_logged_hits.clear();
 	hires_block_shape_probe_logged_contexts.clear();
 	hires_ci_palette_probe_logged_hits.clear();
 	hires_ci_palette_probe_logged_contexts.clear();
 	hires_sampled_object_probe_logged_contexts.clear();
 	hires_ordered_surface_sequence_cursor.clear();
+	hires_sampled_pool_stream_states.clear();
 
 	if (caps.hires_replacement_shader)
 	{
@@ -1030,6 +1040,7 @@ void Renderer::set_hires_debug_sampled_object_exact_lookup(bool enable)
 void Renderer::begin_frame_context()
 {
 	hires_ordered_surface_sequence_cursor.clear();
+	hires_sampled_pool_stream_states.clear();
 }
 
 void Renderer::set_hires_ci_compatibility_mode(HiresCICompatibilityMode mode)
@@ -1065,7 +1076,7 @@ void Renderer::log_hires_summary() const
 	if (replacement_provider)
 	{
 		ReplacementProviderStats provider_stats = replacement_provider->get_stats();
-		LOGI("Hi-res keying summary: lookups=%llu hits=%llu misses=%llu filtered=%llu block_probe_hits=%llu provider=on entries=%u native_sampled=%u compat=%u sampled_index=%u sampled_families=%u compat_low32_families=%u sources(phrb=%u hts=%u htc=%u).\n",
+		LOGI("Hi-res keying summary: lookups=%llu hits=%llu misses=%llu filtered=%llu block_probe_hits=%llu provider=on entries=%u native_sampled=%u compat=%u sampled_index=%u sampled_dupe_keys=%u sampled_dupe_entries=%u sampled_families=%u compat_low32_families=%u sources(phrb=%u hts=%u htc=%u) descriptor_paths(sampled=%llu native_checksum=%llu generic=%llu compat=%llu) generic_detail(identity_assisted=%llu plain=%llu).\n",
 		     static_cast<unsigned long long>(hires_lookup_total),
 		     static_cast<unsigned long long>(hires_lookup_hits),
 		     static_cast<unsigned long long>(hires_lookup_misses),
@@ -1075,11 +1086,46 @@ void Renderer::log_hires_summary() const
 		     provider_stats.native_sampled_entry_count,
 		     provider_stats.compat_entry_count,
 		     provider_stats.sampled_index_count,
+		     provider_stats.sampled_duplicate_key_count,
+		     provider_stats.sampled_duplicate_entry_count,
 		     provider_stats.sampled_family_count,
 		     provider_stats.compat_low32_family_count,
 		     provider_stats.source_phrb_entry_count,
 		     provider_stats.source_hts_entry_count,
-		     provider_stats.source_htc_entry_count);
+		     provider_stats.source_htc_entry_count,
+		     static_cast<unsigned long long>(hires_descriptor_sampled_resolutions),
+		     static_cast<unsigned long long>(hires_descriptor_native_checksum_resolutions),
+		     static_cast<unsigned long long>(hires_descriptor_generic_resolutions),
+		     static_cast<unsigned long long>(hires_descriptor_compat_resolutions),
+		     static_cast<unsigned long long>(hires_descriptor_generic_identity_assisted_resolutions),
+		     static_cast<unsigned long long>(hires_descriptor_generic_plain_resolutions));
+		LOGI("Hi-res native checksum detail: exact=%llu identity_assisted=%llu generic_fallback=%llu.\n",
+		     static_cast<unsigned long long>(hires_descriptor_native_checksum_exact_resolutions),
+		     static_cast<unsigned long long>(hires_descriptor_native_checksum_identity_assisted_resolutions),
+		     static_cast<unsigned long long>(hires_descriptor_native_checksum_generic_fallback_resolutions));
+		for (const auto &diag : replacement_provider->get_sampled_duplicate_diagnostics(10))
+		{
+			LOGI("Hi-res sampled duplicate: sampled_fmt=%u sampled_siz=%u tex_offset=%u stride=%u wh=%ux%u sampled_low32=%08x palette_crc=%08x fs=%u selector=%016llx total_entries=%u duplicate_entries=%u active_checksum=%016llx repl=%ux%u policy=%s replacement_id=%s sampled_object=%s source=%s.\n",
+			     diag.sampled_fmt,
+			     diag.sampled_siz,
+			     diag.sampled_tex_offset,
+			     diag.sampled_stride,
+			     diag.sampled_width,
+			     diag.sampled_height,
+			     diag.sampled_low32,
+			     diag.sampled_palette_crc,
+			     diag.formatsize,
+			     static_cast<unsigned long long>(diag.selector_checksum64),
+			     diag.total_entry_count,
+			     diag.duplicate_entry_count,
+			     static_cast<unsigned long long>(diag.active_checksum64),
+			     diag.active_repl_w,
+			     diag.active_repl_h,
+			     diag.active_policy_key.empty() ? "<none>" : diag.active_policy_key.c_str(),
+			     diag.active_replacement_id.empty() ? "<none>" : diag.active_replacement_id.c_str(),
+			     diag.active_sampled_object_id.empty() ? "<none>" : diag.active_sampled_object_id.c_str(),
+			     diag.active_source_path.empty() ? "<none>" : diag.active_source_path.c_str());
+		}
 	}
 	else
 	{
@@ -1907,8 +1953,21 @@ void Renderer::draw_shaded_primitive(const TriangleSetup &setup, const Attribute
 	{
 		ReplacementMeta sampled_meta = {};
 		uint64_t sampled_checksum64 = 0;
+		uint64_t sampled_resolved_selector_checksum64 = 0;
 		const char *sampled_reason = nullptr;
-		const uint64_t sampled_selector_checksum64 = texel0_state.checksum64;
+		const uint64_t sampled_selector_checksum64 = texel0_state.selector_checksum64;
+		uint64_t sampled_observed_selector_checksum64 = sampled_selector_checksum64;
+		const char *sampled_observed_selector_source = "texel0";
+		if (texel1_state.selector_checksum64 != 0 && texel1_state.selector_checksum64 != sampled_selector_checksum64)
+		{
+			sampled_observed_selector_checksum64 = texel1_state.selector_checksum64;
+			sampled_observed_selector_source = uses_texel1 ? "texel1" : "texel1-peer";
+		}
+		else if (uses_texel1 && texel1_state.selector_checksum64 != 0)
+		{
+			sampled_observed_selector_checksum64 = texel1_state.selector_checksum64;
+			sampled_observed_selector_source = "texel1";
+		}
 		bool ordered_surface_slot_reserved = false;
 		uint64_t ordered_surface_selector_checksum64 = 0;
 		struct SampledExactMissAttempt
@@ -1920,6 +1979,41 @@ void Renderer::draw_shaded_primitive(const TriangleSetup &setup, const Attribute
 			uint32_t repl_h = 0;
 		};
 		std::vector<SampledExactMissAttempt> sampled_miss_attempts;
+		auto update_sampled_pool_stream_state = [&](uint32_t palette_crc) -> HiresSampledPoolStreamState & {
+			const uint64_t sampled_family_checksum64 = detail::compose_hires_checksum64(sampled_identity.texture_crc, palette_crc);
+			auto &state = hires_sampled_pool_stream_states[
+				make_hires_ordered_surface_cursor_key(sampled_family_checksum64, sampled_identity.formatsize)];
+			state.observed_count++;
+			if (std::find(state.unique_observed_selectors.begin(), state.unique_observed_selectors.end(), sampled_observed_selector_checksum64) ==
+			    state.unique_observed_selectors.end())
+			{
+				state.unique_observed_selectors.push_back(sampled_observed_selector_checksum64);
+			}
+
+			if (state.observed_count == 1)
+			{
+				state.last_observed_selector_checksum64 = sampled_observed_selector_checksum64;
+				state.current_run_length = 1;
+				state.max_run_length = 1;
+				return state;
+			}
+
+			if (state.last_observed_selector_checksum64 == sampled_observed_selector_checksum64)
+			{
+				state.repeat_count++;
+				state.current_run_length++;
+			}
+			else
+			{
+				state.transition_count++;
+				state.last_observed_selector_checksum64 = sampled_observed_selector_checksum64;
+				state.current_run_length = 1;
+			}
+
+			if (state.current_run_length > state.max_run_length)
+				state.max_run_length = state.current_run_length;
+			return state;
+		};
 
 		auto reserve_ordered_surface_selector = [&](uint64_t checksum64, uint16_t formatsize) -> bool {
 			if (ordered_surface_slot_reserved)
@@ -1940,7 +2034,10 @@ void Renderer::draw_shaded_primitive(const TriangleSetup &setup, const Attribute
 			return true;
 		};
 
-		auto try_sampled_exact = [&](uint32_t palette_crc, const char *reason_exact, const char *reason_ordered_surface) {
+		auto try_sampled_exact = [&](uint32_t palette_crc,
+		                            const char *reason_exact,
+		                            const char *reason_family_unique,
+		                            const char *reason_ordered_surface) {
 			const uint64_t checksum64 = detail::compose_hires_checksum64(sampled_identity.texture_crc, palette_crc);
 			ReplacementMeta candidate_meta = {};
 			uint64_t resolved_checksum64 = checksum64;
@@ -1959,6 +2056,23 @@ void Renderer::draw_shaded_primitive(const TriangleSetup &setup, const Attribute
 				resolved_selector_checksum64,
 				&candidate_meta,
 				&resolved_checksum64);
+			if (!lookup_hit)
+			{
+				resolved_reason = reason_family_unique;
+				lookup_hit = replacement_provider->lookup_sampled_family_unique(
+					uint32_t(base_meta.fmt),
+					uint32_t(base_meta.size),
+					base_meta.offset,
+					sampled_identity.row_stride_bytes,
+					sampled_identity.width_pixels,
+					sampled_identity.height_pixels,
+					sampled_identity.texture_crc,
+					palette_crc,
+					sampled_identity.formatsize,
+					&candidate_meta,
+					&resolved_checksum64,
+					&resolved_selector_checksum64);
+			}
 			if (!lookup_hit && reserve_ordered_surface_selector(checksum64, sampled_identity.formatsize))
 			{
 				resolved_selector_checksum64 = ordered_surface_selector_checksum64;
@@ -2013,14 +2127,15 @@ void Renderer::draw_shaded_primitive(const TriangleSetup &setup, const Attribute
 			}
 			sampled_meta = candidate_meta;
 			sampled_checksum64 = resolved_checksum64;
+			sampled_resolved_selector_checksum64 = resolved_selector_checksum64;
 			sampled_reason = resolved_reason;
 			return true;
 		};
 
 		const bool sampled_hit =
-			try_sampled_exact(sampled_identity.sparse_crc, "sampled-sparse-exact", "sampled-sparse-ordered-surface") ||
+			try_sampled_exact(sampled_identity.sparse_crc, "sampled-sparse-exact", "sampled-sparse-family-unique", "sampled-sparse-ordered-surface") ||
 			(sampled_identity.entry_crc != sampled_identity.sparse_crc &&
-			 try_sampled_exact(sampled_identity.entry_crc, "sampled-entry-exact", "sampled-entry-ordered-surface"));
+			 try_sampled_exact(sampled_identity.entry_crc, "sampled-entry-exact", "sampled-entry-family-unique", "sampled-entry-ordered-surface"));
 		if (!sampled_hit && hires_debug_sampled_object_probe)
 		{
 			for (const auto &attempt : sampled_miss_attempts)
@@ -2066,7 +2181,33 @@ void Renderer::draw_shaded_primitive(const TriangleSetup &setup, const Attribute
 				}
 				if (sampled_family_available)
 				{
-					LOGI("Hi-res sampled-object family: available=1 draw_class=%s cycle=%s tile=%u sampled_low32=%08x palette_crc=%08x fs=%u selector=%016llx prefer_exact_fs=%u exact_entries=%u generic_entries=%u active_entries=%u unique_checksums=%u unique_selectors=%u zero_selectors=%u matching_selectors=%u ordered_selectors=%u repl_dims=%u uniform_repl_dims=%u sample_repl=%ux%u active_is_pool=%u sample_policy=%s sampled_object=%s.\n",
+					if (sampled_family_diag.active_is_pool)
+					{
+						auto &pool_stream_state = update_sampled_pool_stream_state(attempt.palette_crc);
+						LOGI("Hi-res sampled pool stream: draw_class=%s cycle=%s tile=%u sampled_low32=%08x palette_crc=%08x fs=%u selector=%016llx observed_selector=%016llx observed_selector_source=%s observed_count=%u unique_observed_selectors=%u transition_count=%u repeat_count=%u current_run=%u max_run=%u active_entries=%u runtime_unique_selectors=%u ordered_selectors=%u sample_policy=%s sample_replacement_id=%s sampled_object=%s.\n",
+						     get_hires_draw_class(draw_class),
+						     get_hires_cycle_class(raster_flags),
+						     base_tile,
+						     sampled_identity.texture_crc,
+						     attempt.palette_crc,
+						     sampled_identity.formatsize,
+						     static_cast<unsigned long long>(attempt.selector_checksum64),
+						     static_cast<unsigned long long>(sampled_observed_selector_checksum64),
+						     sampled_observed_selector_source,
+						     pool_stream_state.observed_count,
+						     uint32_t(pool_stream_state.unique_observed_selectors.size()),
+						     pool_stream_state.transition_count,
+						     pool_stream_state.repeat_count,
+						     pool_stream_state.current_run_length,
+						     pool_stream_state.max_run_length,
+						     sampled_family_diag.active_entry_count,
+						     sampled_family_diag.active_unique_selector_count,
+						     sampled_family_diag.active_ordered_surface_selector_count,
+						     sampled_family_diag.sample_policy_key.empty() ? "<none>" : sampled_family_diag.sample_policy_key.c_str(),
+						     sampled_family_diag.sample_replacement_id.empty() ? "<none>" : sampled_family_diag.sample_replacement_id.c_str(),
+						     sampled_family_diag.sample_sampled_object_id.empty() ? "<none>" : sampled_family_diag.sample_sampled_object_id.c_str());
+					}
+					LOGI("Hi-res sampled-object family: available=1 draw_class=%s cycle=%s tile=%u sampled_low32=%08x palette_crc=%08x fs=%u selector=%016llx prefer_exact_fs=%u exact_entries=%u generic_entries=%u active_entries=%u unique_checksums=%u unique_selectors=%u zero_selectors=%u matching_selectors=%u ordered_selectors=%u repl_dims=%u uniform_repl_dims=%u sample_repl=%ux%u active_is_pool=%u sample_policy=%s sample_replacement_id=%s sampled_object=%s.\n",
 					     get_hires_draw_class(draw_class),
 					     get_hires_cycle_class(raster_flags),
 					     base_tile,
@@ -2089,6 +2230,7 @@ void Renderer::draw_shaded_primitive(const TriangleSetup &setup, const Attribute
 					     sampled_family_diag.sample_repl_h,
 					     sampled_family_diag.active_is_pool ? 1u : 0u,
 					     sampled_family_diag.sample_policy_key.empty() ? "<none>" : sampled_family_diag.sample_policy_key.c_str(),
+					     sampled_family_diag.sample_replacement_id.empty() ? "<none>" : sampled_family_diag.sample_replacement_id.c_str(),
 					     sampled_family_diag.sample_sampled_object_id.empty() ? "<none>" : sampled_family_diag.sample_sampled_object_id.c_str());
 				}
 				else
@@ -2111,6 +2253,8 @@ void Renderer::draw_shaded_primitive(const TriangleSetup &setup, const Attribute
 				sampled_state,
 				true,
 				sampled_checksum64,
+				texel0_state.upload_checksum64 != 0 ? texel0_state.upload_checksum64 : texel0_state.checksum64,
+				sampled_resolved_selector_checksum64,
 				sampled_identity.formatsize,
 				sampled_identity.width_pixels,
 				sampled_identity.height_pixels);
@@ -2140,10 +2284,10 @@ void Renderer::draw_shaded_primitive(const TriangleSetup &setup, const Attribute
 	if (hires_debug_sampled_object_probe && sampled_identity.valid)
 	{
 		char probe_key[256] = {};
-		std::snprintf(probe_key, sizeof(probe_key),
-		              "draw=%s cycle=%s tile=%u fmt=%u siz=%u pal=%u off=%u stride=%u sl=%u tl=%u sh=%u th=%u upload=%08x:%08x sampled=%08x:%08x:%08x",
-		              get_hires_draw_class(draw_class),
-		              get_hires_cycle_class(raster_flags),
+			std::snprintf(probe_key, sizeof(probe_key),
+			              "draw=%s cycle=%s tile=%u fmt=%u siz=%u pal=%u off=%u stride=%u sl=%u tl=%u sh=%u th=%u upload=%08x:%08x sampled=%08x:%08x:%08x",
+			              get_hires_draw_class(draw_class),
+			              get_hires_cycle_class(raster_flags),
 		              base_tile,
 		              unsigned(base_meta.fmt),
 		              unsigned(base_meta.size),
@@ -2152,13 +2296,13 @@ void Renderer::draw_shaded_primitive(const TriangleSetup &setup, const Attribute
 		              unsigned(base_meta.stride),
 		              unsigned(base_size.slo),
 		              unsigned(base_size.tlo),
-		              unsigned(base_size.shi),
-		              unsigned(base_size.thi),
-		              uint32_t(texel0_state.checksum64 & 0xffffffffu),
-		              uint32_t((texel0_state.checksum64 >> 32) & 0xffffffffu),
-		              sampled_identity.texture_crc,
-		              sampled_identity.entry_crc,
-		              sampled_identity.sparse_crc);
+			              unsigned(base_size.shi),
+			              unsigned(base_size.thi),
+			              uint32_t(texel0_state.upload_checksum64 & 0xffffffffu),
+			              uint32_t((texel0_state.upload_checksum64 >> 32) & 0xffffffffu),
+			              sampled_identity.texture_crc,
+			              sampled_identity.entry_crc,
+			              sampled_identity.sparse_crc);
 		if (hires_sampled_object_probe_logged_contexts.insert(probe_key).second)
 		{
 			ReplacementMeta sampled_entry_meta = {};
@@ -2184,7 +2328,7 @@ void Renderer::draw_shaded_primitive(const TriangleSetup &setup, const Attribute
 				sampled_identity.texture_crc,
 				sampled_identity.sparse_crc,
 				sampled_identity.formatsize,
-				texel0_state.checksum64,
+				texel0_state.selector_checksum64,
 				&sampled_family) && sampled_family.available;
 			LOGI("Hi-res sampled-object probe: draw_class=%s cycle=%s tile=%u fmt=%u siz=%u pal=%u off=%u stride=%u wh=%ux%u upload_low32=%08x upload_pcrc=%08x sampled_low32=%08x sampled_entry_pcrc=%08x sampled_sparse_pcrc=%08x sampled_entry_count=%u sampled_used_count=%u fs=%u entry_hit=%u sparse_hit=%u family=%u unique_repl_dims=%u sample_repl=%ux%u.\n",
 			     get_hires_draw_class(draw_class),
@@ -2197,8 +2341,8 @@ void Renderer::draw_shaded_primitive(const TriangleSetup &setup, const Attribute
 			     unsigned(base_meta.stride),
 			     sampled_identity.width_pixels,
 			     sampled_identity.height_pixels,
-			     uint32_t(texel0_state.checksum64 & 0xffffffffu),
-			     uint32_t((texel0_state.checksum64 >> 32) & 0xffffffffu),
+			     uint32_t(texel0_state.upload_checksum64 & 0xffffffffu),
+			     uint32_t((texel0_state.upload_checksum64 >> 32) & 0xffffffffu),
 			     sampled_identity.texture_crc,
 			     sampled_identity.entry_crc,
 			     sampled_identity.sparse_crc,
@@ -3679,9 +3823,9 @@ bool Renderer::init_hires_resources(unsigned requested_capacity)
 	return true;
 }
 
-bool Renderer::resolve_hires_replacement_descriptor(uint64_t checksum64, uint16_t formatsize, ReplacementMeta &meta)
+bool Renderer::resolve_hires_replacement_descriptor(uint64_t checksum64, uint16_t formatsize, ReplacementMeta &meta, const char **resolved_path_class)
 {
-	return resolve_hires_replacement_descriptor(checksum64, formatsize, 0, meta);
+	return resolve_hires_replacement_descriptor(checksum64, formatsize, 0, meta, resolved_path_class);
 }
 
 bool Renderer::resolve_hires_compat_replacement_descriptor(uint64_t checksum64, uint16_t formatsize, ReplacementMeta &meta)
@@ -3712,9 +3856,18 @@ bool Renderer::resolve_hires_sampled_replacement_descriptor(uint32_t sampled_fmt
 	key.formatsize = formatsize;
 	key.selector_checksum64 = selector_checksum64;
 	key.source = HiresKeySource::NativeSampled;
+	key.sampled_fmt = sampled_fmt;
+	key.sampled_siz = sampled_siz;
+	key.sampled_tex_offset = sampled_tex_offset;
+	key.sampled_stride = sampled_stride;
+	key.sampled_width = sampled_width;
+	key.sampled_height = sampled_height;
+	key.sampled_low32 = sampled_low32;
+	key.sampled_palette_crc = palette_crc;
 	auto itr = hires_resources.resident_images.find(key);
 	if (itr != hires_resources.resident_images.end())
 	{
+		hires_descriptor_sampled_resolutions++;
 		meta.vk_image_index = itr->second.descriptor_index;
 		meta.repl_w = itr->second.repl_w;
 		meta.repl_h = itr->second.repl_h;
@@ -3768,27 +3921,45 @@ bool Renderer::resolve_hires_sampled_replacement_descriptor(uint32_t sampled_fmt
 	resident.repl_h = static_cast<uint16_t>(replacement.meta.repl_h);
 	hires_resources.resident_images.emplace(key, std::move(resident));
 
+	hires_descriptor_sampled_resolutions++;
 	meta.vk_image_index = descriptor_index;
 	meta.repl_w = replacement.meta.repl_w;
 	meta.repl_h = replacement.meta.repl_h;
 	return true;
 }
 
-bool Renderer::resolve_hires_replacement_descriptor(uint64_t checksum64, uint16_t formatsize, uint64_t selector_checksum64, ReplacementMeta &meta)
+bool Renderer::resolve_hires_native_checksum_replacement_descriptor(uint64_t checksum64, uint16_t formatsize, uint64_t selector_checksum64, ReplacementMeta &meta, HiresNativeChecksumDetailClass detail_class)
 {
 	meta.vk_image_index = detail::hires_invalid_descriptor_index();
 
 	if (!replacement_provider || !caps.hires_replacement_shader)
 		return false;
 
+	auto record_native_checksum_detail = [&]() {
+		hires_descriptor_native_checksum_resolutions++;
+		switch (detail_class)
+		{
+		case HiresNativeChecksumDetailClass::Exact:
+			hires_descriptor_native_checksum_exact_resolutions++;
+			break;
+		case HiresNativeChecksumDetailClass::IdentityAssisted:
+			hires_descriptor_native_checksum_identity_assisted_resolutions++;
+			break;
+		case HiresNativeChecksumDetailClass::GenericFallback:
+			hires_descriptor_native_checksum_generic_fallback_resolutions++;
+			break;
+		}
+	};
+
 	HiresKey key = {};
 	key.checksum64 = checksum64;
 	key.formatsize = formatsize;
 	key.selector_checksum64 = selector_checksum64;
-	key.source = HiresKeySource::Generic;
+	key.source = HiresKeySource::NativeChecksum;
 	auto itr = hires_resources.resident_images.find(key);
 	if (itr != hires_resources.resident_images.end())
 	{
+		record_native_checksum_detail();
 		meta.vk_image_index = itr->second.descriptor_index;
 		meta.repl_w = itr->second.repl_w;
 		meta.repl_h = itr->second.repl_h;
@@ -3799,7 +3970,7 @@ bool Renderer::resolve_hires_replacement_descriptor(uint64_t checksum64, uint16_
 		return false;
 
 	ReplacementImage replacement = {};
-	if (!replacement_provider->decode_rgba8_with_selector(checksum64, formatsize, selector_checksum64, &replacement))
+	if (!replacement_provider->decode_rgba8_native_with_selector(checksum64, formatsize, selector_checksum64, &replacement))
 		return false;
 	if (replacement.rgba8.empty() || replacement.meta.repl_w == 0 || replacement.meta.repl_h == 0)
 		return false;
@@ -3831,9 +4002,202 @@ bool Renderer::resolve_hires_replacement_descriptor(uint64_t checksum64, uint16_
 	resident.repl_h = static_cast<uint16_t>(replacement.meta.repl_h);
 	hires_resources.resident_images.emplace(key, std::move(resident));
 
+	record_native_checksum_detail();
 	meta.vk_image_index = descriptor_index;
 	meta.repl_w = replacement.meta.repl_w;
 	meta.repl_h = replacement.meta.repl_h;
+	return true;
+}
+
+bool Renderer::resolve_hires_replacement_descriptor(uint64_t checksum64, uint16_t formatsize, uint64_t selector_checksum64, ReplacementMeta &meta, const char **resolved_path_class)
+{
+	meta.vk_image_index = detail::hires_invalid_descriptor_index();
+	if (resolved_path_class)
+		*resolved_path_class = nullptr;
+
+	if (!replacement_provider || !caps.hires_replacement_shader)
+		return false;
+
+	const uint32_t orig_w = meta.orig_w;
+	const uint32_t orig_h = meta.orig_h;
+	NativeSampledIdentity native_identity = {};
+	ReplacementMeta native_meta = {};
+	uint64_t resolved_checksum64 = checksum64;
+	uint64_t resolved_selector_checksum64 = selector_checksum64;
+	bool generic_lookup_hit = false;
+	bool generic_resolution_identity_assisted = false;
+	if (replacement_provider->lookup_with_selector_and_identity(
+		    checksum64,
+		    formatsize,
+		    selector_checksum64,
+		    &native_meta,
+		    &native_identity,
+		    &resolved_checksum64,
+		    &resolved_selector_checksum64))
+	{
+		generic_lookup_hit = true;
+		generic_resolution_identity_assisted = native_identity.valid;
+		if (native_identity.valid)
+		{
+			native_meta.orig_w = orig_w;
+			native_meta.orig_h = orig_h;
+			if (resolve_hires_sampled_replacement_descriptor(
+				    native_identity.sampled_fmt,
+				    native_identity.sampled_siz,
+				    native_identity.sampled_tex_offset,
+				    native_identity.sampled_stride,
+				    native_identity.sampled_width,
+				    native_identity.sampled_height,
+				    native_identity.sampled_low32,
+				    native_identity.sampled_palette_crc,
+				    native_identity.formatsize,
+				    resolved_checksum64,
+				    native_identity.selector_checksum64,
+				    native_meta))
+			{
+				meta = native_meta;
+				if (resolved_path_class)
+					*resolved_path_class = "sampled";
+				return true;
+			}
+			if (resolve_hires_native_checksum_replacement_descriptor(
+			    resolved_checksum64,
+				    formatsize,
+				    native_identity.selector_checksum64,
+				    native_meta,
+				    HiresNativeChecksumDetailClass::IdentityAssisted))
+			{
+				native_meta.orig_w = orig_w;
+				native_meta.orig_h = orig_h;
+				meta = native_meta;
+				if (resolved_path_class)
+					*resolved_path_class = "native_checksum";
+				return true;
+			}
+		}
+	}
+	if (generic_lookup_hit && !native_identity.valid)
+	{
+		ReplacementMeta native_checksum_meta = {};
+		NativeSampledIdentity native_checksum_identity = {};
+		uint64_t native_checksum64 = resolved_checksum64;
+		if (replacement_provider->lookup_native_with_selector(
+			    resolved_checksum64,
+			    formatsize,
+			    resolved_selector_checksum64,
+			    &native_checksum_meta,
+			    &native_checksum_identity,
+			    &native_checksum64))
+		{
+			const uint64_t native_selector_checksum64 =
+				native_checksum_identity.selector_checksum64 != 0 ? native_checksum_identity.selector_checksum64 : resolved_selector_checksum64;
+			if (resolve_hires_native_checksum_replacement_descriptor(
+				    native_checksum64,
+				    formatsize,
+				    native_selector_checksum64,
+				    native_checksum_meta,
+				    HiresNativeChecksumDetailClass::GenericFallback))
+			{
+				native_checksum_meta.orig_w = orig_w;
+				native_checksum_meta.orig_h = orig_h;
+				meta = native_checksum_meta;
+				if (resolved_path_class)
+					*resolved_path_class = "native_checksum";
+				return true;
+			}
+		}
+
+		ReplacementMeta compat_meta = native_meta;
+		compat_meta.orig_w = orig_w;
+		compat_meta.orig_h = orig_h;
+		if (resolve_hires_compat_replacement_descriptor(
+			    resolved_checksum64,
+			    formatsize,
+			    resolved_selector_checksum64,
+			    compat_meta))
+		{
+			compat_meta.orig_w = orig_w;
+			compat_meta.orig_h = orig_h;
+			meta = compat_meta;
+			if (resolved_path_class)
+				*resolved_path_class = "compat";
+			return true;
+		}
+	}
+
+	HiresKey key = {};
+	key.checksum64 = resolved_checksum64;
+	key.formatsize = formatsize;
+	key.selector_checksum64 = resolved_selector_checksum64;
+	key.source = HiresKeySource::Generic;
+	auto itr = hires_resources.resident_images.find(key);
+	if (itr != hires_resources.resident_images.end())
+	{
+		hires_descriptor_generic_resolutions++;
+		if (generic_resolution_identity_assisted)
+			hires_descriptor_generic_identity_assisted_resolutions++;
+		else
+			hires_descriptor_generic_plain_resolutions++;
+		meta.vk_image_index = itr->second.descriptor_index;
+		meta.repl_w = itr->second.repl_w;
+		meta.repl_h = itr->second.repl_h;
+		if (resolved_path_class)
+			*resolved_path_class = "generic";
+		return true;
+	}
+
+	if (!hires_resources.bindless_pool || hires_resources.next_descriptor >= hires_resources.capacity)
+		return false;
+
+	ReplacementImage replacement = {};
+	if (!replacement_provider->decode_rgba8_with_selector(
+		    resolved_checksum64,
+		    formatsize,
+		    resolved_selector_checksum64,
+		    &replacement))
+		return false;
+	if (replacement.rgba8.empty() || replacement.meta.repl_w == 0 || replacement.meta.repl_h == 0)
+		return false;
+
+	zero_transparent_replacement_rgb(replacement.rgba8);
+
+	Vulkan::ImageInitialData initial = {};
+	initial.data = replacement.rgba8.data();
+	initial.row_length = replacement.meta.repl_w;
+	initial.image_height = replacement.meta.repl_h;
+
+	auto image = device->create_image(
+			Vulkan::ImageCreateInfo::immutable_2d_image(
+					replacement.meta.repl_w,
+					replacement.meta.repl_h,
+					VK_FORMAT_R8G8B8A8_UNORM,
+					false),
+			&initial);
+	if (!image)
+		return false;
+
+	const uint32_t descriptor_index = hires_resources.next_descriptor++;
+	hires_resources.bindless_pool->set_texture(descriptor_index, image->get_view());
+
+	HiresResidentImage resident = {};
+	resident.image = std::move(image);
+	resident.descriptor_index = descriptor_index;
+	resident.repl_w = static_cast<uint16_t>(replacement.meta.repl_w);
+	resident.repl_h = static_cast<uint16_t>(replacement.meta.repl_h);
+	hires_resources.resident_images.emplace(key, std::move(resident));
+
+	hires_descriptor_generic_resolutions++;
+	if (generic_resolution_identity_assisted)
+		hires_descriptor_generic_identity_assisted_resolutions++;
+	else
+		hires_descriptor_generic_plain_resolutions++;
+	meta.vk_image_index = descriptor_index;
+	meta.repl_w = replacement.meta.repl_w;
+	meta.repl_h = replacement.meta.repl_h;
+	meta.orig_w = orig_w;
+	meta.orig_h = orig_h;
+	if (resolved_path_class)
+		*resolved_path_class = "generic";
 	return true;
 }
 
@@ -3852,6 +4216,7 @@ bool Renderer::resolve_hires_compat_replacement_descriptor(uint64_t checksum64, 
 	auto itr = hires_resources.resident_images.find(key);
 	if (itr != hires_resources.resident_images.end())
 	{
+		hires_descriptor_compat_resolutions++;
 		meta.vk_image_index = itr->second.descriptor_index;
 		meta.repl_w = itr->second.repl_w;
 		meta.repl_h = itr->second.repl_h;
@@ -3894,6 +4259,7 @@ bool Renderer::resolve_hires_compat_replacement_descriptor(uint64_t checksum64, 
 	resident.repl_h = static_cast<uint16_t>(replacement.meta.repl_h);
 	hires_resources.resident_images.emplace(key, std::move(resident));
 
+	hires_descriptor_compat_resolutions++;
 	meta.vk_image_index = descriptor_index;
 	meta.repl_w = replacement.meta.repl_w;
 	meta.repl_h = replacement.meta.repl_h;
@@ -4478,16 +4844,206 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 
 			const uint64_t checksum64 = detail::compose_hires_checksum64(texture_crc, palette_crc);
 			uint64_t resolved_checksum64 = checksum64;
+			uint64_t resolved_selector_checksum64 = 0;
 			const uint16_t formatsize = formatsize_key(meta.fmt, meta.size);
 			const std::string hires_signature = make_hires_debug_signature(
 					info.mode, tile, meta.fmt, meta.size, key_width_pixels, key_height_pixels, formatsize);
 			ReplacementMeta repl_meta = {};
-			bool hit = replacement_provider->lookup(checksum64, formatsize, &repl_meta);
+			const char *native_lookup_resolution_reason = nullptr;
+			const char *descriptor_path_class = nullptr;
+			bool sampled_family_ordered_surface_singleton = false;
+			bool hit = replacement_provider->lookup_sampled_family_unique(
+					uint32_t(meta.fmt),
+					uint32_t(meta.size),
+					meta.offset,
+					row_stride_bytes,
+					key_width_pixels,
+					key_height_pixels,
+					texture_crc,
+					palette_crc,
+					formatsize,
+					&repl_meta,
+					&resolved_checksum64,
+					&resolved_selector_checksum64);
+			if (!hit)
+			{
+				const uint32_t ordered_surface_selector_count =
+					replacement_provider->ordered_surface_selector_count(checksum64, formatsize);
+				if (ordered_surface_selector_count == 1)
+				{
+					const uint64_t ordered_surface_selector =
+						replacement_provider->ordered_surface_selector_checksum64(checksum64, formatsize, 0);
+					if (ordered_surface_selector != 0 &&
+					    replacement_provider->lookup_sampled_with_selector(
+						    uint32_t(meta.fmt),
+						    uint32_t(meta.size),
+						    meta.offset,
+						    row_stride_bytes,
+						    key_width_pixels,
+						    key_height_pixels,
+						    texture_crc,
+						    palette_crc,
+						    formatsize,
+						    ordered_surface_selector,
+						    &repl_meta,
+						    &resolved_checksum64))
+					{
+						resolved_selector_checksum64 = ordered_surface_selector;
+						sampled_family_ordered_surface_singleton = true;
+						hit = true;
+					}
+				}
+			}
 			if (hit)
 			{
 				repl_meta.orig_w = key_width_pixels;
 				repl_meta.orig_h = key_height_pixels;
-				if (!resolve_hires_replacement_descriptor(resolved_checksum64, formatsize, repl_meta))
+				if (!resolve_hires_sampled_replacement_descriptor(
+						    uint32_t(meta.fmt),
+						    uint32_t(meta.size),
+						    meta.offset,
+						    row_stride_bytes,
+						    key_width_pixels,
+						    key_height_pixels,
+						    texture_crc,
+						    palette_crc,
+						    formatsize,
+						    resolved_checksum64,
+						    resolved_selector_checksum64,
+						    repl_meta))
+					hit = false;
+				else
+				{
+					descriptor_path_class = "sampled";
+					native_lookup_resolution_reason =
+						sampled_family_ordered_surface_singleton
+							? "sampled-family-ordered-surface-singleton-upload"
+							: "sampled-family-unique-upload";
+				}
+			}
+			if (!hit)
+			{
+				NativeSampledIdentity native_identity = {};
+				if (replacement_provider->lookup_native_with_selector(
+						    checksum64,
+						    formatsize,
+						    0,
+						    &repl_meta,
+						    &native_identity,
+						    &resolved_checksum64) &&
+				    native_identity.valid)
+				{
+					repl_meta.orig_w = key_width_pixels;
+					repl_meta.orig_h = key_height_pixels;
+					if (resolve_hires_sampled_replacement_descriptor(
+						    native_identity.sampled_fmt,
+						    native_identity.sampled_siz,
+						    native_identity.sampled_tex_offset,
+						    native_identity.sampled_stride,
+						    native_identity.sampled_width,
+						    native_identity.sampled_height,
+						    native_identity.sampled_low32,
+						    native_identity.sampled_palette_crc,
+						    native_identity.formatsize,
+						    resolved_checksum64,
+						    native_identity.selector_checksum64,
+						    repl_meta))
+					{
+						resolved_selector_checksum64 = native_identity.selector_checksum64;
+						hit = true;
+						descriptor_path_class = "sampled";
+						native_lookup_resolution_reason = "native-checksum-exact-upload";
+					}
+					else if (resolve_hires_native_checksum_replacement_descriptor(
+						         resolved_checksum64,
+						         formatsize,
+						         native_identity.selector_checksum64,
+						         repl_meta,
+						         HiresNativeChecksumDetailClass::Exact))
+					{
+						repl_meta.orig_w = key_width_pixels;
+						repl_meta.orig_h = key_height_pixels;
+						resolved_selector_checksum64 = native_identity.selector_checksum64;
+						hit = true;
+						descriptor_path_class = "native_checksum";
+						native_lookup_resolution_reason = "native-checksum-exact-fallback-upload";
+					}
+				}
+			}
+			if (!hit)
+			{
+				NativeSampledIdentity generic_identity = {};
+				ReplacementMeta generic_meta = {};
+				uint64_t generic_resolved_checksum64 = checksum64;
+				uint64_t generic_resolved_selector_checksum64 = 0;
+				if (replacement_provider->lookup_with_selector_and_identity(
+						    checksum64,
+						    formatsize,
+						    0,
+						    &generic_meta,
+						    &generic_identity,
+						    &generic_resolved_checksum64,
+						    &generic_resolved_selector_checksum64))
+				{
+					generic_meta.orig_w = key_width_pixels;
+					generic_meta.orig_h = key_height_pixels;
+					resolved_checksum64 = generic_resolved_checksum64;
+					if (generic_identity.valid)
+					{
+						if (resolve_hires_sampled_replacement_descriptor(
+							    generic_identity.sampled_fmt,
+							    generic_identity.sampled_siz,
+							    generic_identity.sampled_tex_offset,
+							    generic_identity.sampled_stride,
+							    generic_identity.sampled_width,
+							    generic_identity.sampled_height,
+							    generic_identity.sampled_low32,
+							    generic_identity.sampled_palette_crc,
+							    generic_identity.formatsize,
+							    resolved_checksum64,
+							    generic_identity.selector_checksum64,
+							    generic_meta))
+						{
+							repl_meta = generic_meta;
+							resolved_selector_checksum64 = generic_identity.selector_checksum64;
+							hit = true;
+							descriptor_path_class = "sampled";
+							native_lookup_resolution_reason = "native-checksum-generic-upload";
+						}
+						else if (resolve_hires_native_checksum_replacement_descriptor(
+							         resolved_checksum64,
+							         formatsize,
+							         generic_identity.selector_checksum64,
+							         generic_meta,
+							         HiresNativeChecksumDetailClass::IdentityAssisted))
+						{
+							generic_meta.orig_w = key_width_pixels;
+							generic_meta.orig_h = key_height_pixels;
+							repl_meta = generic_meta;
+							resolved_selector_checksum64 = generic_identity.selector_checksum64;
+							hit = true;
+							descriptor_path_class = "native_checksum";
+							native_lookup_resolution_reason = "native-checksum-generic-fallback-upload";
+						}
+					}
+					else
+					{
+						repl_meta = generic_meta;
+						resolved_selector_checksum64 = generic_resolved_selector_checksum64;
+						hit = true;
+					}
+				}
+			}
+			if (hit && native_lookup_resolution_reason == nullptr)
+			{
+				repl_meta.orig_w = key_width_pixels;
+				repl_meta.orig_h = key_height_pixels;
+				if (!resolve_hires_replacement_descriptor(
+					    resolved_checksum64,
+					    formatsize,
+					    resolved_selector_checksum64,
+					    repl_meta,
+					    &descriptor_path_class))
 					hit = false;
 			}
 			const char *ci_lookup_resolution_reason = nullptr;
@@ -4517,6 +5073,7 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 							repl_meta = selected_meta;
 							resolved_checksum64 = selected_checksum64;
 							hit = true;
+							descriptor_path_class = "compat";
 							ci_lookup_resolution_reason = "ci-debug-selected-dims";
 							break;
 						}
@@ -4539,6 +5096,7 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 						repl_meta = compat_meta;
 						resolved_checksum64 = compat_checksum64;
 						hit = true;
+						descriptor_path_class = "compat";
 						ci_lookup_resolution_reason = "ci-compat-repl-dims-unique";
 					}
 				}
@@ -4584,6 +5142,7 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 						repl_meta = fallback_meta;
 						resolved_checksum64 = fallback_checksum64;
 						hit = true;
+						descriptor_path_class = "compat";
 					}
 				}
 			}
@@ -4600,6 +5159,8 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 					repl_state,
 					hit,
 					resolved_checksum64,
+					checksum64,
+					resolved_selector_checksum64,
 					formatsize,
 					key_width_pixels,
 					key_height_pixels);
@@ -4636,7 +5197,7 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 					     hires_signature.c_str(),
 					     static_cast<unsigned long long>(resolved_checksum64));
 				}
-					LOGI("Hi-res keying %s: mode=%s addr=0x%06x tile=%u fmt=%u siz=%u pal=%u wh=%ux%u key=%016llx pcrc=%08x fs=%u hit=%d.\n",
+					LOGI("Hi-res keying %s: mode=%s addr=0x%06x tile=%u fmt=%u siz=%u pal=%u wh=%ux%u key=%016llx pcrc=%08x fs=%u descriptor_path=%s resolution_reason=%s hit=%d.\n",
 					     hit ? "hit" : "miss",
 					     load_mode_to_string(info.mode),
 					     src_base_addr & 0x00ffffffu,
@@ -4649,6 +5210,10 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 					     static_cast<unsigned long long>(resolved_checksum64),
 					     palette_crc,
 					     unsigned(formatsize),
+					     hit ? (descriptor_path_class ? descriptor_path_class : "unknown") : "none",
+					     native_lookup_resolution_reason ? native_lookup_resolution_reason :
+						 (ci_lookup_resolution_reason ? ci_lookup_resolution_reason :
+						  (filter_reason ? filter_reason : "none")),
 					     hit ? 1 : 0);
 					LOGI("Hi-res keying provenance: outcome=%s source_class=%s provenance_class=%s mode=%s addr=0x%06x tile=%u fmt=%u siz=%u pal=%u wh=%ux%u key=%016llx pcrc=%08x fs=%u upload=%s cycle=%s copy=%u tlut=%u tlut_type=%u framebuffer=%u color_fb=%u depth_fb=%u tmem=0x%03x line=%u key_xy=%ux%u.\n",
 					     filter_reason ? "filtered" : (hit ? "hit" : "miss"),
@@ -4685,6 +5250,17 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 						     src_base_addr & 0x00ffffffu,
 						     key_width_pixels,
 						     key_height_pixels,
+						     static_cast<unsigned long long>(resolved_checksum64));
+					}
+					if (hit && native_lookup_resolution_reason)
+					{
+						LOGI("Hi-res keying native: reason=%s mode=%s addr=0x%06x wh=%ux%u selector=%016llx resolved_key=%016llx.\n",
+						     native_lookup_resolution_reason,
+						     load_mode_to_string(info.mode),
+						     src_base_addr & 0x00ffffffu,
+						     key_width_pixels,
+						     key_height_pixels,
+						     static_cast<unsigned long long>(resolved_selector_checksum64),
 						     static_cast<unsigned long long>(resolved_checksum64));
 					}
 					}

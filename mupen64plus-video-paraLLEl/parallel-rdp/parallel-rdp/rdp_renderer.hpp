@@ -230,10 +230,17 @@ private:
 	void init_buffers(const RendererOptions &options);
 	bool init_internal_upscaling_factor(const RendererOptions &options);
 	bool init_hires_resources(unsigned requested_capacity);
-	bool resolve_hires_replacement_descriptor(uint64_t checksum64, uint16_t formatsize, ReplacementMeta &meta);
-	bool resolve_hires_replacement_descriptor(uint64_t checksum64, uint16_t formatsize, uint64_t selector_checksum64, ReplacementMeta &meta);
+	enum class HiresNativeChecksumDetailClass : uint8_t
+	{
+		Exact = 0,
+		IdentityAssisted,
+		GenericFallback
+	};
+	bool resolve_hires_replacement_descriptor(uint64_t checksum64, uint16_t formatsize, ReplacementMeta &meta, const char **resolved_path_class = nullptr);
+	bool resolve_hires_replacement_descriptor(uint64_t checksum64, uint16_t formatsize, uint64_t selector_checksum64, ReplacementMeta &meta, const char **resolved_path_class = nullptr);
 	bool resolve_hires_compat_replacement_descriptor(uint64_t checksum64, uint16_t formatsize, ReplacementMeta &meta);
 	bool resolve_hires_compat_replacement_descriptor(uint64_t checksum64, uint16_t formatsize, uint64_t selector_checksum64, ReplacementMeta &meta);
+	bool resolve_hires_native_checksum_replacement_descriptor(uint64_t checksum64, uint16_t formatsize, uint64_t selector_checksum64, ReplacementMeta &meta, HiresNativeChecksumDetailClass detail_class = HiresNativeChecksumDetailClass::Exact);
 	bool resolve_hires_sampled_replacement_descriptor(uint32_t sampled_fmt,
 	                                                 uint32_t sampled_siz,
 	                                                 uint32_t sampled_tex_offset,
@@ -289,6 +296,8 @@ private:
 	struct ReplacementTileState
 	{
 		uint64_t checksum64 = 0;
+		uint64_t upload_checksum64 = 0;
+		uint64_t selector_checksum64 = 0;
 		uint16_t formatsize = 0;
 		uint16_t orig_w = 0;
 		uint16_t orig_h = 0;
@@ -307,12 +316,32 @@ private:
 	uint64_t hires_lookup_misses = 0;
 	uint64_t hires_lookup_filtered = 0;
 	uint64_t hires_lookup_block_shape_probe_hits = 0;
+	uint64_t hires_descriptor_sampled_resolutions = 0;
+	uint64_t hires_descriptor_native_checksum_resolutions = 0;
+	uint64_t hires_descriptor_native_checksum_exact_resolutions = 0;
+	uint64_t hires_descriptor_native_checksum_identity_assisted_resolutions = 0;
+	uint64_t hires_descriptor_native_checksum_generic_fallback_resolutions = 0;
+	uint64_t hires_descriptor_generic_resolutions = 0;
+	uint64_t hires_descriptor_generic_identity_assisted_resolutions = 0;
+	uint64_t hires_descriptor_generic_plain_resolutions = 0;
+	uint64_t hires_descriptor_compat_resolutions = 0;
 	std::unordered_set<std::string> hires_block_shape_probe_logged_hits;
 	std::unordered_set<std::string> hires_block_shape_probe_logged_contexts;
 	std::unordered_set<std::string> hires_ci_palette_probe_logged_hits;
 	std::unordered_set<std::string> hires_ci_palette_probe_logged_contexts;
 	std::unordered_set<std::string> hires_sampled_object_probe_logged_contexts;
+	struct HiresSampledPoolStreamState
+	{
+		std::vector<uint64_t> unique_observed_selectors;
+		uint64_t last_observed_selector_checksum64 = 0;
+		uint32_t observed_count = 0;
+		uint32_t transition_count = 0;
+		uint32_t repeat_count = 0;
+		uint32_t current_run_length = 0;
+		uint32_t max_run_length = 0;
+	};
 	std::unordered_map<uint64_t, uint32_t> hires_ordered_surface_sequence_cursor;
+	std::unordered_map<uint64_t, HiresSampledPoolStreamState> hires_sampled_pool_stream_states;
 	Vulkan::BufferHandle tmem_instances;
 	Vulkan::BufferHandle span_setups;
 	Vulkan::BufferHandle blender_divider_lut_buffer;
@@ -484,7 +513,8 @@ private:
 	{
 		Generic = 0,
 		NativeSampled = 1,
-		Compat = 2
+		Compat = 2,
+		NativeChecksum = 3
 	};
 
 	struct HiresKey
@@ -493,12 +523,28 @@ private:
 		uint16_t formatsize = 0;
 		uint64_t selector_checksum64 = 0;
 		HiresKeySource source = HiresKeySource::Generic;
+		uint32_t sampled_fmt = 0;
+		uint32_t sampled_siz = 0;
+		uint32_t sampled_tex_offset = 0;
+		uint32_t sampled_stride = 0;
+		uint32_t sampled_width = 0;
+		uint32_t sampled_height = 0;
+		uint32_t sampled_low32 = 0;
+		uint32_t sampled_palette_crc = 0;
 
 		bool operator==(const HiresKey &other) const
 		{
 			return checksum64 == other.checksum64 && formatsize == other.formatsize &&
 			       selector_checksum64 == other.selector_checksum64 &&
-			       source == other.source;
+			       source == other.source &&
+			       sampled_fmt == other.sampled_fmt &&
+			       sampled_siz == other.sampled_siz &&
+			       sampled_tex_offset == other.sampled_tex_offset &&
+			       sampled_stride == other.sampled_stride &&
+			       sampled_width == other.sampled_width &&
+			       sampled_height == other.sampled_height &&
+			       sampled_low32 == other.sampled_low32 &&
+			       sampled_palette_crc == other.sampled_palette_crc;
 		}
 	};
 
@@ -507,7 +553,15 @@ private:
 		size_t operator()(const HiresKey &key) const
 		{
 			return size_t(key.checksum64 ^ (uint64_t(key.formatsize) << 48) ^
-			              key.selector_checksum64 ^ (uint64_t(key.source) << 60));
+			              key.selector_checksum64 ^ (uint64_t(key.source) << 60) ^
+			              (uint64_t(key.sampled_fmt) << 2) ^
+			              (uint64_t(key.sampled_siz) << 6) ^
+			              (uint64_t(key.sampled_tex_offset) << 10) ^
+			              (uint64_t(key.sampled_stride) << 14) ^
+			              (uint64_t(key.sampled_width) << 18) ^
+			              (uint64_t(key.sampled_height) << 22) ^
+			              (uint64_t(key.sampled_low32) << 26) ^
+			              (uint64_t(key.sampled_palette_crc) << 30));
 		}
 	};
 

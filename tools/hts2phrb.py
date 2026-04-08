@@ -289,9 +289,11 @@ def _count_runtime_ready_records(manifest_path: Path):
         "runtime_ready_record_kind_counts": dict(
             manifest.get("runtime_ready_record_kind_counts") or dict(sorted(runtime_ready_record_kind_counts.items()))
         ),
+        "runtime_ready_record_kind_counts_from_entries": dict(sorted(runtime_ready_record_kind_counts.items())),
         "runtime_deferred_record_kind_counts": dict(
             manifest.get("runtime_deferred_record_kind_counts") or dict(sorted(runtime_deferred_record_kind_counts.items()))
         ),
+        "runtime_deferred_record_kind_counts_from_entries": dict(sorted(runtime_deferred_record_kind_counts.items())),
         "runtime_ready_native_sampled_record_count": int(
             manifest.get("runtime_ready_native_sampled_record_count", runtime_ready_native_sampled_record_count)
         ),
@@ -327,6 +329,10 @@ def _count_runtime_ready_records(manifest_path: Path):
 
 def _runtime_stats_are_self_consistent(stats):
     if int(stats["runtime_ready_record_count"]) + int(stats["runtime_deferred_record_count"]) != int(stats["record_count"]):
+        return False
+    if dict(stats["runtime_ready_record_kind_counts"]) != dict(stats["runtime_ready_record_kind_counts_from_entries"]):
+        return False
+    if dict(stats["runtime_deferred_record_kind_counts"]) != dict(stats["runtime_deferred_record_kind_counts_from_entries"]):
         return False
     if int(stats["runtime_ready_native_sampled_record_count"]) + int(stats["runtime_ready_compat_record_count"]) != int(stats["runtime_ready_record_count"]):
         return False
@@ -384,6 +390,10 @@ def reusable_report_artifacts_are_consistent(report):
     if package_stats["runtime_ready_record_class"] != loader_stats["runtime_ready_record_class"]:
         return False
     if package_stats["runtime_deferred_record_class"] != loader_stats["runtime_deferred_record_class"]:
+        return False
+    if package_stats["runtime_ready_record_kind_counts"] != loader_stats["runtime_ready_record_kind_counts"]:
+        return False
+    if package_stats["runtime_deferred_record_kind_counts"] != loader_stats["runtime_deferred_record_kind_counts"]:
         return False
 
     report_runtime_ready_count = report.get("package_manifest_runtime_ready_record_count")

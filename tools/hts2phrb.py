@@ -99,6 +99,21 @@ def should_build_runtime_overlay(args):
     return False, "no-runtime-context"
 
 
+def resolve_runtime_overlay_plan(args, canonical_loader_manifest):
+    runtime_overlay_built, runtime_overlay_reason = should_build_runtime_overlay(args)
+    runtime_ready_record_count = int(
+        canonical_loader_manifest.get("runtime_ready_record_count")
+        or sum(1 for record in canonical_loader_manifest.get("records", []) if bool(record.get("runtime_ready")))
+    )
+    if (
+        runtime_overlay_built
+        and args.runtime_overlay_mode == "auto"
+        and runtime_ready_record_count <= 0
+    ):
+        return False, "no-runtime-ready-records"
+    return runtime_overlay_built, runtime_overlay_reason
+
+
 def normalize_optional_path(value):
     if not value:
         return None
@@ -1311,7 +1326,7 @@ def build_conversion(args):
         loader_manifest_record_count=canonical_loader_manifest.get("record_count", 0),
     )
 
-    runtime_overlay_built, runtime_overlay_reason = should_build_runtime_overlay(args)
+    runtime_overlay_built, runtime_overlay_reason = resolve_runtime_overlay_plan(args, canonical_loader_manifest)
     runtime_overlay_artifacts_emitted = False
     if runtime_overlay_built and resume_from_progress and bindings_path.exists():
         bindings = json.loads(bindings_path.read_text())
@@ -1424,7 +1439,11 @@ def build_conversion(args):
             "No canonical package records were emitted. The conversion remained diagnostic-only."
         )
     elif not runtime_overlay_built:
-        if runtime_ready_package_record_count > 0:
+        if runtime_overlay_reason == "no-runtime-ready-records":
+            warnings.append(
+                "Runtime overlay was skipped because canonical packaging produced no runtime-ready records for the requested slice."
+            )
+        elif runtime_ready_package_record_count > 0:
             warnings.append(
                 "Runtime overlay was skipped because no bundle or explicit runtime context was supplied. The generated package still contains runtime-ready canonical records, but no runtime overlay artifacts were emitted."
             )

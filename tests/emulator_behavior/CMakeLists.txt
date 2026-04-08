@@ -256,6 +256,11 @@ add_test(
 )
 
 add_test(
+  NAME emu.support.hts2phrb_auto_overlay_without_runtime_ready
+  COMMAND bash "${EMU_BEHAVIOR_SUPPORT_DIR}/emu_hts2phrb_auto_overlay_without_runtime_ready.sh"
+)
+
+add_test(
   NAME emu.support.hts2phrb_reuse_existing
   COMMAND bash "${EMU_BEHAVIOR_SUPPORT_DIR}/emu_hts2phrb_reuse_existing.sh"
 )

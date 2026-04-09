@@ -267,7 +267,7 @@ cache_failed_re = re.compile(
     r"Hi-res replacement cache load failed for path: (.+?)(?: \(source mode ([^)]+)\))?$"
 )
 capability_re = re.compile(
-    r"Hi-res capability check: descriptor_indexing=(\d+) runtime_descriptor_array=(\d+) sampled_image_array_non_uniform_indexing=(\d+) descriptor_binding_variable_descriptor_count=(\d+) descriptor_binding_partially_bound=(\d+) descriptor_binding_update_after_bind=(\d+) maxDescriptorSetUpdateAfterBindSampledImages=(\d+) cache_path=(.+)\."
+    r"Hi-res capability check: descriptor_indexing=(\d+) runtime_descriptor_array=(\d+) sampled_image_array_non_uniform_indexing=(\d+) descriptor_binding_variable_descriptor_count=(\d+) descriptor_binding_partially_bound=(\d+) descriptor_binding_update_after_bind=(\d+) maxDescriptorSetUpdateAfterBindSampledImages=(\d+) cache_path=(.+?)(?: source_mode=([^.]+))?\.$"
 )
 disabled_re = re.compile(r"Hi-res textures requested, but disabled: (.+) \(maxDescriptorSetUpdateAfterBindSampledImages=(\d+), required>=(\d+)\)\.")
 summary_re = re.compile(
@@ -800,6 +800,8 @@ for line in log_path.read_text(errors="replace").splitlines():
             "max_descriptor_set_update_after_bind_sampled_images": int(m.group(7)),
             "cache_path": None if cache_path == "<empty>" else cache_path,
         }
+        if m.group(9) is not None and result.get("source_policy") is None:
+            result["source_policy"] = m.group(9).strip()
         if result["capabilities"]["cache_path"] is not None:
             result["cache_path"] = result["capabilities"]["cache_path"]
         continue

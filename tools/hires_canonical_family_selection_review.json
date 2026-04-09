@@ -399,6 +399,28 @@
       ],
       "review_group_cluster_class": "same-aspect",
       "review_group_action_hint": "context-bundle-review"
+    },
+    {
+      "family_key": "ecced666:fs0",
+      "selected_variant_group_dims": "160x160",
+      "selection_reason": "review-family-selection",
+      "review_group_variant_group_dims": [
+        "160x160",
+        "64x64"
+      ],
+      "review_group_cluster_class": "same-aspect",
+      "review_group_action_hint": "context-bundle-review"
+    },
+    {
+      "family_key": "688d00f1:fs0",
+      "selected_variant_group_dims": "320x320",
+      "selection_reason": "review-family-selection",
+      "review_group_variant_group_dims": [
+        "320x320",
+        "42x42"
+      ],
+      "review_group_cluster_class": "same-aspect",
+      "review_group_action_hint": "context-bundle-review"
     }
   ]
 }

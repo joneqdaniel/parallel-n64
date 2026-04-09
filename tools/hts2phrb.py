@@ -1464,6 +1464,43 @@ def build_unresolved_family_review_payload(migrate_result, requested_family_stat
     }
 
 
+def build_transport_candidate_set_signature(transport_candidates):
+    replacement_ids = sorted(
+        str(candidate.get("replacement_id") or "")
+        for candidate in (transport_candidates or [])
+        if str(candidate.get("replacement_id") or "")
+    )
+    if not replacement_ids:
+        return None
+    return hashlib.sha1("\n".join(replacement_ids).encode("utf-8")).hexdigest()[:16]
+
+
+def classify_runtime_overlay_blocker_cluster(entry):
+    if int(entry.get("linked_unresolved_family_count") or 0) > 0:
+        return "linked-import-ambiguity"
+    if int(entry.get("candidate_set_equivalent_case_count") or 0) > 0:
+        return "candidate-set-equivalent"
+
+    transport_candidate_count = int(entry.get("transport_candidate_count") or 0)
+    multi_dim = len(entry.get("transport_candidate_unique_dims") or []) > 1
+    if transport_candidate_count >= 16:
+        return "large-multi-dim-cluster" if multi_dim else "large-single-dim-cluster"
+    if transport_candidate_count <= 4:
+        return "small-multi-dim-cluster" if multi_dim else "small-single-dim-cluster"
+    return "medium-multi-dim-cluster" if multi_dim else "medium-single-dim-cluster"
+
+
+def classify_runtime_overlay_action_hint(entry):
+    cluster_class = entry.get("blocker_cluster_class") or classify_runtime_overlay_blocker_cluster(entry)
+    if cluster_class == "linked-import-ambiguity":
+        return "defer-to-import-family-work"
+    if cluster_class == "candidate-set-equivalent":
+        return "candidate-set-review"
+    if cluster_class.startswith("large-"):
+        return "defer-large-transport-cluster"
+    return "manual-selection-review"
+
+
 def build_runtime_overlay_review_payload(migrate_result, bindings, report):
     imported_index = migrate_result.get("imported_index") or {}
     requested_families = {
@@ -1500,6 +1537,9 @@ def build_runtime_overlay_review_payload(migrate_result, bindings, report):
     transport_candidate_hash_error_count_counts = Counter()
     identical_alpha_hash_case_count_counts = Counter()
     alpha_hash_overlap_case_count_counts = Counter()
+    candidate_set_cluster_size_counts = Counter()
+    blocker_cluster_class_counts = Counter()
+    action_hint_counts = Counter()
 
     for unresolved in bindings.get("unresolved_transport_cases", []):
         sampled_object_id = str(unresolved.get("sampled_object_id") or "")
@@ -1547,6 +1587,9 @@ def build_runtime_overlay_review_payload(migrate_result, bindings, report):
             "transport_candidate_alpha_hash_counts": hash_review["transport_candidate_alpha_hash_counts"],
             "transport_candidate_pixel_hash_counts": hash_review["transport_candidate_pixel_hash_counts"],
             "transport_candidate_hash_candidates": hash_review["transport_candidate_hash_candidates"],
+            "candidate_set_signature": build_transport_candidate_set_signature(
+                unresolved.get("transport_candidates") or []
+            ),
             "_alpha_hashes": hash_review["_alpha_hashes"],
         }
         review_entries.append(entry)
@@ -1565,6 +1608,11 @@ def build_runtime_overlay_review_payload(migrate_result, bindings, report):
         entry["policy_key"]: set(entry.pop("_alpha_hashes", []))
         for entry in review_entries
     }
+    candidate_set_clusters = defaultdict(list)
+    for entry in review_entries:
+        candidate_set_signature = entry.get("candidate_set_signature")
+        if candidate_set_signature:
+            candidate_set_clusters[candidate_set_signature].append(entry["policy_key"])
     for entry in review_entries:
         policy_key = entry["policy_key"]
         alpha_hashes = alpha_hash_sets.get(policy_key, set())
@@ -1582,8 +1630,25 @@ def build_runtime_overlay_review_payload(migrate_result, bindings, report):
         entry["identical_alpha_hash_case_count"] = len(identical_policy_keys)
         entry["alpha_hash_overlap_policy_keys"] = sorted(overlapping_policy_keys)
         entry["alpha_hash_overlap_case_count"] = len(overlapping_policy_keys)
+        candidate_set_equivalent_policy_keys = []
+        candidate_set_signature = entry.get("candidate_set_signature")
+        if candidate_set_signature:
+            candidate_set_equivalent_policy_keys = sorted(
+                other_policy_key
+                for other_policy_key in candidate_set_clusters.get(candidate_set_signature, [])
+                if other_policy_key != policy_key
+            )
+        entry["candidate_set_equivalent_policy_keys"] = candidate_set_equivalent_policy_keys
+        entry["candidate_set_equivalent_case_count"] = len(candidate_set_equivalent_policy_keys)
+        entry["candidate_set_cluster_size"] = len(candidate_set_equivalent_policy_keys) + 1 if candidate_set_signature else 0
+        entry["blocker_cluster_class"] = classify_runtime_overlay_blocker_cluster(entry)
+        entry["action_hint"] = classify_runtime_overlay_action_hint(entry)
         identical_alpha_hash_case_count_counts[entry["identical_alpha_hash_case_count"]] += 1
         alpha_hash_overlap_case_count_counts[entry["alpha_hash_overlap_case_count"]] += 1
+        if entry["candidate_set_cluster_size"] > 0:
+            candidate_set_cluster_size_counts[entry["candidate_set_cluster_size"]] += 1
+        blocker_cluster_class_counts[entry["blocker_cluster_class"]] += 1
+        action_hint_counts[entry["action_hint"]] += 1
 
     review_entries.sort(key=lambda item: (item["status"], item["policy_key"]))
     return {
@@ -1619,6 +1684,13 @@ def build_runtime_overlay_review_payload(migrate_result, bindings, report):
             str(key): count
             for key, count in sorted(alpha_hash_overlap_case_count_counts.items())
         },
+        "candidate_set_cluster_count": len(candidate_set_clusters),
+        "candidate_set_cluster_size_counts": {
+            str(key): count
+            for key, count in sorted(candidate_set_cluster_size_counts.items())
+        },
+        "blocker_cluster_class_counts": dict(sorted(blocker_cluster_class_counts.items())),
+        "action_hint_counts": dict(sorted(action_hint_counts.items())),
         "linked_unresolved_runtime_state_totals": dict(sorted(linked_unresolved_runtime_state_totals.items())),
         "linked_unresolved_reason_totals": dict(sorted(linked_unresolved_reason_totals.items())),
         "entries": review_entries,
@@ -1701,6 +1773,9 @@ def render_runtime_overlay_review_markdown(review):
         ("Linked Unresolved Family Counts", review.get("linked_unresolved_family_count_counts") or {}),
         ("Identical Alpha Hash Case Counts", review.get("identical_alpha_hash_case_count_counts") or {}),
         ("Alpha Hash Overlap Case Counts", review.get("alpha_hash_overlap_case_count_counts") or {}),
+        ("Candidate Set Cluster Size Counts", review.get("candidate_set_cluster_size_counts") or {}),
+        ("Blocker Cluster Classes", review.get("blocker_cluster_class_counts") or {}),
+        ("Action Hints", review.get("action_hint_counts") or {}),
         ("Linked Unresolved Runtime State Totals", review.get("linked_unresolved_runtime_state_totals") or {}),
         ("Linked Unresolved Reason Totals", review.get("linked_unresolved_reason_totals") or {}),
     ):
@@ -1730,6 +1805,7 @@ def render_runtime_overlay_review_markdown(review):
                 f"reason=`{entry['reason']}` candidates=`{entry['transport_candidate_count']}` "
                 f"candidate_palettes=`{entry['transport_candidate_palette_count']}` "
                 f"hash_review=`{entry['hash_review_class']}` alpha_hashes=`{entry['transport_candidate_alpha_hash_count']}` "
+                f"cluster=`{entry['blocker_cluster_class']}` action=`{entry['action_hint']}` "
                 f"source_hints=`{entry['source_hint_count']}` linked_unresolved_families=`{entry['linked_unresolved_family_count']}` "
                 f"dims=`{dims}` linked_keys=`{linked_keys}` identical_alpha_keys=`{identical_keys}` overlap_alpha_keys=`{overlap_keys}`"
             )
@@ -1987,9 +2063,24 @@ def synchronize_report_summary_fields(report: dict):
         unresolved_family_review_summary.get("reason_variant_group_count_counts") or {}
     )
     runtime_overlay_review_summary = report.get("runtime_overlay_review_summary") or {}
+    report["runtime_overlay_unresolved_count"] = int(
+        runtime_overlay_review_summary.get("unresolved_overlay_count") or 0
+    )
     report["runtime_overlay_reason_counts"] = runtime_overlay_review_summary.get("reason_counts") or {}
     report["runtime_overlay_hash_review_class_counts"] = (
         runtime_overlay_review_summary.get("hash_review_class_counts") or {}
+    )
+    report["runtime_overlay_candidate_set_cluster_count"] = int(
+        runtime_overlay_review_summary.get("candidate_set_cluster_count") or 0
+    )
+    report["runtime_overlay_candidate_set_cluster_size_counts"] = (
+        runtime_overlay_review_summary.get("candidate_set_cluster_size_counts") or {}
+    )
+    report["runtime_overlay_blocker_cluster_class_counts"] = (
+        runtime_overlay_review_summary.get("blocker_cluster_class_counts") or {}
+    )
+    report["runtime_overlay_action_hint_counts"] = (
+        runtime_overlay_review_summary.get("action_hint_counts") or {}
     )
     return report
 
@@ -2201,6 +2292,27 @@ def build_markdown_summary(report):
             lines.append(
                 "- Transport candidate counts: " + ", ".join(
                     f"`{name}`=`{count}`" for name, count in sorted(candidate_counts.items(), key=lambda item: int(item[0]))
+                )
+            )
+        candidate_set_cluster_size_counts = runtime_overlay_review_summary.get("candidate_set_cluster_size_counts") or {}
+        if candidate_set_cluster_size_counts:
+            lines.append(
+                "- Candidate-set cluster sizes: " + ", ".join(
+                    f"`{name}`=`{count}`" for name, count in sorted(candidate_set_cluster_size_counts.items(), key=lambda item: int(item[0]))
+                )
+            )
+        blocker_cluster_class_counts = runtime_overlay_review_summary.get("blocker_cluster_class_counts") or {}
+        if blocker_cluster_class_counts:
+            lines.append(
+                "- Blocker clusters: " + ", ".join(
+                    f"`{name}`=`{count}`" for name, count in sorted(blocker_cluster_class_counts.items())
+                )
+            )
+        action_hint_counts = runtime_overlay_review_summary.get("action_hint_counts") or {}
+        if action_hint_counts:
+            lines.append(
+                "- Action hints: " + ", ".join(
+                    f"`{name}`=`{count}`" for name, count in sorted(action_hint_counts.items())
                 )
             )
     runtime_overlay_blockers = report.get("runtime_overlay_blockers") or []
@@ -3118,6 +3230,7 @@ def build_conversion(args):
         report.pop("runtime_overlay_review_json_path", None)
         report.pop("runtime_overlay_review_markdown_path", None)
         report["runtime_overlay_blockers"] = []
+    synchronize_report_summary_fields(report)
     summary_path.write_text(build_markdown_summary(report))
     report["summary_path"] = str(summary_path)
     report["report_path"] = str(report_path)

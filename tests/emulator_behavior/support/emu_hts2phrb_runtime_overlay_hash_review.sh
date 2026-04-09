@@ -120,8 +120,8 @@ bindings = {
             "transport_candidate_palette_count": 2,
             "transport_candidate_dims": [{"dims": "2x2", "count": 2}],
             "transport_candidates": [
-                make_candidate("shared-a", 0x33333333, 0xBBBB0001, 2, 2),
-                make_candidate("shared-b", 0x44444444, 0xBBBB0002, 2, 2),
+                make_candidate("divergent-a", 0x33333333, 0xBBBB0001, 2, 2),
+                make_candidate("divergent-b", 0x44444444, 0xBBBB0002, 2, 2),
             ],
         },
         {
@@ -161,22 +161,49 @@ if review.get("identical_alpha_hash_case_count_counts") != {"0": 2, "1": 2}:
     raise SystemExit(f"unexpected identical alpha-hash case counts: {review.get('identical_alpha_hash_case_count_counts')!r}")
 if review.get("alpha_hash_overlap_case_count_counts") != {"0": 1, "1": 2, "2": 1}:
     raise SystemExit(f"unexpected alpha-hash overlap case counts: {review.get('alpha_hash_overlap_case_count_counts')!r}")
+if review.get("candidate_set_cluster_count") != 3:
+    raise SystemExit(f"unexpected candidate-set cluster count: {review.get('candidate_set_cluster_count')!r}")
+if review.get("candidate_set_cluster_size_counts") != {"1": 2, "2": 2}:
+    raise SystemExit(f"unexpected candidate-set cluster sizes: {review.get('candidate_set_cluster_size_counts')!r}")
+if review.get("blocker_cluster_class_counts") != {
+    "candidate-set-equivalent": 2,
+    "small-multi-dim-cluster": 1,
+    "small-single-dim-cluster": 1,
+}:
+    raise SystemExit(f"unexpected blocker cluster classes: {review.get('blocker_cluster_class_counts')!r}")
+if review.get("action_hint_counts") != {
+    "candidate-set-review": 2,
+    "manual-selection-review": 2,
+}:
+    raise SystemExit(f"unexpected action hints: {review.get('action_hint_counts')!r}")
 
 entries = {entry["policy_key"]: entry for entry in review.get("entries") or []}
 if entries["overlay-case-1"]["hash_review_class"] != "pixel-identical-single-dim":
     raise SystemExit(f"unexpected hash review for overlay-case-1: {entries['overlay-case-1']!r}")
 if entries["overlay-case-1"]["transport_candidate_alpha_hash_count"] != 1:
     raise SystemExit(f"unexpected alpha-hash count for overlay-case-1: {entries['overlay-case-1']!r}")
+if entries["overlay-case-1"]["blocker_cluster_class"] != "small-single-dim-cluster":
+    raise SystemExit(f"unexpected blocker cluster for overlay-case-1: {entries['overlay-case-1']!r}")
+if entries["overlay-case-1"]["action_hint"] != "manual-selection-review":
+    raise SystemExit(f"unexpected action hint for overlay-case-1: {entries['overlay-case-1']!r}")
 if entries["overlay-case-2"]["hash_review_class"] != "pixel-divergent-single-dim":
     raise SystemExit(f"unexpected hash review for overlay-case-2: {entries['overlay-case-2']!r}")
 if entries["overlay-case-2"]["identical_alpha_hash_policy_keys"] != ["overlay-case-3"]:
     raise SystemExit(f"unexpected identical alpha-hash keys for overlay-case-2: {entries['overlay-case-2']!r}")
 if entries["overlay-case-2"]["alpha_hash_overlap_policy_keys"] != ["overlay-case-4"]:
     raise SystemExit(f"unexpected alpha-hash overlaps for overlay-case-2: {entries['overlay-case-2']!r}")
+if entries["overlay-case-2"]["candidate_set_equivalent_policy_keys"] != ["overlay-case-3"]:
+    raise SystemExit(f"unexpected candidate-set equivalents for overlay-case-2: {entries['overlay-case-2']!r}")
+if entries["overlay-case-2"]["blocker_cluster_class"] != "candidate-set-equivalent":
+    raise SystemExit(f"unexpected blocker cluster for overlay-case-2: {entries['overlay-case-2']!r}")
+if entries["overlay-case-2"]["action_hint"] != "candidate-set-review":
+    raise SystemExit(f"unexpected action hint for overlay-case-2: {entries['overlay-case-2']!r}")
 if entries["overlay-case-4"]["hash_review_class"] != "pixel-divergent-multi-dim":
     raise SystemExit(f"unexpected hash review for overlay-case-4: {entries['overlay-case-4']!r}")
 if entries["overlay-case-4"]["alpha_hash_overlap_policy_keys"] != ["overlay-case-2", "overlay-case-3"]:
     raise SystemExit(f"unexpected alpha-hash overlaps for overlay-case-4: {entries['overlay-case-4']!r}")
+if entries["overlay-case-4"]["blocker_cluster_class"] != "small-multi-dim-cluster":
+    raise SystemExit(f"unexpected blocker cluster for overlay-case-4: {entries['overlay-case-4']!r}")
 
 with TemporaryDirectory() as tmpdir:
     report = {
@@ -188,6 +215,10 @@ with TemporaryDirectory() as tmpdir:
         "runtime_overlay_review_summary": review,
     }
     synchronize_report_summary_fields(report)
+    if report.get("runtime_overlay_unresolved_count") != 4:
+        raise SystemExit(
+            f"unexpected top-level overlay unresolved count: {report.get('runtime_overlay_unresolved_count')!r}"
+        )
     if report.get("runtime_overlay_reason_counts") != {"proxy-transport-selection-required": 4}:
         raise SystemExit(f"unexpected top-level overlay reasons: {report.get('runtime_overlay_reason_counts')!r}")
     if report.get("runtime_overlay_hash_review_class_counts") != {
@@ -197,6 +228,29 @@ with TemporaryDirectory() as tmpdir:
     }:
         raise SystemExit(
             f"unexpected top-level overlay hash classes: {report.get('runtime_overlay_hash_review_class_counts')!r}"
+        )
+    if report.get("runtime_overlay_candidate_set_cluster_count") != 3:
+        raise SystemExit(
+            f"unexpected top-level candidate-set cluster count: {report.get('runtime_overlay_candidate_set_cluster_count')!r}"
+        )
+    if report.get("runtime_overlay_candidate_set_cluster_size_counts") != {"1": 2, "2": 2}:
+        raise SystemExit(
+            f"unexpected top-level candidate-set cluster sizes: {report.get('runtime_overlay_candidate_set_cluster_size_counts')!r}"
+        )
+    if report.get("runtime_overlay_blocker_cluster_class_counts") != {
+        "candidate-set-equivalent": 2,
+        "small-multi-dim-cluster": 1,
+        "small-single-dim-cluster": 1,
+    }:
+        raise SystemExit(
+            f"unexpected top-level blocker cluster classes: {report.get('runtime_overlay_blocker_cluster_class_counts')!r}"
+        )
+    if report.get("runtime_overlay_action_hint_counts") != {
+        "candidate-set-review": 2,
+        "manual-selection-review": 2,
+    }:
+        raise SystemExit(
+            f"unexpected top-level action hints: {report.get('runtime_overlay_action_hint_counts')!r}"
         )
 PY
 

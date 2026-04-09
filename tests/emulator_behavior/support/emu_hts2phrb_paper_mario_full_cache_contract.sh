@@ -134,6 +134,23 @@ expected_context = {
         "pixel-divergent-multi-dim": 5,
         "pixel-divergent-single-dim": 8,
     },
+    "runtime_overlay_unresolved_count": 13,
+    "runtime_overlay_candidate_set_cluster_count": 11,
+    "runtime_overlay_candidate_set_cluster_size_counts": {"1": 9, "2": 4},
+    "runtime_overlay_blocker_cluster_class_counts": {
+        "candidate-set-equivalent": 4,
+        "large-multi-dim-cluster": 1,
+        "large-single-dim-cluster": 3,
+        "linked-import-ambiguity": 1,
+        "small-multi-dim-cluster": 1,
+        "small-single-dim-cluster": 3,
+    },
+    "runtime_overlay_action_hint_counts": {
+        "candidate-set-review": 4,
+        "defer-large-transport-cluster": 4,
+        "defer-to-import-family-work": 1,
+        "manual-selection-review": 4,
+    },
 }
 
 for label, report, expected in (
@@ -180,6 +197,26 @@ if overlay_review.get("transport_candidate_alpha_hash_count_counts") != {
     raise SystemExit(f"FAIL: authority-context overlay review had unexpected alpha-hash histogram: {overlay_review!r}.")
 if overlay_review.get("transport_candidate_hash_error_count_counts") != {"0": 13}:
     raise SystemExit(f"FAIL: authority-context overlay review had unexpected hash error counts: {overlay_review!r}.")
+if overlay_review.get("candidate_set_cluster_count") != 11:
+    raise SystemExit(f"FAIL: authority-context overlay review had unexpected candidate-set cluster count: {overlay_review!r}.")
+if overlay_review.get("candidate_set_cluster_size_counts") != {"1": 9, "2": 4}:
+    raise SystemExit(f"FAIL: authority-context overlay review had unexpected candidate-set cluster sizes: {overlay_review!r}.")
+if overlay_review.get("blocker_cluster_class_counts") != {
+    "candidate-set-equivalent": 4,
+    "large-multi-dim-cluster": 1,
+    "large-single-dim-cluster": 3,
+    "linked-import-ambiguity": 1,
+    "small-multi-dim-cluster": 1,
+    "small-single-dim-cluster": 3,
+}:
+    raise SystemExit(f"FAIL: authority-context overlay review had unexpected blocker cluster classes: {overlay_review!r}.")
+if overlay_review.get("action_hint_counts") != {
+    "candidate-set-review": 4,
+    "defer-large-transport-cluster": 4,
+    "defer-to-import-family-work": 1,
+    "manual-selection-review": 4,
+}:
+    raise SystemExit(f"FAIL: authority-context overlay review had unexpected action hints: {overlay_review!r}.")
 if context.get("runtime_overlay_blockers") != [
     {"code": "overlay-proxy-transport-selection-required-cases", "count": 13},
     {"code": "overlay-pixel-divergent-single-dim-cases", "count": 8},

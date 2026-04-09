@@ -29,8 +29,10 @@ require_pattern '20260408-pm64-all-families-authority-context-abs-summary/packag
   "default cache resolver should prefer the current enriched full-cache PHRB artifact first"
 require_pattern '20260407-pm64-all-families-authority-context-root/package.phrb' "$COMMON_SH" \
   "default cache resolver should preserve the older enriched full-cache PHRB artifact as fallback"
-require_pattern 'paper-mario-hirestextures-9fa7bc07-all-families/package.phrb' "$COMMON_SH" \
-  "default cache resolver should preserve the zero-config full-cache PHRB artifact as fallback"
+if grep -Fq 'paper-mario-hirestextures-9fa7bc07-all-families/package.phrb' "$COMMON_SH"; then
+  echo "FAIL: default cache resolver should not fall back to the zero-config full-cache PHRB artifact." >&2
+  exit 1
+fi
 if grep -Fq 'assets/PAPER MARIO_HIRESTEXTURES.hts' "$COMMON_SH"; then
   echo "FAIL: default cache resolver should no longer fall back to the legacy Paper Mario cache." >&2
   exit 1

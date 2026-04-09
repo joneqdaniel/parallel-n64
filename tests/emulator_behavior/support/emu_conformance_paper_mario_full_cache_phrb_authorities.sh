@@ -6,7 +6,7 @@ REPO_ROOT="$(cd -- "$SCRIPT_DIR/../../.." && pwd)"
 
 ENRICHED_CACHE_PATH_CURRENT="$REPO_ROOT/artifacts/hts2phrb-review/20260408-pm64-all-families-authority-context-abs-summary/package.phrb"
 ENRICHED_CACHE_PATH_LEGACY="$REPO_ROOT/artifacts/hts2phrb-review/20260407-pm64-all-families-authority-context-root/package.phrb"
-FALLBACK_CACHE_PATH="$REPO_ROOT/artifacts/hts2phrb/paper-mario-hirestextures-9fa7bc07-all-families/package.phrb"
+ZERO_CONFIG_CACHE_PATH="$REPO_ROOT/artifacts/hts2phrb/paper-mario-hirestextures-9fa7bc07-all-families/package.phrb"
 
 if [[ -n "${EMU_RUNTIME_PM64_FULL_CACHE_PHRB:-}" ]]; then
   CACHE_PATH="${EMU_RUNTIME_PM64_FULL_CACHE_PHRB}"
@@ -15,16 +15,13 @@ else
   if [[ ! -f "$CACHE_PATH" ]]; then
     CACHE_PATH="$ENRICHED_CACHE_PATH_LEGACY"
   fi
-  if [[ ! -f "$CACHE_PATH" ]]; then
-    CACHE_PATH="$FALLBACK_CACHE_PATH"
-  fi
 fi
 ENFORCE_ENRICHED_CONTRACT=0
 if [[ "$CACHE_PATH" == "$ENRICHED_CACHE_PATH_CURRENT" || "$CACHE_PATH" == "$ENRICHED_CACHE_PATH_LEGACY" ]]; then
   ENFORCE_ENRICHED_CONTRACT=1
 fi
 ENFORCE_ZERO_CONFIG_CONTRACT=0
-if [[ "$CACHE_PATH" == "$FALLBACK_CACHE_PATH" ]]; then
+if [[ "$CACHE_PATH" == "$ZERO_CONFIG_CACHE_PATH" ]]; then
   ENFORCE_ZERO_CONFIG_CONTRACT=1
 fi
 BUNDLE_ROOT="${EMU_RUNTIME_PM64_FULL_CACHE_BUNDLE_ROOT:-}"
@@ -40,7 +37,7 @@ if [[ ! -x "$REPO_ROOT/tools/scenarios/paper-mario-full-cache-phrb-authority-val
 fi
 
 if [[ ! -f "$CACHE_PATH" ]]; then
-  echo "SKIP: full-cache Paper Mario PHRB package not found at $CACHE_PATH (set EMU_RUNTIME_PM64_FULL_CACHE_PHRB to override)."
+  echo "SKIP: enriched full-cache Paper Mario PHRB package not found at $CACHE_PATH (run the authority refresh workflow or set EMU_RUNTIME_PM64_FULL_CACHE_PHRB to override explicitly, including the zero-config lane)."
   exit 77
 fi
 

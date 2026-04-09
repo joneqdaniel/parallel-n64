@@ -133,6 +133,14 @@ enum class ResolvedEntrySourceClass
 	Compat,
 };
 
+enum class CILow32ResolutionMode
+{
+	SelectedDims = 0,
+	ReplacementDimsUnique,
+	Unique,
+	Any,
+};
+
 enum class ReplacementResolutionKind
 {
 	None = 0,
@@ -142,6 +150,10 @@ enum class ReplacementResolutionKind
 	GenericNativeIdentity,
 	GenericNativeChecksum,
 	GenericCompat,
+	CILow32SelectedDims,
+	CILow32ReplacementDimsUnique,
+	CILow32Unique,
+	CILow32Any,
 	GenericUnknown,
 };
 
@@ -155,6 +167,7 @@ struct ReplacementResolution
 	uint64_t resolved_checksum64 = 0;
 	uint64_t resolved_selector_checksum64 = 0;
 	bool ordered_surface_singleton = false;
+	bool matched_preferred_palette = false;
 };
 
 class ReplacementProvider
@@ -282,6 +295,13 @@ public:
 	                         ReplacementMeta *out,
 	                         uint64_t *resolved_checksum64 = nullptr,
 	                         bool *matched_preferred_palette = nullptr) const;
+	bool resolve_ci_low32_candidate(uint32_t checksum_low32,
+	                                uint16_t formatsize,
+	                                uint32_t preferred_palette_crc,
+	                                uint32_t repl_w,
+	                                uint32_t repl_h,
+	                                CILow32ResolutionMode mode,
+	                                ReplacementResolution *out) const;
 	bool describe_sampled_family(uint32_t sampled_fmt,
 	                             uint32_t sampled_siz,
 	                             uint32_t sampled_tex_offset,
@@ -445,6 +465,13 @@ private:
 	                                                 bool allow_ordered_surface_selectors,
 	                                                 uint64_t *resolved_selector_checksum64 = nullptr,
 	                                                 bool *resolved_ordered_surface_singleton = nullptr) const;
+	const Entry *find_ci_low32_entry(uint32_t checksum_low32,
+	                                 uint16_t formatsize,
+	                                 uint32_t preferred_palette_crc,
+	                                 uint32_t repl_w,
+	                                 uint32_t repl_h,
+	                                 CILow32ResolutionMode mode,
+	                                 bool *matched_preferred_palette = nullptr) const;
 	bool load_hts(const std::string &path);
 	bool load_htc(const std::string &path);
 	bool load_phrb(const std::string &path);

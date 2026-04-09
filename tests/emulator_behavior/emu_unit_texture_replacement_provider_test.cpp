@@ -518,6 +518,16 @@ int main()
 	          &sampled_meta,
 	          &resolved_checksum64),
 	      "compat low32 fallback should ignore native sampled records");
+	ReplacementResolution ci_low32_any_resolution = {};
+	check(!provider.resolve_ci_low32_candidate(
+	          record.sampled_low32,
+	          record.formatsize,
+	          record.sampled_sparse_pcrc,
+	          0,
+	          0,
+	          CILow32ResolutionMode::Any,
+	          &ci_low32_any_resolution),
+	      "typed compat low32 resolution should ignore native sampled records");
 
 	ReplacementProvider::Entry compat_alias = entry;
 	compat_alias.source_path = dir + "/compat.hts";
@@ -557,6 +567,26 @@ int main()
 	          record.formatsize,
 	          asset.selector_checksum64)->source_path == dir + "/compat.hts",
 	      "compat low32 fallback should stay inside the compat alias pool");
+	check(provider.resolve_ci_low32_candidate(
+	          record.sampled_low32,
+	          record.formatsize,
+	          record.sampled_sparse_pcrc,
+	          0,
+	          0,
+	          CILow32ResolutionMode::Any,
+	          &ci_low32_any_resolution),
+	      "typed compat low32 resolution should resolve explicit compat aliases");
+	check(ci_low32_any_resolution.kind == ReplacementResolutionKind::CILow32Any,
+	      "typed compat low32 resolution should classify any-mode results");
+	check(ci_low32_any_resolution.source_class == ResolvedEntrySourceClass::Compat,
+	      "typed compat low32 resolution should classify compat-source results");
+	check(ci_low32_any_resolution.resolved_checksum64 == resolved_checksum64,
+	      "typed compat low32 resolution should preserve the compat checksum");
+	check(ci_low32_any_resolution.matched_preferred_palette,
+	      "typed compat low32 resolution should preserve preferred-palette matches");
+	check(ci_low32_any_resolution.meta.repl_w == compat_meta.repl_w &&
+	          ci_low32_any_resolution.meta.repl_h == compat_meta.repl_h,
+	      "typed compat low32 resolution should preserve replacement dimensions");
 
 	ReplacementImage compat_image = {};
 	check(provider.decode_rgba8_with_selector(
@@ -993,6 +1023,22 @@ int main()
 	      "compat low32 unique lookup should still resolve the compat duplicate in all-policy mixed-source caches");
 	check(mixed_compat_low32_meta.repl_w == 4 && mixed_compat_low32_meta.repl_h == 1,
 	      "compat low32 unique lookup should stay inside the compat pool even when a native duplicate exists");
+	ReplacementResolution mixed_ci_low32_resolution = {};
+	check(mixed_all_provider.resolve_ci_low32_candidate(
+	          uint32_t(mixed_checksum64 & 0xffffffffu),
+	          258,
+	          0,
+	          0,
+	          0,
+	          CILow32ResolutionMode::Unique,
+	          &mixed_ci_low32_resolution),
+	      "typed compat low32 unique resolution should still resolve the compat duplicate in mixed-source caches");
+	check(mixed_ci_low32_resolution.kind == ReplacementResolutionKind::CILow32Unique,
+	      "typed compat low32 unique resolution should preserve the unique classification");
+	check(mixed_ci_low32_resolution.source_class == ResolvedEntrySourceClass::Compat,
+	      "typed compat low32 unique resolution should stay inside the compat pool");
+	check(mixed_ci_low32_resolution.meta.repl_w == 4 && mixed_ci_low32_resolution.meta.repl_h == 1,
+	      "typed compat low32 unique resolution should preserve compat replacement dimensions");
 	ReplacementProviderStats mixed_stats = mixed_all_provider.get_stats();
 	check(mixed_stats.entry_count == 2, "all-policy stats should report total entry count");
 	check(mixed_stats.native_sampled_entry_count == 1, "all-policy stats should preserve native sampled entry count");

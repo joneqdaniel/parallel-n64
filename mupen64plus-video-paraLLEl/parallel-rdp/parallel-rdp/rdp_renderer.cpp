@@ -5063,6 +5063,25 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 				}
 			}
 			const char *ci_lookup_resolution_reason = nullptr;
+			auto apply_ci_low32_resolution = [&](const ReplacementResolution &resolution, const char *reason) {
+				ReplacementMeta compat_meta = resolution.meta;
+				compat_meta.orig_w = key_width_pixels;
+				compat_meta.orig_h = key_height_pixels;
+				if (!resolve_hires_compat_replacement_descriptor(
+					    resolution.resolved_checksum64,
+					    formatsize,
+					    resolution.resolved_selector_checksum64,
+					    compat_meta))
+					return false;
+
+				repl_meta = compat_meta;
+				resolved_checksum64 = resolution.resolved_checksum64;
+				resolved_selector_checksum64 = resolution.resolved_selector_checksum64;
+				hit = true;
+				descriptor_path_class = "compat";
+				ci_lookup_resolution_reason = reason;
+				return true;
+			};
 			if (!hit &&
 			    meta.fmt == TextureFormat::CI &&
 			    !hires_debug_ci_selectors.empty())
@@ -5072,95 +5091,81 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 					if (selector.checksum_low32 != texture_crc || selector.formatsize != formatsize)
 						continue;
 
-					ReplacementMeta selected_meta = {};
-					uint64_t selected_checksum64 = 0;
-					if (replacement_provider->lookup_ci_low32_selected_dims(
+					ReplacementResolution selected_resolution = {};
+					if (replacement_provider->resolve_ci_low32_candidate(
 							    texture_crc,
 							    formatsize,
+							    0,
 							    selector.repl_w,
 							    selector.repl_h,
-							    &selected_meta,
-							    &selected_checksum64))
-					{
-						selected_meta.orig_w = key_width_pixels;
-						selected_meta.orig_h = key_height_pixels;
-						if (resolve_hires_compat_replacement_descriptor(selected_checksum64, formatsize, selected_meta))
-						{
-							repl_meta = selected_meta;
-							resolved_checksum64 = selected_checksum64;
-							hit = true;
-							descriptor_path_class = "compat";
-							ci_lookup_resolution_reason = "ci-debug-selected-dims";
-							break;
-						}
-					}
+							    CILow32ResolutionMode::SelectedDims,
+							    &selected_resolution) &&
+					    apply_ci_low32_resolution(selected_resolution, "ci-debug-selected-dims"))
+						break;
 				}
 			}
 			if (!hit &&
 			    meta.fmt == TextureFormat::CI &&
 			    hires_ci_compatibility_mode == HiresCICompatibilityMode::ReplacementDimsUnique)
 			{
-				ReplacementMeta compat_meta = {};
-				uint64_t compat_checksum64 = 0;
-				if (replacement_provider->lookup_ci_low32_repl_dims_unique(
-						    texture_crc, formatsize, &compat_meta, &compat_checksum64))
-				{
-					compat_meta.orig_w = key_width_pixels;
-					compat_meta.orig_h = key_height_pixels;
-					if (resolve_hires_compat_replacement_descriptor(compat_checksum64, formatsize, compat_meta))
-					{
-						repl_meta = compat_meta;
-						resolved_checksum64 = compat_checksum64;
-						hit = true;
-						descriptor_path_class = "compat";
-						ci_lookup_resolution_reason = "ci-compat-repl-dims-unique";
-					}
-				}
+				ReplacementResolution compat_resolution = {};
+				if (replacement_provider->resolve_ci_low32_candidate(
+						    texture_crc,
+						    formatsize,
+						    0,
+						    0,
+						    0,
+						    CILow32ResolutionMode::ReplacementDimsUnique,
+						    &compat_resolution))
+					apply_ci_low32_resolution(compat_resolution, "ci-compat-repl-dims-unique");
 			}
 			if (!hit &&
 			    meta.fmt == TextureFormat::CI &&
 			    hires_debug_ci_low32_fallback != HiresDebugCILow32FallbackMode::Off)
 			{
-				ReplacementMeta fallback_meta = {};
-				uint64_t fallback_checksum64 = 0;
-				bool matched_preferred_palette = false;
-				bool fallback_hit = false;
+				ReplacementResolution compat_resolution = {};
+				const char *fallback_reason = nullptr;
 				if (hires_debug_ci_low32_fallback == HiresDebugCILow32FallbackMode::Unique)
 				{
-					fallback_hit = replacement_provider->lookup_ci_low32_unique(
-							texture_crc, formatsize, &fallback_meta, &fallback_checksum64);
-					ci_lookup_resolution_reason = "ci-low32-unique";
+					if (replacement_provider->resolve_ci_low32_candidate(
+							    texture_crc,
+							    formatsize,
+							    0,
+							    0,
+							    0,
+							    CILow32ResolutionMode::Unique,
+							    &compat_resolution))
+						fallback_reason = "ci-low32-unique";
 				}
 				else if (hires_debug_ci_low32_fallback == HiresDebugCILow32FallbackMode::ReplacementDimsUnique)
 				{
-					fallback_hit = replacement_provider->lookup_ci_low32_repl_dims_unique(
-							texture_crc, formatsize, &fallback_meta, &fallback_checksum64);
-					ci_lookup_resolution_reason = "ci-low32-repl-dims-unique";
+					if (replacement_provider->resolve_ci_low32_candidate(
+							    texture_crc,
+							    formatsize,
+							    0,
+							    0,
+							    0,
+							    CILow32ResolutionMode::ReplacementDimsUnique,
+							    &compat_resolution))
+						fallback_reason = "ci-low32-repl-dims-unique";
 				}
 				else if (hires_debug_ci_low32_fallback == HiresDebugCILow32FallbackMode::Any)
 				{
-					fallback_hit = replacement_provider->lookup_ci_low32_any(
-							texture_crc,
-							formatsize,
-							palette_crc,
-							&fallback_meta,
-							&fallback_checksum64,
-							&matched_preferred_palette);
-					ci_lookup_resolution_reason = matched_preferred_palette ? "ci-low32-any-preferred" : "ci-low32-any";
+					if (replacement_provider->resolve_ci_low32_candidate(
+							    texture_crc,
+							    formatsize,
+							    palette_crc,
+							    0,
+							    0,
+							    CILow32ResolutionMode::Any,
+							    &compat_resolution))
+						fallback_reason = compat_resolution.matched_preferred_palette
+							                  ? "ci-low32-any-preferred"
+							                  : "ci-low32-any";
 				}
 
-				if (fallback_hit)
-				{
-					fallback_meta.orig_w = key_width_pixels;
-					fallback_meta.orig_h = key_height_pixels;
-					if (resolve_hires_compat_replacement_descriptor(fallback_checksum64, formatsize, fallback_meta))
-					{
-						repl_meta = fallback_meta;
-						resolved_checksum64 = fallback_checksum64;
-						hit = true;
-						descriptor_path_class = "compat";
-					}
-				}
+				if (fallback_reason)
+					apply_ci_low32_resolution(compat_resolution, fallback_reason);
 			}
 			const char *filter_reason = nullptr;
 			if (hit && hires_debug_filter_is_active(hires_debug_filter))

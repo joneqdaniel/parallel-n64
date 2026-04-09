@@ -937,6 +937,7 @@ bool ReplacementProvider::populate_resolution_from_entry(const Entry *entry,
 	out->resolved_checksum64 = entry->checksum64;
 	out->resolved_selector_checksum64 = entry->selector_checksum64;
 	out->ordered_surface_singleton = ordered_surface_singleton;
+	out->matched_preferred_palette = false;
 	return true;
 }
 
@@ -1132,6 +1133,156 @@ bool ReplacementProvider::resolve_sampled_candidate(uint32_t sampled_fmt,
 	return false;
 }
 
+const ReplacementProvider::Entry *ReplacementProvider::find_ci_low32_entry(uint32_t checksum_low32,
+                                                                           uint16_t formatsize,
+                                                                           uint32_t preferred_palette_crc,
+                                                                           uint32_t repl_w,
+                                                                           uint32_t repl_h,
+                                                                           CILow32ResolutionMode mode,
+                                                                           bool *matched_preferred_palette) const
+{
+	if (!enabled_)
+		return nullptr;
+
+	if (matched_preferred_palette)
+		*matched_preferred_palette = false;
+
+	auto it = compat_checksum_low32_index_.find(checksum_low32);
+	if (it == compat_checksum_low32_index_.end())
+		return nullptr;
+
+	auto find_matching = [&](uint16_t candidate_formatsize, auto &&predicate) -> const Entry * {
+		for (auto itr = it->second.rbegin(); itr != it->second.rend(); ++itr)
+		{
+			const Entry &entry = entries_[*itr];
+			if (entry.formatsize != candidate_formatsize)
+				continue;
+			if (!predicate(entry))
+				continue;
+			return &entry;
+		}
+		return nullptr;
+	};
+
+	auto collect_unique_checksums = [&](uint16_t candidate_formatsize, std::vector<uint64_t> &unique) {
+		for (size_t index : it->second)
+		{
+			const Entry &entry = entries_[index];
+			if (entry.formatsize != candidate_formatsize)
+				continue;
+
+			bool seen = false;
+			for (uint64_t existing : unique)
+			{
+				if (existing == entry.checksum64)
+				{
+					seen = true;
+					break;
+				}
+			}
+			if (!seen)
+				unique.push_back(entry.checksum64);
+		}
+	};
+
+	switch (mode)
+	{
+	case CILow32ResolutionMode::SelectedDims:
+	{
+		const Entry *entry = find_matching(formatsize, [&](const Entry &entry) {
+			return entry.width == repl_w && entry.height == repl_h;
+		});
+		if (!entry)
+			entry = find_matching(0, [&](const Entry &entry) {
+				return entry.width == repl_w && entry.height == repl_h;
+			});
+		return entry;
+	}
+
+	case CILow32ResolutionMode::ReplacementDimsUnique:
+	{
+		auto pick_candidate = [&](uint16_t candidate_formatsize) -> const Entry * {
+			const Entry *selected = nullptr;
+			for (auto itr = it->second.rbegin(); itr != it->second.rend(); ++itr)
+			{
+				const Entry &entry = entries_[*itr];
+				if (entry.formatsize != candidate_formatsize)
+					continue;
+
+				if (!selected)
+				{
+					selected = &entry;
+					continue;
+				}
+
+				if (entry.width != selected->width || entry.height != selected->height)
+					return nullptr;
+			}
+			return selected;
+		};
+
+		const Entry *entry = pick_candidate(formatsize);
+		if (!entry)
+			entry = pick_candidate(0);
+		return entry;
+	}
+
+	case CILow32ResolutionMode::Unique:
+	{
+		std::vector<uint64_t> unique;
+		collect_unique_checksums(formatsize, unique);
+		if (unique.empty())
+			collect_unique_checksums(0, unique);
+
+		if (unique.size() != 1)
+			return nullptr;
+
+		return find_compat_entry(unique.front(), formatsize, 0);
+	}
+
+	case CILow32ResolutionMode::Any:
+	{
+		auto pick_candidate = [&](uint16_t candidate_formatsize, uint32_t palette_crc_or_any) -> const Entry * {
+			for (auto itr = it->second.rbegin(); itr != it->second.rend(); ++itr)
+			{
+				const Entry &entry = entries_[*itr];
+				if (entry.formatsize != candidate_formatsize)
+					continue;
+
+				const uint32_t entry_palette_crc = uint32_t((entry.checksum64 >> 32) & 0xffffffffu);
+				if (palette_crc_or_any != 0 && entry_palette_crc != palette_crc_or_any)
+					continue;
+
+				return &entry;
+			}
+			return nullptr;
+		};
+
+		const Entry *entry = nullptr;
+		bool matched_preferred = false;
+		if (preferred_palette_crc != 0)
+		{
+			entry = pick_candidate(formatsize, preferred_palette_crc);
+			if (!entry)
+				entry = pick_candidate(0, preferred_palette_crc);
+			if (entry)
+				matched_preferred = true;
+		}
+
+		if (!entry)
+			entry = pick_candidate(formatsize, 0);
+		if (!entry)
+			entry = pick_candidate(0, 0);
+
+		if (matched_preferred_palette)
+			*matched_preferred_palette = matched_preferred;
+		return entry;
+	}
+	}
+
+	return nullptr;
+}
+
 bool ReplacementProvider::lookup_native_with_selector(uint64_t checksum64,
                                                       uint16_t formatsize,
                                                       uint64_t selector_checksum64,
@@ -1323,53 +1474,19 @@ bool ReplacementProvider::lookup_ci_low32_unique(uint32_t checksum_low32,
 	if (!enabled_ || !out)
 		return false;
 
-	auto it = compat_checksum_low32_index_.find(checksum_low32);
-	if (it == compat_checksum_low32_index_.end())
-		return false;
-
-	auto collect_unique_checksums = [&](uint16_t candidate_formatsize, std::vector<uint64_t> &unique) {
-		for (size_t index : it->second)
-		{
-			const Entry &entry = entries_[index];
-			if (entry.formatsize != candidate_formatsize)
-				continue;
-
-			bool seen = false;
-			for (uint64_t existing : unique)
-			{
-				if (existing == entry.checksum64)
-				{
-					seen = true;
-					break;
-				}
-			}
-			if (!seen)
-				unique.push_back(entry.checksum64);
-		}
-	};
-
-	std::vector<uint64_t> unique;
-	collect_unique_checksums(formatsize, unique);
-	if (unique.empty())
-		collect_unique_checksums(0, unique);
-
-	if (unique.size() != 1)
-		return false;
-
-	const uint64_t checksum64 = unique.front();
-	const Entry *entry = find_compat_entry(checksum64, formatsize, 0);
+	const Entry *entry = find_ci_low32_entry(
+		checksum_low32,
+		formatsize,
+		0,
+		0,
+		0,
+		CILow32ResolutionMode::Unique);
 	if (!entry)
 		return false;
 
-	out->repl_w = entry->width;
-	out->repl_h = entry->height;
-	out->orig_w = 0;
-	out->orig_h = 0;
-	out->vk_image_index = 0xffffffffu;
-	out->has_mips = false;
-	out->srgb = false;
+	populate_meta_from_entry(*entry, out);
 	if (resolved_checksum64)
-		*resolved_checksum64 = checksum64;
+		*resolved_checksum64 = entry->checksum64;
 	return true;
 }
 
@@ -1381,33 +1498,13 @@ bool ReplacementProvider::lookup_ci_low32_repl_dims_unique(uint32_t checksum_low
 	if (!enabled_ || !out)
 		return false;
 
-	auto it = compat_checksum_low32_index_.find(checksum_low32);
-	if (it == compat_checksum_low32_index_.end())
-		return false;
-
-	auto pick_candidate = [&](uint16_t candidate_formatsize) -> const Entry * {
-		const Entry *selected = nullptr;
-		for (auto itr = it->second.rbegin(); itr != it->second.rend(); ++itr)
-		{
-			const Entry &entry = entries_[*itr];
-			if (entry.formatsize != candidate_formatsize)
-				continue;
-
-			if (!selected)
-			{
-				selected = &entry;
-				continue;
-			}
-
-			if (entry.width != selected->width || entry.height != selected->height)
-				return nullptr;
-		}
-		return selected;
-	};
-
-	const Entry *entry = pick_candidate(formatsize);
-	if (!entry)
-		entry = pick_candidate(0);
+	const Entry *entry = find_ci_low32_entry(
+		checksum_low32,
+		formatsize,
+		0,
+		0,
+		0,
+		CILow32ResolutionMode::ReplacementDimsUnique);
 	if (!entry)
 		return false;
 
@@ -1427,36 +1524,17 @@ bool ReplacementProvider::lookup_ci_low32_selected_dims(uint32_t checksum_low32,
 	if (!enabled_ || !out)
 		return false;
 
-	auto it = compat_checksum_low32_index_.find(checksum_low32);
-	if (it == compat_checksum_low32_index_.end())
-		return false;
-
-	auto pick_candidate = [&](uint16_t candidate_formatsize) -> const Entry * {
-		for (auto itr = it->second.rbegin(); itr != it->second.rend(); ++itr)
-		{
-			const Entry &entry = entries_[*itr];
-			if (entry.formatsize != candidate_formatsize)
-				continue;
-			if (entry.width != repl_w || entry.height != repl_h)
-				continue;
-			return &entry;
-		}
-		return nullptr;
-	};
-
-	const Entry *entry = pick_candidate(formatsize);
-	if (!entry)
-		entry = pick_candidate(0);
+	const Entry *entry = find_ci_low32_entry(
+		checksum_low32,
+		formatsize,
+		0,
+		repl_w,
+		repl_h,
+		CILow32ResolutionMode::SelectedDims);
 	if (!entry)
 		return false;
 
-	out->repl_w = entry->width;
-	out->repl_h = entry->height;
-	out->orig_w = 0;
-	out->orig_h = 0;
-	out->vk_image_index = 0xffffffffu;
-	out->has_mips = false;
-	out->srgb = false;
+	populate_meta_from_entry(*entry, out);
 	if (resolved_checksum64)
 		*resolved_checksum64 = entry->checksum64;
 	return true;
@@ -1472,55 +1550,70 @@ bool ReplacementProvider::lookup_ci_low32_any(uint32_t checksum_low32,
 	if (!enabled_ || !out)
 		return false;
 
-	auto it = compat_checksum_low32_index_.find(checksum_low32);
-	if (it == compat_checksum_low32_index_.end())
-		return false;
-
-	auto pick_candidate = [&](uint16_t candidate_formatsize, uint32_t palette_crc_or_any) -> const Entry * {
-		for (auto itr = it->second.rbegin(); itr != it->second.rend(); ++itr)
-		{
-			const Entry &entry = entries_[*itr];
-			if (entry.formatsize != candidate_formatsize)
-				continue;
-
-			const uint32_t entry_palette_crc = uint32_t((entry.checksum64 >> 32) & 0xffffffffu);
-			if (palette_crc_or_any != 0 && entry_palette_crc != palette_crc_or_any)
-				continue;
-
-			return &entry;
-		}
-		return nullptr;
-	};
-
-	const Entry *entry = nullptr;
 	bool matched_preferred = false;
-	if (preferred_palette_crc != 0)
-	{
-		entry = pick_candidate(formatsize, preferred_palette_crc);
-		if (!entry)
-			entry = pick_candidate(0, preferred_palette_crc);
-		if (entry)
-			matched_preferred = true;
-	}
-
-	if (!entry)
-		entry = pick_candidate(formatsize, 0);
-	if (!entry)
-		entry = pick_candidate(0, 0);
+	const Entry *entry = find_ci_low32_entry(
+		checksum_low32,
+		formatsize,
+		preferred_palette_crc,
+		0,
+		0,
+		CILow32ResolutionMode::Any,
+		&matched_preferred);
 	if (!entry)
 		return false;
 
-	out->repl_w = entry->width;
-	out->repl_h = entry->height;
-	out->orig_w = 0;
-	out->orig_h = 0;
-	out->vk_image_index = 0xffffffffu;
-	out->has_mips = false;
-	out->srgb = false;
+	populate_meta_from_entry(*entry, out);
 	if (resolved_checksum64)
 		*resolved_checksum64 = entry->checksum64;
 	if (matched_preferred_palette)
 		*matched_preferred_palette = matched_preferred;
+	return true;
+}
+
+bool ReplacementProvider::resolve_ci_low32_candidate(uint32_t checksum_low32,
+                                                     uint16_t formatsize,
+                                                     uint32_t preferred_palette_crc,
+                                                     uint32_t repl_w,
+                                                     uint32_t repl_h,
+                                                     CILow32ResolutionMode mode,
+                                                     ReplacementResolution *out) const
+{
+	if (!enabled_ || !out)
+		return false;
+
+	bool matched_preferred = false;
+	const Entry *entry = find_ci_low32_entry(
+		checksum_low32,
+		formatsize,
+		preferred_palette_crc,
+		repl_w,
+		repl_h,
+		mode,
+		&matched_preferred);
+	if (!entry)
+		return false;
+
+	ReplacementResolutionKind kind = ReplacementResolutionKind::GenericCompat;
+	switch (mode)
+	{
+	case CILow32ResolutionMode::SelectedDims:
+		kind = ReplacementResolutionKind::CILow32SelectedDims;
+		break;
+	case CILow32ResolutionMode::ReplacementDimsUnique:
+		kind = ReplacementResolutionKind::CILow32ReplacementDimsUnique;
+		break;
+	case CILow32ResolutionMode::Unique:
+		kind = ReplacementResolutionKind::CILow32Unique;
+		break;
+	case CILow32ResolutionMode::Any:
+		kind = ReplacementResolutionKind::CILow32Any;
+		break;
+	}
+
+	if (!populate_resolution_from_entry(entry, kind, false, out))
+		return false;
+
+	out->matched_preferred_palette = matched_preferred;
 	return true;
 }
 

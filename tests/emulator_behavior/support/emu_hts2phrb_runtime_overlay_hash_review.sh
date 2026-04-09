@@ -53,12 +53,13 @@ python3 - "$ROOT_DIR" "$CACHE_PATH" <<'PY'
 import json
 import sys
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 root_dir = Path(sys.argv[1])
 cache_path = Path(sys.argv[2])
 sys.path.insert(0, str(root_dir / "tools"))
 
-from hts2phrb import build_runtime_overlay_review_payload
+from hts2phrb import build_runtime_overlay_review_payload, synchronize_report_summary_fields
 
 
 def make_candidate(replacement_id, texture_crc, palette_crc, width, height):
@@ -176,6 +177,27 @@ if entries["overlay-case-4"]["hash_review_class"] != "pixel-divergent-multi-dim"
     raise SystemExit(f"unexpected hash review for overlay-case-4: {entries['overlay-case-4']!r}")
 if entries["overlay-case-4"]["alpha_hash_overlap_policy_keys"] != ["overlay-case-2", "overlay-case-3"]:
     raise SystemExit(f"unexpected alpha-hash overlaps for overlay-case-4: {entries['overlay-case-4']!r}")
+
+with TemporaryDirectory() as tmpdir:
+    report = {
+        "package_dir": str(Path(tmpdir)),
+        "requested_family_states": {},
+        "package_manifest_summary": {},
+        "imported_index_summary": {},
+        "stage_timings_ms": {"total": 1.0},
+        "runtime_overlay_review_summary": review,
+    }
+    synchronize_report_summary_fields(report)
+    if report.get("runtime_overlay_reason_counts") != {"proxy-transport-selection-required": 4}:
+        raise SystemExit(f"unexpected top-level overlay reasons: {report.get('runtime_overlay_reason_counts')!r}")
+    if report.get("runtime_overlay_hash_review_class_counts") != {
+        "pixel-divergent-multi-dim": 1,
+        "pixel-divergent-single-dim": 2,
+        "pixel-identical-single-dim": 1,
+    }:
+        raise SystemExit(
+            f"unexpected top-level overlay hash classes: {report.get('runtime_overlay_hash_review_class_counts')!r}"
+        )
 PY
 
 echo "emu_hts2phrb_runtime_overlay_hash_review: PASS"

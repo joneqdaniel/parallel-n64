@@ -1923,6 +1923,11 @@ def synchronize_report_summary_fields(report: dict):
         int(report["promotion_blocker_family_count"]) - int(report["promotion_blocker_reason_family_count"]),
         0,
     )
+    runtime_overlay_review_summary = report.get("runtime_overlay_review_summary") or {}
+    report["runtime_overlay_reason_counts"] = runtime_overlay_review_summary.get("reason_counts") or {}
+    report["runtime_overlay_hash_review_class_counts"] = (
+        runtime_overlay_review_summary.get("hash_review_class_counts") or {}
+    )
     return report
 
 
@@ -2164,11 +2169,11 @@ def build_stdout_summary(report):
     runtime_overlay_review_summary = report.get("runtime_overlay_review_summary") or {}
     overlay_reason_summary = ", ".join(
         f"{name}={count}"
-        for name, count in sorted((runtime_overlay_review_summary.get("reason_counts") or {}).items())
+        for name, count in sorted((report.get("runtime_overlay_reason_counts") or {}).items())
     ) or "none"
     overlay_hash_summary = ", ".join(
         f"{name}={count}"
-        for name, count in sorted((runtime_overlay_review_summary.get("hash_review_class_counts") or {}).items())
+        for name, count in sorted((report.get("runtime_overlay_hash_review_class_counts") or {}).items())
     ) or "none"
     overlay_blocker_summary = ", ".join(
         f"{item['code']}={item['count']}"

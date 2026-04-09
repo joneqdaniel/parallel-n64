@@ -123,6 +123,11 @@ expected_context = {
     "promotion_blocker_runtime_state_counts": {"canonical-only": 375},
     "promotion_blocker_reason_counts": {"exact-family-ambiguous": 375},
     "promotion_blocker_reason_unclassified_family_count": 0,
+    "runtime_overlay_reason_counts": {"proxy-transport-selection-required": 13},
+    "runtime_overlay_hash_review_class_counts": {
+        "pixel-divergent-multi-dim": 5,
+        "pixel-divergent-single-dim": 8,
+    },
 }
 
 for label, report, expected in (

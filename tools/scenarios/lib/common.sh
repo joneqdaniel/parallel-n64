@@ -280,7 +280,7 @@ summary_re = re.compile(
     r" sampled_families=(\d+) compat_low32_families=(\d+) sources\(phrb=(\d+) hts=(\d+) htc=(\d+)\))?"
     r"(?: descriptor_paths\(sampled=(\d+) native_checksum=(\d+) generic=(\d+) compat=(\d+)\))?"
     r"(?: sampled_detail\(family_singleton=(\d+) ordered_surface_singleton=(\d+)\))?"
-    r"(?: generic_detail\(identity_assisted=(\d+) plain=(\d+)\))?"
+    r"(?: generic_detail\(identity_assisted=(\d+) plain=(\d+)(?: native=(\d+) compat=(\d+) unknown=(\d+))?\))?"
     r"\."
 )
 native_checksum_detail_re = re.compile(
@@ -879,6 +879,12 @@ for line in log_path.read_text(errors="replace").splitlines():
                     "generic_identity_assisted": int(m.group(24)),
                     "generic_plain": int(m.group(25)),
                 })
+                if m.group(26) is not None:
+                    detail_counts.update({
+                        "generic_native_plain": int(m.group(26)),
+                        "generic_compat_plain": int(m.group(27)),
+                        "generic_unknown_plain": int(m.group(28)),
+                    })
                 summary["descriptor_path_detail_counts"] = detail_counts
             if source_counts["phrb"] > 0 and source_counts["hts"] == 0 and source_counts["htc"] == 0:
                 summary["source_mode"] = "phrb-only"

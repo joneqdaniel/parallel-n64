@@ -966,6 +966,9 @@ void Renderer::set_replacement_provider(const ReplacementProvider *provider)
 	hires_descriptor_generic_resolutions = 0;
 	hires_descriptor_generic_identity_assisted_resolutions = 0;
 	hires_descriptor_generic_plain_resolutions = 0;
+	hires_descriptor_generic_native_plain_resolutions = 0;
+	hires_descriptor_generic_compat_plain_resolutions = 0;
+	hires_descriptor_generic_unknown_plain_resolutions = 0;
 	hires_descriptor_compat_resolutions = 0;
 	hires_block_shape_probe_logged_hits.clear();
 	hires_block_shape_probe_logged_contexts.clear();
@@ -1078,7 +1081,7 @@ void Renderer::log_hires_summary() const
 	if (replacement_provider)
 	{
 		ReplacementProviderStats provider_stats = replacement_provider->get_stats();
-		LOGI("Hi-res keying summary: lookups=%llu hits=%llu misses=%llu filtered=%llu block_probe_hits=%llu provider=on entries=%u native_sampled=%u compat=%u sampled_index=%u sampled_dupe_keys=%u sampled_dupe_entries=%u sampled_families=%u compat_low32_families=%u sources(phrb=%u hts=%u htc=%u) descriptor_paths(sampled=%llu native_checksum=%llu generic=%llu compat=%llu) sampled_detail(family_singleton=%llu ordered_surface_singleton=%llu) generic_detail(identity_assisted=%llu plain=%llu).\n",
+		LOGI("Hi-res keying summary: lookups=%llu hits=%llu misses=%llu filtered=%llu block_probe_hits=%llu provider=on entries=%u native_sampled=%u compat=%u sampled_index=%u sampled_dupe_keys=%u sampled_dupe_entries=%u sampled_families=%u compat_low32_families=%u sources(phrb=%u hts=%u htc=%u) descriptor_paths(sampled=%llu native_checksum=%llu generic=%llu compat=%llu) sampled_detail(family_singleton=%llu ordered_surface_singleton=%llu) generic_detail(identity_assisted=%llu plain=%llu native=%llu compat=%llu unknown=%llu).\n",
 		     static_cast<unsigned long long>(hires_lookup_total),
 		     static_cast<unsigned long long>(hires_lookup_hits),
 		     static_cast<unsigned long long>(hires_lookup_misses),
@@ -1102,7 +1105,10 @@ void Renderer::log_hires_summary() const
 		     static_cast<unsigned long long>(hires_descriptor_sampled_family_singleton_resolutions),
 		     static_cast<unsigned long long>(hires_descriptor_sampled_ordered_surface_singleton_resolutions),
 		     static_cast<unsigned long long>(hires_descriptor_generic_identity_assisted_resolutions),
-		     static_cast<unsigned long long>(hires_descriptor_generic_plain_resolutions));
+		     static_cast<unsigned long long>(hires_descriptor_generic_plain_resolutions),
+		     static_cast<unsigned long long>(hires_descriptor_generic_native_plain_resolutions),
+		     static_cast<unsigned long long>(hires_descriptor_generic_compat_plain_resolutions),
+		     static_cast<unsigned long long>(hires_descriptor_generic_unknown_plain_resolutions));
 		LOGI("Hi-res native checksum detail: exact=%llu identity_assisted=%llu generic_fallback=%llu.\n",
 		     static_cast<unsigned long long>(hires_descriptor_native_checksum_exact_resolutions),
 		     static_cast<unsigned long long>(hires_descriptor_native_checksum_identity_assisted_resolutions),
@@ -4038,6 +4044,28 @@ bool Renderer::resolve_hires_replacement_descriptor(uint64_t checksum64, uint16_
 	uint64_t resolved_selector_checksum64 = selector_checksum64;
 	bool generic_lookup_hit = false;
 	bool generic_resolution_identity_assisted = false;
+	auto record_generic_detail = [&](ResolvedEntrySourceClass source_class) {
+		hires_descriptor_generic_resolutions++;
+		if (generic_resolution_identity_assisted)
+		{
+			hires_descriptor_generic_identity_assisted_resolutions++;
+			return;
+		}
+
+		hires_descriptor_generic_plain_resolutions++;
+		switch (source_class)
+		{
+		case ResolvedEntrySourceClass::Native:
+			hires_descriptor_generic_native_plain_resolutions++;
+			break;
+		case ResolvedEntrySourceClass::Compat:
+			hires_descriptor_generic_compat_plain_resolutions++;
+			break;
+		default:
+			hires_descriptor_generic_unknown_plain_resolutions++;
+			break;
+		}
+	};
 	if (replacement_provider->lookup_with_selector_and_identity(
 		    checksum64,
 		    formatsize,
@@ -4137,11 +4165,7 @@ bool Renderer::resolve_hires_replacement_descriptor(uint64_t checksum64, uint16_
 	auto itr = hires_resources.resident_images.find(key);
 	if (itr != hires_resources.resident_images.end())
 	{
-		hires_descriptor_generic_resolutions++;
-		if (generic_resolution_identity_assisted)
-			hires_descriptor_generic_identity_assisted_resolutions++;
-		else
-			hires_descriptor_generic_plain_resolutions++;
+		record_generic_detail(resolved_source_class);
 		meta.vk_image_index = itr->second.descriptor_index;
 		meta.repl_w = itr->second.repl_w;
 		meta.repl_h = itr->second.repl_h;
@@ -4190,11 +4214,7 @@ bool Renderer::resolve_hires_replacement_descriptor(uint64_t checksum64, uint16_
 	resident.repl_h = static_cast<uint16_t>(replacement.meta.repl_h);
 	hires_resources.resident_images.emplace(key, std::move(resident));
 
-	hires_descriptor_generic_resolutions++;
-	if (generic_resolution_identity_assisted)
-		hires_descriptor_generic_identity_assisted_resolutions++;
-	else
-		hires_descriptor_generic_plain_resolutions++;
+	record_generic_detail(resolved_source_class);
 	meta.vk_image_index = descriptor_index;
 	meta.repl_w = replacement.meta.repl_w;
 	meta.repl_h = replacement.meta.repl_h;

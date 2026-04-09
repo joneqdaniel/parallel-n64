@@ -98,6 +98,10 @@ expected = {
         "exact-family-ambiguous": {"canonical-only": 368, "runtime-ready-package": 4}
     },
     "unresolved_family_reason_variant_group_count_counts": {"exact-family-ambiguous": {"2": 259, "3": 52, "4": 60, "5": 1}},
+    "unresolved_family_runtime_ready_review_group_count": 1,
+    "unresolved_family_runtime_ready_family_count": 4,
+    "unresolved_family_runtime_ready_reason_counts": {"exact-family-ambiguous": 4},
+    "unresolved_family_runtime_ready_runtime_state_counts": {"runtime-ready-package": 4},
     "runtime_overlay_reason_counts": {"proxy-transport-selection-required": 9},
     "runtime_overlay_hash_review_class_counts": {
         "pixel-divergent-multi-dim": 3,
@@ -186,6 +190,10 @@ if not report.get("runtime_overlay_linked_import_review_json_path") or not Path(
     raise SystemExit(f"FAIL: linked-import review json path missing: {report.get('runtime_overlay_linked_import_review_json_path')!r}")
 if not report.get("runtime_overlay_linked_import_review_markdown_path") or not Path(report["runtime_overlay_linked_import_review_markdown_path"]).exists():
     raise SystemExit(f"FAIL: linked-import review markdown path missing: {report.get('runtime_overlay_linked_import_review_markdown_path')!r}")
+if not report.get("unresolved_family_runtime_ready_review_json_path") or not Path(report["unresolved_family_runtime_ready_review_json_path"]).exists():
+    raise SystemExit(f"FAIL: unresolved runtime-ready review json path missing: {report.get('unresolved_family_runtime_ready_review_json_path')!r}")
+if not report.get("unresolved_family_runtime_ready_review_markdown_path") or not Path(report["unresolved_family_runtime_ready_review_markdown_path"]).exists():
+    raise SystemExit(f"FAIL: unresolved runtime-ready review markdown path missing: {report.get('unresolved_family_runtime_ready_review_markdown_path')!r}")
 
 summary_text = Path(report["summary_path"]).read_text()
 if f"- Transport policy: `{transport_policy_path}`" not in summary_text:

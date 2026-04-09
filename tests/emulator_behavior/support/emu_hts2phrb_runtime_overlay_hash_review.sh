@@ -60,6 +60,7 @@ cache_path = Path(sys.argv[2])
 sys.path.insert(0, str(root_dir / "tools"))
 
 from hts2phrb import (
+    build_unresolved_family_runtime_ready_review_payload,
     build_runtime_overlay_candidate_set_review_payload,
     build_runtime_overlay_linked_import_review_payload,
     build_runtime_overlay_review_payload,
@@ -193,6 +194,40 @@ linked_import_review = build_runtime_overlay_linked_import_review_payload(
         ]
     },
 )
+runtime_ready_review = build_unresolved_family_runtime_ready_review_payload(
+    {
+        "families": [
+            {
+                "family_key": "linked-a:fs0",
+                "runtime_state": "runtime-ready-package",
+                "reason": "exact-family-ambiguous",
+                "variant_group_count": 3,
+                "candidate_replacement_count": 8,
+                "variant_group_dims": ["64x64", "120x120"],
+                "sampled_object_ids": ["sampled-linked"],
+            },
+            {
+                "family_key": "linked-b:fs0",
+                "runtime_state": "runtime-ready-package",
+                "reason": "exact-family-ambiguous",
+                "variant_group_count": 4,
+                "candidate_replacement_count": 12,
+                "variant_group_dims": ["64x64", "144x144"],
+                "sampled_object_ids": ["sampled-linked"],
+            },
+            {
+                "family_key": "canonical-only:fs0",
+                "runtime_state": "canonical-only",
+                "reason": "exact-family-ambiguous",
+                "variant_group_count": 2,
+                "candidate_replacement_count": 5,
+                "variant_group_dims": ["16x16"],
+                "sampled_object_ids": ["sampled-other"],
+            },
+        ]
+    },
+    linked_import_review,
+)
 
 if review.get("unresolved_overlay_count") != 4:
     raise SystemExit(f"unexpected unresolved overlay count: {review!r}")
@@ -238,6 +273,17 @@ if linked_group.get("linked_candidate_replacement_count_counts") != {"8": 1, "12
     raise SystemExit(f"unexpected linked-import candidate replacement counts: {linked_group!r}")
 if linked_group.get("linked_variant_group_dims") != ["120x120", "144x144", "64x64"]:
     raise SystemExit(f"unexpected linked-import dims: {linked_group!r}")
+if runtime_ready_review.get("runtime_ready_review_group_count") != 1:
+    raise SystemExit(f"unexpected runtime-ready review group count: {runtime_ready_review!r}")
+if runtime_ready_review.get("runtime_ready_family_total_count") != 2:
+    raise SystemExit(f"unexpected runtime-ready review family count: {runtime_ready_review!r}")
+runtime_ready_group = (runtime_ready_review.get("groups") or [{}])[0]
+if runtime_ready_group.get("family_keys") != ["linked-a:fs0", "linked-b:fs0"]:
+    raise SystemExit(f"unexpected runtime-ready review family keys: {runtime_ready_group!r}")
+if runtime_ready_group.get("overlay_linked_policy_keys") != ["overlay-linked"]:
+    raise SystemExit(f"unexpected runtime-ready review overlay policy keys: {runtime_ready_group!r}")
+if runtime_ready_group.get("overlay_linked_transport_candidate_count") != 5:
+    raise SystemExit(f"unexpected runtime-ready review overlay candidate count: {runtime_ready_group!r}")
 
 entries = {entry["policy_key"]: entry for entry in review.get("entries") or []}
 if entries["overlay-case-1"]["hash_review_class"] != "pixel-identical-single-dim":
@@ -277,6 +323,7 @@ with TemporaryDirectory() as tmpdir:
         "runtime_overlay_review_summary": review,
         "runtime_overlay_candidate_set_review_summary": candidate_set_review,
         "runtime_overlay_linked_import_review_summary": linked_import_review,
+        "unresolved_family_runtime_ready_review_summary": runtime_ready_review,
     }
     synchronize_report_summary_fields(report)
     if report.get("runtime_overlay_unresolved_count") != 4:
@@ -343,6 +390,22 @@ with TemporaryDirectory() as tmpdir:
     if report.get("runtime_overlay_linked_import_reason_counts") != {"exact-family-ambiguous": 2}:
         raise SystemExit(
             f"unexpected top-level linked-import reasons: {report.get('runtime_overlay_linked_import_reason_counts')!r}"
+        )
+    if report.get("unresolved_family_runtime_ready_review_group_count") != 1:
+        raise SystemExit(
+            f"unexpected top-level unresolved runtime-ready review group count: {report.get('unresolved_family_runtime_ready_review_group_count')!r}"
+        )
+    if report.get("unresolved_family_runtime_ready_family_count") != 2:
+        raise SystemExit(
+            f"unexpected top-level unresolved runtime-ready family count: {report.get('unresolved_family_runtime_ready_family_count')!r}"
+        )
+    if report.get("unresolved_family_runtime_ready_reason_counts") != {"exact-family-ambiguous": 2}:
+        raise SystemExit(
+            f"unexpected top-level unresolved runtime-ready reasons: {report.get('unresolved_family_runtime_ready_reason_counts')!r}"
+        )
+    if report.get("unresolved_family_runtime_ready_runtime_state_counts") != {"runtime-ready-package": 2}:
+        raise SystemExit(
+            f"unexpected top-level unresolved runtime-ready states: {report.get('unresolved_family_runtime_ready_runtime_state_counts')!r}"
         )
 PY
 

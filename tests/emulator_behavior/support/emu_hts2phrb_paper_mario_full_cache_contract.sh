@@ -100,6 +100,10 @@ expected_zero = {
     "promotion_blocker_reason_unclassified_family_count": 0,
     "unresolved_family_reason_runtime_state_counts": {"exact-family-ambiguous": {"canonical-only": 372}},
     "unresolved_family_reason_variant_group_count_counts": {"exact-family-ambiguous": {"2": 259, "3": 52, "4": 60, "5": 1}},
+    "unresolved_family_runtime_ready_review_group_count": 0,
+    "unresolved_family_runtime_ready_family_count": 0,
+    "unresolved_family_runtime_ready_reason_counts": {},
+    "unresolved_family_runtime_ready_runtime_state_counts": {},
 }
 
 expected_context = {
@@ -129,6 +133,10 @@ expected_context = {
         "exact-family-ambiguous": {"canonical-only": 368, "runtime-ready-package": 4}
     },
     "unresolved_family_reason_variant_group_count_counts": {"exact-family-ambiguous": {"2": 259, "3": 52, "4": 60, "5": 1}},
+    "unresolved_family_runtime_ready_review_group_count": 1,
+    "unresolved_family_runtime_ready_family_count": 4,
+    "unresolved_family_runtime_ready_reason_counts": {"exact-family-ambiguous": 4},
+    "unresolved_family_runtime_ready_runtime_state_counts": {"runtime-ready-package": 4},
     "runtime_overlay_reason_counts": {"proxy-transport-selection-required": 13},
     "runtime_overlay_hash_review_class_counts": {
         "pixel-divergent-multi-dim": 5,
@@ -249,6 +257,10 @@ if not context.get("runtime_overlay_linked_import_review_json_path") or not Path
     raise SystemExit(f"FAIL: authority-context linked-import review json path missing: {context.get('runtime_overlay_linked_import_review_json_path')!r}.")
 if not context.get("runtime_overlay_linked_import_review_markdown_path") or not Path(context["runtime_overlay_linked_import_review_markdown_path"]).exists():
     raise SystemExit(f"FAIL: authority-context linked-import review markdown path missing: {context.get('runtime_overlay_linked_import_review_markdown_path')!r}.")
+if not context.get("unresolved_family_runtime_ready_review_json_path") or not Path(context["unresolved_family_runtime_ready_review_json_path"]).exists():
+    raise SystemExit(f"FAIL: authority-context unresolved runtime-ready review json path missing: {context.get('unresolved_family_runtime_ready_review_json_path')!r}.")
+if not context.get("unresolved_family_runtime_ready_review_markdown_path") or not Path(context["unresolved_family_runtime_ready_review_markdown_path"]).exists():
+    raise SystemExit(f"FAIL: authority-context unresolved runtime-ready review markdown path missing: {context.get('unresolved_family_runtime_ready_review_markdown_path')!r}.")
 PY
 
 echo "emu_hts2phrb_paper_mario_full_cache_contract: PASS"

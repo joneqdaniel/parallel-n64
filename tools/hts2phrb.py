@@ -1902,6 +1902,104 @@ def build_runtime_overlay_linked_import_review_payload(runtime_overlay_review, u
     }
 
 
+def build_unresolved_family_runtime_ready_review_payload(unresolved_family_review, runtime_overlay_linked_import_review):
+    if not unresolved_family_review:
+        return {
+            "runtime_ready_review_group_count": 0,
+            "runtime_ready_family_total_count": 0,
+            "sampled_object_id_counts": {},
+            "reason_counts": {},
+            "runtime_state_counts": {},
+            "groups": [],
+        }
+
+    overlay_group_by_sampled_object_id = {}
+    for group in (runtime_overlay_linked_import_review or {}).get("groups") or []:
+        sampled_object_id = str(group.get("sampled_object_id") or "")
+        if sampled_object_id:
+            overlay_group_by_sampled_object_id[sampled_object_id] = group
+
+    grouped_entries = defaultdict(list)
+    for family in unresolved_family_review.get("families") or []:
+        if family.get("runtime_state") != "runtime-ready-package":
+            continue
+        sampled_object_ids = tuple(sorted(family.get("sampled_object_ids") or []))
+        if not sampled_object_ids:
+            continue
+        grouped_entries[sampled_object_ids].append(family)
+
+    groups = []
+    sampled_object_id_counts = Counter()
+    reason_counts = Counter()
+    runtime_state_counts = Counter()
+    runtime_ready_family_total_count = 0
+    for sampled_object_ids, families in sorted(grouped_entries.items()):
+        family_keys = sorted(
+            family.get("family_key")
+            for family in families
+            if family.get("family_key")
+        )
+        sampled_object_id = sampled_object_ids[0] if len(sampled_object_ids) == 1 else None
+        overlay_group = overlay_group_by_sampled_object_id.get(sampled_object_id or "", {})
+        group_reason_counts = Counter(
+            str(family.get("reason") or "unknown")
+            for family in families
+        )
+        group_runtime_state_counts = Counter(
+            str(family.get("runtime_state") or "unknown")
+            for family in families
+        )
+        group_variant_group_count_counts = Counter(
+            str(family.get("variant_group_count") or 0)
+            for family in families
+        )
+        group_candidate_replacement_count_counts = Counter(
+            str(family.get("candidate_replacement_count") or 0)
+            for family in families
+        )
+        group_variant_group_dims = sorted(
+            {
+                dim
+                for family in families
+                for dim in (family.get("variant_group_dims") or [])
+                if dim
+            }
+        )
+        runtime_ready_family_total_count += len(families)
+        reason_counts.update(group_reason_counts)
+        runtime_state_counts.update(group_runtime_state_counts)
+        for sampled_id in sampled_object_ids:
+            sampled_object_id_counts[sampled_id] += 1
+        groups.append(
+            {
+                "sampled_object_ids": list(sampled_object_ids),
+                "sampled_object_id": sampled_object_id,
+                "family_count": len(families),
+                "family_keys": family_keys,
+                "reason_counts": dict(sorted(group_reason_counts.items())),
+                "runtime_state_counts": dict(sorted(group_runtime_state_counts.items())),
+                "variant_group_count_counts": dict(sorted(group_variant_group_count_counts.items())),
+                "candidate_replacement_count_counts": dict(sorted(group_candidate_replacement_count_counts.items())),
+                "variant_group_dims": group_variant_group_dims,
+                "overlay_linked_policy_keys": sorted(
+                    [overlay_group.get("policy_key")] if overlay_group.get("policy_key") else []
+                ),
+                "overlay_linked_transport_candidate_count": int(overlay_group.get("transport_candidate_count") or 0),
+                "overlay_linked_action_hint": overlay_group.get("action_hint"),
+            }
+        )
+
+    groups.sort(key=lambda item: (",".join(item.get("sampled_object_ids") or []), ",".join(item.get("family_keys") or [])))
+    return {
+        "runtime_ready_review_group_count": len(groups),
+        "runtime_ready_family_total_count": runtime_ready_family_total_count,
+        "sampled_object_id_counts": dict(sorted(sampled_object_id_counts.items())),
+        "reason_counts": dict(sorted(reason_counts.items())),
+        "runtime_state_counts": dict(sorted(runtime_state_counts.items())),
+        "groups": groups,
+    }
+
+
 def render_unresolved_family_review_markdown(review):
     lines = [
         "# hts2phrb Unresolved Family Review",
@@ -1956,6 +2054,49 @@ def render_unresolved_family_review_markdown(review):
                 f"sampled_objects=`{family['canonical_sampled_object_count']}` "
                 f"dims=`{dims}` sampled_ids=`{sampled_object_ids}`"
             )
+    lines.append("")
+    return "\n".join(lines)
+
+
+def render_unresolved_family_runtime_ready_review_markdown(review):
+    lines = [
+        "# hts2phrb Unresolved Family Runtime-Ready Review",
+        "",
+        f"- Runtime-ready review groups: `{review.get('runtime_ready_review_group_count', 0)}`",
+        f"- Runtime-ready unresolved families: `{review.get('runtime_ready_family_total_count', 0)}`",
+    ]
+
+    for title, counts in (
+        ("Sampled Object Counts", review.get("sampled_object_id_counts") or {}),
+        ("Reason Counts", review.get("reason_counts") or {}),
+        ("Runtime State Counts", review.get("runtime_state_counts") or {}),
+    ):
+        lines.extend(["", f"## {title}", ""])
+        if counts:
+            for key, count in counts.items():
+                lines.append(f"- `{key}`: `{count}`")
+        else:
+            lines.append("- none")
+
+    lines.extend(["", "## Groups", ""])
+    groups = review.get("groups") or []
+    if not groups:
+        lines.append("- none")
+        lines.append("")
+        return "\n".join(lines)
+
+    for group in groups:
+        sampled_ids = ", ".join(group.get("sampled_object_ids") or []) or "none"
+        family_keys = ", ".join(group.get("family_keys") or []) or "none"
+        dims = ", ".join(group.get("variant_group_dims") or []) or "none"
+        overlay_policy_keys = ", ".join(group.get("overlay_linked_policy_keys") or []) or "none"
+        lines.append(
+            f"- sampled_ids=`{sampled_ids}` families=`{group.get('family_count', 0)}` "
+            f"family_keys=`{family_keys}` dims=`{dims}` "
+            f"overlay_policy_keys=`{overlay_policy_keys}` "
+            f"overlay_transport_candidates=`{group.get('overlay_linked_transport_candidate_count', 0)}` "
+            f"overlay_action=`{group.get('overlay_linked_action_hint') or 'none'}`"
+        )
     lines.append("")
     return "\n".join(lines)
 
@@ -2185,6 +2326,20 @@ def write_unresolved_family_review_artifacts(output_dir: Path, migrate_result: d
     return review, review_json_path, review_markdown_path
 
 
+def write_unresolved_family_runtime_ready_review_artifacts(output_dir: Path,
+                                                           unresolved_family_review: dict,
+                                                           runtime_overlay_linked_import_review: dict):
+    review = build_unresolved_family_runtime_ready_review_payload(
+        unresolved_family_review,
+        runtime_overlay_linked_import_review,
+    )
+    review_json_path = output_dir / "hts2phrb-unresolved-family-runtime-ready-review.json"
+    review_markdown_path = output_dir / "hts2phrb-unresolved-family-runtime-ready-review.md"
+    review_json_path.write_text(json.dumps(review, indent=2) + "\n")
+    review_markdown_path.write_text(render_unresolved_family_runtime_ready_review_markdown(review))
+    return review, review_json_path, review_markdown_path
+
+
 def write_runtime_overlay_review_artifacts(output_dir: Path, migrate_result: dict, bindings: dict, report: dict):
     review = build_runtime_overlay_review_payload(migrate_result, bindings, report)
     review_json_path = output_dir / "hts2phrb-runtime-overlay-review.json"
@@ -2368,6 +2523,21 @@ def synchronize_report_summary_fields(report: dict):
     report["unresolved_family_reason_variant_group_count_counts"] = (
         unresolved_family_review_summary.get("reason_variant_group_count_counts") or {}
     )
+    unresolved_family_runtime_ready_review_summary = (
+        report.get("unresolved_family_runtime_ready_review_summary") or {}
+    )
+    report["unresolved_family_runtime_ready_review_group_count"] = int(
+        unresolved_family_runtime_ready_review_summary.get("runtime_ready_review_group_count") or 0
+    )
+    report["unresolved_family_runtime_ready_family_count"] = int(
+        unresolved_family_runtime_ready_review_summary.get("runtime_ready_family_total_count") or 0
+    )
+    report["unresolved_family_runtime_ready_reason_counts"] = (
+        unresolved_family_runtime_ready_review_summary.get("reason_counts") or {}
+    )
+    report["unresolved_family_runtime_ready_runtime_state_counts"] = (
+        unresolved_family_runtime_ready_review_summary.get("runtime_state_counts") or {}
+    )
     runtime_overlay_review_summary = report.get("runtime_overlay_review_summary") or {}
     report["runtime_overlay_unresolved_count"] = int(
         runtime_overlay_review_summary.get("unresolved_overlay_count") or 0
@@ -2489,6 +2659,17 @@ def build_markdown_summary(report):
         if report.get("unresolved_family_review_json_path"):
             review_refs.append(f"[unresolved family review json]({report['unresolved_family_review_json_path']})")
         lines.append("- Unresolved family review: " + ", ".join(review_refs))
+    if report.get("unresolved_family_runtime_ready_review_markdown_path") or report.get("unresolved_family_runtime_ready_review_json_path"):
+        runtime_ready_review_refs = []
+        if report.get("unresolved_family_runtime_ready_review_markdown_path"):
+            runtime_ready_review_refs.append(
+                f"[unresolved family runtime-ready review]({report['unresolved_family_runtime_ready_review_markdown_path']})"
+            )
+        if report.get("unresolved_family_runtime_ready_review_json_path"):
+            runtime_ready_review_refs.append(
+                f"[unresolved family runtime-ready review json]({report['unresolved_family_runtime_ready_review_json_path']})"
+            )
+        lines.append("- Unresolved family runtime-ready review: " + ", ".join(runtime_ready_review_refs))
     if report.get("runtime_overlay_review_markdown_path") or report.get("runtime_overlay_review_json_path"):
         overlay_review_refs = []
         if report.get("runtime_overlay_review_markdown_path"):
@@ -2618,6 +2799,30 @@ def build_markdown_summary(report):
         if reason_variant_group_count_counts:
             lines.append(
                 "- Reasons by variant-group count: " + format_nested_count_summary(reason_variant_group_count_counts)
+            )
+
+    unresolved_runtime_ready_review_summary = report.get("unresolved_family_runtime_ready_review_summary") or {}
+    if unresolved_runtime_ready_review_summary:
+        lines.extend(["", "## Unresolved Runtime-Ready Review Summary", ""])
+        lines.append(
+            f"- Runtime-ready review groups: `{unresolved_runtime_ready_review_summary.get('runtime_ready_review_group_count', 0)}`"
+        )
+        lines.append(
+            f"- Runtime-ready unresolved families: `{unresolved_runtime_ready_review_summary.get('runtime_ready_family_total_count', 0)}`"
+        )
+        runtime_ready_reason_counts = unresolved_runtime_ready_review_summary.get("reason_counts") or {}
+        if runtime_ready_reason_counts:
+            lines.append(
+                "- Reasons: " + ", ".join(
+                    f"`{name}`=`{count}`" for name, count in sorted(runtime_ready_reason_counts.items())
+                )
+            )
+        runtime_ready_state_counts = unresolved_runtime_ready_review_summary.get("runtime_state_counts") or {}
+        if runtime_ready_state_counts:
+            lines.append(
+                "- Runtime states: " + ", ".join(
+                    f"`{name}`=`{count}`" for name, count in sorted(runtime_ready_state_counts.items())
+                )
             )
 
     runtime_overlay_review_summary = report.get("runtime_overlay_review_summary") or {}
@@ -2758,6 +2963,11 @@ def build_stdout_summary(report):
         f"{name}={count}"
         for name, count in sorted((unresolved_review_summary.get("reason_counts") or {}).items())
     ) or "none"
+    unresolved_runtime_ready_review_summary = report.get("unresolved_family_runtime_ready_review_summary") or {}
+    unresolved_runtime_ready_reason_summary = ", ".join(
+        f"{name}={count}"
+        for name, count in sorted((unresolved_runtime_ready_review_summary.get("reason_counts") or {}).items())
+    ) or "none"
     runtime_overlay_review_summary = report.get("runtime_overlay_review_summary") or {}
     overlay_reason_summary = ", ".join(
         f"{name}={count}"
@@ -2821,6 +3031,10 @@ def build_stdout_summary(report):
         f"unresolved_family_review: {report.get('unresolved_family_review_json_path') or 'none'}",
         f"unresolved_family_count: {unresolved_review_summary.get('unresolved_family_count', 0)}",
         f"unresolved_family_reasons: {unresolved_reason_summary}",
+        f"unresolved_family_runtime_ready_review: {report.get('unresolved_family_runtime_ready_review_json_path') or 'none'}",
+        f"unresolved_family_runtime_ready_groups: {int(report.get('unresolved_family_runtime_ready_review_group_count') or 0)}",
+        f"unresolved_family_runtime_ready_count: {int(report.get('unresolved_family_runtime_ready_family_count') or 0)}",
+        f"unresolved_family_runtime_ready_reasons: {unresolved_runtime_ready_reason_summary}",
         f"runtime_overlay_review: {report.get('runtime_overlay_review_json_path') or 'none'}",
         f"runtime_overlay_unresolved_count: {runtime_overlay_review_summary.get('unresolved_overlay_count', 0)}",
         f"runtime_overlay_direct_unresolved_count: {int(report.get('runtime_overlay_direct_unresolved_count') or 0)}",
@@ -3065,6 +3279,20 @@ def build_conversion(args):
                 reusable_pre_report["unresolved_family_review_summary"] = unresolved_review
                 reusable_pre_report["unresolved_family_review_json_path"] = str(unresolved_review_json_path)
                 reusable_pre_report["unresolved_family_review_markdown_path"] = str(unresolved_review_markdown_path)
+                unresolved_runtime_ready_review, unresolved_runtime_ready_review_json_path, unresolved_runtime_ready_review_markdown_path = (
+                    write_unresolved_family_runtime_ready_review_artifacts(
+                        output_dir,
+                        unresolved_review,
+                        reusable_pre_report.get("runtime_overlay_linked_import_review_summary") or {},
+                    )
+                )
+                reusable_pre_report["unresolved_family_runtime_ready_review_summary"] = unresolved_runtime_ready_review
+                reusable_pre_report["unresolved_family_runtime_ready_review_json_path"] = str(
+                    unresolved_runtime_ready_review_json_path
+                )
+                reusable_pre_report["unresolved_family_runtime_ready_review_markdown_path"] = str(
+                    unresolved_runtime_ready_review_markdown_path
+                )
                 synchronize_report_summary_fields(reusable_pre_report)
                 reusable_bindings = load_bindings_for_report(reusable_pre_report)
                 if reusable_bindings is not None and int(reusable_pre_report.get("unresolved_count") or 0) > 0:
@@ -3100,6 +3328,20 @@ def build_conversion(args):
                     )
                     reusable_pre_report["runtime_overlay_linked_import_review_markdown_path"] = str(
                         overlay_linked_import_review_markdown_path
+                    )
+                    unresolved_runtime_ready_review, unresolved_runtime_ready_review_json_path, unresolved_runtime_ready_review_markdown_path = (
+                        write_unresolved_family_runtime_ready_review_artifacts(
+                            output_dir,
+                            unresolved_review,
+                            overlay_linked_import_review,
+                        )
+                    )
+                    reusable_pre_report["unresolved_family_runtime_ready_review_summary"] = unresolved_runtime_ready_review
+                    reusable_pre_report["unresolved_family_runtime_ready_review_json_path"] = str(
+                        unresolved_runtime_ready_review_json_path
+                    )
+                    reusable_pre_report["unresolved_family_runtime_ready_review_markdown_path"] = str(
+                        unresolved_runtime_ready_review_markdown_path
                     )
                     reusable_pre_report["runtime_overlay_blockers"] = summarize_runtime_overlay_blockers(
                         overlay_review,
@@ -3231,6 +3473,20 @@ def build_conversion(args):
                 reusable_report["unresolved_family_review_summary"] = unresolved_review
                 reusable_report["unresolved_family_review_json_path"] = str(unresolved_review_json_path)
                 reusable_report["unresolved_family_review_markdown_path"] = str(unresolved_review_markdown_path)
+                unresolved_runtime_ready_review, unresolved_runtime_ready_review_json_path, unresolved_runtime_ready_review_markdown_path = (
+                    write_unresolved_family_runtime_ready_review_artifacts(
+                        output_dir,
+                        unresolved_review,
+                        reusable_report.get("runtime_overlay_linked_import_review_summary") or {},
+                    )
+                )
+                reusable_report["unresolved_family_runtime_ready_review_summary"] = unresolved_runtime_ready_review
+                reusable_report["unresolved_family_runtime_ready_review_json_path"] = str(
+                    unresolved_runtime_ready_review_json_path
+                )
+                reusable_report["unresolved_family_runtime_ready_review_markdown_path"] = str(
+                    unresolved_runtime_ready_review_markdown_path
+                )
                 synchronize_report_summary_fields(reusable_report)
                 reusable_bindings = load_bindings_for_report(reusable_report)
                 if reusable_bindings is not None and int(reusable_report.get("unresolved_count") or 0) > 0:
@@ -3266,6 +3522,20 @@ def build_conversion(args):
                     )
                     reusable_report["runtime_overlay_linked_import_review_markdown_path"] = str(
                         overlay_linked_import_review_markdown_path
+                    )
+                    unresolved_runtime_ready_review, unresolved_runtime_ready_review_json_path, unresolved_runtime_ready_review_markdown_path = (
+                        write_unresolved_family_runtime_ready_review_artifacts(
+                            output_dir,
+                            unresolved_review,
+                            overlay_linked_import_review,
+                        )
+                    )
+                    reusable_report["unresolved_family_runtime_ready_review_summary"] = unresolved_runtime_ready_review
+                    reusable_report["unresolved_family_runtime_ready_review_json_path"] = str(
+                        unresolved_runtime_ready_review_json_path
+                    )
+                    reusable_report["unresolved_family_runtime_ready_review_markdown_path"] = str(
+                        unresolved_runtime_ready_review_markdown_path
                     )
                     reusable_report["runtime_overlay_blockers"] = summarize_runtime_overlay_blockers(
                         overlay_review,
@@ -3683,6 +3953,20 @@ def build_conversion(args):
     report["unresolved_family_review_summary"] = unresolved_review
     report["unresolved_family_review_json_path"] = str(unresolved_review_json_path)
     report["unresolved_family_review_markdown_path"] = str(unresolved_review_markdown_path)
+    unresolved_runtime_ready_review, unresolved_runtime_ready_review_json_path, unresolved_runtime_ready_review_markdown_path = (
+        write_unresolved_family_runtime_ready_review_artifacts(
+            output_dir,
+            unresolved_review,
+            {},
+        )
+    )
+    report["unresolved_family_runtime_ready_review_summary"] = unresolved_runtime_ready_review
+    report["unresolved_family_runtime_ready_review_json_path"] = str(
+        unresolved_runtime_ready_review_json_path
+    )
+    report["unresolved_family_runtime_ready_review_markdown_path"] = str(
+        unresolved_runtime_ready_review_markdown_path
+    )
     synchronize_report_summary_fields(report)
     if unresolved_count > 0:
         runtime_overlay_review, runtime_overlay_review_json_path, runtime_overlay_review_markdown_path = write_runtime_overlay_review_artifacts(
@@ -3717,6 +4001,20 @@ def build_conversion(args):
         )
         report["runtime_overlay_linked_import_review_markdown_path"] = str(
             runtime_overlay_linked_import_review_markdown_path
+        )
+        unresolved_runtime_ready_review, unresolved_runtime_ready_review_json_path, unresolved_runtime_ready_review_markdown_path = (
+            write_unresolved_family_runtime_ready_review_artifacts(
+                output_dir,
+                unresolved_review,
+                runtime_overlay_linked_import_review,
+            )
+        )
+        report["unresolved_family_runtime_ready_review_summary"] = unresolved_runtime_ready_review
+        report["unresolved_family_runtime_ready_review_json_path"] = str(
+            unresolved_runtime_ready_review_json_path
+        )
+        report["unresolved_family_runtime_ready_review_markdown_path"] = str(
+            unresolved_runtime_ready_review_markdown_path
         )
         report["runtime_overlay_blockers"] = summarize_runtime_overlay_blockers(
             runtime_overlay_review,

@@ -1185,6 +1185,42 @@ int main()
 	      "typed upload resolution should preserve sampled identity for ordered-surface singletons");
 	check(ordered_singleton_resolution.resolved_selector_checksum64 == ordered_singleton_selector,
 	      "typed upload resolution should preserve the ordered-surface selector");
+	ReplacementResolution ordered_singleton_exact_resolution = {};
+	check(ordered_singleton_provider.resolve_sampled_candidate(
+	          2,
+	          1,
+	          96,
+	          16,
+	          2,
+	          2,
+	          ordered_singleton_sampled_low32,
+	          ordered_singleton_palette_crc,
+	          258,
+	          ordered_singleton_selector,
+	          &ordered_singleton_exact_resolution),
+	      "typed sampled resolution should preserve exact selector hits before falling back to sampled-family singleton logic");
+	check(ordered_singleton_exact_resolution.kind == ReplacementResolutionKind::SampledExactSelector,
+	      "typed sampled resolution should classify exact selector hits distinctly");
+	check(!ordered_singleton_exact_resolution.ordered_surface_singleton,
+	      "typed sampled resolution should not relabel exact selector hits as ordered-surface singleton fallback");
+	ReplacementResolution ordered_singleton_family_resolution = {};
+	check(ordered_singleton_provider.resolve_sampled_candidate(
+	          2,
+	          1,
+	          96,
+	          16,
+	          2,
+	          2,
+	          ordered_singleton_sampled_low32,
+	          ordered_singleton_palette_crc,
+	          258,
+	          0,
+	          &ordered_singleton_family_resolution),
+	      "typed sampled resolution should still expose ordered-surface singleton family fallback when no selector is requested");
+	check(ordered_singleton_family_resolution.kind == ReplacementResolutionKind::SampledFamilySingleton,
+	      "typed sampled resolution should classify selector-free ordered-surface singleton fallback distinctly");
+	check(ordered_singleton_family_resolution.ordered_surface_singleton,
+	      "typed sampled resolution should preserve ordered-surface singleton family fallback classification");
 	SampledFamilyDiagnostics ordered_singleton_diag = {};
 	check(ordered_singleton_provider.describe_sampled_family(
 	          2,

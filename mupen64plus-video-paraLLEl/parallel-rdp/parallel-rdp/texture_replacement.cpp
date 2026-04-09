@@ -1075,6 +1075,63 @@ bool ReplacementProvider::resolve_upload_candidate(uint64_t checksum64,
 	return resolve_with_selector(checksum64, formatsize, selector_checksum64, out);
 }
 
+bool ReplacementProvider::resolve_sampled_candidate(uint32_t sampled_fmt,
+                                                    uint32_t sampled_siz,
+                                                    uint32_t sampled_tex_offset,
+                                                    uint32_t sampled_stride,
+                                                    uint32_t sampled_width,
+                                                    uint32_t sampled_height,
+                                                    uint32_t sampled_low32,
+                                                    uint32_t palette_crc,
+                                                    uint16_t formatsize,
+                                                    uint64_t selector_checksum64,
+                                                    ReplacementResolution *out) const
+{
+	if (!enabled_ || !out)
+		return false;
+
+	const Entry *sampled_entry = find_sampled_entry(
+		sampled_fmt,
+		sampled_siz,
+		sampled_tex_offset,
+		sampled_stride,
+		sampled_width,
+		sampled_height,
+		sampled_low32,
+		palette_crc,
+		formatsize,
+		selector_checksum64);
+	if (sampled_entry)
+		return populate_resolution_from_entry(
+			sampled_entry,
+			ReplacementResolutionKind::SampledExactSelector,
+			false,
+			out);
+
+	bool ordered_surface_singleton = false;
+	const Entry *family_entry = find_singleton_sampled_family_entry(
+		sampled_fmt,
+		sampled_siz,
+		sampled_tex_offset,
+		sampled_stride,
+		sampled_width,
+		sampled_height,
+		sampled_low32,
+		palette_crc,
+		formatsize,
+		true,
+		nullptr,
+		&ordered_surface_singleton);
+	if (family_entry)
+		return populate_resolution_from_entry(
+			family_entry,
+			ReplacementResolutionKind::SampledFamilySingleton,
+			ordered_surface_singleton,
+			out);
+
+	return false;
+}
+
 bool ReplacementProvider::lookup_native_with_selector(uint64_t checksum64,
                                                       uint16_t formatsize,
                                                       uint64_t selector_checksum64,

@@ -2049,11 +2049,8 @@ void Renderer::draw_shaded_primitive(const TriangleSetup &setup, const Attribute
 		                            const char *reason_family_unique,
 		                            const char *reason_ordered_surface) {
 			const uint64_t checksum64 = detail::compose_hires_checksum64(sampled_identity.texture_crc, palette_crc);
-			ReplacementMeta candidate_meta = {};
-			uint64_t resolved_checksum64 = checksum64;
-			uint64_t resolved_selector_checksum64 = sampled_selector_checksum64;
-			const char *resolved_reason = reason_exact;
-			bool lookup_hit = replacement_provider->lookup_sampled_with_selector(
+			ReplacementResolution resolution = {};
+			bool lookup_hit = replacement_provider->resolve_sampled_candidate(
 				uint32_t(base_meta.fmt),
 				uint32_t(base_meta.size),
 				base_meta.offset,
@@ -2063,29 +2060,14 @@ void Renderer::draw_shaded_primitive(const TriangleSetup &setup, const Attribute
 				sampled_identity.texture_crc,
 				palette_crc,
 				sampled_identity.formatsize,
-				resolved_selector_checksum64,
-				&candidate_meta,
-				&resolved_checksum64);
-			if (!lookup_hit)
-			{
-				bool ordered_surface_singleton = false;
-				lookup_hit = replacement_provider->lookup_sampled_family_singleton(
-					uint32_t(base_meta.fmt),
-					uint32_t(base_meta.size),
-					base_meta.offset,
-					sampled_identity.row_stride_bytes,
-					sampled_identity.width_pixels,
-					sampled_identity.height_pixels,
-					sampled_identity.texture_crc,
-					palette_crc,
-					sampled_identity.formatsize,
-					&candidate_meta,
-					&resolved_checksum64,
-					&resolved_selector_checksum64,
-					&ordered_surface_singleton);
-				if (lookup_hit)
-					resolved_reason = ordered_surface_singleton ? reason_ordered_surface : reason_family_unique;
-			}
+				sampled_selector_checksum64,
+				&resolution);
+			ReplacementMeta candidate_meta = resolution.meta;
+			uint64_t resolved_checksum64 = resolution.resolved_checksum64;
+			uint64_t resolved_selector_checksum64 = resolution.resolved_selector_checksum64;
+			const char *resolved_reason = reason_exact;
+			if (lookup_hit && resolution.kind == ReplacementResolutionKind::SampledFamilySingleton)
+				resolved_reason = resolution.ordered_surface_singleton ? reason_ordered_surface : reason_family_unique;
 			if (!lookup_hit && reserve_ordered_surface_selector(checksum64, sampled_identity.formatsize))
 			{
 				resolved_selector_checksum64 = ordered_surface_selector_checksum64;

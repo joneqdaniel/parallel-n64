@@ -136,6 +136,7 @@ enum class ResolvedEntrySourceClass
 enum class ReplacementResolutionKind
 {
 	None = 0,
+	SampledExactSelector,
 	SampledFamilySingleton,
 	ExactNativeSampled,
 	GenericNativeIdentity,
@@ -197,6 +198,17 @@ public:
 	                              uint32_t palette_crc,
 	                              uint64_t selector_checksum64,
 	                              ReplacementResolution *out) const;
+	bool resolve_sampled_candidate(uint32_t sampled_fmt,
+	                               uint32_t sampled_siz,
+	                               uint32_t sampled_tex_offset,
+	                               uint32_t sampled_stride,
+	                               uint32_t sampled_width,
+	                               uint32_t sampled_height,
+	                               uint32_t sampled_low32,
+	                               uint32_t palette_crc,
+	                               uint16_t formatsize,
+	                               uint64_t selector_checksum64,
+	                               ReplacementResolution *out) const;
 	bool lookup_native_with_selector(uint64_t checksum64,
 	                                 uint16_t formatsize,
 	                                 uint64_t selector_checksum64,

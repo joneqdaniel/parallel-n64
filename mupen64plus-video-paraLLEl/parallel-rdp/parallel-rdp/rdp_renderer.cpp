@@ -4189,11 +4189,32 @@ bool Renderer::resolve_hires_replacement_descriptor(uint64_t checksum64, uint16_
 		return false;
 
 	ReplacementImage replacement = {};
-	if (!replacement_provider->decode_rgba8_with_selector(
+	bool decoded = false;
+	switch (resolved_source_class)
+	{
+	case ResolvedEntrySourceClass::Native:
+		decoded = replacement_provider->decode_rgba8_native_with_selector(
 		    resolved_checksum64,
 		    formatsize,
 		    resolved_selector_checksum64,
-		    &replacement))
+		    &replacement);
+		break;
+	case ResolvedEntrySourceClass::Compat:
+		decoded = replacement_provider->decode_rgba8_compat_with_selector(
+		    resolved_checksum64,
+		    formatsize,
+		    resolved_selector_checksum64,
+		    &replacement);
+		break;
+	default:
+		decoded = replacement_provider->decode_rgba8_with_selector(
+		    resolved_checksum64,
+		    formatsize,
+		    resolved_selector_checksum64,
+		    &replacement);
+		break;
+	}
+	if (!decoded)
 		return false;
 	if (replacement.rgba8.empty() || replacement.meta.repl_w == 0 || replacement.meta.repl_h == 0)
 		return false;

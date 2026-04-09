@@ -1951,12 +1951,12 @@ void Renderer::draw_shaded_primitive(const TriangleSetup &setup, const Attribute
 		  (raster_flags & RASTERIZATION_COPY_BIT) == 0));
 	const bool sampled_lookup_uses_base_tile =
 		uses_texel0 || ((raster_flags & RASTERIZATION_COPY_BIT) != 0);
-	const bool can_consider_sampled_object =
+	const bool can_execute_sampled_object_exact_lookup =
+		hires_debug_sampled_object_exact_lookup &&
 		can_probe_sampled_object &&
-		sampled_lookup_uses_base_tile &&
-		!texel0_state.hit;
+		sampled_lookup_uses_base_tile;
 	HiresSampledObjectIdentity sampled_identity = {};
-	if (can_consider_sampled_object || (hires_debug_sampled_object_probe && can_probe_sampled_object))
+	if (can_execute_sampled_object_exact_lookup || (hires_debug_sampled_object_probe && can_probe_sampled_object))
 		sampled_identity = compute_hires_sampled_object_identity(base_meta, base_size, cpu_tmem, tlut_tmem_shadow, tlut_shadow_valid);
 
 	if (hires_debug_sampled_object_exact_lookup && sampled_identity.valid)

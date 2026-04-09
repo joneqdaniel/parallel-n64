@@ -1222,6 +1222,17 @@ def summarize_promotion_blocker_reason_counts(unresolved_family_review_summary):
     return dict(sorted(blocker_reason_counts.items()))
 
 
+def format_nested_count_summary(nested_counts):
+    parts = []
+    for outer_key, inner_counts in sorted((nested_counts or {}).items()):
+        inner_summary = ", ".join(
+            f"{inner_key}={count}"
+            for inner_key, count in sorted((inner_counts or {}).items())
+        ) or "none"
+        parts.append(f"{outer_key}[{inner_summary}]")
+    return ", ".join(parts) if parts else "none"
+
+
 def build_family_inventory_payload(report):
     requested_family_states = report.get("requested_family_states") or {}
     return {
@@ -1233,6 +1244,8 @@ def build_family_inventory_payload(report):
         "promotion_blocker_runtime_state_counts": report.get("promotion_blocker_runtime_state_counts") or {},
         "promotion_blocker_reason_counts": report.get("promotion_blocker_reason_counts") or {},
         "promotion_blocker_reason_unclassified_family_count": int(report.get("promotion_blocker_reason_unclassified_family_count") or 0),
+        "unresolved_family_reason_runtime_state_counts": report.get("unresolved_family_reason_runtime_state_counts") or {},
+        "unresolved_family_reason_variant_group_count_counts": report.get("unresolved_family_reason_variant_group_count_counts") or {},
         "families": requested_family_states.get("families") or [],
     }
 
@@ -1379,6 +1392,8 @@ def build_unresolved_family_review_payload(migrate_result, requested_family_stat
     variant_group_count_counts = Counter()
     candidate_replacement_count_counts = Counter()
     canonical_sampled_object_count_counts = Counter()
+    reason_runtime_state_counts = defaultdict(Counter)
+    reason_variant_group_count_counts = defaultdict(Counter)
 
     for family in imported_index.get("unresolved_families", []):
         family_key = make_family_key(family.get("family_low32"), family.get("formatsize"))
@@ -1413,6 +1428,8 @@ def build_unresolved_family_review_payload(migrate_result, requested_family_stat
         variant_group_count_counts[review_entry["variant_group_count"]] += 1
         candidate_replacement_count_counts[review_entry["candidate_replacement_count"]] += 1
         canonical_sampled_object_count_counts[review_entry["canonical_sampled_object_count"]] += 1
+        reason_runtime_state_counts[review_entry["reason"]][review_entry["runtime_state"]] += 1
+        reason_variant_group_count_counts[review_entry["reason"]][str(review_entry["variant_group_count"])] += 1
 
     review_families.sort(key=lambda item: (item["runtime_state"], item["family_key"] or ""))
     return {
@@ -1431,6 +1448,17 @@ def build_unresolved_family_review_payload(migrate_result, requested_family_stat
         "canonical_sampled_object_count_counts": {
             str(key): count
             for key, count in sorted(canonical_sampled_object_count_counts.items())
+        },
+        "reason_runtime_state_counts": {
+            reason: dict(sorted(inner_counts.items()))
+            for reason, inner_counts in sorted(reason_runtime_state_counts.items())
+        },
+        "reason_variant_group_count_counts": {
+            reason: {
+                str(key): count
+                for key, count in sorted(inner_counts.items(), key=lambda item: int(item[0]))
+            }
+            for reason, inner_counts in sorted(reason_variant_group_count_counts.items())
         },
         "families": review_families,
     }
@@ -1619,6 +1647,22 @@ def render_unresolved_family_review_markdown(review):
         else:
             lines.append("- none")
 
+    nested_sections = (
+        ("Reason Runtime State Counts", review.get("reason_runtime_state_counts") or {}),
+        ("Reason Variant Group Counts", review.get("reason_variant_group_count_counts") or {}),
+    )
+    for title, nested_counts in nested_sections:
+        lines.extend(["", f"## {title}", ""])
+        if nested_counts:
+            for outer_key, inner_counts in sorted(nested_counts.items()):
+                inner_summary = ", ".join(
+                    f"`{key}`=`{count}`"
+                    for key, count in sorted((inner_counts or {}).items(), key=lambda item: item[0])
+                ) or "none"
+                lines.append(f"- `{outer_key}`: {inner_summary}")
+        else:
+            lines.append("- none")
+
     lines.extend(["", "## Families", ""])
     families = review.get("families") or []
     if not families:
@@ -1742,6 +1786,18 @@ def render_family_inventory_markdown(inventory):
     blocker_reason_unclassified = int(inventory.get("promotion_blocker_reason_unclassified_family_count") or 0)
     if blocker_reason_unclassified > 0:
         lines.append(f"- Blocker families without unresolved-review reasons: `{blocker_reason_unclassified}`")
+    unresolved_reason_runtime_state_counts = inventory.get("unresolved_family_reason_runtime_state_counts") or {}
+    if unresolved_reason_runtime_state_counts:
+        lines.append(
+            "- Unresolved reasons by runtime state: "
+            + format_nested_count_summary(unresolved_reason_runtime_state_counts)
+        )
+    unresolved_reason_variant_group_count_counts = inventory.get("unresolved_family_reason_variant_group_count_counts") or {}
+    if unresolved_reason_variant_group_count_counts:
+        lines.append(
+            "- Unresolved reasons by variant-group count: "
+            + format_nested_count_summary(unresolved_reason_variant_group_count_counts)
+        )
 
     lines.extend(["", "## Families", ""])
     for family in inventory.get("families") or []:
@@ -1923,6 +1979,13 @@ def synchronize_report_summary_fields(report: dict):
         int(report["promotion_blocker_family_count"]) - int(report["promotion_blocker_reason_family_count"]),
         0,
     )
+    unresolved_family_review_summary = report.get("unresolved_family_review_summary") or {}
+    report["unresolved_family_reason_runtime_state_counts"] = (
+        unresolved_family_review_summary.get("reason_runtime_state_counts") or {}
+    )
+    report["unresolved_family_reason_variant_group_count_counts"] = (
+        unresolved_family_review_summary.get("reason_variant_group_count_counts") or {}
+    )
     runtime_overlay_review_summary = report.get("runtime_overlay_review_summary") or {}
     report["runtime_overlay_reason_counts"] = runtime_overlay_review_summary.get("reason_counts") or {}
     report["runtime_overlay_hash_review_class_counts"] = (
@@ -2066,6 +2129,18 @@ def build_markdown_summary(report):
     blocker_reason_unclassified = int(report.get("promotion_blocker_reason_unclassified_family_count") or 0)
     if blocker_reason_unclassified > 0:
         lines.append(f"- Blocker families without unresolved-review reasons: `{blocker_reason_unclassified}`")
+    unresolved_reason_runtime_state_counts = report.get("unresolved_family_reason_runtime_state_counts") or {}
+    if unresolved_reason_runtime_state_counts:
+        lines.append(
+            "- Unresolved reasons by runtime state: "
+            + format_nested_count_summary(unresolved_reason_runtime_state_counts)
+        )
+    unresolved_reason_variant_group_count_counts = report.get("unresolved_family_reason_variant_group_count_counts") or {}
+    if unresolved_reason_variant_group_count_counts:
+        lines.append(
+            "- Unresolved reasons by variant-group count: "
+            + format_nested_count_summary(unresolved_reason_variant_group_count_counts)
+        )
 
     unresolved_review_summary = report.get("unresolved_family_review_summary") or {}
     if unresolved_review_summary:
@@ -2084,6 +2159,16 @@ def build_markdown_summary(report):
                 "- Variant group counts: " + ", ".join(
                     f"`{name}`=`{count}`" for name, count in sorted(variant_group_counts.items(), key=lambda item: int(item[0]))
                 )
+            )
+        reason_runtime_state_counts = unresolved_review_summary.get("reason_runtime_state_counts") or {}
+        if reason_runtime_state_counts:
+            lines.append(
+                "- Reasons by runtime state: " + format_nested_count_summary(reason_runtime_state_counts)
+            )
+        reason_variant_group_count_counts = unresolved_review_summary.get("reason_variant_group_count_counts") or {}
+        if reason_variant_group_count_counts:
+            lines.append(
+                "- Reasons by variant-group count: " + format_nested_count_summary(reason_variant_group_count_counts)
             )
 
     runtime_overlay_review_summary = report.get("runtime_overlay_review_summary") or {}
@@ -2187,6 +2272,12 @@ def build_stdout_summary(report):
         f"{name}={count}"
         for name, count in sorted((report.get("promotion_blocker_reason_counts") or {}).items())
     ) or "none"
+    unresolved_reason_runtime_state_summary = format_nested_count_summary(
+        report.get("unresolved_family_reason_runtime_state_counts") or {}
+    )
+    unresolved_reason_variant_group_summary = format_nested_count_summary(
+        report.get("unresolved_family_reason_variant_group_count_counts") or {}
+    )
     lines = [
         f"hts2phrb: {report['conversion_outcome']}",
         f"output_dir: {report['output_dir']}",
@@ -2233,6 +2324,8 @@ def build_stdout_summary(report):
         f"promotion_blocker_runtime_states: {blocker_runtime_state_summary}",
         f"promotion_blocker_reasons: {blocker_reason_summary}",
         f"promotion_blocker_reason_unclassified: {int(report.get('promotion_blocker_reason_unclassified_family_count') or 0)}",
+        f"unresolved_family_reason_runtime_states: {unresolved_reason_runtime_state_summary}",
+        f"unresolved_family_reason_variant_groups: {unresolved_reason_variant_group_summary}",
     ]
     if report.get("family_inventory_markdown_path"):
         lines.append(f"family_inventory: {report['family_inventory_markdown_path']}")

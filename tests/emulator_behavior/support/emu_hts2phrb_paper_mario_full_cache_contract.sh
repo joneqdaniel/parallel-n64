@@ -98,6 +98,8 @@ expected_zero = {
     "promotion_blocker_runtime_state_counts": {"canonical-only": 379},
     "promotion_blocker_reason_counts": {"exact-family-ambiguous": 379},
     "promotion_blocker_reason_unclassified_family_count": 0,
+    "unresolved_family_reason_runtime_state_counts": {"exact-family-ambiguous": {"canonical-only": 379}},
+    "unresolved_family_reason_variant_group_count_counts": {"exact-family-ambiguous": {"2": 266, "3": 52, "4": 60, "5": 1}},
 }
 
 expected_context = {
@@ -123,6 +125,10 @@ expected_context = {
     "promotion_blocker_runtime_state_counts": {"canonical-only": 375},
     "promotion_blocker_reason_counts": {"exact-family-ambiguous": 375},
     "promotion_blocker_reason_unclassified_family_count": 0,
+    "unresolved_family_reason_runtime_state_counts": {
+        "exact-family-ambiguous": {"canonical-only": 375, "runtime-ready-package": 4}
+    },
+    "unresolved_family_reason_variant_group_count_counts": {"exact-family-ambiguous": {"2": 266, "3": 52, "4": 60, "5": 1}},
     "runtime_overlay_reason_counts": {"proxy-transport-selection-required": 13},
     "runtime_overlay_hash_review_class_counts": {
         "pixel-divergent-multi-dim": 5,

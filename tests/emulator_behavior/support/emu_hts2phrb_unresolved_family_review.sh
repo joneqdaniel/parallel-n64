@@ -94,6 +94,14 @@ if report.get("promotion_blocker_reason_unclassified_family_count") != 0:
         "unexpected blocker reason uncovered family count: "
         f"{report.get('promotion_blocker_reason_unclassified_family_count')!r}"
     )
+if report.get("unresolved_family_reason_runtime_state_counts") != {"exact-family-ambiguous": {"canonical-only": 1}}:
+    raise SystemExit(
+        f"unexpected unresolved reason runtime-state counts: {report.get('unresolved_family_reason_runtime_state_counts')!r}"
+    )
+if report.get("unresolved_family_reason_variant_group_count_counts") != {"exact-family-ambiguous": {"2": 1}}:
+    raise SystemExit(
+        f"unexpected unresolved reason variant-group counts: {report.get('unresolved_family_reason_variant_group_count_counts')!r}"
+    )
 if report.get("unresolved_family_review_json_path") != str(review_json_path):
     raise SystemExit(f"unexpected unresolved review json path: {report.get('unresolved_family_review_json_path')!r}")
 if report.get("unresolved_family_review_markdown_path") != str(review_md_path):
@@ -111,6 +119,10 @@ if review.get("candidate_replacement_count_counts") != {"2": 1}:
     raise SystemExit(f"unexpected candidate replacement counts: {review.get('candidate_replacement_count_counts')!r}")
 if review.get("canonical_sampled_object_count_counts") != {"0": 1}:
     raise SystemExit(f"unexpected sampled object counts: {review.get('canonical_sampled_object_count_counts')!r}")
+if review.get("reason_runtime_state_counts") != {"exact-family-ambiguous": {"canonical-only": 1}}:
+    raise SystemExit(f"unexpected reason runtime-state counts: {review.get('reason_runtime_state_counts')!r}")
+if review.get("reason_variant_group_count_counts") != {"exact-family-ambiguous": {"2": 1}}:
+    raise SystemExit(f"unexpected reason variant-group counts: {review.get('reason_variant_group_count_counts')!r}")
 
 families = review.get("families") or []
 if len(families) != 1:
@@ -123,7 +135,11 @@ if family.get("variant_group_dims") != ["2x2", "4x4"]:
 if family.get("sampled_object_ids") != []:
     raise SystemExit(f"unexpected sampled object ids: {family!r}")
 
-if "Unresolved family review" not in summary_text or "exact-family-ambiguous" not in summary_text:
+if (
+    "Unresolved family review" not in summary_text
+    or "exact-family-ambiguous" not in summary_text
+    or "canonical-only=1" not in summary_text
+):
     raise SystemExit(f"summary did not include unresolved review section: {summary_text!r}")
 PY
 

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+import hashlib
 import json
 import sys
 from collections import Counter
@@ -8,6 +9,7 @@ from pathlib import Path
 from hires_pack_common import (
     build_family_summary,
     collect_family_entries,
+    decode_entry_rgba8,
     index_entries_by_texture_crc,
     parse_bundle_ci_context,
     parse_bundle_families,
@@ -57,7 +59,7 @@ def load_import_policy(policy_path):
     }
 
 
-def build_selector_policy(texture_crc, formatsize, observation, variant_group_list, tier):
+def build_selector_policy(texture_crc, formatsize, observation, variant_group_list, tier, selection_override=None):
     base_selector = {
         "texture_crc": f"{texture_crc:08x}",
         "requested_formatsize": formatsize,
@@ -103,13 +105,189 @@ def build_selector_policy(texture_crc, formatsize, observation, variant_group_li
         "disambiguation_inputs": disambiguation_inputs,
     }
 
-    if (tier in ("compat-unique", "compat-repl-dims-unique") or exact_deterministic) and len(variant_group_list) == 1:
+    if selection_override:
+        policy["status"] = "deterministic"
+        policy["selected_variant_group_id"] = selection_override["selected_variant_group_id"]
+        policy["selection_reason"] = selection_override["selection_reason"]
+        policy["selection_override"] = {
+            key: value
+            for key, value in selection_override.items()
+            if key not in ("selected_variant_group_id", "selection_reason", "selected_replacement_ids")
+        }
+    elif (tier in ("compat-unique", "compat-repl-dims-unique") or exact_deterministic) and len(variant_group_list) == 1:
         policy["selected_variant_group_id"] = variant_group_list[0]["variant_group_id"]
         policy["selection_reason"] = "exact-authoritative" if exact_deterministic else tier
     else:
         policy["selection_reason"] = "legacy-family-ambiguous"
 
     return policy
+
+
+def _parse_variant_group_dims(group):
+    dims_text = str(group.get("dims") or "")
+    if "x" not in dims_text:
+        return None
+    width_text, height_text = dims_text.split("x", 1)
+    try:
+        width = int(width_text)
+        height = int(height_text)
+    except ValueError:
+        return None
+    if width <= 0 or height <= 0:
+        return None
+    return width, height
+
+
+def _resolve_scale_equivalent_group_order(variant_group_list):
+    if len(variant_group_list) != 2:
+        return None
+    first_dims = _parse_variant_group_dims(variant_group_list[0])
+    second_dims = _parse_variant_group_dims(variant_group_list[1])
+    if first_dims is None or second_dims is None:
+        return None
+    (first_width, first_height) = first_dims
+    (second_width, second_height) = second_dims
+    if first_width == second_width and first_height == second_height:
+        return None
+
+    if second_width >= first_width and second_height >= first_height:
+        smaller_index = 0
+        larger_index = 1
+    elif first_width >= second_width and first_height >= second_height:
+        smaller_index = 1
+        larger_index = 0
+    else:
+        return None
+
+    smaller_width, smaller_height = _parse_variant_group_dims(variant_group_list[smaller_index])
+    larger_width, larger_height = _parse_variant_group_dims(variant_group_list[larger_index])
+    if (
+        larger_width % smaller_width != 0
+        or larger_height % smaller_height != 0
+    ):
+        return None
+
+    scale_x = larger_width // smaller_width
+    scale_y = larger_height // smaller_height
+    if scale_x <= 0 or scale_y <= 0:
+        return None
+    if scale_x == 1 and scale_y == 1:
+        return None
+
+    return {
+        "smaller_index": smaller_index,
+        "larger_index": larger_index,
+        "scale_x": scale_x,
+        "scale_y": scale_y,
+    }
+
+
+def _exact_nearest_neighbor_scale_match(smaller_rgba, smaller_width, smaller_height, larger_rgba, larger_width, larger_height, scale_x, scale_y):
+    if len(smaller_rgba) != smaller_width * smaller_height * 4:
+        return False
+    if len(larger_rgba) != larger_width * larger_height * 4:
+        return False
+    for larger_y in range(larger_height):
+        source_y = larger_y // scale_y
+        larger_row_offset = larger_y * larger_width * 4
+        smaller_row_offset = source_y * smaller_width * 4
+        for larger_x in range(larger_width):
+            source_x = larger_x // scale_x
+            larger_offset = larger_row_offset + larger_x * 4
+            smaller_offset = smaller_row_offset + source_x * 4
+            if larger_rgba[larger_offset:larger_offset + 4] != smaller_rgba[smaller_offset:smaller_offset + 4]:
+                return False
+    return True
+
+
+def _decode_variant_group_representative(source_cache_path, cache_bytes, variant_group, variant_group_entries, decoded_rgba_cache):
+    group_entries = variant_group_entries.get(variant_group.get("variant_group_id"), [])
+    if not group_entries:
+        return None
+
+    representative_rgba = None
+    representative_hash = None
+    representative_width = None
+    representative_height = None
+
+    for replacement_id, entry in group_entries:
+        rgba = decoded_rgba_cache.get(replacement_id)
+        if rgba is None:
+            try:
+                rgba = decode_entry_rgba8(source_cache_path, entry, cache_bytes=cache_bytes)
+            except Exception:
+                return None
+            decoded_rgba_cache[replacement_id] = rgba
+        rgba_hash = hashlib.sha256(rgba).hexdigest()
+        if representative_hash is None:
+            representative_rgba = rgba
+            representative_hash = rgba_hash
+            representative_width = int(entry.get("width", 0))
+            representative_height = int(entry.get("height", 0))
+        elif rgba_hash != representative_hash:
+            return None
+
+    return {
+        "rgba": representative_rgba,
+        "pixel_sha256": representative_hash,
+        "width": representative_width,
+        "height": representative_height,
+    }
+
+
+def build_exact_scale_equivalent_selection(texture_crc, formatsize, variant_group_list, variant_group_entries, source_cache_path, cache_bytes, decoded_rgba_cache):
+    ordered_groups = _resolve_scale_equivalent_group_order(variant_group_list)
+    if ordered_groups is None:
+        return None
+
+    smaller_group = variant_group_list[ordered_groups["smaller_index"]]
+    larger_group = variant_group_list[ordered_groups["larger_index"]]
+    smaller_representative = _decode_variant_group_representative(
+        source_cache_path,
+        cache_bytes,
+        smaller_group,
+        variant_group_entries,
+        decoded_rgba_cache,
+    )
+    if smaller_representative is None:
+        return None
+    larger_representative = _decode_variant_group_representative(
+        source_cache_path,
+        cache_bytes,
+        larger_group,
+        variant_group_entries,
+        decoded_rgba_cache,
+    )
+    if larger_representative is None:
+        return None
+
+    if not _exact_nearest_neighbor_scale_match(
+        smaller_representative["rgba"],
+        smaller_representative["width"],
+        smaller_representative["height"],
+        larger_representative["rgba"],
+        larger_representative["width"],
+        larger_representative["height"],
+        ordered_groups["scale_x"],
+        ordered_groups["scale_y"],
+    ):
+        return None
+
+    return {
+        "selection_reason": "exact-scale-equivalent",
+        "selected_variant_group_id": larger_group["variant_group_id"],
+        "selected_variant_group_ids": [larger_group["variant_group_id"]],
+        "selected_replacement_ids": list(larger_group.get("candidate_replacement_ids", [])),
+        "collapsed_variant_group_ids": [group["variant_group_id"] for group in variant_group_list],
+        "collapsed_variant_group_dims": [group["dims"] for group in variant_group_list],
+        "selected_dims": larger_group.get("dims"),
+        "smaller_dims": smaller_group.get("dims"),
+        "scale_x": ordered_groups["scale_x"],
+        "scale_y": ordered_groups["scale_y"],
+        "selected_pixel_sha256": larger_representative["pixel_sha256"],
+        "smaller_pixel_sha256": smaller_representative["pixel_sha256"],
+        "applies_to_family": make_family_policy_key(texture_crc, formatsize),
+    }
 
 
 def build_canonical_transport(exact_authorities, compatibility_aliases, unresolved_families, record_index):
@@ -225,6 +403,8 @@ def build_imported_index(entries, requested_pairs, source_cache_path, bundle_con
     bundle_sampled_context = bundle_sampled_context or {}
     import_policy = import_policy or {"families": {}}
     indexed_entries = index_entries_by_texture_crc(entries)
+    cache_bytes = source_cache_path.read_bytes() if source_cache_path.suffix.lower() == ".hts" else None
+    decoded_rgba_cache = {}
 
     def fallback_sampled_candidates(texture_crc, requested_formatsize):
         sampled_candidates = list(bundle_sampled_context.get((texture_crc, requested_formatsize), []))
@@ -267,6 +447,7 @@ def build_imported_index(entries, requested_pairs, source_cache_path, bundle_con
 
         replacement_ids = []
         variant_groups = {}
+        variant_group_entries = {}
         for entry in active_entries:
             replacement_id = make_replacement_id(
                 entry["texture_crc"],
@@ -282,6 +463,7 @@ def build_imported_index(entries, requested_pairs, source_cache_path, bundle_con
                 entry["height"],
             )
             replacement_ids.append(replacement_id)
+            variant_group_entries.setdefault(variant_group_id, []).append((replacement_id, entry))
             group = variant_groups.setdefault(
                 variant_group_id,
                 {
@@ -339,15 +521,30 @@ def build_imported_index(entries, requested_pairs, source_cache_path, bundle_con
             }
             for group in sorted(variant_groups.values(), key=lambda item: item["variant_group_id"])
         ]
+        scale_equivalent_selection = None
+        if family_summary["recommended_tier"] == "exact-authoritative" and len(variant_group_list) == 2:
+            scale_equivalent_selection = build_exact_scale_equivalent_selection(
+                texture_crc,
+                formatsize,
+                variant_group_list,
+                variant_group_entries,
+                source_cache_path,
+                cache_bytes,
+                decoded_rgba_cache,
+            )
         selector_policy = build_selector_policy(
             texture_crc,
             formatsize,
             observation,
             variant_group_list,
             family_summary["recommended_tier"],
+            selection_override=scale_equivalent_selection,
         )
         if family_policy:
             selector_policy["applied_policy"] = family_policy
+        selected_replacement_ids = replacement_ids
+        if scale_equivalent_selection:
+            selected_replacement_ids = list(scale_equivalent_selection["selected_replacement_ids"])
 
         if family_summary["recommended_tier"] == "exact-authoritative" and selector_policy.get("status") == "deterministic":
             exact_authorities.append(
@@ -367,13 +564,14 @@ def build_imported_index(entries, requested_pairs, source_cache_path, bundle_con
                     "observed_runtime_context": observation,
                     "canonical_sampled_objects": sampled_candidates,
                     "selector_policy": selector_policy,
-                    "candidate_replacement_ids": replacement_ids,
-                    "candidate_variant_group_ids": [group["variant_group_id"] for group in variant_group_list],
+                    "candidate_replacement_ids": selected_replacement_ids,
+                    "candidate_variant_group_ids": list(selector_policy.get("candidate_variant_group_ids") or []),
                     "diagnostics": {
                         "active_unique_palette_count": family_summary["active_unique_palette_count"],
                         "active_unique_repl_dim_count": family_summary["active_unique_repl_dim_count"],
                         "active_replacement_dims": family_summary["active_replacement_dims"],
                         "variant_groups": variant_group_list,
+                        "scale_equivalent_selection": scale_equivalent_selection,
                     },
                 }
             )

@@ -141,6 +141,28 @@ if overlay_review.get("unresolved_overlay_count") != 13:
     raise SystemExit(f"FAIL: authority-context overlay review expected 13 unresolved cases, got {overlay_review!r}.")
 if overlay_review.get("reason_counts") != {"proxy-transport-selection-required": 13}:
     raise SystemExit(f"FAIL: authority-context overlay review had unexpected reasons: {overlay_review!r}.")
+if overlay_review.get("hash_review_class_counts") != {
+    "pixel-divergent-multi-dim": 5,
+    "pixel-divergent-single-dim": 8,
+}:
+    raise SystemExit(f"FAIL: authority-context overlay review had unexpected hash review classes: {overlay_review!r}.")
+if overlay_review.get("identical_alpha_hash_case_count_counts") != {"0": 9, "1": 4}:
+    raise SystemExit(f"FAIL: authority-context overlay review had unexpected identical alpha-hash counts: {overlay_review!r}.")
+if overlay_review.get("alpha_hash_overlap_case_count_counts") != {"0": 7, "1": 3, "2": 2, "3": 1}:
+    raise SystemExit(f"FAIL: authority-context overlay review had unexpected alpha-hash overlap counts: {overlay_review!r}.")
+if overlay_review.get("transport_candidate_alpha_hash_count_counts") != {
+    "2": 6,
+    "3": 1,
+    "4": 1,
+    "29": 1,
+    "51": 1,
+    "54": 1,
+    "64": 1,
+    "93": 1,
+}:
+    raise SystemExit(f"FAIL: authority-context overlay review had unexpected alpha-hash histogram: {overlay_review!r}.")
+if overlay_review.get("transport_candidate_hash_error_count_counts") != {"0": 13}:
+    raise SystemExit(f"FAIL: authority-context overlay review had unexpected hash error counts: {overlay_review!r}.")
 if not context.get("runtime_overlay_review_json_path") or not Path(context["runtime_overlay_review_json_path"]).exists():
     raise SystemExit(f"FAIL: authority-context overlay review json path missing: {context.get('runtime_overlay_review_json_path')!r}.")
 if not context.get("runtime_overlay_review_markdown_path") or not Path(context["runtime_overlay_review_markdown_path"]).exists():

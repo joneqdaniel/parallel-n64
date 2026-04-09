@@ -946,6 +946,134 @@ def build_family_inventory_payload(report):
     }
 
 
+def _get_cache_entry_view(cache_path_str, cache_views):
+    if cache_path_str not in cache_views:
+        cache_path = Path(cache_path_str)
+        entries = parse_cache_entries(cache_path)
+        exact_index = {}
+        generic_index = {}
+        cache_bytes = cache_path.read_bytes() if cache_path.suffix.lower() == ".hts" else None
+        for entry in entries:
+            checksum64 = int(entry.get("checksum64", 0))
+            formatsize = int(entry.get("formatsize", 0))
+            exact_index[(checksum64, formatsize)] = entry
+            if checksum64 not in generic_index:
+                generic_index[checksum64] = entry
+        cache_views[cache_path_str] = {
+            "exact_index": exact_index,
+            "generic_index": generic_index,
+            "cache_bytes": cache_bytes,
+            "cache_path": cache_path,
+        }
+    return cache_views[cache_path_str]
+
+
+def _decode_transport_candidate_rgba(candidate, cache_views):
+    source = candidate.get("source") or {}
+    cache_path_str = source.get("legacy_source_path")
+    if not cache_path_str:
+        return None, "missing-legacy-source-path"
+    checksum64 = source.get("legacy_checksum64")
+    if not checksum64:
+        return None, "missing-legacy-checksum64"
+    formatsize = int(source.get("legacy_formatsize") or 0)
+    try:
+        cache_view = _get_cache_entry_view(cache_path_str, cache_views)
+    except Exception as exc:
+        return None, f"cache-open-failed:{type(exc).__name__}"
+    checksum64_value = int(str(checksum64), 16)
+    entry = cache_view["exact_index"].get((checksum64_value, formatsize)) or cache_view["generic_index"].get(checksum64_value)
+    if entry is None:
+        return None, "missing-cache-entry"
+    try:
+        rgba = decode_entry_rgba8(cache_view["cache_path"], entry, cache_bytes=cache_view["cache_bytes"])
+    except Exception as exc:
+        return None, f"decode-failed:{type(exc).__name__}"
+    return rgba, None
+
+
+def build_transport_candidate_hash_review(transport_candidates):
+    cache_views = {}
+    alpha_hashes = []
+    pixel_hashes = []
+    dims = []
+    decode_error_counts = Counter()
+    candidate_reviews = []
+
+    for candidate in transport_candidates or []:
+        rgba, error = _decode_transport_candidate_rgba(candidate, cache_views)
+        width = candidate.get("replacement_asset", {}).get("width")
+        height = candidate.get("replacement_asset", {}).get("height")
+        dims_value = f"{width}x{height}" if width and height else None
+        pixel_sha256 = None
+        alpha_normalized_pixel_sha256 = None
+        if error is None:
+            pixel_sha256 = hashlib.sha256(rgba).hexdigest()
+            normalized = bytearray(rgba)
+            for i in range(0, len(normalized), 4):
+                if normalized[i + 3] == 0:
+                    normalized[i + 0] = 0
+                    normalized[i + 1] = 0
+                    normalized[i + 2] = 0
+            alpha_normalized_pixel_sha256 = hashlib.sha256(bytes(normalized)).hexdigest()
+            pixel_hashes.append(pixel_sha256)
+            alpha_hashes.append(alpha_normalized_pixel_sha256)
+            if dims_value:
+                dims.append(dims_value)
+        else:
+            decode_error_counts[error] += 1
+
+        candidate_reviews.append(
+            {
+                "replacement_id": candidate.get("replacement_id"),
+                "legacy_texture_crc": (candidate.get("source") or {}).get("legacy_texture_crc"),
+                "legacy_palette_crc": (candidate.get("source") or {}).get("legacy_palette_crc"),
+                "variant_group_id": candidate.get("variant_group_id"),
+                "dims": dims_value,
+                "pixel_sha256": pixel_sha256,
+                "alpha_normalized_pixel_sha256": alpha_normalized_pixel_sha256,
+                "decode_error": error,
+            }
+        )
+
+    unique_dims = sorted({value for value in dims if value})
+    unique_pixel_hashes = sorted(set(pixel_hashes))
+    unique_alpha_hashes = sorted(set(alpha_hashes))
+    alpha_histogram = Counter(alpha_hashes)
+    pixel_histogram = Counter(pixel_hashes)
+
+    if not transport_candidates:
+        hash_review_class = "no-transport-candidates"
+    elif decode_error_counts and not unique_alpha_hashes:
+        hash_review_class = "hash-unavailable"
+    elif len(unique_alpha_hashes) == 1 and len(unique_dims) <= 1:
+        hash_review_class = "pixel-identical-single-dim"
+    elif len(unique_alpha_hashes) == 1:
+        hash_review_class = "pixel-identical-multi-dim"
+    elif len(unique_dims) <= 1:
+        hash_review_class = "pixel-divergent-single-dim"
+    else:
+        hash_review_class = "pixel-divergent-multi-dim"
+
+    return {
+        "hash_review_class": hash_review_class,
+        "decoded_transport_candidate_count": len(alpha_hashes),
+        "transport_candidate_hash_error_count": sum(decode_error_counts.values()),
+        "transport_candidate_hash_error_counts": dict(sorted(decode_error_counts.items())),
+        "transport_candidate_pixel_hash_count": len(unique_pixel_hashes),
+        "transport_candidate_alpha_hash_count": len(unique_alpha_hashes),
+        "transport_candidate_unique_dims": unique_dims,
+        "transport_candidate_alpha_hash_counts": {
+            key: count for key, count in sorted(alpha_histogram.items())
+        },
+        "transport_candidate_pixel_hash_counts": {
+            key: count for key, count in sorted(pixel_histogram.items())
+        },
+        "transport_candidate_hash_candidates": candidate_reviews,
+        "_alpha_hashes": unique_alpha_hashes,
+    }
+
+
 def build_unresolved_family_review_payload(migrate_result, requested_family_states):
     imported_index = migrate_result.get("imported_index") or {}
     requested_families = {
@@ -1048,6 +1176,11 @@ def build_runtime_overlay_review_payload(migrate_result, bindings, report):
     linked_unresolved_family_count_counts = Counter()
     linked_unresolved_runtime_state_totals = Counter()
     linked_unresolved_reason_totals = Counter()
+    hash_review_class_counts = Counter()
+    transport_candidate_alpha_hash_count_counts = Counter()
+    transport_candidate_hash_error_count_counts = Counter()
+    identical_alpha_hash_case_count_counts = Counter()
+    alpha_hash_overlap_case_count_counts = Counter()
 
     for unresolved in bindings.get("unresolved_transport_cases", []):
         sampled_object_id = str(unresolved.get("sampled_object_id") or "")
@@ -1062,6 +1195,7 @@ def build_runtime_overlay_review_payload(migrate_result, bindings, report):
         )
         transport_candidate_count = int(unresolved.get("transport_candidate_count") or 0)
         transport_candidate_palette_count = int(unresolved.get("transport_candidate_palette_count") or 0)
+        hash_review = build_transport_candidate_hash_review(unresolved.get("transport_candidates") or [])
         entry = {
             "policy_key": str(unresolved.get("policy_key") or ""),
             "sampled_object_id": sampled_object_id or None,
@@ -1084,6 +1218,17 @@ def build_runtime_overlay_review_payload(migrate_result, bindings, report):
             ],
             "linked_unresolved_runtime_state_counts": dict(sorted(linked_runtime_state_counts.items())),
             "linked_unresolved_reason_counts": dict(sorted(linked_reason_counts.items())),
+            "hash_review_class": hash_review["hash_review_class"],
+            "decoded_transport_candidate_count": hash_review["decoded_transport_candidate_count"],
+            "transport_candidate_hash_error_count": hash_review["transport_candidate_hash_error_count"],
+            "transport_candidate_hash_error_counts": hash_review["transport_candidate_hash_error_counts"],
+            "transport_candidate_pixel_hash_count": hash_review["transport_candidate_pixel_hash_count"],
+            "transport_candidate_alpha_hash_count": hash_review["transport_candidate_alpha_hash_count"],
+            "transport_candidate_unique_dims": hash_review["transport_candidate_unique_dims"],
+            "transport_candidate_alpha_hash_counts": hash_review["transport_candidate_alpha_hash_counts"],
+            "transport_candidate_pixel_hash_counts": hash_review["transport_candidate_pixel_hash_counts"],
+            "transport_candidate_hash_candidates": hash_review["transport_candidate_hash_candidates"],
+            "_alpha_hashes": hash_review["_alpha_hashes"],
         }
         review_entries.append(entry)
         status_counts[entry["status"]] += 1
@@ -1093,6 +1238,33 @@ def build_runtime_overlay_review_payload(migrate_result, bindings, report):
         linked_unresolved_family_count_counts[entry["linked_unresolved_family_count"]] += 1
         linked_unresolved_runtime_state_totals.update(linked_runtime_state_counts)
         linked_unresolved_reason_totals.update(linked_reason_counts)
+        hash_review_class_counts[entry["hash_review_class"]] += 1
+        transport_candidate_alpha_hash_count_counts[entry["transport_candidate_alpha_hash_count"]] += 1
+        transport_candidate_hash_error_count_counts[entry["transport_candidate_hash_error_count"]] += 1
+
+    alpha_hash_sets = {
+        entry["policy_key"]: set(entry.pop("_alpha_hashes", []))
+        for entry in review_entries
+    }
+    for entry in review_entries:
+        policy_key = entry["policy_key"]
+        alpha_hashes = alpha_hash_sets.get(policy_key, set())
+        identical_policy_keys = []
+        overlapping_policy_keys = []
+        if alpha_hashes:
+            for other_policy_key, other_hashes in alpha_hash_sets.items():
+                if other_policy_key == policy_key or not other_hashes:
+                    continue
+                if alpha_hashes == other_hashes:
+                    identical_policy_keys.append(other_policy_key)
+                elif alpha_hashes & other_hashes:
+                    overlapping_policy_keys.append(other_policy_key)
+        entry["identical_alpha_hash_policy_keys"] = sorted(identical_policy_keys)
+        entry["identical_alpha_hash_case_count"] = len(identical_policy_keys)
+        entry["alpha_hash_overlap_policy_keys"] = sorted(overlapping_policy_keys)
+        entry["alpha_hash_overlap_case_count"] = len(overlapping_policy_keys)
+        identical_alpha_hash_case_count_counts[entry["identical_alpha_hash_case_count"]] += 1
+        alpha_hash_overlap_case_count_counts[entry["alpha_hash_overlap_case_count"]] += 1
 
     review_entries.sort(key=lambda item: (item["status"], item["policy_key"]))
     return {
@@ -1107,9 +1279,26 @@ def build_runtime_overlay_review_payload(migrate_result, bindings, report):
             str(key): count
             for key, count in sorted(transport_candidate_palette_count_counts.items())
         },
+        "hash_review_class_counts": dict(sorted(hash_review_class_counts.items())),
+        "transport_candidate_alpha_hash_count_counts": {
+            str(key): count
+            for key, count in sorted(transport_candidate_alpha_hash_count_counts.items())
+        },
+        "transport_candidate_hash_error_count_counts": {
+            str(key): count
+            for key, count in sorted(transport_candidate_hash_error_count_counts.items())
+        },
         "linked_unresolved_family_count_counts": {
             str(key): count
             for key, count in sorted(linked_unresolved_family_count_counts.items())
+        },
+        "identical_alpha_hash_case_count_counts": {
+            str(key): count
+            for key, count in sorted(identical_alpha_hash_case_count_counts.items())
+        },
+        "alpha_hash_overlap_case_count_counts": {
+            str(key): count
+            for key, count in sorted(alpha_hash_overlap_case_count_counts.items())
         },
         "linked_unresolved_runtime_state_totals": dict(sorted(linked_unresolved_runtime_state_totals.items())),
         "linked_unresolved_reason_totals": dict(sorted(linked_unresolved_reason_totals.items())),
@@ -1171,7 +1360,12 @@ def render_runtime_overlay_review_markdown(review):
         ("Reason Counts", review.get("reason_counts") or {}),
         ("Transport Candidate Counts", review.get("transport_candidate_count_counts") or {}),
         ("Transport Candidate Palette Counts", review.get("transport_candidate_palette_count_counts") or {}),
+        ("Hash Review Classes", review.get("hash_review_class_counts") or {}),
+        ("Transport Candidate Alpha Hash Counts", review.get("transport_candidate_alpha_hash_count_counts") or {}),
+        ("Transport Candidate Hash Error Counts", review.get("transport_candidate_hash_error_count_counts") or {}),
         ("Linked Unresolved Family Counts", review.get("linked_unresolved_family_count_counts") or {}),
+        ("Identical Alpha Hash Case Counts", review.get("identical_alpha_hash_case_count_counts") or {}),
+        ("Alpha Hash Overlap Case Counts", review.get("alpha_hash_overlap_case_count_counts") or {}),
         ("Linked Unresolved Runtime State Totals", review.get("linked_unresolved_runtime_state_totals") or {}),
         ("Linked Unresolved Reason Totals", review.get("linked_unresolved_reason_totals") or {}),
     ):
@@ -1194,12 +1388,15 @@ def render_runtime_overlay_review_markdown(review):
                 if item.get("dims")
             ) or "none"
             linked_keys = ", ".join(entry.get("linked_unresolved_family_keys") or []) or "none"
+            identical_keys = ", ".join(entry.get("identical_alpha_hash_policy_keys") or []) or "none"
+            overlap_keys = ", ".join(entry.get("alpha_hash_overlap_policy_keys") or []) or "none"
             lines.append(
                 f"- `{entry['policy_key']}`: status=`{entry['status']}` "
                 f"reason=`{entry['reason']}` candidates=`{entry['transport_candidate_count']}` "
                 f"candidate_palettes=`{entry['transport_candidate_palette_count']}` "
+                f"hash_review=`{entry['hash_review_class']}` alpha_hashes=`{entry['transport_candidate_alpha_hash_count']}` "
                 f"source_hints=`{entry['source_hint_count']}` linked_unresolved_families=`{entry['linked_unresolved_family_count']}` "
-                f"dims=`{dims}` linked_keys=`{linked_keys}`"
+                f"dims=`{dims}` linked_keys=`{linked_keys}` identical_alpha_keys=`{identical_keys}` overlap_alpha_keys=`{overlap_keys}`"
             )
     lines.append("")
     return "\n".join(lines)
@@ -1509,6 +1706,13 @@ def build_markdown_summary(report):
                     f"`{name}`=`{count}`" for name, count in sorted(reason_counts.items())
                 )
             )
+        hash_review_class_counts = runtime_overlay_review_summary.get("hash_review_class_counts") or {}
+        if hash_review_class_counts:
+            lines.append(
+                "- Hash review classes: " + ", ".join(
+                    f"`{name}`=`{count}`" for name, count in sorted(hash_review_class_counts.items())
+                )
+            )
         candidate_counts = runtime_overlay_review_summary.get("transport_candidate_count_counts") or {}
         if candidate_counts:
             lines.append(
@@ -1564,6 +1768,10 @@ def build_stdout_summary(report):
         f"{name}={count}"
         for name, count in sorted((runtime_overlay_review_summary.get("reason_counts") or {}).items())
     ) or "none"
+    overlay_hash_summary = ", ".join(
+        f"{name}={count}"
+        for name, count in sorted((runtime_overlay_review_summary.get("hash_review_class_counts") or {}).items())
+    ) or "none"
     lines = [
         f"hts2phrb: {report['conversion_outcome']}",
         f"output_dir: {report['output_dir']}",
@@ -1593,6 +1801,7 @@ def build_stdout_summary(report):
         f"runtime_overlay_review: {report.get('runtime_overlay_review_json_path') or 'none'}",
         f"runtime_overlay_unresolved_count: {runtime_overlay_review_summary.get('unresolved_overlay_count', 0)}",
         f"runtime_overlay_reasons: {overlay_reason_summary}",
+        f"runtime_overlay_hash_classes: {overlay_hash_summary}",
         f"minimum_outcome: {report.get('minimum_outcome') or 'none'}",
         f"require_promotable: {'yes' if report.get('require_promotable') else 'no'}",
         f"promotion_blockers: {blocker_summary}",

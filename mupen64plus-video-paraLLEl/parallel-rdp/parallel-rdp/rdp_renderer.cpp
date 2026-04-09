@@ -5080,9 +5080,20 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 					}
 					else if (generic_source_class == ResolvedEntrySourceClass::Compat)
 					{
-						repl_meta = generic_meta;
-						resolved_selector_checksum64 = generic_resolved_selector_checksum64;
-						hit = true;
+						if (resolve_hires_compat_replacement_descriptor(
+						         generic_resolved_checksum64,
+						         formatsize,
+						         generic_resolved_selector_checksum64,
+						         generic_meta))
+						{
+							generic_meta.orig_w = key_width_pixels;
+							generic_meta.orig_h = key_height_pixels;
+							repl_meta = generic_meta;
+							resolved_selector_checksum64 = generic_resolved_selector_checksum64;
+							hit = true;
+							descriptor_path_class = "compat";
+							native_lookup_resolution_reason = "generic-compat-upload";
+						}
 					}
 				}
 			}

@@ -182,7 +182,7 @@ for step in $STEP_LIST; do
   off_bundle="$BUNDLE_ROOT/off/timeout-${step}"
   if (( RUN_PROBES )); then
     DISABLE_SCREENSHOT_VERIFY=1 \
-    tools/scenarios/paper-mario-title-timeout-probe.sh \
+    "$SCRIPT_DIR/paper-mario-title-timeout-probe.sh" \
       --mode off \
       --step-frames "$step" \
       --step-chunk-frames "$step" \
@@ -194,7 +194,7 @@ for step in $STEP_LIST; do
     PARALLEL_RDP_HIRES_RUNTIME_SOURCE_MODE="${PARALLEL_RDP_HIRES_RUNTIME_SOURCE_MODE:-phrb-only}" \
     PARALLEL_RDP_HIRES_SAMPLED_OBJECT_LOOKUP=1 \
     DISABLE_SCREENSHOT_VERIFY=1 \
-    tools/scenarios/paper-mario-title-timeout-probe.sh \
+    "$SCRIPT_DIR/paper-mario-title-timeout-probe.sh" \
       --mode on \
       --step-frames "$step" \
       --step-chunk-frames "$step" \

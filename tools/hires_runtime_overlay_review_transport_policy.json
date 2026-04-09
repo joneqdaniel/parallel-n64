@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "status": "review-only",
+  "description": "Bounded review-only transport selections for the current Paper Mario full-cache authority-context converter lane. This policy is proven to reduce the runtime-overlay unresolved residue from 13 to 9 without changing the strict full-cache authority result, but it stays non-default until broader promotion gates are satisfied.",
+  "transport_proxies": {
+    "sampled-fmt3-siz1-off0-stride144-wh144x16-fs259-low320e89915a": {
+      "selected_replacement_id": "legacy-2a6a962f-00000000-fs0-1440x160",
+      "status": "selected-review-candidate",
+      "justification": "candidate-set-review:dc6c6f7048c550ee"
+    },
+    "sampled-fmt3-siz1-off0-stride144-wh144x16-fs259-low321d234571": {
+      "selected_replacement_id": "legacy-2a6a962f-00000000-fs0-1440x160",
+      "status": "selected-review-candidate",
+      "justification": "candidate-set-review:dc6c6f7048c550ee"
+    },
+    "sampled-fmt4-siz0-off0-stride8-wh16x16-fs4-low3242231893": {
+      "selected_replacement_id": "legacy-2958367f-00000000-fs0-160x160",
+      "status": "selected-review-candidate",
+      "justification": "candidate-set-review:ef3705c24cd65620"
+    },
+    "sampled-fmt4-siz0-off0-stride8-wh16x16-fs4-low32df8afd2b": {
+      "selected_replacement_id": "legacy-2958367f-00000000-fs0-160x160",
+      "status": "selected-review-candidate",
+      "justification": "candidate-set-review:ef3705c24cd65620"
+    }
+  }
+}

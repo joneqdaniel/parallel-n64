@@ -63,6 +63,7 @@ def load_review_profile(path: Path):
 
     return {
         "path": str(path.resolve()),
+        "transport_policy_paths": resolve_paths("transport_policy_paths"),
         "duplicate_review_paths": resolve_paths("duplicate_review_paths"),
         "alias_group_review_paths": resolve_paths("alias_group_review_paths"),
     }
@@ -71,6 +72,16 @@ def load_review_profile(path: Path):
 def resolve_manifest_review_inputs(args):
     review_profile_paths = [Path(path).resolve() for path in (args.review_profile or [])]
     loaded_review_profiles = [load_review_profile(path) for path in review_profile_paths]
+    transport_policy_paths = merge_unique_strings(
+        [str(Path(args.transport_policy).resolve())] if args.transport_policy else [],
+        *[profile["transport_policy_paths"] for profile in loaded_review_profiles],
+    )
+    if len(transport_policy_paths) > 1:
+        raise SystemExit(
+            "hts2phrb only supports one effective transport policy input; "
+            f"got {transport_policy_paths!r}"
+        )
+    transport_policy_path = Path(transport_policy_paths[0]) if transport_policy_paths else None
     duplicate_review_paths = [
         Path(path)
         for path in merge_unique_strings(
@@ -87,6 +98,7 @@ def resolve_manifest_review_inputs(args):
     ]
     return {
         "review_profile_paths": review_profile_paths,
+        "transport_policy_path": transport_policy_path,
         "duplicate_review_paths": duplicate_review_paths,
         "alias_group_review_paths": alias_group_review_paths,
     }
@@ -304,7 +316,7 @@ def should_build_runtime_overlay(args):
         return True, "forced"
     if args.runtime_overlay_mode == "never":
         return False, "disabled"
-    if args.bundle or args.low32 or args.transport_policy or args.context_bundle:
+    if args.bundle or args.low32 or getattr(args, "resolved_transport_policy_path", None) or args.context_bundle:
         return True, "runtime-context-available"
     return False, "no-runtime-context"
 
@@ -382,8 +394,8 @@ def make_pre_request_signature(args, cache_resolution, bundle_resolution):
         ],
         "import_policy_path": normalize_optional_path(args.import_policy),
         "import_policy_fingerprint": fingerprint_path(args.import_policy),
-        "transport_policy_path": normalize_optional_path(args.transport_policy),
-        "transport_policy_fingerprint": fingerprint_path(args.transport_policy),
+        "transport_policy_path": normalize_optional_path(getattr(args, "resolved_transport_policy_path", None)),
+        "transport_policy_fingerprint": fingerprint_path(getattr(args, "resolved_transport_policy_path", None)),
         "review_profile_paths": [
             str(path)
             for path in getattr(args, "resolved_review_profile_paths", [])
@@ -451,8 +463,8 @@ def make_request_signature(args, cache_resolution, request_mode, requested_pairs
         ],
         "import_policy_path": normalize_optional_path(args.import_policy),
         "import_policy_fingerprint": fingerprint_path(args.import_policy),
-        "transport_policy_path": normalize_optional_path(args.transport_policy),
-        "transport_policy_fingerprint": fingerprint_path(args.transport_policy),
+        "transport_policy_path": normalize_optional_path(getattr(args, "resolved_transport_policy_path", None)),
+        "transport_policy_fingerprint": fingerprint_path(getattr(args, "resolved_transport_policy_path", None)),
         "review_profile_paths": [
             str(path)
             for path in getattr(args, "resolved_review_profile_paths", [])
@@ -2312,13 +2324,16 @@ def build_markdown_summary(report):
             )
         lines.append("- Runtime overlay candidate-set review: " + ", ".join(overlay_candidate_review_refs))
     review_profile_paths = report.get("review_profile_paths") or []
+    transport_policy_path = report.get("transport_policy_path")
     duplicate_review_paths = report.get("duplicate_review_paths") or []
     alias_group_review_paths = report.get("alias_group_review_paths") or []
-    if review_profile_paths or duplicate_review_paths or alias_group_review_paths:
+    if review_profile_paths or transport_policy_path or duplicate_review_paths or alias_group_review_paths:
         lines.extend(["", "## Review Inputs", ""])
         if review_profile_paths:
             for path in review_profile_paths:
                 lines.append(f"- Review profile: `{path}`")
+        if transport_policy_path:
+            lines.append(f"- Transport policy: `{transport_policy_path}`")
         if duplicate_review_paths:
             for path in duplicate_review_paths:
                 lines.append(f"- Duplicate review: `{path}`")
@@ -2567,6 +2582,7 @@ def build_stdout_summary(report):
         f"runtime_deferred_compat_records: {report['package_manifest_runtime_deferred_compat_record_count']}",
         f"runtime_bindings: {report['binding_count']}",
         f"transport_unresolved: {report['unresolved_count']}",
+        f"transport_policy: {report.get('transport_policy_path') or 'none'}",
         f"review_profiles: {len(report.get('review_profile_paths') or [])}",
         f"duplicate_review_inputs: {len(report.get('duplicate_review_paths') or [])}",
         f"duplicate_review_changes: {report.get('duplicate_review_change_count', 0)}",
@@ -2723,6 +2739,7 @@ def build_conversion(args):
     cache_input_path = Path(args.cache)
     manifest_review_inputs = resolve_manifest_review_inputs(args)
     args.resolved_review_profile_paths = manifest_review_inputs["review_profile_paths"]
+    args.resolved_transport_policy_path = manifest_review_inputs["transport_policy_path"]
     args.resolved_duplicate_review_paths = manifest_review_inputs["duplicate_review_paths"]
     args.resolved_alias_group_review_paths = manifest_review_inputs["alias_group_review_paths"]
 
@@ -3088,7 +3105,7 @@ def build_conversion(args):
         stage_started = time.perf_counter()
         bindings = build_proxy_bindings(
             migration_plan_path,
-            load_transport_policy(Path(args.transport_policy)) if args.transport_policy else {},
+            load_transport_policy(args.resolved_transport_policy_path) if args.resolved_transport_policy_path else {},
             auto_select_deterministic_singletons=True,
         )
         stage_timings_ms["build_bindings"] = round((time.perf_counter() - stage_started) * 1000.0, 3)
@@ -3371,7 +3388,7 @@ def build_conversion(args):
         "binary_package": binary_result,
         "binary_package_bytes": binary_path.stat().st_size if binary_path.exists() else 0,
         "import_policy_path": args.import_policy,
-        "transport_policy_path": args.transport_policy,
+        "transport_policy_path": str(args.resolved_transport_policy_path) if args.resolved_transport_policy_path else None,
         "minimum_outcome": args.minimum_outcome,
         "require_promotable": bool(args.require_promotable),
         "stage_timings_ms": stage_timings_ms,

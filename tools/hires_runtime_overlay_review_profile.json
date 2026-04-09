@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "status": "review-only",
+  "description": "Current proven review-only transport selections for the Paper Mario full-cache authority-context converter lane. This profile stays non-default until the runtime-overlay residue is intentionally promoted.",
+  "transport_policy_paths": [
+    "hires_runtime_overlay_review_transport_policy.json"
+  ]
+}

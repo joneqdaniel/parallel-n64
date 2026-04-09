@@ -321,6 +321,11 @@ add_test(
 )
 
 add_test(
+  NAME emu.support.hts2phrb_review_profile_inapplicable
+  COMMAND bash "${EMU_BEHAVIOR_SUPPORT_DIR}/emu_hts2phrb_review_profile_inapplicable.sh"
+)
+
+add_test(
   NAME emu.support.hts2phrb_reuse_existing_review_inputs
   COMMAND bash "${EMU_BEHAVIOR_SUPPORT_DIR}/emu_hts2phrb_reuse_existing_review_inputs.sh"
 )

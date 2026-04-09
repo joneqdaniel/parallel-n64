@@ -110,14 +110,14 @@ evidence = {
 }
 evidence_path.write_text(json.dumps(evidence, indent=2) + "\n")
 
-policy_key = f"legacy-low32-{texture_crc:08x}-fs{formatsize}"
+policy_key = f"surface-{texture_crc:08x}"
 kept_a = f"legacy-{texture_crc:08x}-{entries[0][0]:08x}-fs{formatsize}-2x2"
 drop_b = f"legacy-{texture_crc:08x}-{entries[1][0]:08x}-fs{formatsize}-2x2"
 alias_c = f"legacy-{texture_crc:08x}-{entries[2][0]:08x}-fs{formatsize}-2x2"
 
 duplicate_review = {
     "sampled_low32": f"{texture_crc:08x}",
-    "selector": "0000000000000000",
+    "selector": "0000000071c71cdd",
     "recommendation": "keep-runtime-winner-rule-and-defer-offline-dedupe",
     "duplicate_bucket": {
         "policy": policy_key,
@@ -207,6 +207,10 @@ if explicit_result.get("duplicate_review_change_count") != 1 or explicit_result.
     raise SystemExit(f"FAIL: explicit review build reported unexpected review change counts {explicit_result!r}.")
 if profile_result.get("duplicate_review_change_count") != 1 or profile_result.get("alias_group_review_change_count") != 1:
     raise SystemExit(f"FAIL: profile review build reported unexpected review change counts {profile_result!r}.")
+if explicit_result.get("duplicate_review_skip_count") != 0 or explicit_result.get("alias_group_review_skip_count") != 0:
+    raise SystemExit(f"FAIL: explicit review build unexpectedly skipped review inputs {explicit_result!r}.")
+if profile_result.get("duplicate_review_skip_count") != 0 or profile_result.get("alias_group_review_skip_count") != 0:
+    raise SystemExit(f"FAIL: profile review build unexpectedly skipped review inputs {profile_result!r}.")
 if [Path(value).resolve() for value in (explicit_result.get("duplicate_review_paths") or [])] != [duplicate_review_path]:
     raise SystemExit(f"FAIL: explicit duplicate review paths mismatch {explicit_result.get('duplicate_review_paths')!r}.")
 if [Path(value).resolve() for value in (explicit_result.get("alias_group_review_paths") or [])] != [alias_review_path]:
@@ -238,6 +242,8 @@ if report.get("runtime_overlay_reason") != "disabled":
     raise SystemExit(f"FAIL: expected disabled runtime overlay reason, got {report.get('runtime_overlay_reason')!r}.")
 if report.get("duplicate_review_change_count") != 1 or report.get("alias_group_review_change_count") != 1:
     raise SystemExit(f"FAIL: report missing review change counts {report!r}.")
+if report.get("duplicate_review_skip_count") != 0 or report.get("alias_group_review_skip_count") != 0:
+    raise SystemExit(f"FAIL: report unexpectedly skipped review inputs {report!r}.")
 if "## Review Inputs" not in summary_text:
     raise SystemExit("FAIL: summary did not include Review Inputs section.")
 

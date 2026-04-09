@@ -104,14 +104,14 @@ evidence = {
 }
 evidence_path.write_text(json.dumps(evidence, indent=2) + "\n")
 
-policy_key = f"legacy-low32-{texture_crc:08x}-fs{formatsize}"
+policy_key = f"surface-{texture_crc:08x}"
 kept_a = f"legacy-{texture_crc:08x}-{entries[0][0]:08x}-fs{formatsize}-2x2"
 drop_b = f"legacy-{texture_crc:08x}-{entries[1][0]:08x}-fs{formatsize}-2x2"
 alias_c = f"legacy-{texture_crc:08x}-{entries[2][0]:08x}-fs{formatsize}-2x2"
 
 duplicate_review = {
     "sampled_low32": f"{texture_crc:08x}",
-    "selector": "0000000000000000",
+    "selector": "0000000071c71cdd",
     "recommendation": "keep-runtime-winner-rule-and-defer-offline-dedupe",
     "duplicate_bucket": {
         "policy": policy_key,
@@ -197,6 +197,10 @@ if second.get("duplicate_review_change_count") != 1 or third.get("duplicate_revi
     raise SystemExit(f"FAIL: unexpected duplicate review change counts second={second!r} third={third!r}.")
 if second.get("alias_group_review_change_count") != 1 or third.get("alias_group_review_change_count") != 1:
     raise SystemExit(f"FAIL: unexpected alias review change counts second={second!r} third={third!r}.")
+if second.get("duplicate_review_skip_count") != 0 or third.get("duplicate_review_skip_count") != 0:
+    raise SystemExit(f"FAIL: unexpected duplicate review skips second={second!r} third={third!r}.")
+if second.get("alias_group_review_skip_count") != 0 or third.get("alias_group_review_skip_count") != 0:
+    raise SystemExit(f"FAIL: unexpected alias review skips second={second!r} third={third!r}.")
 
 record = loader_manifest["records"][0]
 replacement_ids = [candidate.get("replacement_id") for candidate in (record.get("asset_candidates") or [])]

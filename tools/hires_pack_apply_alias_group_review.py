@@ -12,6 +12,28 @@ def load_json(path: Path):
     return json.loads(path.read_text())
 
 
+def resolve_record_for_review(records: list[dict], record_by_key: dict, sampled_low32: str, policy_key: str):
+    record = record_by_key.get((sampled_low32, policy_key))
+    if record is not None:
+        return record, "policy-key-exact"
+
+    sampled_matches = [
+        candidate
+        for candidate in records
+        if str((candidate.get("canonical_identity") or {}).get("sampled_low32") or "").lower() == sampled_low32
+    ]
+    if len(sampled_matches) == 1:
+        return sampled_matches[0], "sampled-low32-unique"
+    if not sampled_matches:
+        raise SystemExit(f"record not found for sampled_low32={sampled_low32} policy={policy_key}")
+
+    matched_policy_keys = sorted(str(candidate.get("policy_key") or "") for candidate in sampled_matches)
+    raise SystemExit(
+        f"multiple records found for sampled_low32={sampled_low32} policy={policy_key}; "
+        f"candidates={matched_policy_keys}"
+    )
+
+
 def dedupe_strings(values):
     seen = set()
     rows = []
@@ -80,9 +102,7 @@ def apply_alias_group_reviews(loader_manifest: dict, review_docs: list[dict]):
         canonical_replacement_id, alias_replacement_ids = resolve_alias_targets(review)
         alias_replacement_ids = set(alias_replacement_ids)
 
-        record = record_by_key.get((sampled_low32, policy_key))
-        if record is None:
-            raise SystemExit(f"record not found for sampled_low32={sampled_low32} policy={policy_key}")
+        record, record_resolution = resolve_record_for_review(records, record_by_key, sampled_low32, policy_key)
 
         canonical_template = None
         for candidate in record.get("asset_candidates") or []:
@@ -143,6 +163,8 @@ def apply_alias_group_reviews(loader_manifest: dict, review_docs: list[dict]):
             {
                 "sampled_low32": sampled_low32,
                 "policy_key": policy_key,
+                "resolved_policy_key": str(record.get("policy_key") or ""),
+                "record_resolution": record_resolution,
                 "canonical_replacement_id": canonical_replacement_id,
                 "applied_aliases": applied,
                 "kept_candidate_count": len(record.get("asset_candidates") or []),

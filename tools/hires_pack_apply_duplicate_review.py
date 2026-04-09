@@ -12,6 +12,28 @@ def load_json(path: Path):
     return json.loads(path.read_text())
 
 
+def resolve_record_for_review(records: list[dict], record_by_key: dict, sampled_low32: str, policy_key: str):
+    record = record_by_key.get((sampled_low32, policy_key))
+    if record is not None:
+        return record, "policy-key-exact"
+
+    sampled_matches = [
+        candidate
+        for candidate in records
+        if str((candidate.get("canonical_identity") or {}).get("sampled_low32") or "").lower() == sampled_low32
+    ]
+    if len(sampled_matches) == 1:
+        return sampled_matches[0], "sampled-low32-unique"
+    if not sampled_matches:
+        raise SystemExit(f"record not found for sampled_low32={sampled_low32} policy={policy_key}")
+
+    matched_policy_keys = sorted(str(candidate.get("policy_key") or "") for candidate in sampled_matches)
+    raise SystemExit(
+        f"multiple records found for sampled_low32={sampled_low32} policy={policy_key}; "
+        f"candidates={matched_policy_keys}"
+    )
+
+
 def dedupe_loader_manifest(loader_manifest: dict, review_docs: list[dict]):
     records = loader_manifest.get("records") or []
     record_by_key = {
@@ -35,13 +57,11 @@ def dedupe_loader_manifest(loader_manifest: dict, review_docs: list[dict]):
         active_replacement_id = str(bucket.get("replacement_id") or "")
         allowed_ids = set(review.get("unique_selector_replacement_ids") or [])
 
-        key = (sampled_low32, policy_key)
-        record = record_by_key.get(key)
-        if record is None:
-            raise SystemExit(f"record not found for sampled_low32={sampled_low32} policy={policy_key}")
+        record, record_resolution = resolve_record_for_review(records, record_by_key, sampled_low32, policy_key)
 
         kept_candidates = []
         removed_candidates = []
+        selector_fallback_applied = False
         for candidate in record.get("asset_candidates") or []:
             candidate_selector = str(candidate.get("selector_checksum64") or "").lower()
             replacement_id = str(candidate.get("replacement_id") or "")
@@ -58,6 +78,28 @@ def dedupe_loader_manifest(loader_manifest: dict, review_docs: list[dict]):
             kept_candidates.append(candidate)
 
         if not removed_candidates:
+            candidate_selectors = {
+                str((candidate.get("selector_checksum64") or "0000000000000000")).lower()
+                for candidate in (record.get("asset_candidates") or [])
+            }
+            if selector != "0000000000000000" and candidate_selectors == {"0000000000000000"}:
+                selector_fallback_applied = True
+                kept_candidates = []
+                for candidate in record.get("asset_candidates") or []:
+                    replacement_id = str(candidate.get("replacement_id") or "")
+                    if replacement_id in allowed_ids and replacement_id != active_replacement_id:
+                        removed_candidates.append(
+                            {
+                                "replacement_id": replacement_id,
+                                "selector_checksum64": str(candidate.get("selector_checksum64") or "").lower(),
+                                "legacy_texture_crc": candidate.get("legacy_texture_crc"),
+                                "variant_group_id": candidate.get("variant_group_id"),
+                            }
+                        )
+                        continue
+                    kept_candidates.append(candidate)
+
+        if not removed_candidates:
             raise SystemExit(
                 f"duplicate review for sampled_low32={sampled_low32} selector={selector} removed no candidates"
             )
@@ -68,7 +110,10 @@ def dedupe_loader_manifest(loader_manifest: dict, review_docs: list[dict]):
             {
                 "sampled_low32": sampled_low32,
                 "policy_key": policy_key,
+                "resolved_policy_key": str(record.get("policy_key") or ""),
+                "record_resolution": record_resolution,
                 "selector": selector,
+                "selector_resolution": "flattened-selector-fallback" if selector_fallback_applied else "selector-exact",
                 "active_replacement_id": active_replacement_id,
                 "removed_candidates": removed_candidates,
                 "kept_candidate_count": len(kept_candidates),

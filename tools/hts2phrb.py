@@ -94,14 +94,132 @@ def resolve_manifest_review_inputs(args):
 
 def apply_loader_manifest_reviews(loader_manifest, duplicate_review_paths, alias_group_review_paths):
     duplicate_review_changes = []
+    duplicate_review_skips = []
     alias_group_review_changes = []
+    alias_group_review_skips = []
     if duplicate_review_paths:
         duplicate_review_docs = [json.loads(path.read_text()) for path in duplicate_review_paths]
-        loader_manifest, duplicate_review_changes = dedupe_loader_manifest(loader_manifest, duplicate_review_docs)
+        for review_doc in duplicate_review_docs:
+            try:
+                loader_manifest, changes = dedupe_loader_manifest(loader_manifest, [review_doc])
+            except SystemExit as exc:
+                skip = classify_duplicate_review_skip(loader_manifest, review_doc, str(exc))
+                if skip is None:
+                    raise
+                duplicate_review_skips.append(skip)
+                continue
+            duplicate_review_changes.extend(changes)
     if alias_group_review_paths:
         alias_group_review_docs = [json.loads(path.read_text()) for path in alias_group_review_paths]
-        loader_manifest, alias_group_review_changes = apply_alias_group_reviews(loader_manifest, alias_group_review_docs)
-    return loader_manifest, duplicate_review_changes, alias_group_review_changes
+        for review_doc in alias_group_review_docs:
+            try:
+                loader_manifest, changes = apply_alias_group_reviews(loader_manifest, [review_doc])
+            except SystemExit as exc:
+                skip = classify_alias_group_review_skip(loader_manifest, review_doc, str(exc))
+                if skip is None:
+                    raise
+                alias_group_review_skips.append(skip)
+                continue
+            alias_group_review_changes.extend(changes)
+    return (
+        loader_manifest,
+        duplicate_review_changes,
+        duplicate_review_skips,
+        alias_group_review_changes,
+        alias_group_review_skips,
+    )
+
+
+def resolve_manifest_review_record(loader_manifest, sampled_low32, policy_key):
+    normalized_low32 = str(sampled_low32 or "").lower()
+    normalized_policy_key = str(policy_key or "")
+    records = loader_manifest.get("records") or []
+    exact_record = None
+    for record in records:
+        record_low32 = str((record.get("canonical_identity") or {}).get("sampled_low32") or "").lower()
+        if record_low32 == normalized_low32 and str(record.get("policy_key") or "") == normalized_policy_key:
+            exact_record = record
+            break
+    if exact_record is not None:
+        return exact_record, "policy-key-exact"
+
+    sampled_matches = [
+        record
+        for record in records
+        if str((record.get("canonical_identity") or {}).get("sampled_low32") or "").lower() == normalized_low32
+    ]
+    if len(sampled_matches) == 1:
+        return sampled_matches[0], "sampled-low32-unique"
+    if not sampled_matches:
+        return None, "record-not-in-scope"
+    raise SystemExit(
+        f"multiple records found for sampled_low32={normalized_low32} policy={normalized_policy_key}; "
+        f"candidates={sorted(str(record.get('policy_key') or '') for record in sampled_matches)}"
+    )
+
+
+def classify_duplicate_review_skip(loader_manifest, review_doc, error_message):
+    sampled_low32 = str(review_doc.get("sampled_low32") or "").lower()
+    bucket = review_doc.get("duplicate_bucket") or {}
+    policy_key = str(bucket.get("policy") or "")
+    selector = str(review_doc.get("selector") or "").lower()
+    active_replacement_id = str(bucket.get("replacement_id") or "")
+    record, record_resolution = resolve_manifest_review_record(loader_manifest, sampled_low32, policy_key)
+    if record is None:
+        return {
+            "sampled_low32": sampled_low32,
+            "policy_key": policy_key,
+            "resolved_policy_key": None,
+            "record_resolution": record_resolution,
+            "selector": selector,
+            "active_replacement_id": active_replacement_id,
+            "skip_reason": "record-not-in-scope",
+            "status": "skipped",
+            "error": error_message,
+        }
+    if not (record.get("asset_candidates") or []):
+        return {
+            "sampled_low32": sampled_low32,
+            "policy_key": policy_key,
+            "resolved_policy_key": str(record.get("policy_key") or ""),
+            "record_resolution": record_resolution,
+            "selector": selector,
+            "active_replacement_id": active_replacement_id,
+            "skip_reason": "no-asset-candidates",
+            "status": "skipped",
+            "error": error_message,
+        }
+    return None
+
+
+def classify_alias_group_review_skip(loader_manifest, review_doc, error_message):
+    sampled_low32 = str(review_doc.get("sampled_low32") or "").lower()
+    policy_key = str(review_doc.get("policy_key") or "")
+    canonical_replacement_id = str(review_doc.get("suggested_canonical_replacement_id") or "")
+    record, record_resolution = resolve_manifest_review_record(loader_manifest, sampled_low32, policy_key)
+    if record is None:
+        return {
+            "sampled_low32": sampled_low32,
+            "policy_key": policy_key,
+            "resolved_policy_key": None,
+            "record_resolution": record_resolution,
+            "canonical_replacement_id": canonical_replacement_id,
+            "skip_reason": "record-not-in-scope",
+            "status": "skipped",
+            "error": error_message,
+        }
+    if not (record.get("asset_candidates") or []):
+        return {
+            "sampled_low32": sampled_low32,
+            "policy_key": policy_key,
+            "resolved_policy_key": str(record.get("policy_key") or ""),
+            "record_resolution": record_resolution,
+            "canonical_replacement_id": canonical_replacement_id,
+            "skip_reason": "no-asset-candidates",
+            "status": "skipped",
+            "error": error_message,
+        }
+    return None
 
 
 def slugify_component(value):
@@ -1758,8 +1876,8 @@ def build_markdown_summary(report):
         f"- Runtime-deferred compat records: `{report['package_manifest_runtime_deferred_compat_record_count']}`",
         f"- Runtime bindings: `{report['binding_count']}`",
         f"- Transport-unresolved families: `{report['unresolved_count']}`",
-        f"- Duplicate review inputs: `{len(report.get('duplicate_review_paths') or [])}` (`{report.get('duplicate_review_change_count', 0)}` change(s))",
-        f"- Alias-group review inputs: `{len(report.get('alias_group_review_paths') or [])}` (`{report.get('alias_group_review_change_count', 0)}` change(s))",
+        f"- Duplicate review inputs: `{len(report.get('duplicate_review_paths') or [])}` (`{report.get('duplicate_review_change_count', 0)}` change(s), `{report.get('duplicate_review_skip_count', 0)}` skipped)",
+        f"- Alias-group review inputs: `{len(report.get('alias_group_review_paths') or [])}` (`{report.get('alias_group_review_change_count', 0)}` change(s), `{report.get('alias_group_review_skip_count', 0)}` skipped)",
         f"- Review profiles: `{len(report.get('review_profile_paths') or [])}`",
         f"- Minimum outcome gate: `{report.get('minimum_outcome') or 'none'}`",
         f"- Require promotable: `{'yes' if report.get('require_promotable') else 'no'}`",
@@ -1822,7 +1940,9 @@ def build_markdown_summary(report):
             for path in alias_group_review_paths:
                 lines.append(f"- Alias-group review: `{path}`")
         lines.append(f"- Duplicate review changes: `{report.get('duplicate_review_change_count', 0)}`")
+        lines.append(f"- Duplicate review skipped: `{report.get('duplicate_review_skip_count', 0)}`")
         lines.append(f"- Alias-group review changes: `{report.get('alias_group_review_change_count', 0)}`")
+        lines.append(f"- Alias-group review skipped: `{report.get('alias_group_review_skip_count', 0)}`")
 
     runtime_state_examples = {}
     for item in report["requested_family_states"]["families"]:
@@ -1982,8 +2102,10 @@ def build_stdout_summary(report):
         f"review_profiles: {len(report.get('review_profile_paths') or [])}",
         f"duplicate_review_inputs: {len(report.get('duplicate_review_paths') or [])}",
         f"duplicate_review_changes: {report.get('duplicate_review_change_count', 0)}",
+        f"duplicate_review_skipped: {report.get('duplicate_review_skip_count', 0)}",
         f"alias_group_review_inputs: {len(report.get('alias_group_review_paths') or [])}",
         f"alias_group_review_changes: {report.get('alias_group_review_change_count', 0)}",
+        f"alias_group_review_skipped: {report.get('alias_group_review_skip_count', 0)}",
         f"unresolved_family_review: {report.get('unresolved_family_review_json_path') or 'none'}",
         f"unresolved_family_count: {unresolved_review_summary.get('unresolved_family_count', 0)}",
         f"unresolved_family_reasons: {unresolved_reason_summary}",
@@ -2416,11 +2538,19 @@ def build_conversion(args):
         stage_timings_ms["build_canonical_loader_manifest"] = 0.0
         reused_stage_names.append("build_canonical_loader_manifest")
         duplicate_review_changes = reusable_progress.get("duplicate_review_changes", []) if reusable_progress else []
+        duplicate_review_skips = reusable_progress.get("duplicate_review_skips", []) if reusable_progress else []
         alias_group_review_changes = reusable_progress.get("alias_group_review_changes", []) if reusable_progress else []
+        alias_group_review_skips = reusable_progress.get("alias_group_review_skips", []) if reusable_progress else []
     else:
         stage_started = time.perf_counter()
         canonical_loader_manifest = build_canonical_loader_manifest(migrate_result["imported_index"], migration_plan_path)
-        canonical_loader_manifest, duplicate_review_changes, alias_group_review_changes = apply_loader_manifest_reviews(
+        (
+            canonical_loader_manifest,
+            duplicate_review_changes,
+            duplicate_review_skips,
+            alias_group_review_changes,
+            alias_group_review_skips,
+        ) = apply_loader_manifest_reviews(
             canonical_loader_manifest,
             args.resolved_duplicate_review_paths,
             args.resolved_alias_group_review_paths,
@@ -2433,8 +2563,12 @@ def build_conversion(args):
         loader_manifest_record_count=canonical_loader_manifest.get("record_count", 0),
         duplicate_review_change_count=len(duplicate_review_changes),
         duplicate_review_changes=duplicate_review_changes,
+        duplicate_review_skip_count=len(duplicate_review_skips),
+        duplicate_review_skips=duplicate_review_skips,
         alias_group_review_change_count=len(alias_group_review_changes),
         alias_group_review_changes=alias_group_review_changes,
+        alias_group_review_skip_count=len(alias_group_review_skips),
+        alias_group_review_skips=alias_group_review_skips,
     )
 
     runtime_overlay_planned, runtime_overlay_reason = resolve_runtime_overlay_plan(args, canonical_loader_manifest)
@@ -2705,8 +2839,12 @@ def build_conversion(args):
         "unresolved_sampled_low32s": unresolved_sampled_low32s,
         "duplicate_review_change_count": len(duplicate_review_changes),
         "duplicate_review_changes": duplicate_review_changes,
+        "duplicate_review_skip_count": len(duplicate_review_skips),
+        "duplicate_review_skips": duplicate_review_skips,
         "alias_group_review_change_count": len(alias_group_review_changes),
         "alias_group_review_changes": alias_group_review_changes,
+        "alias_group_review_skip_count": len(alias_group_review_skips),
+        "alias_group_review_skips": alias_group_review_skips,
         "imported_index_summary": imported_index_summary,
         "package_manifest_summary": package_manifest_summary,
         "requested_family_states": requested_family_states,

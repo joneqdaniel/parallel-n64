@@ -1663,8 +1663,12 @@ def build_runtime_overlay_review_payload(migrate_result, bindings, report):
         action_hint_counts[entry["action_hint"]] += 1
 
     review_entries.sort(key=lambda item: (item["status"], item["policy_key"]))
+    linked_import_unresolved_count = int(blocker_cluster_class_counts.get("linked-import-ambiguity", 0))
+    direct_unresolved_count = max(len(review_entries) - linked_import_unresolved_count, 0)
     return {
         "unresolved_overlay_count": len(review_entries),
+        "direct_unresolved_overlay_count": direct_unresolved_count,
+        "linked_import_unresolved_overlay_count": linked_import_unresolved_count,
         "status_counts": dict(sorted(status_counts.items())),
         "reason_counts": dict(sorted(reason_counts.items())),
         "transport_candidate_count_counts": {
@@ -1813,6 +1817,9 @@ def build_runtime_overlay_linked_import_review_payload(runtime_overlay_review, u
 
     groups = []
     sampled_object_id_counts = Counter()
+    linked_unresolved_family_total_count = 0
+    linked_unresolved_runtime_state_totals = Counter()
+    linked_unresolved_reason_totals = Counter()
     for entry in runtime_overlay_review.get("entries") or []:
         if entry.get("blocker_cluster_class") != "linked-import-ambiguity":
             continue
@@ -1859,6 +1866,9 @@ def build_runtime_overlay_linked_import_review_payload(runtime_overlay_review, u
         sampled_object_id = entry.get("sampled_object_id") or None
         if sampled_object_id:
             sampled_object_id_counts[sampled_object_id] += 1
+        linked_unresolved_family_total_count += len(linked_keys)
+        linked_unresolved_runtime_state_totals.update(linked_runtime_state_counts)
+        linked_unresolved_reason_totals.update(linked_reason_counts)
         groups.append(
             {
                 "policy_key": entry.get("policy_key"),
@@ -1884,6 +1894,9 @@ def build_runtime_overlay_linked_import_review_payload(runtime_overlay_review, u
     groups.sort(key=lambda item: (str(item.get("sampled_object_id") or ""), str(item.get("policy_key") or "")))
     return {
         "linked_import_review_group_count": len(groups),
+        "linked_unresolved_family_total_count": linked_unresolved_family_total_count,
+        "linked_unresolved_runtime_state_totals": dict(sorted(linked_unresolved_runtime_state_totals.items())),
+        "linked_unresolved_reason_totals": dict(sorted(linked_unresolved_reason_totals.items())),
         "sampled_object_id_counts": dict(sorted(sampled_object_id_counts.items())),
         "groups": groups,
     }
@@ -2199,7 +2212,7 @@ def write_runtime_overlay_linked_import_review_artifacts(output_dir: Path, runti
     return review, review_json_path, review_markdown_path
 
 
-def summarize_runtime_overlay_blockers(runtime_overlay_review_summary: dict):
+def summarize_runtime_overlay_blockers(runtime_overlay_review_summary: dict, linked_import_review_summary: dict | None = None):
     if not runtime_overlay_review_summary:
         return []
 
@@ -2221,6 +2234,19 @@ def summarize_runtime_overlay_blockers(runtime_overlay_review_summary: dict):
             ),
         ),
     ]
+    if linked_import_review_summary:
+        blocker_specs.extend(
+            [
+                (
+                    "overlay-linked-import-review-groups",
+                    int(linked_import_review_summary.get("linked_import_review_group_count") or 0),
+                ),
+                (
+                    "overlay-linked-import-unresolved-families",
+                    int(linked_import_review_summary.get("linked_unresolved_family_total_count") or 0),
+                ),
+            ]
+        )
     for code, count in blocker_specs:
         if count <= 0:
             continue
@@ -2346,6 +2372,12 @@ def synchronize_report_summary_fields(report: dict):
     report["runtime_overlay_unresolved_count"] = int(
         runtime_overlay_review_summary.get("unresolved_overlay_count") or 0
     )
+    report["runtime_overlay_direct_unresolved_count"] = int(
+        runtime_overlay_review_summary.get("direct_unresolved_overlay_count") or 0
+    )
+    report["runtime_overlay_import_linked_unresolved_count"] = int(
+        runtime_overlay_review_summary.get("linked_import_unresolved_overlay_count") or 0
+    )
     report["runtime_overlay_reason_counts"] = runtime_overlay_review_summary.get("reason_counts") or {}
     report["runtime_overlay_hash_review_class_counts"] = (
         runtime_overlay_review_summary.get("hash_review_class_counts") or {}
@@ -2373,6 +2405,15 @@ def synchronize_report_summary_fields(report: dict):
     )
     report["runtime_overlay_linked_import_review_group_count"] = int(
         runtime_overlay_linked_import_review_summary.get("linked_import_review_group_count") or 0
+    )
+    report["runtime_overlay_linked_import_unresolved_family_count"] = int(
+        runtime_overlay_linked_import_review_summary.get("linked_unresolved_family_total_count") or 0
+    )
+    report["runtime_overlay_linked_import_runtime_state_counts"] = (
+        runtime_overlay_linked_import_review_summary.get("linked_unresolved_runtime_state_totals") or {}
+    )
+    report["runtime_overlay_linked_import_reason_counts"] = (
+        runtime_overlay_linked_import_review_summary.get("linked_unresolved_reason_totals") or {}
     )
     return report
 
@@ -2583,6 +2624,12 @@ def build_markdown_summary(report):
     if runtime_overlay_review_summary:
         lines.extend(["", "## Runtime Overlay Review Summary", ""])
         lines.append(f"- Unresolved overlay cases: `{runtime_overlay_review_summary.get('unresolved_overlay_count', 0)}`")
+        lines.append(
+            f"- Direct overlay cases: `{report.get('runtime_overlay_direct_unresolved_count', 0)}`"
+        )
+        lines.append(
+            f"- Import-linked overlay cases: `{report.get('runtime_overlay_import_linked_unresolved_count', 0)}`"
+        )
         status_counts = runtime_overlay_review_summary.get("status_counts") or {}
         if status_counts:
             lines.append(
@@ -2644,6 +2691,25 @@ def build_markdown_summary(report):
         lines.append(
             f"- Linked-import review groups: `{runtime_overlay_linked_import_review_summary.get('linked_import_review_group_count', 0)}`"
         )
+        lines.append(
+            f"- Linked unresolved families: `{runtime_overlay_linked_import_review_summary.get('linked_unresolved_family_total_count', 0)}`"
+        )
+        linked_runtime_state_counts = runtime_overlay_linked_import_review_summary.get("linked_unresolved_runtime_state_totals") or {}
+        if linked_runtime_state_counts:
+            lines.append(
+                "- Linked runtime states: "
+                + ", ".join(
+                    f"`{name}`=`{count}`" for name, count in sorted(linked_runtime_state_counts.items())
+                )
+            )
+        linked_reason_counts = runtime_overlay_linked_import_review_summary.get("linked_unresolved_reason_totals") or {}
+        if linked_reason_counts:
+            lines.append(
+                "- Linked reasons: "
+                + ", ".join(
+                    f"`{name}`=`{count}`" for name, count in sorted(linked_reason_counts.items())
+                )
+            )
     runtime_overlay_blockers = report.get("runtime_overlay_blockers") or []
     if runtime_overlay_blockers:
         lines.extend(["", "## Runtime Overlay Blockers", ""])
@@ -2757,10 +2823,13 @@ def build_stdout_summary(report):
         f"unresolved_family_reasons: {unresolved_reason_summary}",
         f"runtime_overlay_review: {report.get('runtime_overlay_review_json_path') or 'none'}",
         f"runtime_overlay_unresolved_count: {runtime_overlay_review_summary.get('unresolved_overlay_count', 0)}",
+        f"runtime_overlay_direct_unresolved_count: {int(report.get('runtime_overlay_direct_unresolved_count') or 0)}",
+        f"runtime_overlay_import_linked_unresolved_count: {int(report.get('runtime_overlay_import_linked_unresolved_count') or 0)}",
         f"runtime_overlay_reasons: {overlay_reason_summary}",
         f"runtime_overlay_hash_classes: {overlay_hash_summary}",
         f"runtime_overlay_candidate_set_review_groups: {int(report.get('runtime_overlay_candidate_set_review_group_count') or 0)}",
         f"runtime_overlay_linked_import_review_groups: {int(report.get('runtime_overlay_linked_import_review_group_count') or 0)}",
+        f"runtime_overlay_linked_import_unresolved_families: {int(report.get('runtime_overlay_linked_import_unresolved_family_count') or 0)}",
         f"runtime_overlay_blockers: {overlay_blocker_summary}",
         f"minimum_outcome: {report.get('minimum_outcome') or 'none'}",
         f"require_promotable: {'yes' if report.get('require_promotable') else 'no'}",
@@ -3032,7 +3101,10 @@ def build_conversion(args):
                     reusable_pre_report["runtime_overlay_linked_import_review_markdown_path"] = str(
                         overlay_linked_import_review_markdown_path
                     )
-                    reusable_pre_report["runtime_overlay_blockers"] = summarize_runtime_overlay_blockers(overlay_review)
+                    reusable_pre_report["runtime_overlay_blockers"] = summarize_runtime_overlay_blockers(
+                        overlay_review,
+                        overlay_linked_import_review,
+                    )
                 else:
                     reusable_pre_report.pop("runtime_overlay_review_summary", None)
                     reusable_pre_report.pop("runtime_overlay_review_json_path", None)
@@ -3195,7 +3267,10 @@ def build_conversion(args):
                     reusable_report["runtime_overlay_linked_import_review_markdown_path"] = str(
                         overlay_linked_import_review_markdown_path
                     )
-                    reusable_report["runtime_overlay_blockers"] = summarize_runtime_overlay_blockers(overlay_review)
+                    reusable_report["runtime_overlay_blockers"] = summarize_runtime_overlay_blockers(
+                        overlay_review,
+                        overlay_linked_import_review,
+                    )
                 else:
                     reusable_report.pop("runtime_overlay_review_summary", None)
                     reusable_report.pop("runtime_overlay_review_json_path", None)
@@ -3643,7 +3718,10 @@ def build_conversion(args):
         report["runtime_overlay_linked_import_review_markdown_path"] = str(
             runtime_overlay_linked_import_review_markdown_path
         )
-        report["runtime_overlay_blockers"] = summarize_runtime_overlay_blockers(runtime_overlay_review)
+        report["runtime_overlay_blockers"] = summarize_runtime_overlay_blockers(
+            runtime_overlay_review,
+            runtime_overlay_linked_import_review,
+        )
     else:
         report.pop("runtime_overlay_review_summary", None)
         report.pop("runtime_overlay_review_json_path", None)

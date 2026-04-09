@@ -135,6 +135,8 @@ expected_context = {
         "pixel-divergent-single-dim": 8,
     },
     "runtime_overlay_unresolved_count": 13,
+    "runtime_overlay_direct_unresolved_count": 12,
+    "runtime_overlay_import_linked_unresolved_count": 1,
     "runtime_overlay_candidate_set_cluster_count": 11,
     "runtime_overlay_candidate_set_cluster_size_counts": {"1": 9, "2": 4},
     "runtime_overlay_blocker_cluster_class_counts": {
@@ -153,6 +155,9 @@ expected_context = {
     },
     "runtime_overlay_candidate_set_review_group_count": 2,
     "runtime_overlay_linked_import_review_group_count": 1,
+    "runtime_overlay_linked_import_unresolved_family_count": 4,
+    "runtime_overlay_linked_import_runtime_state_counts": {"runtime-ready-package": 4},
+    "runtime_overlay_linked_import_reason_counts": {"exact-family-ambiguous": 4},
 }
 
 for label, report, expected in (
@@ -177,6 +182,10 @@ if overlay_review.get("unresolved_overlay_count") != 13:
     raise SystemExit(f"FAIL: authority-context overlay review expected 13 unresolved cases, got {overlay_review!r}.")
 if overlay_review.get("reason_counts") != {"proxy-transport-selection-required": 13}:
     raise SystemExit(f"FAIL: authority-context overlay review had unexpected reasons: {overlay_review!r}.")
+if overlay_review.get("direct_unresolved_overlay_count") != 12:
+    raise SystemExit(f"FAIL: authority-context overlay review had unexpected direct unresolved count: {overlay_review!r}.")
+if overlay_review.get("linked_import_unresolved_overlay_count") != 1:
+    raise SystemExit(f"FAIL: authority-context overlay review had unexpected linked-import unresolved count: {overlay_review!r}.")
 if overlay_review.get("hash_review_class_counts") != {
     "pixel-divergent-multi-dim": 5,
     "pixel-divergent-single-dim": 8,
@@ -224,6 +233,8 @@ if context.get("runtime_overlay_blockers") != [
     {"code": "overlay-pixel-divergent-single-dim-cases", "count": 8},
     {"code": "overlay-pixel-divergent-multi-dim-cases", "count": 5},
     {"code": "overlay-identical-alpha-hash-paired-cases", "count": 4},
+    {"code": "overlay-linked-import-review-groups", "count": 1},
+    {"code": "overlay-linked-import-unresolved-families", "count": 4},
 ]:
     raise SystemExit(f"FAIL: authority-context overlay blockers were unexpected: {context.get('runtime_overlay_blockers')!r}.")
 if not context.get("runtime_overlay_review_json_path") or not Path(context["runtime_overlay_review_json_path"]).exists():

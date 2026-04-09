@@ -104,6 +104,8 @@ expected = {
         "pixel-divergent-single-dim": 6,
     },
     "runtime_overlay_unresolved_count": 9,
+    "runtime_overlay_direct_unresolved_count": 8,
+    "runtime_overlay_import_linked_unresolved_count": 1,
     "runtime_overlay_candidate_set_cluster_count": 9,
     "runtime_overlay_candidate_set_cluster_size_counts": {"1": 9},
     "runtime_overlay_blocker_cluster_class_counts": {
@@ -120,10 +122,15 @@ expected = {
     },
     "runtime_overlay_candidate_set_review_group_count": 0,
     "runtime_overlay_linked_import_review_group_count": 1,
+    "runtime_overlay_linked_import_unresolved_family_count": 4,
+    "runtime_overlay_linked_import_runtime_state_counts": {"runtime-ready-package": 4},
+    "runtime_overlay_linked_import_reason_counts": {"exact-family-ambiguous": 4},
     "runtime_overlay_blockers": [
         {"code": "overlay-proxy-transport-selection-required-cases", "count": 9},
         {"code": "overlay-pixel-divergent-single-dim-cases", "count": 6},
         {"code": "overlay-pixel-divergent-multi-dim-cases", "count": 3},
+        {"code": "overlay-linked-import-review-groups", "count": 1},
+        {"code": "overlay-linked-import-unresolved-families", "count": 4},
     ],
 }
 
@@ -154,6 +161,10 @@ if overlay_review.get("candidate_set_cluster_count") != 9:
     raise SystemExit(f"FAIL: unexpected overlay review candidate-set cluster count: {overlay_review!r}")
 if overlay_review.get("candidate_set_cluster_size_counts") != {"1": 9}:
     raise SystemExit(f"FAIL: unexpected overlay review candidate-set cluster sizes: {overlay_review!r}")
+if overlay_review.get("direct_unresolved_overlay_count") != 8:
+    raise SystemExit(f"FAIL: unexpected overlay review direct unresolved count: {overlay_review!r}")
+if overlay_review.get("linked_import_unresolved_overlay_count") != 1:
+    raise SystemExit(f"FAIL: unexpected overlay review linked-import unresolved count: {overlay_review!r}")
 
 overlay_candidate_review = report.get("runtime_overlay_candidate_set_review_summary") or {}
 if overlay_candidate_review.get("candidate_set_review_group_count") != 0:

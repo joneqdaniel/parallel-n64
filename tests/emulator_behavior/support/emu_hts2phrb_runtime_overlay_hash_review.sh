@@ -283,6 +283,14 @@ with TemporaryDirectory() as tmpdir:
         raise SystemExit(
             f"unexpected top-level overlay unresolved count: {report.get('runtime_overlay_unresolved_count')!r}"
         )
+    if report.get("runtime_overlay_direct_unresolved_count") != 4:
+        raise SystemExit(
+            f"unexpected top-level direct overlay unresolved count: {report.get('runtime_overlay_direct_unresolved_count')!r}"
+        )
+    if report.get("runtime_overlay_import_linked_unresolved_count") != 0:
+        raise SystemExit(
+            f"unexpected top-level import-linked overlay unresolved count: {report.get('runtime_overlay_import_linked_unresolved_count')!r}"
+        )
     if report.get("runtime_overlay_reason_counts") != {"proxy-transport-selection-required": 4}:
         raise SystemExit(f"unexpected top-level overlay reasons: {report.get('runtime_overlay_reason_counts')!r}")
     if report.get("runtime_overlay_hash_review_class_counts") != {
@@ -323,6 +331,18 @@ with TemporaryDirectory() as tmpdir:
     if report.get("runtime_overlay_linked_import_review_group_count") != 1:
         raise SystemExit(
             f"unexpected top-level linked-import review group count: {report.get('runtime_overlay_linked_import_review_group_count')!r}"
+        )
+    if report.get("runtime_overlay_linked_import_unresolved_family_count") != 2:
+        raise SystemExit(
+            f"unexpected top-level linked-import unresolved family count: {report.get('runtime_overlay_linked_import_unresolved_family_count')!r}"
+        )
+    if report.get("runtime_overlay_linked_import_runtime_state_counts") != {"runtime-ready-package": 2}:
+        raise SystemExit(
+            f"unexpected top-level linked-import runtime states: {report.get('runtime_overlay_linked_import_runtime_state_counts')!r}"
+        )
+    if report.get("runtime_overlay_linked_import_reason_counts") != {"exact-family-ambiguous": 2}:
+        raise SystemExit(
+            f"unexpected top-level linked-import reasons: {report.get('runtime_overlay_linked_import_reason_counts')!r}"
         )
 PY
 

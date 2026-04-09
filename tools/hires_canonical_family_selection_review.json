@@ -47,6 +47,50 @@
       ],
       "review_group_cluster_class": "same-aspect",
       "review_group_action_hint": "context-bundle-review"
+    },
+    {
+      "family_key": "47b9e693:fs0",
+      "selected_variant_group_dims": "360x360",
+      "selection_reason": "review-family-selection",
+      "review_group_variant_group_dims": [
+        "320x320",
+        "360x360"
+      ],
+      "review_group_cluster_class": "same-aspect",
+      "review_group_action_hint": "context-bundle-review"
+    },
+    {
+      "family_key": "77915e2c:fs0",
+      "selected_variant_group_dims": "1600x800",
+      "selection_reason": "review-family-selection",
+      "review_group_variant_group_dims": [
+        "1024x512",
+        "1600x800"
+      ],
+      "review_group_cluster_class": "same-aspect",
+      "review_group_action_hint": "context-bundle-review"
+    },
+    {
+      "family_key": "943260f3:fs0",
+      "selected_variant_group_dims": "640x320",
+      "selection_reason": "review-family-selection",
+      "review_group_variant_group_dims": [
+        "512x256",
+        "640x320"
+      ],
+      "review_group_cluster_class": "same-aspect",
+      "review_group_action_hint": "context-bundle-review"
+    },
+    {
+      "family_key": "960662fe:fs0",
+      "selected_variant_group_dims": "768x576",
+      "selection_reason": "review-family-selection",
+      "review_group_variant_group_dims": [
+        "640x480",
+        "768x576"
+      ],
+      "review_group_cluster_class": "same-aspect",
+      "review_group_action_hint": "context-bundle-review"
     }
   ]
 }

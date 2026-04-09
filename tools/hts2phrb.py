@@ -1479,6 +1479,35 @@ def write_runtime_overlay_review_artifacts(output_dir: Path, migrate_result: dic
     return review, review_json_path, review_markdown_path
 
 
+def summarize_runtime_overlay_blockers(runtime_overlay_review_summary: dict):
+    if not runtime_overlay_review_summary:
+        return []
+
+    blockers = []
+    reason_counts = runtime_overlay_review_summary.get("reason_counts") or {}
+    hash_review_class_counts = runtime_overlay_review_summary.get("hash_review_class_counts") or {}
+    identical_case_counts = runtime_overlay_review_summary.get("identical_alpha_hash_case_count_counts") or {}
+
+    blocker_specs = [
+        ("overlay-proxy-transport-selection-required-cases", int(reason_counts.get("proxy-transport-selection-required", 0))),
+        ("overlay-pixel-divergent-single-dim-cases", int(hash_review_class_counts.get("pixel-divergent-single-dim", 0))),
+        ("overlay-pixel-divergent-multi-dim-cases", int(hash_review_class_counts.get("pixel-divergent-multi-dim", 0))),
+        (
+            "overlay-identical-alpha-hash-paired-cases",
+            sum(
+                int(count)
+                for case_count, count in identical_case_counts.items()
+                if int(case_count) > 0
+            ),
+        ),
+    ]
+    for code, count in blocker_specs:
+        if count <= 0:
+            continue
+        blockers.append({"code": code, "count": count})
+    return blockers
+
+
 def load_migration_result_for_report(report: dict):
     migration_plan_path = Path(report.get("migration_plan_path") or "")
     if not migration_plan_path.exists():
@@ -1720,6 +1749,11 @@ def build_markdown_summary(report):
                     f"`{name}`=`{count}`" for name, count in sorted(candidate_counts.items(), key=lambda item: int(item[0]))
                 )
             )
+    runtime_overlay_blockers = report.get("runtime_overlay_blockers") or []
+    if runtime_overlay_blockers:
+        lines.extend(["", "## Runtime Overlay Blockers", ""])
+        for blocker in runtime_overlay_blockers:
+            lines.append(f"- `{blocker['code']}`: `{blocker['count']}`")
 
     unresolved_keys = report["requested_family_states"].get("transport_unresolved_family_keys") or []
     if unresolved_keys:
@@ -1772,6 +1806,10 @@ def build_stdout_summary(report):
         f"{name}={count}"
         for name, count in sorted((runtime_overlay_review_summary.get("hash_review_class_counts") or {}).items())
     ) or "none"
+    overlay_blocker_summary = ", ".join(
+        f"{item['code']}={item['count']}"
+        for item in (report.get("runtime_overlay_blockers") or [])
+    ) or "none"
     lines = [
         f"hts2phrb: {report['conversion_outcome']}",
         f"output_dir: {report['output_dir']}",
@@ -1802,6 +1840,7 @@ def build_stdout_summary(report):
         f"runtime_overlay_unresolved_count: {runtime_overlay_review_summary.get('unresolved_overlay_count', 0)}",
         f"runtime_overlay_reasons: {overlay_reason_summary}",
         f"runtime_overlay_hash_classes: {overlay_hash_summary}",
+        f"runtime_overlay_blockers: {overlay_blocker_summary}",
         f"minimum_outcome: {report.get('minimum_outcome') or 'none'}",
         f"require_promotable: {'yes' if report.get('require_promotable') else 'no'}",
         f"promotion_blockers: {blocker_summary}",
@@ -2034,10 +2073,12 @@ def build_conversion(args):
                     reusable_pre_report["runtime_overlay_review_summary"] = overlay_review
                     reusable_pre_report["runtime_overlay_review_json_path"] = str(overlay_review_json_path)
                     reusable_pre_report["runtime_overlay_review_markdown_path"] = str(overlay_review_markdown_path)
+                    reusable_pre_report["runtime_overlay_blockers"] = summarize_runtime_overlay_blockers(overlay_review)
                 else:
                     reusable_pre_report.pop("runtime_overlay_review_summary", None)
                     reusable_pre_report.pop("runtime_overlay_review_json_path", None)
                     reusable_pre_report.pop("runtime_overlay_review_markdown_path", None)
+                    reusable_pre_report["runtime_overlay_blockers"] = []
             summary_path.write_text(build_markdown_summary(reusable_pre_report))
             report_path.write_text(json.dumps(reusable_pre_report, indent=2) + "\n")
             write_progress(
@@ -2163,10 +2204,12 @@ def build_conversion(args):
                     reusable_report["runtime_overlay_review_summary"] = overlay_review
                     reusable_report["runtime_overlay_review_json_path"] = str(overlay_review_json_path)
                     reusable_report["runtime_overlay_review_markdown_path"] = str(overlay_review_markdown_path)
+                    reusable_report["runtime_overlay_blockers"] = summarize_runtime_overlay_blockers(overlay_review)
                 else:
                     reusable_report.pop("runtime_overlay_review_summary", None)
                     reusable_report.pop("runtime_overlay_review_json_path", None)
                     reusable_report.pop("runtime_overlay_review_markdown_path", None)
+                    reusable_report["runtime_overlay_blockers"] = []
             summary_path.write_text(build_markdown_summary(reusable_report))
             report_path.write_text(json.dumps(reusable_report, indent=2) + "\n")
             write_progress(
@@ -2531,10 +2574,12 @@ def build_conversion(args):
         report["runtime_overlay_review_summary"] = runtime_overlay_review
         report["runtime_overlay_review_json_path"] = str(runtime_overlay_review_json_path)
         report["runtime_overlay_review_markdown_path"] = str(runtime_overlay_review_markdown_path)
+        report["runtime_overlay_blockers"] = summarize_runtime_overlay_blockers(runtime_overlay_review)
     else:
         report.pop("runtime_overlay_review_summary", None)
         report.pop("runtime_overlay_review_json_path", None)
         report.pop("runtime_overlay_review_markdown_path", None)
+        report["runtime_overlay_blockers"] = []
     summary_path.write_text(build_markdown_summary(report))
     report["summary_path"] = str(summary_path)
     report["report_path"] = str(report_path)

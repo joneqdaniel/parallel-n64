@@ -91,9 +91,10 @@ expected = {
     "package_manifest_runtime_ready_native_sampled_record_count": 28,
     "package_manifest_runtime_ready_compat_record_count": 8480,
     "package_manifest_runtime_deferred_record_count": 375,
-    "unresolved_count": 0,
-    "runtime_overlay_built": False,
-    "runtime_overlay_reason": "no-runtime-context",
+    "binding_count": 15,
+    "unresolved_count": 13,
+    "runtime_overlay_built": True,
+    "runtime_overlay_reason": "runtime-context-available",
     "context_bundle_input_count": 1,
     "context_bundle_resolution_count": 3,
 }

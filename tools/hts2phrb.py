@@ -24,7 +24,7 @@ from hires_pack_emit_proxy_bindings import build_proxy_bindings, load_policy as 
 from hires_pack_materialize_package import materialize_package_in_memory
 from hires_pack_migrate import build_imported_index, build_migration_plan, load_import_policy
 
-HTS2PHRB_ARTIFACT_VERSION = 5
+HTS2PHRB_ARTIFACT_VERSION = 6
 
 
 def slugify_component(value):
@@ -94,7 +94,7 @@ def should_build_runtime_overlay(args):
         return True, "forced"
     if args.runtime_overlay_mode == "never":
         return False, "disabled"
-    if args.bundle or args.low32 or args.transport_policy:
+    if args.bundle or args.low32 or args.transport_policy or args.context_bundle:
         return True, "runtime-context-available"
     return False, "no-runtime-context"
 
@@ -228,6 +228,8 @@ def try_load_reusable_report_from_pre_signature(report_path: Path, pre_request_s
     if not report_path.exists():
         return None
     report = json.loads(report_path.read_text())
+    if int(report.get("artifact_contract_version", 0) or 0) != HTS2PHRB_ARTIFACT_VERSION:
+        return None
     if report.get("pre_request_signature") != pre_request_signature:
         return None
     if not reusable_report_artifacts_are_consistent(report):
@@ -244,6 +246,8 @@ def try_load_reusable_report(report_path: Path, request_signature: dict):
     if not report_path.exists():
         return None
     report = json.loads(report_path.read_text())
+    if int(report.get("artifact_contract_version", 0) or 0) != HTS2PHRB_ARTIFACT_VERSION:
+        return None
     report_signature = report.get("request_signature")
     if report_signature is not None:
         if report_signature != request_signature:
@@ -942,6 +946,119 @@ def build_family_inventory_payload(report):
     }
 
 
+def build_unresolved_family_review_payload(migrate_result, requested_family_states):
+    imported_index = migrate_result.get("imported_index") or {}
+    requested_families = {
+        family.get("family_key"): family
+        for family in (requested_family_states.get("families") or [])
+        if family.get("family_key")
+    }
+    review_families = []
+    reason_counts = Counter()
+    runtime_state_counts = Counter()
+    import_state_counts = Counter()
+    variant_group_count_counts = Counter()
+    candidate_replacement_count_counts = Counter()
+    canonical_sampled_object_count_counts = Counter()
+
+    for family in imported_index.get("unresolved_families", []):
+        family_key = make_family_key(family.get("family_low32"), family.get("formatsize"))
+        requested_state = requested_families.get(family_key, {})
+        variant_groups = family.get("variant_groups") or []
+        canonical_sampled_objects = family.get("canonical_sampled_objects") or []
+        review_entry = {
+            "family_key": family_key,
+            "low32": normalize_low32(family.get("family_low32")),
+            "formatsize": int(family.get("formatsize") or 0),
+            "reason": family.get("reason") or "unknown",
+            "active_pool": family.get("active_pool") or "unknown",
+            "import_state": requested_state.get("import_state") or "unknown",
+            "runtime_state": requested_state.get("runtime_state") or "unknown",
+            "variant_group_count": len(variant_groups),
+            "candidate_replacement_count": len(family.get("candidate_replacement_ids") or []),
+            "canonical_sampled_object_count": len(canonical_sampled_objects),
+            "active_unique_repl_dim_count": int(family.get("active_unique_repl_dim_count") or 0),
+            "active_unique_palette_count": int(family.get("active_unique_palette_count") or 0),
+            "active_replacement_dims": family.get("active_replacement_dims") or [],
+            "variant_group_dims": [group.get("dims") for group in variant_groups if group.get("dims")],
+            "sampled_object_ids": [
+                sampled.get("sampled_object_id")
+                for sampled in canonical_sampled_objects
+                if sampled.get("sampled_object_id")
+            ],
+        }
+        review_families.append(review_entry)
+        reason_counts[review_entry["reason"]] += 1
+        runtime_state_counts[review_entry["runtime_state"]] += 1
+        import_state_counts[review_entry["import_state"]] += 1
+        variant_group_count_counts[review_entry["variant_group_count"]] += 1
+        candidate_replacement_count_counts[review_entry["candidate_replacement_count"]] += 1
+        canonical_sampled_object_count_counts[review_entry["canonical_sampled_object_count"]] += 1
+
+    review_families.sort(key=lambda item: (item["runtime_state"], item["family_key"] or ""))
+    return {
+        "unresolved_family_count": len(review_families),
+        "reason_counts": dict(sorted(reason_counts.items())),
+        "import_state_counts": dict(sorted(import_state_counts.items())),
+        "runtime_state_counts": dict(sorted(runtime_state_counts.items())),
+        "variant_group_count_counts": {
+            str(key): count
+            for key, count in sorted(variant_group_count_counts.items())
+        },
+        "candidate_replacement_count_counts": {
+            str(key): count
+            for key, count in sorted(candidate_replacement_count_counts.items())
+        },
+        "canonical_sampled_object_count_counts": {
+            str(key): count
+            for key, count in sorted(canonical_sampled_object_count_counts.items())
+        },
+        "families": review_families,
+    }
+
+
+def render_unresolved_family_review_markdown(review):
+    lines = [
+        "# hts2phrb Unresolved Family Review",
+        "",
+        f"- Unresolved families: `{review.get('unresolved_family_count')}`",
+    ]
+
+    for title, counts in (
+        ("Reason Counts", review.get("reason_counts") or {}),
+        ("Import State Counts", review.get("import_state_counts") or {}),
+        ("Runtime State Counts", review.get("runtime_state_counts") or {}),
+        ("Variant Group Counts", review.get("variant_group_count_counts") or {}),
+        ("Candidate Replacement Counts", review.get("candidate_replacement_count_counts") or {}),
+        ("Canonical Sampled Object Counts", review.get("canonical_sampled_object_count_counts") or {}),
+    ):
+        lines.extend(["", f"## {title}", ""])
+        if counts:
+            for key, count in counts.items():
+                lines.append(f"- `{key}`: `{count}`")
+        else:
+            lines.append("- none")
+
+    lines.extend(["", "## Families", ""])
+    families = review.get("families") or []
+    if not families:
+        lines.append("- none")
+    else:
+        for family in families:
+            dims = ", ".join(family.get("variant_group_dims") or []) or "none"
+            sampled_object_ids = ", ".join(family.get("sampled_object_ids") or []) or "none"
+            lines.append(
+                f"- `{family['family_key']}`: reason=`{family['reason']}` "
+                f"import=`{family['import_state']}` runtime=`{family['runtime_state']}` "
+                f"variant_groups=`{family['variant_group_count']}` "
+                f"candidate_replacements=`{family['candidate_replacement_count']}` "
+                f"sampled_objects=`{family['canonical_sampled_object_count']}` "
+                f"dims=`{dims}` sampled_ids=`{sampled_object_ids}`"
+            )
+    lines.append("")
+    return "\n".join(lines)
+
+
 def render_family_inventory_markdown(inventory):
     lines = [
         "# hts2phrb Family Inventory",
@@ -996,6 +1113,25 @@ def write_family_inventory_artifacts(output_dir: Path, report: dict):
     inventory_json_path.write_text(json.dumps(inventory, indent=2) + "\n")
     inventory_markdown_path.write_text(render_family_inventory_markdown(inventory))
     return inventory_json_path, inventory_markdown_path
+
+
+def write_unresolved_family_review_artifacts(output_dir: Path, migrate_result: dict, report: dict):
+    review = build_unresolved_family_review_payload(
+        migrate_result,
+        report.get("requested_family_states") or {},
+    )
+    review_json_path = output_dir / "hts2phrb-unresolved-family-review.json"
+    review_markdown_path = output_dir / "hts2phrb-unresolved-family-review.md"
+    review_json_path.write_text(json.dumps(review, indent=2) + "\n")
+    review_markdown_path.write_text(render_unresolved_family_review_markdown(review))
+    return review, review_json_path, review_markdown_path
+
+
+def load_migration_result_for_report(report: dict):
+    migration_plan_path = Path(report.get("migration_plan_path") or "")
+    if not migration_plan_path.exists():
+        return None
+    return json.loads(migration_plan_path.read_text())
 
 
 def classify_runtime_record_class(native_count: int, compat_count: int) -> str:
@@ -1136,6 +1272,13 @@ def build_markdown_summary(report):
         if report.get("family_inventory_json_path"):
             inventory_refs.append(f"[family inventory json]({report['family_inventory_json_path']})")
         lines.append("- Family inventory: " + ", ".join(inventory_refs))
+    if report.get("unresolved_family_review_markdown_path") or report.get("unresolved_family_review_json_path"):
+        review_refs = []
+        if report.get("unresolved_family_review_markdown_path"):
+            review_refs.append(f"[unresolved family review]({report['unresolved_family_review_markdown_path']})")
+        if report.get("unresolved_family_review_json_path"):
+            review_refs.append(f"[unresolved family review json]({report['unresolved_family_review_json_path']})")
+        lines.append("- Unresolved family review: " + ", ".join(review_refs))
 
     runtime_state_examples = {}
     for item in report["requested_family_states"]["families"]:
@@ -1156,6 +1299,25 @@ def build_markdown_summary(report):
             lines.append(f"- `{blocker['code']}`: `{blocker['count']}`")
     else:
         lines.append("- None")
+
+    unresolved_review_summary = report.get("unresolved_family_review_summary") or {}
+    if unresolved_review_summary:
+        lines.extend(["", "## Unresolved Review Summary", ""])
+        lines.append(f"- Unresolved families: `{unresolved_review_summary.get('unresolved_family_count', 0)}`")
+        reason_counts = unresolved_review_summary.get("reason_counts") or {}
+        if reason_counts:
+            lines.append(
+                "- Reasons: " + ", ".join(
+                    f"`{name}`=`{count}`" for name, count in sorted(reason_counts.items())
+                )
+            )
+        variant_group_counts = unresolved_review_summary.get("variant_group_count_counts") or {}
+        if variant_group_counts:
+            lines.append(
+                "- Variant group counts: " + ", ".join(
+                    f"`{name}`=`{count}`" for name, count in sorted(variant_group_counts.items(), key=lambda item: int(item[0]))
+                )
+            )
 
     unresolved_keys = report["requested_family_states"].get("transport_unresolved_family_keys") or []
     if unresolved_keys:
@@ -1194,6 +1356,11 @@ def build_stdout_summary(report):
     )
     blockers = report.get("promotion_blockers") or []
     blocker_summary = ", ".join(f"{item['code']}={item['count']}" for item in blockers) if blockers else "none"
+    unresolved_review_summary = report.get("unresolved_family_review_summary") or {}
+    unresolved_reason_summary = ", ".join(
+        f"{name}={count}"
+        for name, count in sorted((unresolved_review_summary.get("reason_counts") or {}).items())
+    ) or "none"
     lines = [
         f"hts2phrb: {report['conversion_outcome']}",
         f"output_dir: {report['output_dir']}",
@@ -1217,6 +1384,9 @@ def build_stdout_summary(report):
         f"runtime_deferred_compat_records: {report['package_manifest_runtime_deferred_compat_record_count']}",
         f"runtime_bindings: {report['binding_count']}",
         f"transport_unresolved: {report['unresolved_count']}",
+        f"unresolved_family_review: {report.get('unresolved_family_review_json_path') or 'none'}",
+        f"unresolved_family_count: {unresolved_review_summary.get('unresolved_family_count', 0)}",
+        f"unresolved_family_reasons: {unresolved_reason_summary}",
         f"minimum_outcome: {report.get('minimum_outcome') or 'none'}",
         f"require_promotable: {'yes' if report.get('require_promotable') else 'no'}",
         f"promotion_blockers: {blocker_summary}",
@@ -1428,6 +1598,16 @@ def build_conversion(args):
             inventory_json_path, inventory_markdown_path = write_family_inventory_artifacts(output_dir, reusable_pre_report)
             reusable_pre_report["family_inventory_json_path"] = str(inventory_json_path)
             reusable_pre_report["family_inventory_markdown_path"] = str(inventory_markdown_path)
+            reusable_migrate_result = load_migration_result_for_report(reusable_pre_report)
+            if reusable_migrate_result is not None:
+                unresolved_review, unresolved_review_json_path, unresolved_review_markdown_path = write_unresolved_family_review_artifacts(
+                    output_dir,
+                    reusable_migrate_result,
+                    reusable_pre_report,
+                )
+                reusable_pre_report["unresolved_family_review_summary"] = unresolved_review
+                reusable_pre_report["unresolved_family_review_json_path"] = str(unresolved_review_json_path)
+                reusable_pre_report["unresolved_family_review_markdown_path"] = str(unresolved_review_markdown_path)
             summary_path.write_text(build_markdown_summary(reusable_pre_report))
             report_path.write_text(json.dumps(reusable_pre_report, indent=2) + "\n")
             write_progress(
@@ -1532,6 +1712,16 @@ def build_conversion(args):
             inventory_json_path, inventory_markdown_path = write_family_inventory_artifacts(output_dir, reusable_report)
             reusable_report["family_inventory_json_path"] = str(inventory_json_path)
             reusable_report["family_inventory_markdown_path"] = str(inventory_markdown_path)
+            reusable_migrate_result = load_migration_result_for_report(reusable_report)
+            if reusable_migrate_result is not None:
+                unresolved_review, unresolved_review_json_path, unresolved_review_markdown_path = write_unresolved_family_review_artifacts(
+                    output_dir,
+                    reusable_migrate_result,
+                    reusable_report,
+                )
+                reusable_report["unresolved_family_review_summary"] = unresolved_review
+                reusable_report["unresolved_family_review_json_path"] = str(unresolved_review_json_path)
+                reusable_report["unresolved_family_review_markdown_path"] = str(unresolved_review_markdown_path)
             summary_path.write_text(build_markdown_summary(reusable_report))
             report_path.write_text(json.dumps(reusable_report, indent=2) + "\n")
             write_progress(
@@ -1878,6 +2068,14 @@ def build_conversion(args):
     inventory_json_path, inventory_markdown_path = write_family_inventory_artifacts(output_dir, report)
     report["family_inventory_json_path"] = str(inventory_json_path)
     report["family_inventory_markdown_path"] = str(inventory_markdown_path)
+    unresolved_review, unresolved_review_json_path, unresolved_review_markdown_path = write_unresolved_family_review_artifacts(
+        output_dir,
+        migrate_result,
+        report,
+    )
+    report["unresolved_family_review_summary"] = unresolved_review
+    report["unresolved_family_review_json_path"] = str(unresolved_review_json_path)
+    report["unresolved_family_review_markdown_path"] = str(unresolved_review_markdown_path)
     summary_path.write_text(build_markdown_summary(report))
     report["summary_path"] = str(summary_path)
     report["report_path"] = str(report_path)

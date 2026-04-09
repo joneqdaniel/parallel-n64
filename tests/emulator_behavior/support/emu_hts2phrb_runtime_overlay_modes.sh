@@ -10,6 +10,7 @@ BUNDLE_DIR="$TMP_DIR/bundle"
 TRACE_DIR="$BUNDLE_DIR/traces"
 OUT_NEVER="$TMP_DIR/out-never"
 OUT_ALWAYS="$TMP_DIR/out-always"
+OUT_AUTO_CONTEXT="$TMP_DIR/out-auto-context"
 
 mkdir -p "$TRACE_DIR"
 
@@ -114,13 +115,21 @@ python3 "$ROOT_DIR/tools/hts2phrb.py" \
   --stdout-format json \
   --output-dir "$OUT_ALWAYS" >/dev/null
 
-python3 - "$OUT_NEVER" "$OUT_ALWAYS" <<'PY'
+python3 "$ROOT_DIR/tools/hts2phrb.py" \
+  --cache "$CACHE_PATH" \
+  --context-bundle "$BUNDLE_DIR" \
+  --all-families \
+  --stdout-format json \
+  --output-dir "$OUT_AUTO_CONTEXT" >/dev/null
+
+python3 - "$OUT_NEVER" "$OUT_ALWAYS" "$OUT_AUTO_CONTEXT" <<'PY'
 import json
 import sys
 from pathlib import Path
 
 out_never = Path(sys.argv[1])
 out_always = Path(sys.argv[2])
+out_auto_context = Path(sys.argv[3])
 
 report_never = json.loads((out_never / "hts2phrb-report.json").read_text())
 
@@ -156,6 +165,25 @@ if "No deterministic runtime bindings were emitted" not in warnings[0]:
     raise SystemExit(f"expected runtime-overlay warning first, got {warnings!r}")
 if bindings_always.get("overlay_status") is not None or runtime_loader_always.get("overlay_status") is not None:
     raise SystemExit(f"forced overlay should build normal overlay artifacts, got bindings={bindings_always!r} runtime_loader={runtime_loader_always!r}")
+
+report_auto_context = json.loads((out_auto_context / "hts2phrb-report.json").read_text())
+bindings_auto_context = json.loads((out_auto_context / "bindings.json").read_text())
+runtime_loader_auto_context = json.loads((out_auto_context / "runtime-loader-manifest.json").read_text())
+
+if report_auto_context["runtime_overlay_mode"] != "auto" or not report_auto_context["runtime_overlay_built"]:
+    raise SystemExit(f"expected auto overlay to build with context bundle, got {report_auto_context!r}")
+if report_auto_context["runtime_overlay_reason"] != "runtime-context-available":
+    raise SystemExit(f"unexpected auto-overlay reason: {report_auto_context['runtime_overlay_reason']!r}")
+if report_auto_context["binding_count"] != 1 or report_auto_context["unresolved_count"] != 0:
+    raise SystemExit(f"expected one deterministic binding with no unresolved transport cases, got {report_auto_context!r}")
+if not report_auto_context.get("runtime_overlay_artifacts_emitted"):
+    raise SystemExit(f"expected auto overlay artifacts to be emitted, got {report_auto_context!r}")
+if report_auto_context.get("bindings_path") is None or report_auto_context.get("runtime_loader_manifest_path") is None:
+    raise SystemExit(f"expected emitted overlay artifact paths, got {report_auto_context!r}")
+if bindings_auto_context.get("binding_count") != 1 or len(bindings_auto_context.get("bindings") or []) != 1:
+    raise SystemExit(f"unexpected context-overlay bindings payload: {bindings_auto_context!r}")
+if runtime_loader_auto_context.get("record_count") != 1 or runtime_loader_auto_context.get("runtime_ready_record_count") != 1:
+    raise SystemExit(f"unexpected context-overlay runtime loader payload: {runtime_loader_auto_context!r}")
 PY
 
 echo "emu_hts2phrb_runtime_overlay_modes: PASS"

@@ -211,6 +211,11 @@ add_test(
 )
 
 add_test(
+  NAME emu.support.hts2phrb_unresolved_family_review
+  COMMAND bash "${EMU_BEHAVIOR_SUPPORT_DIR}/emu_hts2phrb_unresolved_family_review.sh"
+)
+
+add_test(
   NAME emu.support.hts2phrb_context_bundle_generic_family_fallback
   COMMAND bash "${EMU_BEHAVIOR_SUPPORT_DIR}/emu_hts2phrb_context_bundle_generic_family_fallback.sh"
 )

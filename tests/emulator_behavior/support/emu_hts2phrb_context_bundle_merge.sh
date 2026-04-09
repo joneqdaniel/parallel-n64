@@ -126,13 +126,15 @@ if report["requested_family_count"] != 2:
     raise SystemExit(f"unexpected requested family count: {report['requested_family_count']!r}")
 if report["conversion_outcome"] != "promotable-runtime-package":
     raise SystemExit(f"unexpected conversion outcome: {report['conversion_outcome']!r}")
-if report["runtime_overlay_built"]:
-    raise SystemExit(f"did not expect runtime overlay build: {report!r}")
-if report["runtime_overlay_reason"] != "no-runtime-context":
+if not report["runtime_overlay_built"]:
+    raise SystemExit(f"expected runtime overlay build from merged context bundles: {report!r}")
+if report["runtime_overlay_reason"] != "runtime-context-available":
     raise SystemExit(f"unexpected runtime overlay reason: {report['runtime_overlay_reason']!r}")
+if report["binding_count"] != 1 or report["unresolved_count"] != 0:
+    raise SystemExit(f"expected one deterministic binding with no unresolved transport cases, got {report!r}")
 if len(report.get("context_bundle_resolutions") or []) != 2:
     raise SystemExit(f"unexpected context bundle resolutions: {report.get('context_bundle_resolutions')!r}")
-if report.get("runtime_state_counts") != {"runtime-ready-package": 2}:
+if report.get("runtime_state_counts") != {"runtime-bound": 1, "runtime-ready-package": 1}:
     raise SystemExit(f"unexpected runtime state counts: {report.get('runtime_state_counts')!r}")
 if report.get("import_state_counts") != {"exact-authority": 2}:
     raise SystemExit(f"unexpected import state counts: {report.get('import_state_counts')!r}")

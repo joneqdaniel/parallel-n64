@@ -97,10 +97,12 @@ package_manifest = json.loads(Path(sys.argv[2]).read_text())
 
 if report["conversion_outcome"] != "promotable-runtime-package":
     raise SystemExit(f"unexpected conversion outcome: {report['conversion_outcome']!r}")
-if report["runtime_overlay_built"]:
-    raise SystemExit(f"did not expect runtime overlay build: {report!r}")
-if report["runtime_overlay_reason"] != "no-runtime-context":
+if not report["runtime_overlay_built"]:
+    raise SystemExit(f"expected runtime overlay build from provenance-backed context bundle: {report!r}")
+if report["runtime_overlay_reason"] != "runtime-context-available":
     raise SystemExit(f"unexpected runtime overlay reason: {report['runtime_overlay_reason']!r}")
+if report.get("binding_count") != 1 or report.get("unresolved_count") != 0:
+    raise SystemExit(f"expected one deterministic binding with no unresolved transport cases, got {report!r}")
 
 imported = report.get("imported_index_summary") or {}
 if imported.get("exact_authority_count") != 1:

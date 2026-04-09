@@ -1194,6 +1194,34 @@ def summarize_promotion_blockers(migration_plan_summary, requested_family_states
     return blockers
 
 
+PROMOTION_BLOCKER_RUNTIME_STATES = (
+    "transport-unresolved",
+    "canonical-only",
+    "diagnostic-only",
+)
+
+
+def summarize_promotion_blocker_runtime_state_counts(requested_family_states):
+    runtime_state_counts = requested_family_states.get("runtime_state_counts") or {}
+    blocker_state_counts = {}
+    for state_name in PROMOTION_BLOCKER_RUNTIME_STATES:
+        count = int(runtime_state_counts.get(state_name, 0) or 0)
+        if count > 0:
+            blocker_state_counts[state_name] = count
+    return blocker_state_counts
+
+
+def summarize_promotion_blocker_reason_counts(unresolved_family_review_summary):
+    blocker_reason_counts = Counter()
+    for family in unresolved_family_review_summary.get("families") or []:
+        runtime_state = str(family.get("runtime_state") or "")
+        if runtime_state not in PROMOTION_BLOCKER_RUNTIME_STATES:
+            continue
+        reason = str(family.get("reason") or "unknown")
+        blocker_reason_counts[reason] += 1
+    return dict(sorted(blocker_reason_counts.items()))
+
+
 def build_family_inventory_payload(report):
     requested_family_states = report.get("requested_family_states") or {}
     return {
@@ -1202,6 +1230,9 @@ def build_family_inventory_payload(report):
         "import_state_counts": requested_family_states.get("import_state_counts") or {},
         "runtime_state_counts": requested_family_states.get("runtime_state_counts") or {},
         "promotion_blockers": report.get("promotion_blockers") or [],
+        "promotion_blocker_runtime_state_counts": report.get("promotion_blocker_runtime_state_counts") or {},
+        "promotion_blocker_reason_counts": report.get("promotion_blocker_reason_counts") or {},
+        "promotion_blocker_reason_unclassified_family_count": int(report.get("promotion_blocker_reason_unclassified_family_count") or 0),
         "families": requested_family_states.get("families") or [],
     }
 
@@ -1694,6 +1725,23 @@ def render_family_inventory_markdown(inventory):
             lines.append(f"- `{blocker['code']}`: `{blocker['count']}`")
     else:
         lines.append("- none")
+    blocker_runtime_state_counts = inventory.get("promotion_blocker_runtime_state_counts") or {}
+    if blocker_runtime_state_counts:
+        lines.append(
+            "- Blocker runtime states: " + ", ".join(
+                f"`{name}`=`{count}`" for name, count in sorted(blocker_runtime_state_counts.items())
+            )
+        )
+    blocker_reason_counts = inventory.get("promotion_blocker_reason_counts") or {}
+    if blocker_reason_counts:
+        lines.append(
+            "- Blocker reasons (review-backed): " + ", ".join(
+                f"`{name}`=`{count}`" for name, count in sorted(blocker_reason_counts.items())
+            )
+        )
+    blocker_reason_unclassified = int(inventory.get("promotion_blocker_reason_unclassified_family_count") or 0)
+    if blocker_reason_unclassified > 0:
+        lines.append(f"- Blocker families without unresolved-review reasons: `{blocker_reason_unclassified}`")
 
     lines.extend(["", "## Families", ""])
     for family in inventory.get("families") or []:
@@ -1859,6 +1907,22 @@ def synchronize_report_summary_fields(report: dict):
         report["package_manifest_runtime_deferred_native_sampled_record_count"],
         report["package_manifest_runtime_deferred_compat_record_count"],
     )
+    promotion_blocker_runtime_state_counts = summarize_promotion_blocker_runtime_state_counts(requested_family_states)
+    report["promotion_blocker_runtime_state_counts"] = promotion_blocker_runtime_state_counts
+    report["promotion_blocker_family_count"] = sum(
+        int(count) for count in promotion_blocker_runtime_state_counts.values()
+    )
+    promotion_blocker_reason_counts = summarize_promotion_blocker_reason_counts(
+        report.get("unresolved_family_review_summary") or {}
+    )
+    report["promotion_blocker_reason_counts"] = promotion_blocker_reason_counts
+    report["promotion_blocker_reason_family_count"] = sum(
+        int(count) for count in promotion_blocker_reason_counts.values()
+    )
+    report["promotion_blocker_reason_unclassified_family_count"] = max(
+        int(report["promotion_blocker_family_count"]) - int(report["promotion_blocker_reason_family_count"]),
+        0,
+    )
     return report
 
 
@@ -1980,6 +2044,23 @@ def build_markdown_summary(report):
             lines.append(f"- `{blocker['code']}`: `{blocker['count']}`")
     else:
         lines.append("- None")
+    blocker_runtime_state_counts = report.get("promotion_blocker_runtime_state_counts") or {}
+    if blocker_runtime_state_counts:
+        lines.append(
+            "- Blocker runtime states: " + ", ".join(
+                f"`{name}`=`{count}`" for name, count in sorted(blocker_runtime_state_counts.items())
+            )
+        )
+    blocker_reason_counts = report.get("promotion_blocker_reason_counts") or {}
+    if blocker_reason_counts:
+        lines.append(
+            "- Blocker reasons (review-backed): " + ", ".join(
+                f"`{name}`=`{count}`" for name, count in sorted(blocker_reason_counts.items())
+            )
+        )
+    blocker_reason_unclassified = int(report.get("promotion_blocker_reason_unclassified_family_count") or 0)
+    if blocker_reason_unclassified > 0:
+        lines.append(f"- Blocker families without unresolved-review reasons: `{blocker_reason_unclassified}`")
 
     unresolved_review_summary = report.get("unresolved_family_review_summary") or {}
     if unresolved_review_summary:
@@ -2093,6 +2174,14 @@ def build_stdout_summary(report):
         f"{item['code']}={item['count']}"
         for item in (report.get("runtime_overlay_blockers") or [])
     ) or "none"
+    blocker_runtime_state_summary = ", ".join(
+        f"{name}={count}"
+        for name, count in sorted((report.get("promotion_blocker_runtime_state_counts") or {}).items())
+    ) or "none"
+    blocker_reason_summary = ", ".join(
+        f"{name}={count}"
+        for name, count in sorted((report.get("promotion_blocker_reason_counts") or {}).items())
+    ) or "none"
     lines = [
         f"hts2phrb: {report['conversion_outcome']}",
         f"output_dir: {report['output_dir']}",
@@ -2136,6 +2225,9 @@ def build_stdout_summary(report):
         f"minimum_outcome: {report.get('minimum_outcome') or 'none'}",
         f"require_promotable: {'yes' if report.get('require_promotable') else 'no'}",
         f"promotion_blockers: {blocker_summary}",
+        f"promotion_blocker_runtime_states: {blocker_runtime_state_summary}",
+        f"promotion_blocker_reasons: {blocker_reason_summary}",
+        f"promotion_blocker_reason_unclassified: {int(report.get('promotion_blocker_reason_unclassified_family_count') or 0)}",
     ]
     if report.get("family_inventory_markdown_path"):
         lines.append(f"family_inventory: {report['family_inventory_markdown_path']}")
@@ -2361,6 +2453,7 @@ def build_conversion(args):
                 reusable_pre_report["unresolved_family_review_summary"] = unresolved_review
                 reusable_pre_report["unresolved_family_review_json_path"] = str(unresolved_review_json_path)
                 reusable_pre_report["unresolved_family_review_markdown_path"] = str(unresolved_review_markdown_path)
+                synchronize_report_summary_fields(reusable_pre_report)
                 reusable_bindings = load_bindings_for_report(reusable_pre_report)
                 if reusable_bindings is not None and int(reusable_pre_report.get("unresolved_count") or 0) > 0:
                     overlay_review, overlay_review_json_path, overlay_review_markdown_path = write_runtime_overlay_review_artifacts(
@@ -2492,6 +2585,7 @@ def build_conversion(args):
                 reusable_report["unresolved_family_review_summary"] = unresolved_review
                 reusable_report["unresolved_family_review_json_path"] = str(unresolved_review_json_path)
                 reusable_report["unresolved_family_review_markdown_path"] = str(unresolved_review_markdown_path)
+                synchronize_report_summary_fields(reusable_report)
                 reusable_bindings = load_bindings_for_report(reusable_report)
                 if reusable_bindings is not None and int(reusable_report.get("unresolved_count") or 0) > 0:
                     overlay_review, overlay_review_json_path, overlay_review_markdown_path = write_runtime_overlay_review_artifacts(
@@ -2909,6 +3003,7 @@ def build_conversion(args):
     report["unresolved_family_review_summary"] = unresolved_review
     report["unresolved_family_review_json_path"] = str(unresolved_review_json_path)
     report["unresolved_family_review_markdown_path"] = str(unresolved_review_markdown_path)
+    synchronize_report_summary_fields(report)
     if unresolved_count > 0:
         runtime_overlay_review, runtime_overlay_review_json_path, runtime_overlay_review_markdown_path = write_runtime_overlay_review_artifacts(
             output_dir,

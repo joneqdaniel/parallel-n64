@@ -85,6 +85,15 @@ if report.get("runtime_state_counts") != {"canonical-only": 1}:
     raise SystemExit(f"unexpected runtime state counts: {report.get('runtime_state_counts')!r}")
 if report.get("promotion_blockers") != [{"code": "canonical-only-families", "count": 1}]:
     raise SystemExit(f"unexpected promotion blockers: {report.get('promotion_blockers')!r}")
+if report.get("promotion_blocker_runtime_state_counts") != {"canonical-only": 1}:
+    raise SystemExit(f"unexpected blocker runtime-state counts: {report.get('promotion_blocker_runtime_state_counts')!r}")
+if report.get("promotion_blocker_reason_counts") != {"exact-family-ambiguous": 1}:
+    raise SystemExit(f"unexpected blocker reason counts: {report.get('promotion_blocker_reason_counts')!r}")
+if report.get("promotion_blocker_reason_unclassified_family_count") != 0:
+    raise SystemExit(
+        "unexpected blocker reason uncovered family count: "
+        f"{report.get('promotion_blocker_reason_unclassified_family_count')!r}"
+    )
 if report.get("unresolved_family_review_json_path") != str(review_json_path):
     raise SystemExit(f"unexpected unresolved review json path: {report.get('unresolved_family_review_json_path')!r}")
 if report.get("unresolved_family_review_markdown_path") != str(review_md_path):

@@ -95,6 +95,9 @@ expected_zero = {
     "minimum_outcome": "partial-runtime-package",
     "gate_success": True,
     "reused_existing": True,
+    "promotion_blocker_runtime_state_counts": {"canonical-only": 384},
+    "promotion_blocker_reason_counts": {"exact-family-ambiguous": 384},
+    "promotion_blocker_reason_unclassified_family_count": 0,
 }
 
 expected_context = {
@@ -117,6 +120,9 @@ expected_context = {
     "minimum_outcome": "partial-runtime-package",
     "gate_success": True,
     "reused_existing": True,
+    "promotion_blocker_runtime_state_counts": {"canonical-only": 380},
+    "promotion_blocker_reason_counts": {"exact-family-ambiguous": 380},
+    "promotion_blocker_reason_unclassified_family_count": 0,
 }
 
 for label, report, expected in (

@@ -24,7 +24,7 @@
   - CI low32 compatibility families are now explicit compat-only pools and no longer silently treat native sampled `PHRB` records as fallback candidates
   - the exact sampled-object seam can now prefer structured provider lookup
   - the current exact-seam widening now includes the narrow single-texture triangle case, and the active file-select plus `kmr_03 ENTRY_5` authorities stayed runtime-neutral under that extension
-  - ordered-surface singleton sampled families now also resolve through an explicit provider helper, so the upload path no longer has to reproduce that one-family selection rule outside `ReplacementProvider`
+  - ordered-surface singleton sampled families now also resolve through an explicit provider helper, so neither the upload path nor the texrect sampled path has to reproduce that one-family selection rule outside `ReplacementProvider`
   - generic exact-checksum descriptor resolution can now also preserve native sampled identity when the winning entry is a native `PHRB` record, instead of always collapsing back to checksum-only decode/caching
   - the same generic exact descriptor path now also preserves the provider's resolved selector/checksum pair when it stays on the generic side, so upload/descriptor resolution no longer silently snaps back to selector `0` before cache/decode
   - renderer tile-state bookkeeping now also stores resolved selector identity separately from the resolved replacement checksum, so sampled-object exact probes and later runtime decisions no longer need to overload `checksum64` as both values

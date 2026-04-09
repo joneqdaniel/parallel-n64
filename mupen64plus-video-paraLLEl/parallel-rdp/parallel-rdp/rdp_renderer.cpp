@@ -2058,8 +2058,8 @@ void Renderer::draw_shaded_primitive(const TriangleSetup &setup, const Attribute
 				&resolved_checksum64);
 			if (!lookup_hit)
 			{
-				resolved_reason = reason_family_unique;
-				lookup_hit = replacement_provider->lookup_sampled_family_unique(
+				bool ordered_surface_singleton = false;
+				lookup_hit = replacement_provider->lookup_sampled_family_singleton(
 					uint32_t(base_meta.fmt),
 					uint32_t(base_meta.size),
 					base_meta.offset,
@@ -2071,7 +2071,10 @@ void Renderer::draw_shaded_primitive(const TriangleSetup &setup, const Attribute
 					sampled_identity.formatsize,
 					&candidate_meta,
 					&resolved_checksum64,
-					&resolved_selector_checksum64);
+					&resolved_selector_checksum64,
+					&ordered_surface_singleton);
+				if (lookup_hit)
+					resolved_reason = ordered_surface_singleton ? reason_ordered_surface : reason_family_unique;
 			}
 			if (!lookup_hit && reserve_ordered_surface_selector(checksum64, sampled_identity.formatsize))
 			{

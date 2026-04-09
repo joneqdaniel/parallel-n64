@@ -222,6 +222,21 @@ def classify_alias_group_review_skip(loader_manifest, review_doc, error_message)
     return None
 
 
+def classify_review_overlay_state(input_count, applied_count, skipped_count):
+    input_count = int(input_count or 0)
+    applied_count = int(applied_count or 0)
+    skipped_count = int(skipped_count or 0)
+    if input_count <= 0:
+        return "none"
+    if applied_count > 0 and skipped_count > 0:
+        return "mixed"
+    if applied_count > 0:
+        return "applied"
+    if skipped_count > 0:
+        return "skipped"
+    return "present-no-effect"
+
+
 def slugify_component(value):
     lowered = str(value).strip().lower()
     pieces = []
@@ -1876,8 +1891,8 @@ def build_markdown_summary(report):
         f"- Runtime-deferred compat records: `{report['package_manifest_runtime_deferred_compat_record_count']}`",
         f"- Runtime bindings: `{report['binding_count']}`",
         f"- Transport-unresolved families: `{report['unresolved_count']}`",
-        f"- Duplicate review inputs: `{len(report.get('duplicate_review_paths') or [])}` (`{report.get('duplicate_review_change_count', 0)}` change(s), `{report.get('duplicate_review_skip_count', 0)}` skipped)",
-        f"- Alias-group review inputs: `{len(report.get('alias_group_review_paths') or [])}` (`{report.get('alias_group_review_change_count', 0)}` change(s), `{report.get('alias_group_review_skip_count', 0)}` skipped)",
+        f"- Duplicate review inputs: `{len(report.get('duplicate_review_paths') or [])}` (`{report.get('duplicate_review_change_count', 0)}` change(s), `{report.get('duplicate_review_skip_count', 0)}` skipped, state=`{report.get('duplicate_review_state')}`)",
+        f"- Alias-group review inputs: `{len(report.get('alias_group_review_paths') or [])}` (`{report.get('alias_group_review_change_count', 0)}` change(s), `{report.get('alias_group_review_skip_count', 0)}` skipped, state=`{report.get('alias_group_review_state')}`)",
         f"- Review profiles: `{len(report.get('review_profile_paths') or [])}`",
         f"- Minimum outcome gate: `{report.get('minimum_outcome') or 'none'}`",
         f"- Require promotable: `{'yes' if report.get('require_promotable') else 'no'}`",
@@ -1941,8 +1956,10 @@ def build_markdown_summary(report):
                 lines.append(f"- Alias-group review: `{path}`")
         lines.append(f"- Duplicate review changes: `{report.get('duplicate_review_change_count', 0)}`")
         lines.append(f"- Duplicate review skipped: `{report.get('duplicate_review_skip_count', 0)}`")
+        lines.append(f"- Duplicate review state: `{report.get('duplicate_review_state')}`")
         lines.append(f"- Alias-group review changes: `{report.get('alias_group_review_change_count', 0)}`")
         lines.append(f"- Alias-group review skipped: `{report.get('alias_group_review_skip_count', 0)}`")
+        lines.append(f"- Alias-group review state: `{report.get('alias_group_review_state')}`")
 
     runtime_state_examples = {}
     for item in report["requested_family_states"]["families"]:
@@ -2103,9 +2120,11 @@ def build_stdout_summary(report):
         f"duplicate_review_inputs: {len(report.get('duplicate_review_paths') or [])}",
         f"duplicate_review_changes: {report.get('duplicate_review_change_count', 0)}",
         f"duplicate_review_skipped: {report.get('duplicate_review_skip_count', 0)}",
+        f"duplicate_review_state: {report.get('duplicate_review_state')}",
         f"alias_group_review_inputs: {len(report.get('alias_group_review_paths') or [])}",
         f"alias_group_review_changes: {report.get('alias_group_review_change_count', 0)}",
         f"alias_group_review_skipped: {report.get('alias_group_review_skip_count', 0)}",
+        f"alias_group_review_state: {report.get('alias_group_review_state')}",
         f"unresolved_family_review: {report.get('unresolved_family_review_json_path') or 'none'}",
         f"unresolved_family_count: {unresolved_review_summary.get('unresolved_family_count', 0)}",
         f"unresolved_family_reasons: {unresolved_reason_summary}",
@@ -2785,6 +2804,16 @@ def build_conversion(args):
         conversion_outcome = "partial-runtime-package"
     else:
         conversion_outcome = "promotable-runtime-package"
+    duplicate_review_state = classify_review_overlay_state(
+        len(args.resolved_duplicate_review_paths),
+        len(duplicate_review_changes),
+        len(duplicate_review_skips),
+    )
+    alias_group_review_state = classify_review_overlay_state(
+        len(args.resolved_alias_group_review_paths),
+        len(alias_group_review_changes),
+        len(alias_group_review_skips),
+    )
 
     report = {
         "cache_input_path": str(cache_input_path),
@@ -2841,10 +2870,12 @@ def build_conversion(args):
         "duplicate_review_changes": duplicate_review_changes,
         "duplicate_review_skip_count": len(duplicate_review_skips),
         "duplicate_review_skips": duplicate_review_skips,
+        "duplicate_review_state": duplicate_review_state,
         "alias_group_review_change_count": len(alias_group_review_changes),
         "alias_group_review_changes": alias_group_review_changes,
         "alias_group_review_skip_count": len(alias_group_review_skips),
         "alias_group_review_skips": alias_group_review_skips,
+        "alias_group_review_state": alias_group_review_state,
         "imported_index_summary": imported_index_summary,
         "package_manifest_summary": package_manifest_summary,
         "requested_family_states": requested_family_states,

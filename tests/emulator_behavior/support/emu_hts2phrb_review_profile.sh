@@ -211,6 +211,10 @@ if explicit_result.get("duplicate_review_skip_count") != 0 or explicit_result.ge
     raise SystemExit(f"FAIL: explicit review build unexpectedly skipped review inputs {explicit_result!r}.")
 if profile_result.get("duplicate_review_skip_count") != 0 or profile_result.get("alias_group_review_skip_count") != 0:
     raise SystemExit(f"FAIL: profile review build unexpectedly skipped review inputs {profile_result!r}.")
+if explicit_result.get("duplicate_review_state") != "applied" or explicit_result.get("alias_group_review_state") != "applied":
+    raise SystemExit(f"FAIL: explicit review build reported unexpected review states {explicit_result!r}.")
+if profile_result.get("duplicate_review_state") != "applied" or profile_result.get("alias_group_review_state") != "applied":
+    raise SystemExit(f"FAIL: profile review build reported unexpected review states {profile_result!r}.")
 if [Path(value).resolve() for value in (explicit_result.get("duplicate_review_paths") or [])] != [duplicate_review_path]:
     raise SystemExit(f"FAIL: explicit duplicate review paths mismatch {explicit_result.get('duplicate_review_paths')!r}.")
 if [Path(value).resolve() for value in (explicit_result.get("alias_group_review_paths") or [])] != [alias_review_path]:
@@ -244,6 +248,8 @@ if report.get("duplicate_review_change_count") != 1 or report.get("alias_group_r
     raise SystemExit(f"FAIL: report missing review change counts {report!r}.")
 if report.get("duplicate_review_skip_count") != 0 or report.get("alias_group_review_skip_count") != 0:
     raise SystemExit(f"FAIL: report unexpectedly skipped review inputs {report!r}.")
+if report.get("duplicate_review_state") != "applied" or report.get("alias_group_review_state") != "applied":
+    raise SystemExit(f"FAIL: report missing applied review states {report!r}.")
 if "## Review Inputs" not in summary_text:
     raise SystemExit("FAIL: summary did not include Review Inputs section.")
 

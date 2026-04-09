@@ -201,6 +201,10 @@ if second.get("duplicate_review_skip_count") != 0 or third.get("duplicate_review
     raise SystemExit(f"FAIL: unexpected duplicate review skips second={second!r} third={third!r}.")
 if second.get("alias_group_review_skip_count") != 0 or third.get("alias_group_review_skip_count") != 0:
     raise SystemExit(f"FAIL: unexpected alias review skips second={second!r} third={third!r}.")
+if second.get("duplicate_review_state") != "applied" or third.get("duplicate_review_state") != "applied":
+    raise SystemExit(f"FAIL: unexpected duplicate review states second={second!r} third={third!r}.")
+if second.get("alias_group_review_state") != "applied" or third.get("alias_group_review_state") != "applied":
+    raise SystemExit(f"FAIL: unexpected alias review states second={second!r} third={third!r}.")
 
 record = loader_manifest["records"][0]
 replacement_ids = [candidate.get("replacement_id") for candidate in (record.get("asset_candidates") or [])]

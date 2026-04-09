@@ -271,6 +271,11 @@ add_test(
 )
 
 add_test(
+  NAME emu.support.hts2phrb_paper_mario_review_profile_contract
+  COMMAND bash "${EMU_BEHAVIOR_SUPPORT_DIR}/emu_hts2phrb_paper_mario_review_profile_contract.sh"
+)
+
+add_test(
   NAME emu.support.hts2phrb_bundle_scoped_defaults
   COMMAND bash "${EMU_BEHAVIOR_SUPPORT_DIR}/emu_hts2phrb_bundle_scoped_defaults.sh"
 )

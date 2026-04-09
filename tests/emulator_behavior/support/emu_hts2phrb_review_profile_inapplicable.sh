@@ -139,6 +139,8 @@ for payload in (result, report):
         raise SystemExit(f"FAIL: inapplicable review inputs should not apply changes {payload!r}.")
     if payload.get("duplicate_review_skip_count") != 1 or payload.get("alias_group_review_skip_count") != 1:
         raise SystemExit(f"FAIL: inapplicable review inputs should be recorded as skipped {payload!r}.")
+    if payload.get("duplicate_review_state") != "skipped" or payload.get("alias_group_review_state") != "skipped":
+        raise SystemExit(f"FAIL: inapplicable review inputs should report skipped states {payload!r}.")
 
 duplicate_skip = (report.get("duplicate_review_skips") or [{}])[0]
 alias_skip = (report.get("alias_group_review_skips") or [{}])[0]

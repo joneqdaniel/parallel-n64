@@ -1538,6 +1538,14 @@ def build_conversion(args):
             package_manifest_record_total=snapshot.get("record_total"),
             package_manifest_runtime_ready_record_count=snapshot.get("runtime_ready_record_count"),
             package_manifest_runtime_deferred_record_count=snapshot.get("runtime_deferred_record_count"),
+            package_manifest_runtime_ready_record_kind_counts=snapshot.get("runtime_ready_record_kind_counts"),
+            package_manifest_runtime_deferred_record_kind_counts=snapshot.get("runtime_deferred_record_kind_counts"),
+            package_manifest_runtime_ready_native_sampled_record_count=snapshot.get("runtime_ready_native_sampled_record_count"),
+            package_manifest_runtime_ready_compat_record_count=snapshot.get("runtime_ready_compat_record_count"),
+            package_manifest_runtime_deferred_native_sampled_record_count=snapshot.get("runtime_deferred_native_sampled_record_count"),
+            package_manifest_runtime_deferred_compat_record_count=snapshot.get("runtime_deferred_compat_record_count"),
+            package_manifest_runtime_ready_record_class=snapshot.get("runtime_ready_record_class"),
+            package_manifest_runtime_deferred_record_class=snapshot.get("runtime_deferred_record_class"),
             package_asset_candidate_total=snapshot.get("asset_candidate_total"),
         )
     stage_started = time.perf_counter()
@@ -1557,6 +1565,14 @@ def build_conversion(args):
         package_manifest_record_count=package_manifest.get("record_count", 0),
         package_manifest_runtime_ready_record_count=package_manifest.get("runtime_ready_record_count", 0),
         package_manifest_runtime_deferred_record_count=package_manifest.get("runtime_deferred_record_count", 0),
+        package_manifest_runtime_ready_record_kind_counts=package_manifest.get("runtime_ready_record_kind_counts"),
+        package_manifest_runtime_deferred_record_kind_counts=package_manifest.get("runtime_deferred_record_kind_counts"),
+        package_manifest_runtime_ready_native_sampled_record_count=package_manifest.get("runtime_ready_native_sampled_record_count", 0),
+        package_manifest_runtime_ready_compat_record_count=package_manifest.get("runtime_ready_compat_record_count", 0),
+        package_manifest_runtime_deferred_native_sampled_record_count=package_manifest.get("runtime_deferred_native_sampled_record_count", 0),
+        package_manifest_runtime_deferred_compat_record_count=package_manifest.get("runtime_deferred_compat_record_count", 0),
+        package_manifest_runtime_ready_record_class=package_manifest.get("runtime_ready_record_class"),
+        package_manifest_runtime_deferred_record_class=package_manifest.get("runtime_deferred_record_class"),
     )
     stage_started = time.perf_counter()
     (package_dir / "package-manifest.json").write_text(json.dumps(package_manifest, indent=2) + "\n")

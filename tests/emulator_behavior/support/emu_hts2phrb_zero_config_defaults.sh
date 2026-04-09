@@ -113,6 +113,16 @@ if float(report.get("total_runtime_ms") or 0.0) <= 0.0:
     raise SystemExit(f"expected positive total_runtime_ms, got {report.get('total_runtime_ms')!r}")
 if progress.get("status") != "complete":
     raise SystemExit(f"expected complete progress report, got {progress!r}")
+if progress.get("package_manifest_runtime_ready_record_count") != 2 or progress.get("package_manifest_runtime_deferred_record_count") != 0:
+    raise SystemExit(f"unexpected progress runtime-ready/deferred counts: {progress!r}")
+if progress.get("package_manifest_runtime_ready_native_sampled_record_count") != 0:
+    raise SystemExit(f"unexpected progress runtime-ready native count: {progress!r}")
+if progress.get("package_manifest_runtime_ready_compat_record_count") != 2:
+    raise SystemExit(f"unexpected progress runtime-ready compat count: {progress!r}")
+if progress.get("package_manifest_runtime_ready_record_class") != "compat-only":
+    raise SystemExit(f"unexpected progress runtime-ready class: {progress!r}")
+if progress.get("package_manifest_runtime_ready_record_kind_counts") != {"exact-authority-family": 2}:
+    raise SystemExit(f"unexpected progress runtime-ready kind counts: {progress!r}")
 if "Request mode: `implicit-all-families`" not in summary_text:
     raise SystemExit(f"missing request-mode summary: {summary_text!r}")
 if "- Runtime overlay: `skipped` (`no-runtime-context`)" not in summary_text:

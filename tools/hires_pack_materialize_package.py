@@ -26,6 +26,30 @@ def classify_runtime_record_class(native_count, compat_count):
     return 'none'
 
 
+def summarize_runtime_counts(runtime_ready_record_count,
+                             runtime_deferred_record_count,
+                             runtime_ready_record_kind_counts,
+                             runtime_deferred_record_kind_counts):
+    runtime_ready_native_sampled_record_count = int(runtime_ready_record_kind_counts.get('canonical-sampled', 0))
+    runtime_deferred_native_sampled_record_count = int(runtime_deferred_record_kind_counts.get('canonical-sampled', 0))
+    runtime_ready_compat_record_count = int(runtime_ready_record_count - runtime_ready_native_sampled_record_count)
+    runtime_deferred_compat_record_count = int(runtime_deferred_record_count - runtime_deferred_native_sampled_record_count)
+    return {
+        'runtime_ready_native_sampled_record_count': runtime_ready_native_sampled_record_count,
+        'runtime_ready_compat_record_count': runtime_ready_compat_record_count,
+        'runtime_deferred_native_sampled_record_count': runtime_deferred_native_sampled_record_count,
+        'runtime_deferred_compat_record_count': runtime_deferred_compat_record_count,
+        'runtime_ready_record_class': classify_runtime_record_class(
+            runtime_ready_native_sampled_record_count,
+            runtime_ready_compat_record_count,
+        ),
+        'runtime_deferred_record_class': classify_runtime_record_class(
+            runtime_deferred_native_sampled_record_count,
+            runtime_deferred_compat_record_count,
+        ),
+    }
+
+
 def _build_materialized_package(loader_manifest_path: Path,
                                 output_dir: Path | None,
                                 emit_png_assets: bool,
@@ -182,20 +206,31 @@ def _build_materialized_package(loader_manifest_path: Path,
             }
         )
         if progress_callback and (index == total_records or index % max(int(progress_interval), 1) == 0):
+            runtime_summary = summarize_runtime_counts(
+                runtime_ready_record_count,
+                runtime_deferred_record_count,
+                runtime_ready_record_kind_counts,
+                runtime_deferred_record_kind_counts,
+            )
             progress_callback(
                 {
                     'records_complete': index,
                     'record_total': total_records,
                     'runtime_ready_record_count': runtime_ready_record_count,
                     'runtime_deferred_record_count': runtime_deferred_record_count,
+                    'runtime_ready_record_kind_counts': dict(sorted(runtime_ready_record_kind_counts.items())),
+                    'runtime_deferred_record_kind_counts': dict(sorted(runtime_deferred_record_kind_counts.items())),
+                    **runtime_summary,
                     'asset_candidate_total': total_asset_candidate_count,
                 }
             )
 
-    runtime_ready_native_sampled_record_count = int(runtime_ready_record_kind_counts.get('canonical-sampled', 0))
-    runtime_deferred_native_sampled_record_count = int(runtime_deferred_record_kind_counts.get('canonical-sampled', 0))
-    runtime_ready_compat_record_count = int(runtime_ready_record_count - runtime_ready_native_sampled_record_count)
-    runtime_deferred_compat_record_count = int(runtime_deferred_record_count - runtime_deferred_native_sampled_record_count)
+    runtime_summary = summarize_runtime_counts(
+        runtime_ready_record_count,
+        runtime_deferred_record_count,
+        runtime_ready_record_kind_counts,
+        runtime_deferred_record_kind_counts,
+    )
 
     package_manifest = {
         'schema_version': 1,
@@ -206,18 +241,7 @@ def _build_materialized_package(loader_manifest_path: Path,
         'runtime_deferred_record_count': runtime_deferred_record_count,
         'runtime_ready_record_kind_counts': dict(sorted(runtime_ready_record_kind_counts.items())),
         'runtime_deferred_record_kind_counts': dict(sorted(runtime_deferred_record_kind_counts.items())),
-        'runtime_ready_native_sampled_record_count': runtime_ready_native_sampled_record_count,
-        'runtime_ready_compat_record_count': runtime_ready_compat_record_count,
-        'runtime_deferred_native_sampled_record_count': runtime_deferred_native_sampled_record_count,
-        'runtime_deferred_compat_record_count': runtime_deferred_compat_record_count,
-        'runtime_ready_record_class': classify_runtime_record_class(
-            runtime_ready_native_sampled_record_count,
-            runtime_ready_compat_record_count,
-        ),
-        'runtime_deferred_record_class': classify_runtime_record_class(
-            runtime_deferred_native_sampled_record_count,
-            runtime_deferred_compat_record_count,
-        ),
+        **runtime_summary,
         'asset_candidate_total': total_asset_candidate_count,
         'records': package_records,
         'duplicate_record_count': len(duplicate_groups),

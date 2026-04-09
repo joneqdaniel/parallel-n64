@@ -196,6 +196,14 @@ if progress.get("status") != "complete":
     raise SystemExit(f"expected complete progress report, got {progress!r}")
 if progress.get("binary_package", {}).get("record_count") != 1:
     raise SystemExit(f"unexpected progress binary summary: {progress!r}")
+if progress.get("package_manifest_runtime_ready_native_sampled_record_count") != 1:
+    raise SystemExit(f"unexpected progress native-sampled ready count: {progress!r}")
+if progress.get("package_manifest_runtime_ready_compat_record_count") != 0:
+    raise SystemExit(f"unexpected progress compat ready count: {progress!r}")
+if progress.get("package_manifest_runtime_ready_record_class") != "native-sampled-only":
+    raise SystemExit(f"unexpected progress runtime-ready class: {progress!r}")
+if progress.get("package_manifest_runtime_ready_record_kind_counts") != {"canonical-sampled": 1}:
+    raise SystemExit(f"unexpected progress runtime-ready kind counts: {progress!r}")
 migration_summary = report.get("migration_plan_summary") or {}
 if migration_summary.get("family_count") != 1:
     raise SystemExit(f"unexpected migration family count: {migration_summary!r}")

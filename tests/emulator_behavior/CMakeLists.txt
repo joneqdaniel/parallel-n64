@@ -206,6 +206,11 @@ add_test(
 )
 
 add_test(
+  NAME emu.support.hts2phrb_family_inventory_absorbed_variants
+  COMMAND bash "${EMU_BEHAVIOR_SUPPORT_DIR}/emu_hts2phrb_family_inventory_absorbed_variants.sh"
+)
+
+add_test(
   NAME emu.support.hts2phrb_context_bundle_generic_family_fallback
   COMMAND bash "${EMU_BEHAVIOR_SUPPORT_DIR}/emu_hts2phrb_context_bundle_generic_family_fallback.sh"
 )

@@ -608,6 +608,13 @@ def record_family_keys(record):
     policy_key = policy_family_key(record.get("policy_key"))
     if policy_key and policy_key not in keys:
         keys.append(policy_key)
+    for candidate in record.get("asset_candidates") or []:
+        candidate_key = make_family_key(
+            candidate.get("legacy_texture_crc"),
+            candidate.get("legacy_formatsize"),
+        )
+        if candidate_key and candidate_key not in keys:
+            keys.append(candidate_key)
     return keys
 
 

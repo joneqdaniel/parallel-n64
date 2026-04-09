@@ -4066,6 +4066,17 @@ bool Renderer::resolve_hires_replacement_descriptor(uint64_t checksum64, uint16_
 			break;
 		}
 	};
+	auto resolve_generic_key_source = [](ResolvedEntrySourceClass source_class) {
+		switch (source_class)
+		{
+		case ResolvedEntrySourceClass::Native:
+			return HiresKeySource::GenericNative;
+		case ResolvedEntrySourceClass::Compat:
+			return HiresKeySource::GenericCompat;
+		default:
+			return HiresKeySource::Generic;
+		}
+	};
 	if (replacement_provider->lookup_with_selector_and_identity(
 		    checksum64,
 		    formatsize,
@@ -4161,7 +4172,7 @@ bool Renderer::resolve_hires_replacement_descriptor(uint64_t checksum64, uint16_
 	key.checksum64 = resolved_checksum64;
 	key.formatsize = formatsize;
 	key.selector_checksum64 = resolved_selector_checksum64;
-	key.source = HiresKeySource::Generic;
+	key.source = resolve_generic_key_source(resolved_source_class);
 	auto itr = hires_resources.resident_images.find(key);
 	if (itr != hires_resources.resident_images.end())
 	{

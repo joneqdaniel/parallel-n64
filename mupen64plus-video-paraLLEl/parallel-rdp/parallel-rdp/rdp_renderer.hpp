@@ -519,7 +519,9 @@ private:
 		Generic = 0,
 		NativeSampled = 1,
 		Compat = 2,
-		NativeChecksum = 3
+		NativeChecksum = 3,
+		GenericNative = 4,
+		GenericCompat = 5
 	};
 
 	struct HiresKey

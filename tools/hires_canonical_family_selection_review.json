@@ -454,6 +454,17 @@
       ],
       "review_group_cluster_class": "same-aspect",
       "review_group_action_hint": "context-bundle-review"
+    },
+    {
+      "family_key": "071cc660:fs0",
+      "selected_variant_group_dims": "896x672",
+      "selection_reason": "review-family-selection",
+      "review_group_variant_group_dims": [
+        "640x480",
+        "896x672"
+      ],
+      "review_group_cluster_class": "same-aspect",
+      "review_group_action_hint": "context-bundle-review"
     }
   ]
 }

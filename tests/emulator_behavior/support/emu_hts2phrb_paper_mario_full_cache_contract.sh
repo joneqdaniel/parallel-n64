@@ -151,6 +151,7 @@ expected_context = {
         "defer-to-import-family-work": 1,
         "manual-selection-review": 4,
     },
+    "runtime_overlay_candidate_set_review_group_count": 2,
 }
 
 for label, report, expected in (
@@ -228,6 +229,10 @@ if not context.get("runtime_overlay_review_json_path") or not Path(context["runt
     raise SystemExit(f"FAIL: authority-context overlay review json path missing: {context.get('runtime_overlay_review_json_path')!r}.")
 if not context.get("runtime_overlay_review_markdown_path") or not Path(context["runtime_overlay_review_markdown_path"]).exists():
     raise SystemExit(f"FAIL: authority-context overlay review markdown path missing: {context.get('runtime_overlay_review_markdown_path')!r}.")
+if not context.get("runtime_overlay_candidate_set_review_json_path") or not Path(context["runtime_overlay_candidate_set_review_json_path"]).exists():
+    raise SystemExit(f"FAIL: authority-context candidate-set review json path missing: {context.get('runtime_overlay_candidate_set_review_json_path')!r}.")
+if not context.get("runtime_overlay_candidate_set_review_markdown_path") or not Path(context["runtime_overlay_candidate_set_review_markdown_path"]).exists():
+    raise SystemExit(f"FAIL: authority-context candidate-set review markdown path missing: {context.get('runtime_overlay_candidate_set_review_markdown_path')!r}.")
 PY
 
 echo "emu_hts2phrb_paper_mario_full_cache_contract: PASS"

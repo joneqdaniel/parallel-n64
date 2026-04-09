@@ -59,7 +59,11 @@ root_dir = Path(sys.argv[1])
 cache_path = Path(sys.argv[2])
 sys.path.insert(0, str(root_dir / "tools"))
 
-from hts2phrb import build_runtime_overlay_review_payload, synchronize_report_summary_fields
+from hts2phrb import (
+    build_runtime_overlay_candidate_set_review_payload,
+    build_runtime_overlay_review_payload,
+    synchronize_report_summary_fields,
+)
 
 
 def make_candidate(replacement_id, texture_crc, palette_crc, width, height):
@@ -146,6 +150,7 @@ review = build_runtime_overlay_review_payload(
     bindings,
     {"requested_family_states": {"families": []}},
 )
+candidate_set_review = build_runtime_overlay_candidate_set_review_payload(review)
 
 if review.get("unresolved_overlay_count") != 4:
     raise SystemExit(f"unexpected unresolved overlay count: {review!r}")
@@ -176,6 +181,10 @@ if review.get("action_hint_counts") != {
     "manual-selection-review": 2,
 }:
     raise SystemExit(f"unexpected action hints: {review.get('action_hint_counts')!r}")
+if candidate_set_review.get("candidate_set_review_group_count") != 1:
+    raise SystemExit(f"unexpected candidate-set review group count: {candidate_set_review!r}")
+if [group.get("policy_keys") for group in (candidate_set_review.get("groups") or [])] != [["overlay-case-2", "overlay-case-3"]]:
+    raise SystemExit(f"unexpected candidate-set review groups: {candidate_set_review!r}")
 
 entries = {entry["policy_key"]: entry for entry in review.get("entries") or []}
 if entries["overlay-case-1"]["hash_review_class"] != "pixel-identical-single-dim":
@@ -213,6 +222,7 @@ with TemporaryDirectory() as tmpdir:
         "imported_index_summary": {},
         "stage_timings_ms": {"total": 1.0},
         "runtime_overlay_review_summary": review,
+        "runtime_overlay_candidate_set_review_summary": candidate_set_review,
     }
     synchronize_report_summary_fields(report)
     if report.get("runtime_overlay_unresolved_count") != 4:
@@ -251,6 +261,10 @@ with TemporaryDirectory() as tmpdir:
     }:
         raise SystemExit(
             f"unexpected top-level action hints: {report.get('runtime_overlay_action_hint_counts')!r}"
+        )
+    if report.get("runtime_overlay_candidate_set_review_group_count") != 1:
+        raise SystemExit(
+            f"unexpected top-level candidate-set review group count: {report.get('runtime_overlay_candidate_set_review_group_count')!r}"
         )
 PY
 

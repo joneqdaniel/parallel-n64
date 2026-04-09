@@ -140,12 +140,17 @@ python3 "$ROOT_DIR/tools/hts2phrb.py" \
   --stdout-format json \
   --output-dir "$OUTPUT_DIR" >/dev/null
 
-python3 - "$OUTPUT_DIR" <<'PY'
+python3 - "$ROOT_DIR" "$OUTPUT_DIR" <<'PY'
 import json
 import sys
 from pathlib import Path
 
-out_dir = Path(sys.argv[1])
+root_dir = Path(sys.argv[1])
+out_dir = Path(sys.argv[2])
+sys.path.insert(0, str(root_dir / "tools"))
+
+from hts2phrb import HTS2PHRB_ARTIFACT_VERSION
+
 report = json.loads((out_dir / "hts2phrb-report.json").read_text())
 loader_manifest = json.loads((out_dir / "loader-manifest.json").read_text())
 package_manifest = json.loads((out_dir / "package" / "package-manifest.json").read_text())
@@ -153,8 +158,10 @@ summary_text = (out_dir / "hts2phrb-summary.md").read_text()
 
 if not report.get("reused_existing", False):
     raise SystemExit(f"expected reuse after manifest backfill, got {report!r}")
-if report.get("artifact_contract_version") != 5:
-    raise SystemExit(f"expected report artifact version upgrade to 5, got {report.get('artifact_contract_version')!r}")
+if report.get("artifact_contract_version") != HTS2PHRB_ARTIFACT_VERSION:
+    raise SystemExit(
+        f"expected report artifact version upgrade to {HTS2PHRB_ARTIFACT_VERSION}, got {report.get('artifact_contract_version')!r}"
+    )
 if report.get("package_manifest_runtime_ready_record_class") != "native-sampled-only":
     raise SystemExit(
         "expected backfilled report runtime-ready class of native-sampled-only, got "

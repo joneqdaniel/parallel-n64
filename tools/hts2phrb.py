@@ -7,6 +7,8 @@ import time
 from collections import Counter, defaultdict
 from pathlib import Path
 
+from hires_pack_apply_alias_group_review import apply_alias_group_reviews
+from hires_pack_apply_duplicate_review import dedupe_loader_manifest
 from hires_pack_common import (
     decode_entry_rgba8,
     parse_bundle_ci_context,
@@ -25,6 +27,81 @@ from hires_pack_materialize_package import materialize_package_in_memory
 from hires_pack_migrate import build_imported_index, build_migration_plan, load_import_policy
 
 HTS2PHRB_ARTIFACT_VERSION = 7
+
+
+def merge_unique_strings(*groups):
+    merged = []
+    seen = set()
+    for group in groups:
+        for value in group or []:
+            if value in seen:
+                continue
+            seen.add(value)
+            merged.append(value)
+    return merged
+
+
+def load_review_profile(path: Path):
+    data = json.loads(path.read_text())
+    schema_version = int(data.get("schema_version") or 0)
+    if schema_version != 1:
+        raise SystemExit(f"review profile {path} must have schema_version=1")
+
+    def resolve_paths(key):
+        values = data.get(key) or []
+        if not isinstance(values, list):
+            raise SystemExit(f"review profile {path} key {key} must be a list")
+        resolved = []
+        for value in values:
+            if not isinstance(value, str) or not value:
+                raise SystemExit(f"review profile {path} key {key} must contain non-empty strings")
+            candidate = Path(value)
+            if not candidate.is_absolute():
+                candidate = (path.parent / candidate).resolve()
+            resolved.append(str(candidate))
+        return resolved
+
+    return {
+        "path": str(path.resolve()),
+        "duplicate_review_paths": resolve_paths("duplicate_review_paths"),
+        "alias_group_review_paths": resolve_paths("alias_group_review_paths"),
+    }
+
+
+def resolve_manifest_review_inputs(args):
+    review_profile_paths = [Path(path).resolve() for path in (args.review_profile or [])]
+    loaded_review_profiles = [load_review_profile(path) for path in review_profile_paths]
+    duplicate_review_paths = [
+        Path(path)
+        for path in merge_unique_strings(
+            [str(Path(path).resolve()) for path in (args.duplicate_review or [])],
+            *[profile["duplicate_review_paths"] for profile in loaded_review_profiles],
+        )
+    ]
+    alias_group_review_paths = [
+        Path(path)
+        for path in merge_unique_strings(
+            [str(Path(path).resolve()) for path in (args.alias_group_review or [])],
+            *[profile["alias_group_review_paths"] for profile in loaded_review_profiles],
+        )
+    ]
+    return {
+        "review_profile_paths": review_profile_paths,
+        "duplicate_review_paths": duplicate_review_paths,
+        "alias_group_review_paths": alias_group_review_paths,
+    }
+
+
+def apply_loader_manifest_reviews(loader_manifest, duplicate_review_paths, alias_group_review_paths):
+    duplicate_review_changes = []
+    alias_group_review_changes = []
+    if duplicate_review_paths:
+        duplicate_review_docs = [json.loads(path.read_text()) for path in duplicate_review_paths]
+        loader_manifest, duplicate_review_changes = dedupe_loader_manifest(loader_manifest, duplicate_review_docs)
+    if alias_group_review_paths:
+        alias_group_review_docs = [json.loads(path.read_text()) for path in alias_group_review_paths]
+        loader_manifest, alias_group_review_changes = apply_alias_group_reviews(loader_manifest, alias_group_review_docs)
+    return loader_manifest, duplicate_review_changes, alias_group_review_changes
 
 
 def slugify_component(value):
@@ -174,6 +251,30 @@ def make_pre_request_signature(args, cache_resolution, bundle_resolution):
         "import_policy_fingerprint": fingerprint_path(args.import_policy),
         "transport_policy_path": normalize_optional_path(args.transport_policy),
         "transport_policy_fingerprint": fingerprint_path(args.transport_policy),
+        "review_profile_paths": [
+            str(path)
+            for path in getattr(args, "resolved_review_profile_paths", [])
+        ],
+        "review_profile_fingerprints": [
+            fingerprint_path(path)
+            for path in getattr(args, "resolved_review_profile_paths", [])
+        ],
+        "duplicate_review_paths": [
+            str(path)
+            for path in getattr(args, "resolved_duplicate_review_paths", [])
+        ],
+        "duplicate_review_fingerprints": [
+            fingerprint_path(path)
+            for path in getattr(args, "resolved_duplicate_review_paths", [])
+        ],
+        "alias_group_review_paths": [
+            str(path)
+            for path in getattr(args, "resolved_alias_group_review_paths", [])
+        ],
+        "alias_group_review_fingerprints": [
+            fingerprint_path(path)
+            for path in getattr(args, "resolved_alias_group_review_paths", [])
+        ],
         "package_name": args.package_name,
         "runtime_overlay_mode": args.runtime_overlay_mode,
         "all_families": bool(args.all_families),
@@ -219,6 +320,30 @@ def make_request_signature(args, cache_resolution, request_mode, requested_pairs
         "import_policy_fingerprint": fingerprint_path(args.import_policy),
         "transport_policy_path": normalize_optional_path(args.transport_policy),
         "transport_policy_fingerprint": fingerprint_path(args.transport_policy),
+        "review_profile_paths": [
+            str(path)
+            for path in getattr(args, "resolved_review_profile_paths", [])
+        ],
+        "review_profile_fingerprints": [
+            fingerprint_path(path)
+            for path in getattr(args, "resolved_review_profile_paths", [])
+        ],
+        "duplicate_review_paths": [
+            str(path)
+            for path in getattr(args, "resolved_duplicate_review_paths", [])
+        ],
+        "duplicate_review_fingerprints": [
+            fingerprint_path(path)
+            for path in getattr(args, "resolved_duplicate_review_paths", [])
+        ],
+        "alias_group_review_paths": [
+            str(path)
+            for path in getattr(args, "resolved_alias_group_review_paths", [])
+        ],
+        "alias_group_review_fingerprints": [
+            fingerprint_path(path)
+            for path in getattr(args, "resolved_alias_group_review_paths", [])
+        ],
         "package_name": args.package_name,
         "runtime_overlay_mode": args.runtime_overlay_mode,
     }
@@ -228,7 +353,8 @@ def try_load_reusable_report_from_pre_signature(report_path: Path, pre_request_s
     if not report_path.exists():
         return None
     report = json.loads(report_path.read_text())
-    if int(report.get("artifact_contract_version", 0) or 0) != HTS2PHRB_ARTIFACT_VERSION:
+    report_contract_version = int(report.get("artifact_contract_version", 0) or 0)
+    if report_contract_version <= 0 or report_contract_version > HTS2PHRB_ARTIFACT_VERSION:
         return None
     if report.get("pre_request_signature") != pre_request_signature:
         return None
@@ -246,7 +372,8 @@ def try_load_reusable_report(report_path: Path, request_signature: dict):
     if not report_path.exists():
         return None
     report = json.loads(report_path.read_text())
-    if int(report.get("artifact_contract_version", 0) or 0) != HTS2PHRB_ARTIFACT_VERSION:
+    report_contract_version = int(report.get("artifact_contract_version", 0) or 0)
+    if report_contract_version <= 0 or report_contract_version > HTS2PHRB_ARTIFACT_VERSION:
         return None
     report_signature = report.get("request_signature")
     if report_signature is not None:
@@ -1631,6 +1758,9 @@ def build_markdown_summary(report):
         f"- Runtime-deferred compat records: `{report['package_manifest_runtime_deferred_compat_record_count']}`",
         f"- Runtime bindings: `{report['binding_count']}`",
         f"- Transport-unresolved families: `{report['unresolved_count']}`",
+        f"- Duplicate review inputs: `{len(report.get('duplicate_review_paths') or [])}` (`{report.get('duplicate_review_change_count', 0)}` change(s))",
+        f"- Alias-group review inputs: `{len(report.get('alias_group_review_paths') or [])}` (`{report.get('alias_group_review_change_count', 0)}` change(s))",
+        f"- Review profiles: `{len(report.get('review_profile_paths') or [])}`",
         f"- Minimum outcome gate: `{report.get('minimum_outcome') or 'none'}`",
         f"- Require promotable: `{'yes' if report.get('require_promotable') else 'no'}`",
         "",
@@ -1677,6 +1807,22 @@ def build_markdown_summary(report):
         if report.get("runtime_overlay_review_json_path"):
             overlay_review_refs.append(f"[runtime overlay review json]({report['runtime_overlay_review_json_path']})")
         lines.append("- Runtime overlay review: " + ", ".join(overlay_review_refs))
+    review_profile_paths = report.get("review_profile_paths") or []
+    duplicate_review_paths = report.get("duplicate_review_paths") or []
+    alias_group_review_paths = report.get("alias_group_review_paths") or []
+    if review_profile_paths or duplicate_review_paths or alias_group_review_paths:
+        lines.extend(["", "## Review Inputs", ""])
+        if review_profile_paths:
+            for path in review_profile_paths:
+                lines.append(f"- Review profile: `{path}`")
+        if duplicate_review_paths:
+            for path in duplicate_review_paths:
+                lines.append(f"- Duplicate review: `{path}`")
+        if alias_group_review_paths:
+            for path in alias_group_review_paths:
+                lines.append(f"- Alias-group review: `{path}`")
+        lines.append(f"- Duplicate review changes: `{report.get('duplicate_review_change_count', 0)}`")
+        lines.append(f"- Alias-group review changes: `{report.get('alias_group_review_change_count', 0)}`")
 
     runtime_state_examples = {}
     for item in report["requested_family_states"]["families"]:
@@ -1833,6 +1979,11 @@ def build_stdout_summary(report):
         f"runtime_deferred_compat_records: {report['package_manifest_runtime_deferred_compat_record_count']}",
         f"runtime_bindings: {report['binding_count']}",
         f"transport_unresolved: {report['unresolved_count']}",
+        f"review_profiles: {len(report.get('review_profile_paths') or [])}",
+        f"duplicate_review_inputs: {len(report.get('duplicate_review_paths') or [])}",
+        f"duplicate_review_changes: {report.get('duplicate_review_change_count', 0)}",
+        f"alias_group_review_inputs: {len(report.get('alias_group_review_paths') or [])}",
+        f"alias_group_review_changes: {report.get('alias_group_review_change_count', 0)}",
         f"unresolved_family_review: {report.get('unresolved_family_review_json_path') or 'none'}",
         f"unresolved_family_count: {unresolved_review_summary.get('unresolved_family_count', 0)}",
         f"unresolved_family_reasons: {unresolved_reason_summary}",
@@ -1972,6 +2123,10 @@ def resolve_requested_pairs(args, entries, bundle_resolution=None):
 
 def build_conversion(args):
     cache_input_path = Path(args.cache)
+    manifest_review_inputs = resolve_manifest_review_inputs(args)
+    args.resolved_review_profile_paths = manifest_review_inputs["review_profile_paths"]
+    args.resolved_duplicate_review_paths = manifest_review_inputs["duplicate_review_paths"]
+    args.resolved_alias_group_review_paths = manifest_review_inputs["alias_group_review_paths"]
 
     started_at = time.perf_counter()
     stage_timings_ms = {}
@@ -2036,6 +2191,9 @@ def build_conversion(args):
         resolved_cache_storage=cache_resolution["resolved_storage"],
         bundle_resolution=bundle_resolution,
         context_bundle_resolutions=context_bundle_resolutions,
+        review_profile_paths=[str(path) for path in args.resolved_review_profile_paths],
+        duplicate_review_paths=[str(path) for path in args.resolved_duplicate_review_paths],
+        alias_group_review_paths=[str(path) for path in args.resolved_alias_group_review_paths],
         pre_request_signature=pre_request_signature,
     )
 
@@ -2257,15 +2415,26 @@ def build_conversion(args):
         canonical_loader_manifest = json.loads(canonical_loader_manifest_path.read_text())
         stage_timings_ms["build_canonical_loader_manifest"] = 0.0
         reused_stage_names.append("build_canonical_loader_manifest")
+        duplicate_review_changes = reusable_progress.get("duplicate_review_changes", []) if reusable_progress else []
+        alias_group_review_changes = reusable_progress.get("alias_group_review_changes", []) if reusable_progress else []
     else:
         stage_started = time.perf_counter()
         canonical_loader_manifest = build_canonical_loader_manifest(migrate_result["imported_index"], migration_plan_path)
+        canonical_loader_manifest, duplicate_review_changes, alias_group_review_changes = apply_loader_manifest_reviews(
+            canonical_loader_manifest,
+            args.resolved_duplicate_review_paths,
+            args.resolved_alias_group_review_paths,
+        )
         stage_timings_ms["build_canonical_loader_manifest"] = round((time.perf_counter() - stage_started) * 1000.0, 3)
         canonical_loader_manifest_path.write_text(json.dumps(canonical_loader_manifest, indent=2) + "\n")
     write_progress(
         reused_stage_names=reused_stage_names,
         loader_manifest_path=str(canonical_loader_manifest_path),
         loader_manifest_record_count=canonical_loader_manifest.get("record_count", 0),
+        duplicate_review_change_count=len(duplicate_review_changes),
+        duplicate_review_changes=duplicate_review_changes,
+        alias_group_review_change_count=len(alias_group_review_changes),
+        alias_group_review_changes=alias_group_review_changes,
     )
 
     runtime_overlay_planned, runtime_overlay_reason = resolve_runtime_overlay_plan(args, canonical_loader_manifest)
@@ -2497,6 +2666,9 @@ def build_conversion(args):
         "resolved_bundle_path": bundle_resolution["resolved_bundle_path"] if bundle_resolution else None,
         "context_bundle_paths": args.context_bundle,
         "context_bundle_resolutions": context_bundle_resolutions,
+        "review_profile_paths": [str(path) for path in args.resolved_review_profile_paths],
+        "duplicate_review_paths": [str(path) for path in args.resolved_duplicate_review_paths],
+        "alias_group_review_paths": [str(path) for path in args.resolved_alias_group_review_paths],
         "request_mode": request_mode,
         "runtime_overlay_mode": args.runtime_overlay_mode,
         "runtime_overlay_built": runtime_overlay_built,
@@ -2531,6 +2703,10 @@ def build_conversion(args):
         "unresolved_count": unresolved_count,
         "unresolved_policy_keys": unresolved_policy_keys,
         "unresolved_sampled_low32s": unresolved_sampled_low32s,
+        "duplicate_review_change_count": len(duplicate_review_changes),
+        "duplicate_review_changes": duplicate_review_changes,
+        "alias_group_review_change_count": len(alias_group_review_changes),
+        "alias_group_review_changes": alias_group_review_changes,
         "imported_index_summary": imported_index_summary,
         "package_manifest_summary": package_manifest_summary,
         "requested_family_states": requested_family_states,
@@ -2602,6 +2778,9 @@ def main():
     parser.add_argument("--all-families", action="store_true", help="Import every unique low32/formatsize family present in the resolved legacy cache.")
     parser.add_argument("--import-policy", help="Optional import policy JSON for enriched selector/import hints.")
     parser.add_argument("--transport-policy", help="Optional transport policy JSON for explicit proxy selections.")
+    parser.add_argument("--duplicate-review", action="append", default=[], help="Review-only duplicate-review JSON to apply to the canonical loader manifest before package emission. Pass multiple times.")
+    parser.add_argument("--alias-group-review", action="append", default=[], help="Review-only alias-group review JSON to apply to the canonical loader manifest before package emission. Pass multiple times.")
+    parser.add_argument("--review-profile", action="append", default=[], help="Review-only profile JSON that expands duplicate/alias review inputs. Pass multiple times.")
     parser.add_argument("--output-dir", help="Output directory for migration data, bindings, package assets, and the final .phrb. Defaults to ./artifacts/hts2phrb/<resolved-cache>-<path-tag>-<request-mode>.")
     parser.add_argument("--package-name", default="package.phrb", help="Binary package filename relative to --output-dir.")
     parser.add_argument("--runtime-overlay-mode", choices=("auto", "always", "never"), default="auto", help="Whether to build the runtime overlay artifacts. auto builds them when bundle or explicit runtime context is supplied.")

@@ -135,6 +135,16 @@ for label, report, expected in (
         raise SystemExit(f"FAIL: {label} report did not record total_runtime_ms: {report!r}.")
     if int(report.get("binary_package_bytes") or 0) <= 0:
         raise SystemExit(f"FAIL: {label} report did not record binary_package_bytes: {report!r}.")
+
+overlay_review = context.get("runtime_overlay_review_summary") or {}
+if overlay_review.get("unresolved_overlay_count") != 13:
+    raise SystemExit(f"FAIL: authority-context overlay review expected 13 unresolved cases, got {overlay_review!r}.")
+if overlay_review.get("reason_counts") != {"proxy-transport-selection-required": 13}:
+    raise SystemExit(f"FAIL: authority-context overlay review had unexpected reasons: {overlay_review!r}.")
+if not context.get("runtime_overlay_review_json_path") or not Path(context["runtime_overlay_review_json_path"]).exists():
+    raise SystemExit(f"FAIL: authority-context overlay review json path missing: {context.get('runtime_overlay_review_json_path')!r}.")
+if not context.get("runtime_overlay_review_markdown_path") or not Path(context["runtime_overlay_review_markdown_path"]).exists():
+    raise SystemExit(f"FAIL: authority-context overlay review markdown path missing: {context.get('runtime_overlay_review_markdown_path')!r}.")
 PY
 
 echo "emu_hts2phrb_paper_mario_full_cache_contract: PASS"

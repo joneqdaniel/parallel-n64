@@ -98,6 +98,18 @@ expected = {
         "exact-family-ambiguous": {"canonical-only": 368, "runtime-ready-package": 4}
     },
     "unresolved_family_reason_variant_group_count_counts": {"exact-family-ambiguous": {"2": 259, "3": 52, "4": 60, "5": 1}},
+    "unresolved_family_canonical_only_review_group_count": 134,
+    "unresolved_family_canonical_only_family_count": 368,
+    "unresolved_family_canonical_only_cluster_class_counts": {
+        "mixed-aspect": 33,
+        "mixed-aspect-batch": 3,
+        "same-aspect": 93,
+        "same-aspect-batch": 5,
+    },
+    "unresolved_family_canonical_only_action_hint_counts": {
+        "context-bundle-review": 98,
+        "manual-family-review": 36,
+    },
     "unresolved_family_runtime_ready_review_group_count": 1,
     "unresolved_family_runtime_ready_family_count": 4,
     "unresolved_family_runtime_ready_reason_counts": {"exact-family-ambiguous": 4},
@@ -190,6 +202,10 @@ if not report.get("runtime_overlay_linked_import_review_json_path") or not Path(
     raise SystemExit(f"FAIL: linked-import review json path missing: {report.get('runtime_overlay_linked_import_review_json_path')!r}")
 if not report.get("runtime_overlay_linked_import_review_markdown_path") or not Path(report["runtime_overlay_linked_import_review_markdown_path"]).exists():
     raise SystemExit(f"FAIL: linked-import review markdown path missing: {report.get('runtime_overlay_linked_import_review_markdown_path')!r}")
+if not report.get("unresolved_family_canonical_only_review_json_path") or not Path(report["unresolved_family_canonical_only_review_json_path"]).exists():
+    raise SystemExit(f"FAIL: unresolved canonical-only review json path missing: {report.get('unresolved_family_canonical_only_review_json_path')!r}")
+if not report.get("unresolved_family_canonical_only_review_markdown_path") or not Path(report["unresolved_family_canonical_only_review_markdown_path"]).exists():
+    raise SystemExit(f"FAIL: unresolved canonical-only review markdown path missing: {report.get('unresolved_family_canonical_only_review_markdown_path')!r}")
 if not report.get("unresolved_family_runtime_ready_review_json_path") or not Path(report["unresolved_family_runtime_ready_review_json_path"]).exists():
     raise SystemExit(f"FAIL: unresolved runtime-ready review json path missing: {report.get('unresolved_family_runtime_ready_review_json_path')!r}")
 if not report.get("unresolved_family_runtime_ready_review_markdown_path") or not Path(report["unresolved_family_runtime_ready_review_markdown_path"]).exists():

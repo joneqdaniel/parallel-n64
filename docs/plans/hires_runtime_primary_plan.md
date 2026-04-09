@@ -50,6 +50,7 @@
 - The renderer has a real sampled-object exact-lookup seam in [`rdp_renderer.cpp`](/home/auro/code/parallel-n64/mupen64plus-video-paraLLEl/parallel-rdp/parallel-rdp/rdp_renderer.cpp).
 - The renderer now routes generic descriptor resolution, upload-time resolution, and CI low32 compat materialization through one shared typed provider-resolution helper instead of keeping those fallback ladders open-coded in separate branches.
 - The tooling now carries canonical sampled-object identity, ordered surfaces, policy-backed selection, and reproducible evidence artifacts.
+- The converter now splits unresolved import ambiguity into a canonical-only grouped review instead of one flat blocker count; on the current authority-context Paper Mario full-cache lane that residue is `134` review groups covering `368` canonical-only families, with `98` context-review groups and `36` manual-review groups.
 - Validation and fixtures are much more disciplined than the earlier failed branch.
 - Using Paper Mario first is a reasonable bootstrap strategy because it currently has the deepest local evidence base.
 

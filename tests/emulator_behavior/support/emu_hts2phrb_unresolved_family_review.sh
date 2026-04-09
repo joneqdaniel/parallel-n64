@@ -68,7 +68,11 @@ python3 "$ROOT_DIR/tools/hts2phrb.py" \
   --output-dir "$OUTPUT_DIR" \
   > "$TMP_DIR/report.json"
 
-python3 - "$TMP_DIR/report.json" "$OUTPUT_DIR/hts2phrb-unresolved-family-review.json" "$OUTPUT_DIR/hts2phrb-unresolved-family-review.md" <<'PY'
+python3 - "$TMP_DIR/report.json" \
+  "$OUTPUT_DIR/hts2phrb-unresolved-family-review.json" \
+  "$OUTPUT_DIR/hts2phrb-unresolved-family-review.md" \
+  "$OUTPUT_DIR/hts2phrb-unresolved-family-canonical-only-review.json" \
+  "$OUTPUT_DIR/hts2phrb-unresolved-family-canonical-only-review.md" <<'PY'
 import json
 import sys
 from pathlib import Path
@@ -76,7 +80,10 @@ from pathlib import Path
 report = json.loads(Path(sys.argv[1]).read_text())
 review_json_path = Path(sys.argv[2])
 review_md_path = Path(sys.argv[3])
+canonical_review_json_path = Path(sys.argv[4])
+canonical_review_md_path = Path(sys.argv[5])
 review = json.loads(review_json_path.read_text())
+canonical_review = json.loads(canonical_review_json_path.read_text())
 summary_text = Path(report["summary_path"]).read_text()
 
 if report["conversion_outcome"] != "canonical-package-only":
@@ -106,6 +113,30 @@ if report.get("unresolved_family_review_json_path") != str(review_json_path):
     raise SystemExit(f"unexpected unresolved review json path: {report.get('unresolved_family_review_json_path')!r}")
 if report.get("unresolved_family_review_markdown_path") != str(review_md_path):
     raise SystemExit(f"unexpected unresolved review markdown path: {report.get('unresolved_family_review_markdown_path')!r}")
+if report.get("unresolved_family_canonical_only_review_json_path") != str(canonical_review_json_path):
+    raise SystemExit(
+        f"unexpected unresolved canonical-only review json path: {report.get('unresolved_family_canonical_only_review_json_path')!r}"
+    )
+if report.get("unresolved_family_canonical_only_review_markdown_path") != str(canonical_review_md_path):
+    raise SystemExit(
+        f"unexpected unresolved canonical-only review markdown path: {report.get('unresolved_family_canonical_only_review_markdown_path')!r}"
+    )
+if report.get("unresolved_family_canonical_only_review_group_count") != 1:
+    raise SystemExit(
+        f"unexpected unresolved canonical-only review group count: {report.get('unresolved_family_canonical_only_review_group_count')!r}"
+    )
+if report.get("unresolved_family_canonical_only_family_count") != 1:
+    raise SystemExit(
+        f"unexpected unresolved canonical-only review family count: {report.get('unresolved_family_canonical_only_family_count')!r}"
+    )
+if report.get("unresolved_family_canonical_only_cluster_class_counts") != {"same-aspect": 1}:
+    raise SystemExit(
+        f"unexpected unresolved canonical-only cluster classes: {report.get('unresolved_family_canonical_only_cluster_class_counts')!r}"
+    )
+if report.get("unresolved_family_canonical_only_action_hint_counts") != {"context-bundle-review": 1}:
+    raise SystemExit(
+        f"unexpected unresolved canonical-only action hints: {report.get('unresolved_family_canonical_only_action_hint_counts')!r}"
+    )
 
 if review.get("unresolved_family_count") != 1:
     raise SystemExit(f"unexpected unresolved family count: {review!r}")
@@ -135,10 +166,33 @@ if family.get("variant_group_dims") != ["2x2", "4x4"]:
 if family.get("sampled_object_ids") != []:
     raise SystemExit(f"unexpected sampled object ids: {family!r}")
 
+if canonical_review.get("canonical_only_review_group_count") != 1:
+    raise SystemExit(f"unexpected canonical-only review group count: {canonical_review!r}")
+if canonical_review.get("canonical_only_family_total_count") != 1:
+    raise SystemExit(f"unexpected canonical-only review family count: {canonical_review!r}")
+if canonical_review.get("cluster_class_counts") != {"same-aspect": 1}:
+    raise SystemExit(f"unexpected canonical-only cluster classes: {canonical_review!r}")
+if canonical_review.get("action_hint_counts") != {"context-bundle-review": 1}:
+    raise SystemExit(f"unexpected canonical-only action hints: {canonical_review!r}")
+if canonical_review.get("group_size_counts") != {"1": 1}:
+    raise SystemExit(f"unexpected canonical-only group sizes: {canonical_review!r}")
+groups = canonical_review.get("groups") or []
+if len(groups) != 1:
+    raise SystemExit(f"unexpected canonical-only groups: {groups!r}")
+group = groups[0]
+if group.get("variant_group_dims") != ["2x2", "4x4"]:
+    raise SystemExit(f"unexpected canonical-only group dims: {group!r}")
+if group.get("cluster_class") != "same-aspect":
+    raise SystemExit(f"unexpected canonical-only group class: {group!r}")
+if group.get("action_hint") != "context-bundle-review":
+    raise SystemExit(f"unexpected canonical-only group action: {group!r}")
+
 if (
     "Unresolved family review" not in summary_text
+    or "Unresolved family canonical-only review" not in summary_text
     or "exact-family-ambiguous" not in summary_text
-    or "canonical-only=1" not in summary_text
+    or "`canonical-only`=`1`" not in summary_text
+    or "`same-aspect`=`1`" not in summary_text
 ):
     raise SystemExit(f"summary did not include unresolved review section: {summary_text!r}")
 PY

@@ -100,6 +100,18 @@ expected_zero = {
     "promotion_blocker_reason_unclassified_family_count": 0,
     "unresolved_family_reason_runtime_state_counts": {"exact-family-ambiguous": {"canonical-only": 372}},
     "unresolved_family_reason_variant_group_count_counts": {"exact-family-ambiguous": {"2": 259, "3": 52, "4": 60, "5": 1}},
+    "unresolved_family_canonical_only_review_group_count": 136,
+    "unresolved_family_canonical_only_family_count": 372,
+    "unresolved_family_canonical_only_cluster_class_counts": {
+        "mixed-aspect": 33,
+        "mixed-aspect-batch": 3,
+        "same-aspect": 95,
+        "same-aspect-batch": 5,
+    },
+    "unresolved_family_canonical_only_action_hint_counts": {
+        "context-bundle-review": 100,
+        "manual-family-review": 36,
+    },
     "unresolved_family_runtime_ready_review_group_count": 0,
     "unresolved_family_runtime_ready_family_count": 0,
     "unresolved_family_runtime_ready_reason_counts": {},
@@ -133,6 +145,18 @@ expected_context = {
         "exact-family-ambiguous": {"canonical-only": 368, "runtime-ready-package": 4}
     },
     "unresolved_family_reason_variant_group_count_counts": {"exact-family-ambiguous": {"2": 259, "3": 52, "4": 60, "5": 1}},
+    "unresolved_family_canonical_only_review_group_count": 134,
+    "unresolved_family_canonical_only_family_count": 368,
+    "unresolved_family_canonical_only_cluster_class_counts": {
+        "mixed-aspect": 33,
+        "mixed-aspect-batch": 3,
+        "same-aspect": 93,
+        "same-aspect-batch": 5,
+    },
+    "unresolved_family_canonical_only_action_hint_counts": {
+        "context-bundle-review": 98,
+        "manual-family-review": 36,
+    },
     "unresolved_family_runtime_ready_review_group_count": 1,
     "unresolved_family_runtime_ready_family_count": 4,
     "unresolved_family_runtime_ready_reason_counts": {"exact-family-ambiguous": 4},
@@ -249,6 +273,14 @@ if not context.get("runtime_overlay_review_json_path") or not Path(context["runt
     raise SystemExit(f"FAIL: authority-context overlay review json path missing: {context.get('runtime_overlay_review_json_path')!r}.")
 if not context.get("runtime_overlay_review_markdown_path") or not Path(context["runtime_overlay_review_markdown_path"]).exists():
     raise SystemExit(f"FAIL: authority-context overlay review markdown path missing: {context.get('runtime_overlay_review_markdown_path')!r}.")
+if not zero.get("unresolved_family_canonical_only_review_json_path") or not Path(zero["unresolved_family_canonical_only_review_json_path"]).exists():
+    raise SystemExit(f"FAIL: zero-config canonical-only review json path missing: {zero.get('unresolved_family_canonical_only_review_json_path')!r}.")
+if not zero.get("unresolved_family_canonical_only_review_markdown_path") or not Path(zero["unresolved_family_canonical_only_review_markdown_path"]).exists():
+    raise SystemExit(f"FAIL: zero-config canonical-only review markdown path missing: {zero.get('unresolved_family_canonical_only_review_markdown_path')!r}.")
+if not context.get("unresolved_family_canonical_only_review_json_path") or not Path(context["unresolved_family_canonical_only_review_json_path"]).exists():
+    raise SystemExit(f"FAIL: authority-context canonical-only review json path missing: {context.get('unresolved_family_canonical_only_review_json_path')!r}.")
+if not context.get("unresolved_family_canonical_only_review_markdown_path") or not Path(context["unresolved_family_canonical_only_review_markdown_path"]).exists():
+    raise SystemExit(f"FAIL: authority-context canonical-only review markdown path missing: {context.get('unresolved_family_canonical_only_review_markdown_path')!r}.")
 if not context.get("runtime_overlay_candidate_set_review_json_path") or not Path(context["runtime_overlay_candidate_set_review_json_path"]).exists():
     raise SystemExit(f"FAIL: authority-context candidate-set review json path missing: {context.get('runtime_overlay_candidate_set_review_json_path')!r}.")
 if not context.get("runtime_overlay_candidate_set_review_markdown_path") or not Path(context["runtime_overlay_candidate_set_review_markdown_path"]).exists():

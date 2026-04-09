@@ -2,6 +2,7 @@
 import argparse
 import hashlib
 import json
+import math
 import sys
 import time
 from collections import Counter, defaultdict
@@ -1476,6 +1477,131 @@ def build_unresolved_family_review_payload(migrate_result, requested_family_stat
     }
 
 
+def normalize_dims_ratio_signature(dims_text):
+    if not dims_text or "x" not in str(dims_text):
+        return None
+    try:
+        width_text, height_text = str(dims_text).lower().split("x", 1)
+        width = int(width_text)
+        height = int(height_text)
+    except (TypeError, ValueError):
+        return None
+    if width <= 0 or height <= 0:
+        return None
+    divisor = math.gcd(width, height)
+    return f"{width // divisor}:{height // divisor}"
+
+
+def classify_canonical_only_review_group(group):
+    ratio_signatures = group.get("ratio_signatures") or []
+    family_count = int(group.get("family_count") or 0)
+    same_aspect = len(ratio_signatures) <= 1
+    if same_aspect:
+        return "same-aspect-batch" if family_count >= 8 else "same-aspect"
+    return "mixed-aspect-batch" if family_count >= 8 else "mixed-aspect"
+
+
+def canonical_only_review_action_hint(cluster_class):
+    if cluster_class.startswith("same-aspect"):
+        return "context-bundle-review"
+    return "manual-family-review"
+
+
+def build_unresolved_family_canonical_only_review_payload(unresolved_family_review):
+    if not unresolved_family_review:
+        return {
+            "canonical_only_review_group_count": 0,
+            "canonical_only_family_total_count": 0,
+            "cluster_class_counts": {},
+            "action_hint_counts": {},
+            "group_size_counts": {},
+            "groups": [],
+        }
+
+    grouped_families = defaultdict(list)
+    for family in unresolved_family_review.get("families") or []:
+        if family.get("runtime_state") != "canonical-only":
+            continue
+        signature = tuple(sorted(item for item in (family.get("variant_group_dims") or []) if item))
+        grouped_families[signature].append(family)
+
+    groups = []
+    cluster_class_counts = Counter()
+    action_hint_counts = Counter()
+    group_size_counts = Counter()
+
+    for signature, families in sorted(grouped_families.items()):
+        candidate_replacement_count_counts = Counter(
+            int(family.get("candidate_replacement_count") or 0)
+            for family in families
+        )
+        active_unique_palette_count_counts = Counter(
+            int(family.get("active_unique_palette_count") or 0)
+            for family in families
+        )
+        variant_group_count_counts = Counter(
+            int(family.get("variant_group_count") or 0)
+            for family in families
+        )
+        ratio_signatures = sorted(
+            {
+                ratio
+                for ratio in (
+                    normalize_dims_ratio_signature(dims_text)
+                    for dims_text in signature
+                )
+                if ratio
+            }
+        )
+        group = {
+            "variant_group_dims": list(signature),
+            "family_count": len(families),
+            "family_keys": [
+                family.get("family_key")
+                for family in families
+                if family.get("family_key")
+            ],
+            "low32s": sorted(
+                {
+                    family.get("low32")
+                    for family in families
+                    if family.get("low32")
+                }
+            ),
+            "ratio_signatures": ratio_signatures,
+            "variant_group_count_counts": {
+                str(key): count
+                for key, count in sorted(variant_group_count_counts.items())
+            },
+            "candidate_replacement_count_counts": {
+                str(key): count
+                for key, count in sorted(candidate_replacement_count_counts.items())
+            },
+            "active_unique_palette_count_counts": {
+                str(key): count
+                for key, count in sorted(active_unique_palette_count_counts.items())
+            },
+        }
+        group["cluster_class"] = classify_canonical_only_review_group(group)
+        group["action_hint"] = canonical_only_review_action_hint(group["cluster_class"])
+        groups.append(group)
+        cluster_class_counts[group["cluster_class"]] += 1
+        action_hint_counts[group["action_hint"]] += 1
+        group_size_counts[group["family_count"]] += 1
+
+    return {
+        "canonical_only_review_group_count": len(groups),
+        "canonical_only_family_total_count": sum(len(families) for families in grouped_families.values()),
+        "cluster_class_counts": dict(sorted(cluster_class_counts.items())),
+        "action_hint_counts": dict(sorted(action_hint_counts.items())),
+        "group_size_counts": {
+            str(key): count
+            for key, count in sorted(group_size_counts.items())
+        },
+        "groups": groups,
+    }
+
+
 def build_transport_candidate_set_signature(transport_candidates):
     replacement_ids = sorted(
         str(candidate.get("replacement_id") or "")
@@ -2101,6 +2227,47 @@ def render_unresolved_family_runtime_ready_review_markdown(review):
     return "\n".join(lines)
 
 
+def render_unresolved_family_canonical_only_review_markdown(review):
+    lines = [
+        "# hts2phrb Unresolved Family Canonical-Only Review",
+        "",
+        f"- Canonical-only review groups: `{review.get('canonical_only_review_group_count', 0)}`",
+        f"- Canonical-only unresolved families: `{review.get('canonical_only_family_total_count', 0)}`",
+    ]
+
+    for title, counts in (
+        ("Cluster Classes", review.get("cluster_class_counts") or {}),
+        ("Action Hints", review.get("action_hint_counts") or {}),
+        ("Group Sizes", review.get("group_size_counts") or {}),
+    ):
+        lines.extend(["", f"## {title}", ""])
+        if counts:
+            for key, count in counts.items():
+                lines.append(f"- `{key}`: `{count}`")
+        else:
+            lines.append("- none")
+
+    lines.extend(["", "## Groups", ""])
+    groups = review.get("groups") or []
+    if not groups:
+        lines.append("- none")
+        lines.append("")
+        return "\n".join(lines)
+
+    for group in groups:
+        dims = ", ".join(group.get("variant_group_dims") or []) or "none"
+        family_keys = ", ".join(group.get("family_keys") or []) or "none"
+        low32s = ", ".join(group.get("low32s") or []) or "none"
+        ratios = ", ".join(group.get("ratio_signatures") or []) or "none"
+        lines.append(
+            f"- dims=`{dims}` families=`{group.get('family_count', 0)}` "
+            f"cluster=`{group.get('cluster_class')}` action=`{group.get('action_hint')}` "
+            f"ratios=`{ratios}` low32s=`{low32s}` family_keys=`{family_keys}`"
+        )
+    lines.append("")
+    return "\n".join(lines)
+
+
 def render_runtime_overlay_review_markdown(review):
     lines = [
         "# hts2phrb Runtime Overlay Unresolved Review",
@@ -2340,6 +2507,16 @@ def write_unresolved_family_runtime_ready_review_artifacts(output_dir: Path,
     return review, review_json_path, review_markdown_path
 
 
+def write_unresolved_family_canonical_only_review_artifacts(output_dir: Path,
+                                                            unresolved_family_review: dict):
+    review = build_unresolved_family_canonical_only_review_payload(unresolved_family_review)
+    review_json_path = output_dir / "hts2phrb-unresolved-family-canonical-only-review.json"
+    review_markdown_path = output_dir / "hts2phrb-unresolved-family-canonical-only-review.md"
+    review_json_path.write_text(json.dumps(review, indent=2) + "\n")
+    review_markdown_path.write_text(render_unresolved_family_canonical_only_review_markdown(review))
+    return review, review_json_path, review_markdown_path
+
+
 def write_runtime_overlay_review_artifacts(output_dir: Path, migrate_result: dict, bindings: dict, report: dict):
     review = build_runtime_overlay_review_payload(migrate_result, bindings, report)
     review_json_path = output_dir / "hts2phrb-runtime-overlay-review.json"
@@ -2523,6 +2700,21 @@ def synchronize_report_summary_fields(report: dict):
     report["unresolved_family_reason_variant_group_count_counts"] = (
         unresolved_family_review_summary.get("reason_variant_group_count_counts") or {}
     )
+    unresolved_family_canonical_only_review_summary = (
+        report.get("unresolved_family_canonical_only_review_summary") or {}
+    )
+    report["unresolved_family_canonical_only_review_group_count"] = int(
+        unresolved_family_canonical_only_review_summary.get("canonical_only_review_group_count") or 0
+    )
+    report["unresolved_family_canonical_only_family_count"] = int(
+        unresolved_family_canonical_only_review_summary.get("canonical_only_family_total_count") or 0
+    )
+    report["unresolved_family_canonical_only_cluster_class_counts"] = (
+        unresolved_family_canonical_only_review_summary.get("cluster_class_counts") or {}
+    )
+    report["unresolved_family_canonical_only_action_hint_counts"] = (
+        unresolved_family_canonical_only_review_summary.get("action_hint_counts") or {}
+    )
     unresolved_family_runtime_ready_review_summary = (
         report.get("unresolved_family_runtime_ready_review_summary") or {}
     )
@@ -2659,6 +2851,17 @@ def build_markdown_summary(report):
         if report.get("unresolved_family_review_json_path"):
             review_refs.append(f"[unresolved family review json]({report['unresolved_family_review_json_path']})")
         lines.append("- Unresolved family review: " + ", ".join(review_refs))
+    if report.get("unresolved_family_canonical_only_review_markdown_path") or report.get("unresolved_family_canonical_only_review_json_path"):
+        canonical_only_review_refs = []
+        if report.get("unresolved_family_canonical_only_review_markdown_path"):
+            canonical_only_review_refs.append(
+                f"[unresolved family canonical-only review]({report['unresolved_family_canonical_only_review_markdown_path']})"
+            )
+        if report.get("unresolved_family_canonical_only_review_json_path"):
+            canonical_only_review_refs.append(
+                f"[unresolved family canonical-only review json]({report['unresolved_family_canonical_only_review_json_path']})"
+            )
+        lines.append("- Unresolved family canonical-only review: " + ", ".join(canonical_only_review_refs))
     if report.get("unresolved_family_runtime_ready_review_markdown_path") or report.get("unresolved_family_runtime_ready_review_json_path"):
         runtime_ready_review_refs = []
         if report.get("unresolved_family_runtime_ready_review_markdown_path"):
@@ -2799,6 +3002,30 @@ def build_markdown_summary(report):
         if reason_variant_group_count_counts:
             lines.append(
                 "- Reasons by variant-group count: " + format_nested_count_summary(reason_variant_group_count_counts)
+            )
+
+    unresolved_canonical_only_review_summary = report.get("unresolved_family_canonical_only_review_summary") or {}
+    if unresolved_canonical_only_review_summary:
+        lines.extend(["", "## Unresolved Canonical-Only Review Summary", ""])
+        lines.append(
+            f"- Canonical-only review groups: `{unresolved_canonical_only_review_summary.get('canonical_only_review_group_count', 0)}`"
+        )
+        lines.append(
+            f"- Canonical-only unresolved families: `{unresolved_canonical_only_review_summary.get('canonical_only_family_total_count', 0)}`"
+        )
+        cluster_class_counts = unresolved_canonical_only_review_summary.get("cluster_class_counts") or {}
+        if cluster_class_counts:
+            lines.append(
+                "- Cluster classes: " + ", ".join(
+                    f"`{name}`=`{count}`" for name, count in sorted(cluster_class_counts.items())
+                )
+            )
+        action_hint_counts = unresolved_canonical_only_review_summary.get("action_hint_counts") or {}
+        if action_hint_counts:
+            lines.append(
+                "- Action hints: " + ", ".join(
+                    f"`{name}`=`{count}`" for name, count in sorted(action_hint_counts.items())
+                )
             )
 
     unresolved_runtime_ready_review_summary = report.get("unresolved_family_runtime_ready_review_summary") or {}
@@ -2963,6 +3190,15 @@ def build_stdout_summary(report):
         f"{name}={count}"
         for name, count in sorted((unresolved_review_summary.get("reason_counts") or {}).items())
     ) or "none"
+    unresolved_canonical_only_review_summary = report.get("unresolved_family_canonical_only_review_summary") or {}
+    unresolved_canonical_only_cluster_summary = ", ".join(
+        f"{name}={count}"
+        for name, count in sorted((unresolved_canonical_only_review_summary.get("cluster_class_counts") or {}).items())
+    ) or "none"
+    unresolved_canonical_only_action_summary = ", ".join(
+        f"{name}={count}"
+        for name, count in sorted((unresolved_canonical_only_review_summary.get("action_hint_counts") or {}).items())
+    ) or "none"
     unresolved_runtime_ready_review_summary = report.get("unresolved_family_runtime_ready_review_summary") or {}
     unresolved_runtime_ready_reason_summary = ", ".join(
         f"{name}={count}"
@@ -3031,6 +3267,11 @@ def build_stdout_summary(report):
         f"unresolved_family_review: {report.get('unresolved_family_review_json_path') or 'none'}",
         f"unresolved_family_count: {unresolved_review_summary.get('unresolved_family_count', 0)}",
         f"unresolved_family_reasons: {unresolved_reason_summary}",
+        f"unresolved_family_canonical_only_review: {report.get('unresolved_family_canonical_only_review_json_path') or 'none'}",
+        f"unresolved_family_canonical_only_groups: {int(report.get('unresolved_family_canonical_only_review_group_count') or 0)}",
+        f"unresolved_family_canonical_only_count: {int(report.get('unresolved_family_canonical_only_family_count') or 0)}",
+        f"unresolved_family_canonical_only_clusters: {unresolved_canonical_only_cluster_summary}",
+        f"unresolved_family_canonical_only_actions: {unresolved_canonical_only_action_summary}",
         f"unresolved_family_runtime_ready_review: {report.get('unresolved_family_runtime_ready_review_json_path') or 'none'}",
         f"unresolved_family_runtime_ready_groups: {int(report.get('unresolved_family_runtime_ready_review_group_count') or 0)}",
         f"unresolved_family_runtime_ready_count: {int(report.get('unresolved_family_runtime_ready_family_count') or 0)}",
@@ -3279,6 +3520,19 @@ def build_conversion(args):
                 reusable_pre_report["unresolved_family_review_summary"] = unresolved_review
                 reusable_pre_report["unresolved_family_review_json_path"] = str(unresolved_review_json_path)
                 reusable_pre_report["unresolved_family_review_markdown_path"] = str(unresolved_review_markdown_path)
+                unresolved_canonical_only_review, unresolved_canonical_only_review_json_path, unresolved_canonical_only_review_markdown_path = (
+                    write_unresolved_family_canonical_only_review_artifacts(
+                        output_dir,
+                        unresolved_review,
+                    )
+                )
+                reusable_pre_report["unresolved_family_canonical_only_review_summary"] = unresolved_canonical_only_review
+                reusable_pre_report["unresolved_family_canonical_only_review_json_path"] = str(
+                    unresolved_canonical_only_review_json_path
+                )
+                reusable_pre_report["unresolved_family_canonical_only_review_markdown_path"] = str(
+                    unresolved_canonical_only_review_markdown_path
+                )
                 unresolved_runtime_ready_review, unresolved_runtime_ready_review_json_path, unresolved_runtime_ready_review_markdown_path = (
                     write_unresolved_family_runtime_ready_review_artifacts(
                         output_dir,
@@ -3473,6 +3727,19 @@ def build_conversion(args):
                 reusable_report["unresolved_family_review_summary"] = unresolved_review
                 reusable_report["unresolved_family_review_json_path"] = str(unresolved_review_json_path)
                 reusable_report["unresolved_family_review_markdown_path"] = str(unresolved_review_markdown_path)
+                unresolved_canonical_only_review, unresolved_canonical_only_review_json_path, unresolved_canonical_only_review_markdown_path = (
+                    write_unresolved_family_canonical_only_review_artifacts(
+                        output_dir,
+                        unresolved_review,
+                    )
+                )
+                reusable_report["unresolved_family_canonical_only_review_summary"] = unresolved_canonical_only_review
+                reusable_report["unresolved_family_canonical_only_review_json_path"] = str(
+                    unresolved_canonical_only_review_json_path
+                )
+                reusable_report["unresolved_family_canonical_only_review_markdown_path"] = str(
+                    unresolved_canonical_only_review_markdown_path
+                )
                 unresolved_runtime_ready_review, unresolved_runtime_ready_review_json_path, unresolved_runtime_ready_review_markdown_path = (
                     write_unresolved_family_runtime_ready_review_artifacts(
                         output_dir,
@@ -3953,6 +4220,19 @@ def build_conversion(args):
     report["unresolved_family_review_summary"] = unresolved_review
     report["unresolved_family_review_json_path"] = str(unresolved_review_json_path)
     report["unresolved_family_review_markdown_path"] = str(unresolved_review_markdown_path)
+    unresolved_canonical_only_review, unresolved_canonical_only_review_json_path, unresolved_canonical_only_review_markdown_path = (
+        write_unresolved_family_canonical_only_review_artifacts(
+            output_dir,
+            unresolved_review,
+        )
+    )
+    report["unresolved_family_canonical_only_review_summary"] = unresolved_canonical_only_review
+    report["unresolved_family_canonical_only_review_json_path"] = str(
+        unresolved_canonical_only_review_json_path
+    )
+    report["unresolved_family_canonical_only_review_markdown_path"] = str(
+        unresolved_canonical_only_review_markdown_path
+    )
     unresolved_runtime_ready_review, unresolved_runtime_ready_review_json_path, unresolved_runtime_ready_review_markdown_path = (
         write_unresolved_family_runtime_ready_review_artifacts(
             output_dir,

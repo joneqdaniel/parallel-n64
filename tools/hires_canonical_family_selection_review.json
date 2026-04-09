@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "kind": "canonical-family-selection-review",
+  "status": "review-only",
+  "description": "Current proven review-only canonical-family selection for the Paper Mario full-cache authority-context converter lane. This stays non-default until promotion gates intentionally absorb it.",
+  "selections": [
+    {
+      "family_key": "96673e32:fs0",
+      "selected_variant_group_dims": "1920x480",
+      "selection_reason": "review-family-selection",
+      "review_group_variant_group_dims": [
+        "1024x256",
+        "1920x480"
+      ],
+      "review_group_cluster_class": "same-aspect",
+      "review_group_action_hint": "context-bundle-review"
+    }
+  ]
+}

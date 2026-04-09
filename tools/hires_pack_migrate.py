@@ -123,6 +123,86 @@ def build_selector_policy(texture_crc, formatsize, observation, variant_group_li
     return policy
 
 
+def resolve_family_policy_selection_override(texture_crc, formatsize, family_policy, variant_group_list):
+    if not family_policy:
+        return None
+    selection_override = dict(family_policy.get("selection_override") or {})
+    if not selection_override:
+        return None
+
+    if not variant_group_list:
+        raise SystemExit(
+            f"family policy {make_family_policy_key(texture_crc, formatsize)} cannot select a variant group "
+            "because no active variant groups are available."
+        )
+
+    groups_by_id = {
+        str(group.get("variant_group_id") or ""): group
+        for group in variant_group_list
+        if group.get("variant_group_id")
+    }
+    groups_by_dims = {
+        str(group.get("dims") or ""): group
+        for group in variant_group_list
+        if group.get("dims")
+    }
+
+    selected_group = None
+    selected_variant_group_id = str(selection_override.get("selected_variant_group_id") or "")
+    if selected_variant_group_id:
+        selected_group = groups_by_id.get(selected_variant_group_id)
+        if selected_group is None:
+            raise SystemExit(
+                f"family policy {make_family_policy_key(texture_crc, formatsize)} selected unknown variant group "
+                f"{selected_variant_group_id!r}; candidates={sorted(groups_by_id)}"
+            )
+
+    selected_variant_group_dims = str(selection_override.get("selected_variant_group_dims") or "")
+    if selected_variant_group_dims:
+        dims_group = groups_by_dims.get(selected_variant_group_dims)
+        if dims_group is None:
+            raise SystemExit(
+                f"family policy {make_family_policy_key(texture_crc, formatsize)} selected unknown variant dims "
+                f"{selected_variant_group_dims!r}; candidates={sorted(groups_by_dims)}"
+            )
+        if selected_group is not None and dims_group.get("variant_group_id") != selected_group.get("variant_group_id"):
+            raise SystemExit(
+                f"family policy {make_family_policy_key(texture_crc, formatsize)} selected conflicting variant group "
+                f"id={selected_variant_group_id!r} dims={selected_variant_group_dims!r}"
+            )
+        selected_group = dims_group
+
+    if selected_group is None:
+        raise SystemExit(
+            f"family policy {make_family_policy_key(texture_crc, formatsize)} must provide "
+            "`selected_variant_group_id` or `selected_variant_group_dims`."
+        )
+
+    return {
+        "selection_reason": selection_override.get("selection_reason") or "review-family-selection",
+        "selected_variant_group_id": selected_group["variant_group_id"],
+        "selected_variant_group_ids": [selected_group["variant_group_id"]],
+        "selected_replacement_ids": list(selected_group.get("candidate_replacement_ids", [])),
+        "selected_dims": selected_group.get("dims"),
+        "review_selection_mode": "family-policy",
+        "review_group_variant_group_dims": list(selection_override.get("review_group_variant_group_dims") or []),
+        "review_group_cluster_class": selection_override.get("review_group_cluster_class"),
+        "review_group_action_hint": selection_override.get("review_group_action_hint"),
+        "review_source_path": selection_override.get("review_source_path"),
+        "review_source_index": selection_override.get("review_source_index"),
+        "applies_to_family": make_family_policy_key(texture_crc, formatsize),
+    }
+
+
+def select_replacement_ids_from_selector_policy(selector_policy, replacement_ids, variant_group_entries):
+    selected_variant_group_id = str(selector_policy.get("selected_variant_group_id") or "")
+    if not selected_variant_group_id:
+        return list(replacement_ids)
+    group_entries = variant_group_entries.get(selected_variant_group_id) or []
+    selected_replacement_ids = [replacement_id for replacement_id, _entry in group_entries if replacement_id]
+    return selected_replacement_ids or list(replacement_ids)
+
+
 def _parse_variant_group_dims(group):
     dims_text = str(group.get("dims") or "")
     if "x" not in dims_text:
@@ -532,19 +612,27 @@ def build_imported_index(entries, requested_pairs, source_cache_path, bundle_con
                 cache_bytes,
                 decoded_rgba_cache,
             )
+        family_policy_selection = resolve_family_policy_selection_override(
+            texture_crc,
+            formatsize,
+            family_policy,
+            variant_group_list,
+        )
         selector_policy = build_selector_policy(
             texture_crc,
             formatsize,
             observation,
             variant_group_list,
             family_summary["recommended_tier"],
-            selection_override=scale_equivalent_selection,
+            selection_override=family_policy_selection or scale_equivalent_selection,
         )
         if family_policy:
             selector_policy["applied_policy"] = family_policy
-        selected_replacement_ids = replacement_ids
-        if scale_equivalent_selection:
-            selected_replacement_ids = list(scale_equivalent_selection["selected_replacement_ids"])
+        selected_replacement_ids = select_replacement_ids_from_selector_policy(
+            selector_policy,
+            replacement_ids,
+            variant_group_entries,
+        )
 
         if family_summary["recommended_tier"] == "exact-authoritative" and selector_policy.get("status") == "deterministic":
             exact_authorities.append(
@@ -572,6 +660,7 @@ def build_imported_index(entries, requested_pairs, source_cache_path, bundle_con
                         "active_replacement_dims": family_summary["active_replacement_dims"],
                         "variant_groups": variant_group_list,
                         "scale_equivalent_selection": scale_equivalent_selection,
+                        "family_policy_selection": family_policy_selection,
                     },
                 }
             )
@@ -600,6 +689,7 @@ def build_imported_index(entries, requested_pairs, source_cache_path, bundle_con
                         "active_unique_repl_dim_count": family_summary["active_unique_repl_dim_count"],
                         "active_replacement_dims": family_summary["active_replacement_dims"],
                         "variant_groups": variant_group_list,
+                        "family_policy_selection": family_policy_selection,
                     },
                 }
             )
@@ -625,6 +715,7 @@ def build_imported_index(entries, requested_pairs, source_cache_path, bundle_con
                     "selector_policy": selector_policy,
                     "candidate_replacement_ids": replacement_ids,
                     "variant_groups": variant_group_list,
+                    "family_policy_selection": family_policy_selection,
                 }
             )
 

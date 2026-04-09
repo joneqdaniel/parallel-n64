@@ -179,6 +179,8 @@ if context.get("runtime_overlay_blockers") != [
     {"code": "overlay-pixel-divergent-single-dim-cases", "count": 8},
     {"code": "overlay-pixel-divergent-multi-dim-cases", "count": 5},
     {"code": "overlay-identical-alpha-hash-paired-cases", "count": 4},
+    {"code": "overlay-linked-import-review-groups", "count": 1},
+    {"code": "overlay-linked-import-unresolved-families", "count": 4},
 ]:
     raise SystemExit(f"FAIL: authority-context overlay blockers were unexpected: {context.get('runtime_overlay_blockers')!r}.")
 if not context.get("runtime_overlay_review_json_path") or not Path(context["runtime_overlay_review_json_path"]).exists():

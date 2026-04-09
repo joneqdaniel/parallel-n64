@@ -231,6 +231,11 @@ add_test(
 )
 
 add_test(
+  NAME emu.support.hts2phrb_canonical_family_selection_review
+  COMMAND bash "${EMU_BEHAVIOR_SUPPORT_DIR}/emu_hts2phrb_canonical_family_selection_review.sh"
+)
+
+add_test(
   NAME emu.support.hts2phrb_runtime_overlay_hash_review
   COMMAND bash "${EMU_BEHAVIOR_SUPPORT_DIR}/emu_hts2phrb_runtime_overlay_hash_review.sh"
 )

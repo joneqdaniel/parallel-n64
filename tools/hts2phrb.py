@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+import copy
 import hashlib
 import json
 import math
@@ -25,7 +26,12 @@ from hires_pack_emit_binary_package import emit_binary_package_from_manifest
 from hires_pack_emit_loader_manifest import build_canonical_loader_manifest, build_loader_manifest
 from hires_pack_emit_proxy_bindings import build_proxy_bindings, load_policy as load_transport_policy
 from hires_pack_materialize_package import materialize_package_in_memory
-from hires_pack_migrate import build_imported_index, build_migration_plan, load_import_policy
+from hires_pack_migrate import (
+    build_imported_index,
+    build_migration_plan,
+    load_import_policy,
+    make_family_policy_key,
+)
 
 HTS2PHRB_ARTIFACT_VERSION = 7
 
@@ -67,6 +73,142 @@ def load_review_profile(path: Path):
         "transport_policy_paths": resolve_paths("transport_policy_paths"),
         "duplicate_review_paths": resolve_paths("duplicate_review_paths"),
         "alias_group_review_paths": resolve_paths("alias_group_review_paths"),
+        "canonical_family_selection_review_paths": resolve_paths("canonical_family_selection_review_paths"),
+    }
+
+
+def resolve_review_family_policy_key(selection_entry, review_path: Path):
+    policy_key = str(selection_entry.get("policy_key") or "")
+    if policy_key:
+        return policy_key
+
+    family_key = str(selection_entry.get("family_key") or "")
+    if family_key:
+        if ":fs" not in family_key:
+            raise SystemExit(
+                f"canonical family selection review {review_path} has invalid family_key {family_key!r}; "
+                "expected <low32>:fs<formatsize>."
+            )
+        low32_text, formatsize_text = family_key.split(":fs", 1)
+        try:
+            return make_family_policy_key(int(low32_text, 16), int(formatsize_text))
+        except ValueError as exc:
+            raise SystemExit(
+                f"canonical family selection review {review_path} has invalid family_key {family_key!r}"
+            ) from exc
+
+    low32 = normalize_low32(selection_entry.get("low32"))
+    formatsize = selection_entry.get("formatsize")
+    if low32 is not None and formatsize is not None:
+        try:
+            return make_family_policy_key(int(low32, 16), int(formatsize))
+        except ValueError as exc:
+            raise SystemExit(
+                f"canonical family selection review {review_path} has invalid low32/formatsize "
+                f"combination: low32={low32!r} formatsize={formatsize!r}"
+            ) from exc
+
+    raise SystemExit(
+        f"canonical family selection review {review_path} entry must provide policy_key, family_key, "
+        "or low32 + formatsize."
+    )
+
+
+def load_canonical_family_selection_review(path: Path):
+    data = json.loads(path.read_text())
+    schema_version = int(data.get("schema_version") or 0)
+    if schema_version != 1:
+        raise SystemExit(f"canonical family selection review {path} must have schema_version=1")
+    kind = str(data.get("kind") or "canonical-family-selection-review")
+    if kind != "canonical-family-selection-review":
+        raise SystemExit(
+            f"canonical family selection review {path} must have kind='canonical-family-selection-review'"
+        )
+    raw_selections = data.get("selections") or []
+    if not isinstance(raw_selections, list):
+        raise SystemExit(f"canonical family selection review {path} key selections must be a list")
+
+    selections = []
+    seen_policy_keys = {}
+    for index, raw_selection in enumerate(raw_selections):
+        if not isinstance(raw_selection, dict):
+            raise SystemExit(
+                f"canonical family selection review {path} selection #{index} must be an object"
+            )
+        policy_key = resolve_review_family_policy_key(raw_selection, path)
+        selected_variant_group_id = str(raw_selection.get("selected_variant_group_id") or "")
+        selected_variant_group_dims = str(raw_selection.get("selected_variant_group_dims") or "")
+        if not selected_variant_group_id and not selected_variant_group_dims:
+            raise SystemExit(
+                f"canonical family selection review {path} selection #{index} ({policy_key}) must provide "
+                "`selected_variant_group_id` or `selected_variant_group_dims`."
+            )
+        selection = {
+            "policy_key": policy_key,
+            "selected_variant_group_id": selected_variant_group_id or None,
+            "selected_variant_group_dims": selected_variant_group_dims or None,
+            "selection_reason": str(raw_selection.get("selection_reason") or "review-family-selection"),
+            "review_group_variant_group_dims": list(raw_selection.get("review_group_variant_group_dims") or []),
+            "review_group_cluster_class": raw_selection.get("review_group_cluster_class"),
+            "review_group_action_hint": raw_selection.get("review_group_action_hint"),
+            "review_source_path": str(path.resolve()),
+            "review_source_index": index,
+        }
+        existing = seen_policy_keys.get(policy_key)
+        if existing is not None and existing != selection:
+            raise SystemExit(
+                f"canonical family selection review {path} has conflicting selections for {policy_key}"
+            )
+        seen_policy_keys[policy_key] = selection
+        selections.append(selection)
+
+    return {
+        "path": str(path.resolve()),
+        "schema_version": schema_version,
+        "kind": kind,
+        "selection_count": len(selections),
+        "selections": selections,
+    }
+
+
+def merge_import_policy_with_canonical_family_selection_reviews(import_policy, review_paths):
+    effective_policy = {
+        "schema_version": int(import_policy.get("schema_version") or 0),
+        "families": copy.deepcopy(import_policy.get("families") or {}),
+        "source_path": import_policy.get("source_path"),
+    }
+    review_docs = [load_canonical_family_selection_review(path) for path in review_paths]
+    applied_selection_count = 0
+    applied_family_keys = set()
+
+    for review_doc in review_docs:
+        for selection in review_doc["selections"]:
+            policy_key = selection["policy_key"]
+            family_policy = copy.deepcopy(effective_policy["families"].get(policy_key) or {})
+            prior_override = family_policy.get("selection_override")
+            selection_override = {
+                "selected_variant_group_id": selection.get("selected_variant_group_id"),
+                "selected_variant_group_dims": selection.get("selected_variant_group_dims"),
+                "selection_reason": selection.get("selection_reason"),
+                "review_group_variant_group_dims": selection.get("review_group_variant_group_dims") or [],
+                "review_group_cluster_class": selection.get("review_group_cluster_class"),
+                "review_group_action_hint": selection.get("review_group_action_hint"),
+                "review_source_path": selection.get("review_source_path"),
+                "review_source_index": selection.get("review_source_index"),
+            }
+            if prior_override and prior_override != selection_override:
+                raise SystemExit(
+                    f"canonical family selection review conflicts with existing import policy for {policy_key}"
+                )
+            family_policy["selection_override"] = selection_override
+            effective_policy["families"][policy_key] = family_policy
+            applied_selection_count += 1
+            applied_family_keys.add(policy_key)
+
+    return effective_policy, {
+        "review_input_count": len(review_docs),
+        "review_selection_count": applied_selection_count,
+        "review_family_count": len(applied_family_keys),
     }
 
 
@@ -97,11 +239,19 @@ def resolve_manifest_review_inputs(args):
             *[profile["alias_group_review_paths"] for profile in loaded_review_profiles],
         )
     ]
+    canonical_family_selection_review_paths = [
+        Path(path)
+        for path in merge_unique_strings(
+            [str(Path(path).resolve()) for path in (args.canonical_family_selection_review or [])],
+            *[profile["canonical_family_selection_review_paths"] for profile in loaded_review_profiles],
+        )
+    ]
     return {
         "review_profile_paths": review_profile_paths,
         "transport_policy_path": transport_policy_path,
         "duplicate_review_paths": duplicate_review_paths,
         "alias_group_review_paths": alias_group_review_paths,
+        "canonical_family_selection_review_paths": canonical_family_selection_review_paths,
     }
 
 
@@ -421,6 +571,14 @@ def make_pre_request_signature(args, cache_resolution, bundle_resolution):
             fingerprint_path(path)
             for path in getattr(args, "resolved_alias_group_review_paths", [])
         ],
+        "canonical_family_selection_review_paths": [
+            str(path)
+            for path in getattr(args, "resolved_canonical_family_selection_review_paths", [])
+        ],
+        "canonical_family_selection_review_fingerprints": [
+            fingerprint_path(path)
+            for path in getattr(args, "resolved_canonical_family_selection_review_paths", [])
+        ],
         "package_name": args.package_name,
         "runtime_overlay_mode": args.runtime_overlay_mode,
         "all_families": bool(args.all_families),
@@ -489,6 +647,14 @@ def make_request_signature(args, cache_resolution, request_mode, requested_pairs
         "alias_group_review_fingerprints": [
             fingerprint_path(path)
             for path in getattr(args, "resolved_alias_group_review_paths", [])
+        ],
+        "canonical_family_selection_review_paths": [
+            str(path)
+            for path in getattr(args, "resolved_canonical_family_selection_review_paths", [])
+        ],
+        "canonical_family_selection_review_fingerprints": [
+            fingerprint_path(path)
+            for path in getattr(args, "resolved_canonical_family_selection_review_paths", [])
         ],
         "package_name": args.package_name,
         "runtime_overlay_mode": args.runtime_overlay_mode,
@@ -2904,15 +3070,34 @@ def build_markdown_summary(report):
         lines.append("- Runtime overlay linked-import review: " + ", ".join(overlay_linked_import_review_refs))
     review_profile_paths = report.get("review_profile_paths") or []
     transport_policy_path = report.get("transport_policy_path")
+    canonical_family_selection_review_paths = report.get("canonical_family_selection_review_paths") or []
     duplicate_review_paths = report.get("duplicate_review_paths") or []
     alias_group_review_paths = report.get("alias_group_review_paths") or []
-    if review_profile_paths or transport_policy_path or duplicate_review_paths or alias_group_review_paths:
+    if (
+        review_profile_paths
+        or transport_policy_path
+        or canonical_family_selection_review_paths
+        or duplicate_review_paths
+        or alias_group_review_paths
+    ):
         lines.extend(["", "## Review Inputs", ""])
         if review_profile_paths:
             for path in review_profile_paths:
                 lines.append(f"- Review profile: `{path}`")
         if transport_policy_path:
             lines.append(f"- Transport policy: `{transport_policy_path}`")
+        if canonical_family_selection_review_paths:
+            for path in canonical_family_selection_review_paths:
+                lines.append(f"- Canonical-family selection review: `{path}`")
+        lines.append(
+            f"- Canonical-family selection inputs: `{report.get('canonical_family_selection_review_input_count', 0)}`"
+        )
+        lines.append(
+            f"- Canonical-family selections: `{report.get('canonical_family_selection_review_selection_count', 0)}`"
+        )
+        lines.append(
+            f"- Canonical-family selection families: `{report.get('canonical_family_selection_review_family_count', 0)}`"
+        )
         if duplicate_review_paths:
             for path in duplicate_review_paths:
                 lines.append(f"- Duplicate review: `{path}`")
@@ -3256,6 +3441,9 @@ def build_stdout_summary(report):
         f"transport_unresolved: {report['unresolved_count']}",
         f"transport_policy: {report.get('transport_policy_path') or 'none'}",
         f"review_profiles: {len(report.get('review_profile_paths') or [])}",
+        f"canonical_family_selection_review_inputs: {int(report.get('canonical_family_selection_review_input_count') or 0)}",
+        f"canonical_family_selection_review_selections: {int(report.get('canonical_family_selection_review_selection_count') or 0)}",
+        f"canonical_family_selection_review_families: {int(report.get('canonical_family_selection_review_family_count') or 0)}",
         f"duplicate_review_inputs: {len(report.get('duplicate_review_paths') or [])}",
         f"duplicate_review_changes: {report.get('duplicate_review_change_count', 0)}",
         f"duplicate_review_skipped: {report.get('duplicate_review_skip_count', 0)}",
@@ -3427,6 +3615,9 @@ def build_conversion(args):
     args.resolved_transport_policy_path = manifest_review_inputs["transport_policy_path"]
     args.resolved_duplicate_review_paths = manifest_review_inputs["duplicate_review_paths"]
     args.resolved_alias_group_review_paths = manifest_review_inputs["alias_group_review_paths"]
+    args.resolved_canonical_family_selection_review_paths = (
+        manifest_review_inputs["canonical_family_selection_review_paths"]
+    )
 
     started_at = time.perf_counter()
     stage_timings_ms = {}
@@ -3494,6 +3685,9 @@ def build_conversion(args):
         review_profile_paths=[str(path) for path in args.resolved_review_profile_paths],
         duplicate_review_paths=[str(path) for path in args.resolved_duplicate_review_paths],
         alias_group_review_paths=[str(path) for path in args.resolved_alias_group_review_paths],
+        canonical_family_selection_review_paths=[
+            str(path) for path in args.resolved_canonical_family_selection_review_paths
+        ],
         pre_request_signature=pre_request_signature,
     )
 
@@ -3627,10 +3821,19 @@ def build_conversion(args):
 
     reusable_progress = try_load_reusable_progress(progress_path, pre_request_signature) if args.reuse_existing else None
     resume_from_progress = reusable_progress is not None and migration_plan_path.exists()
+    canonical_family_selection_review_summary = {
+        "review_input_count": len(args.resolved_canonical_family_selection_review_paths),
+        "review_selection_count": 0,
+        "review_family_count": 0,
+    }
     write_progress(**initial_progress_fields)
 
     if resume_from_progress:
         migrate_result = json.loads(migration_plan_path.read_text())
+        canonical_family_selection_review_summary = (
+            reusable_progress.get("canonical_family_selection_review_summary")
+            or canonical_family_selection_review_summary
+        )
         entries = None
         bundle_context = {}
         bundle_sampled_context = {}
@@ -3832,9 +4035,15 @@ def build_conversion(args):
             return reusable_report
 
     if not resume_from_progress:
-        import_policy = {"families": {}}
+        import_policy = {"schema_version": 0, "families": {}}
         if args.import_policy:
             import_policy = load_import_policy(Path(args.import_policy))
+        import_policy, canonical_family_selection_review_summary = (
+            merge_import_policy_with_canonical_family_selection_reviews(
+                import_policy,
+                args.resolved_canonical_family_selection_review_paths,
+            )
+        )
 
         stage_started = time.perf_counter()
         migrate_result = {
@@ -3859,6 +4068,7 @@ def build_conversion(args):
             migration_plan_path=str(migration_plan_path),
             migration_plan_summary=summarize_migration_plan(migrate_result["plan"]),
             imported_index_summary=summarize_imported_index(migrate_result["imported_index"]),
+            canonical_family_selection_review_summary=canonical_family_selection_review_summary,
         )
 
         migration_plan_path.write_text(json.dumps(migrate_result, indent=2) + "\n")
@@ -4143,6 +4353,9 @@ def build_conversion(args):
         "review_profile_paths": [str(path) for path in args.resolved_review_profile_paths],
         "duplicate_review_paths": [str(path) for path in args.resolved_duplicate_review_paths],
         "alias_group_review_paths": [str(path) for path in args.resolved_alias_group_review_paths],
+        "canonical_family_selection_review_paths": [
+            str(path) for path in args.resolved_canonical_family_selection_review_paths
+        ],
         "request_mode": request_mode,
         "runtime_overlay_mode": args.runtime_overlay_mode,
         "runtime_overlay_built": runtime_overlay_built,
@@ -4187,6 +4400,15 @@ def build_conversion(args):
         "alias_group_review_skip_count": len(alias_group_review_skips),
         "alias_group_review_skips": alias_group_review_skips,
         "alias_group_review_state": alias_group_review_state,
+        "canonical_family_selection_review_input_count": int(
+            canonical_family_selection_review_summary.get("review_input_count") or 0
+        ),
+        "canonical_family_selection_review_selection_count": int(
+            canonical_family_selection_review_summary.get("review_selection_count") or 0
+        ),
+        "canonical_family_selection_review_family_count": int(
+            canonical_family_selection_review_summary.get("review_family_count") or 0
+        ),
         "imported_index_summary": imported_index_summary,
         "package_manifest_summary": package_manifest_summary,
         "requested_family_states": requested_family_states,
@@ -4334,6 +4556,7 @@ def main():
     parser.add_argument("--all-families", action="store_true", help="Import every unique low32/formatsize family present in the resolved legacy cache.")
     parser.add_argument("--import-policy", help="Optional import policy JSON for enriched selector/import hints.")
     parser.add_argument("--transport-policy", help="Optional transport policy JSON for explicit proxy selections.")
+    parser.add_argument("--canonical-family-selection-review", action="append", default=[], help="Review-only canonical-family selection JSON to merge into the effective import policy. Pass multiple times.")
     parser.add_argument("--duplicate-review", action="append", default=[], help="Review-only duplicate-review JSON to apply to the canonical loader manifest before package emission. Pass multiple times.")
     parser.add_argument("--alias-group-review", action="append", default=[], help="Review-only alias-group review JSON to apply to the canonical loader manifest before package emission. Pass multiple times.")
     parser.add_argument("--review-profile", action="append", default=[], help="Review-only profile JSON that expands duplicate/alias review inputs. Pass multiple times.")

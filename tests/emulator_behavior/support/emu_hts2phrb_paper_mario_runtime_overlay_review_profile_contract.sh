@@ -8,6 +8,7 @@ CACHE_PATH="${EMU_HTS2PHRB_PM64_CACHE_PATH:-$REPO_ROOT/assets/PAPER MARIO_HIREST
 CONTEXT_ROOT="${EMU_HTS2PHRB_PM64_OVERLAY_REVIEW_CONTEXT_ROOT:-$REPO_ROOT/artifacts/paper-mario-probes/validation/20260408-full-cache-phrb-authorities-authority-context-abs-summary-fresh/validation-summary.json}"
 REVIEW_PROFILE_PATH="${EMU_HTS2PHRB_PM64_OVERLAY_REVIEW_PROFILE_PATH:-$REPO_ROOT/tools/hires_runtime_overlay_review_profile.json}"
 TRANSPORT_POLICY_PATH="${EMU_HTS2PHRB_PM64_OVERLAY_REVIEW_TRANSPORT_POLICY_PATH:-$REPO_ROOT/tools/hires_runtime_overlay_review_transport_policy.json}"
+CANONICAL_SELECTION_REVIEW_PATH="${EMU_HTS2PHRB_PM64_CANONICAL_SELECTION_REVIEW_PATH:-$REPO_ROOT/tools/hires_canonical_family_selection_review.json}"
 
 if [[ ! -f "$CACHE_PATH" ]]; then
   echo "SKIP: Paper Mario legacy cache not found at $CACHE_PATH."
@@ -26,6 +27,11 @@ fi
 
 if [[ ! -f "$TRANSPORT_POLICY_PATH" ]]; then
   echo "SKIP: Paper Mario overlay-review transport policy not found at $TRANSPORT_POLICY_PATH."
+  exit 77
+fi
+
+if [[ ! -f "$CANONICAL_SELECTION_REVIEW_PATH" ]]; then
+  echo "SKIP: Paper Mario canonical-family selection review not found at $CANONICAL_SELECTION_REVIEW_PATH."
   exit 77
 fi
 
@@ -62,7 +68,7 @@ python3 "$REPO_ROOT/tools/hts2phrb.py" \
   --stdout-format json \
   --output-dir "$OUTPUT_DIR" >/dev/null
 
-python3 - "$OUTPUT_DIR/hts2phrb-report.json" "$REVIEW_PROFILE_PATH" "$TRANSPORT_POLICY_PATH" <<'PY'
+python3 - "$OUTPUT_DIR/hts2phrb-report.json" "$REVIEW_PROFILE_PATH" "$TRANSPORT_POLICY_PATH" "$CANONICAL_SELECTION_REVIEW_PATH" <<'PY'
 import json
 import sys
 from pathlib import Path
@@ -70,16 +76,17 @@ from pathlib import Path
 report = json.loads(Path(sys.argv[1]).read_text())
 review_profile_path = Path(sys.argv[2]).resolve()
 transport_policy_path = Path(sys.argv[3]).resolve()
+canonical_selection_review_path = Path(sys.argv[4]).resolve()
 
 expected = {
     "conversion_outcome": "partial-runtime-package",
     "requested_family_count": 8992,
     "package_manifest_record_count": 8883,
-    "package_manifest_runtime_ready_record_count": 8515,
+    "package_manifest_runtime_ready_record_count": 8516,
     "package_manifest_runtime_ready_record_class": "mixed-native-and-compat",
     "package_manifest_runtime_ready_native_sampled_record_count": 28,
-    "package_manifest_runtime_ready_compat_record_count": 8487,
-    "package_manifest_runtime_deferred_record_count": 368,
+    "package_manifest_runtime_ready_compat_record_count": 8488,
+    "package_manifest_runtime_deferred_record_count": 367,
     "package_manifest_runtime_deferred_record_class": "compat-only",
     "binding_count": 19,
     "unresolved_count": 9,
@@ -91,23 +98,23 @@ expected = {
     "minimum_outcome": "partial-runtime-package",
     "gate_success": True,
     "reused_existing": True,
-    "promotion_blocker_runtime_state_counts": {"canonical-only": 368},
-    "promotion_blocker_reason_counts": {"exact-family-ambiguous": 368},
+    "promotion_blocker_runtime_state_counts": {"canonical-only": 367},
+    "promotion_blocker_reason_counts": {"exact-family-ambiguous": 367},
     "promotion_blocker_reason_unclassified_family_count": 0,
     "unresolved_family_reason_runtime_state_counts": {
-        "exact-family-ambiguous": {"canonical-only": 368, "runtime-ready-package": 4}
+        "exact-family-ambiguous": {"canonical-only": 367, "runtime-ready-package": 4}
     },
-    "unresolved_family_reason_variant_group_count_counts": {"exact-family-ambiguous": {"2": 259, "3": 52, "4": 60, "5": 1}},
-    "unresolved_family_canonical_only_review_group_count": 134,
-    "unresolved_family_canonical_only_family_count": 368,
+    "unresolved_family_reason_variant_group_count_counts": {"exact-family-ambiguous": {"2": 258, "3": 52, "4": 60, "5": 1}},
+    "unresolved_family_canonical_only_review_group_count": 133,
+    "unresolved_family_canonical_only_family_count": 367,
     "unresolved_family_canonical_only_cluster_class_counts": {
         "mixed-aspect": 33,
         "mixed-aspect-batch": 3,
-        "same-aspect": 93,
+        "same-aspect": 92,
         "same-aspect-batch": 5,
     },
     "unresolved_family_canonical_only_action_hint_counts": {
-        "context-bundle-review": 98,
+        "context-bundle-review": 97,
         "manual-family-review": 36,
     },
     "unresolved_family_runtime_ready_review_group_count": 1,
@@ -166,6 +173,26 @@ if review_profile_paths != [review_profile_path]:
 
 if Path(report.get("transport_policy_path") or "").resolve() != transport_policy_path:
     raise SystemExit(f"FAIL: unexpected transport policy path: {report.get('transport_policy_path')!r}")
+
+canonical_family_selection_review_paths = [
+    Path(value).resolve() for value in (report.get("canonical_family_selection_review_paths") or [])
+]
+if canonical_family_selection_review_paths != [canonical_selection_review_path]:
+    raise SystemExit(
+        f"FAIL: unexpected canonical-family selection review paths: {canonical_family_selection_review_paths!r}"
+    )
+if report.get("canonical_family_selection_review_input_count") != 1:
+    raise SystemExit(
+        f"FAIL: unexpected canonical-family selection review input count: {report.get('canonical_family_selection_review_input_count')!r}"
+    )
+if report.get("canonical_family_selection_review_selection_count") != 1:
+    raise SystemExit(
+        f"FAIL: unexpected canonical-family selection review selection count: {report.get('canonical_family_selection_review_selection_count')!r}"
+    )
+if report.get("canonical_family_selection_review_family_count") != 1:
+    raise SystemExit(
+        f"FAIL: unexpected canonical-family selection review family count: {report.get('canonical_family_selection_review_family_count')!r}"
+    )
 
 if report.get("duplicate_review_paths") not in ([], None):
     raise SystemExit(f"FAIL: overlay-review profile should not inject duplicate review inputs: {report.get('duplicate_review_paths')!r}")

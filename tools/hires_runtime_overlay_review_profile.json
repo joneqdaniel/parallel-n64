@@ -1,7 +1,10 @@
 {
   "schema_version": 1,
   "status": "review-only",
-  "description": "Current proven review-only transport selections for the Paper Mario full-cache authority-context converter lane. This profile stays non-default until the runtime-overlay residue is intentionally promoted.",
+  "description": "Current proven review-only converter reductions for the Paper Mario full-cache authority-context lane. This profile keeps the bounded transport selections and the tracked canonical-family selection non-default until promotion gates intentionally absorb them.",
+  "canonical_family_selection_review_paths": [
+    "hires_canonical_family_selection_review.json"
+  ],
   "transport_policy_paths": [
     "hires_runtime_overlay_review_transport_policy.json"
   ]

@@ -82,11 +82,11 @@ expected = {
     "conversion_outcome": "partial-runtime-package",
     "requested_family_count": 8992,
     "package_manifest_record_count": 8883,
-    "package_manifest_runtime_ready_record_count": 8553,
+    "package_manifest_runtime_ready_record_count": 8555,
     "package_manifest_runtime_ready_record_class": "mixed-native-and-compat",
     "package_manifest_runtime_ready_native_sampled_record_count": 28,
-    "package_manifest_runtime_ready_compat_record_count": 8525,
-    "package_manifest_runtime_deferred_record_count": 330,
+    "package_manifest_runtime_ready_compat_record_count": 8527,
+    "package_manifest_runtime_deferred_record_count": 328,
     "package_manifest_runtime_deferred_record_class": "compat-only",
     "binding_count": 19,
     "unresolved_count": 9,
@@ -98,23 +98,23 @@ expected = {
     "minimum_outcome": "partial-runtime-package",
     "gate_success": True,
     "reused_existing": True,
-    "promotion_blocker_runtime_state_counts": {"canonical-only": 330},
-    "promotion_blocker_reason_counts": {"exact-family-ambiguous": 330},
+    "promotion_blocker_runtime_state_counts": {"canonical-only": 328},
+    "promotion_blocker_reason_counts": {"exact-family-ambiguous": 328},
     "promotion_blocker_reason_unclassified_family_count": 0,
     "unresolved_family_reason_runtime_state_counts": {
-        "exact-family-ambiguous": {"canonical-only": 330, "runtime-ready-package": 4}
+        "exact-family-ambiguous": {"canonical-only": 328, "runtime-ready-package": 4}
     },
-    "unresolved_family_reason_variant_group_count_counts": {"exact-family-ambiguous": {"2": 221, "3": 52, "4": 60, "5": 1}},
-    "unresolved_family_canonical_only_review_group_count": 97,
-    "unresolved_family_canonical_only_family_count": 330,
+    "unresolved_family_reason_variant_group_count_counts": {"exact-family-ambiguous": {"2": 219, "3": 52, "4": 60, "5": 1}},
+    "unresolved_family_canonical_only_review_group_count": 95,
+    "unresolved_family_canonical_only_family_count": 328,
     "unresolved_family_canonical_only_cluster_class_counts": {
         "mixed-aspect": 33,
         "mixed-aspect-batch": 3,
-        "same-aspect": 56,
+        "same-aspect": 54,
         "same-aspect-batch": 5,
     },
     "unresolved_family_canonical_only_action_hint_counts": {
-        "context-bundle-review": 61,
+        "context-bundle-review": 59,
         "manual-family-review": 36,
     },
     "unresolved_family_runtime_ready_review_group_count": 1,
@@ -185,11 +185,11 @@ if report.get("canonical_family_selection_review_input_count") != 1:
     raise SystemExit(
         f"FAIL: unexpected canonical-family selection review input count: {report.get('canonical_family_selection_review_input_count')!r}"
     )
-if report.get("canonical_family_selection_review_selection_count") != 38:
+if report.get("canonical_family_selection_review_selection_count") != 40:
     raise SystemExit(
         f"FAIL: unexpected canonical-family selection review selection count: {report.get('canonical_family_selection_review_selection_count')!r}"
     )
-if report.get("canonical_family_selection_review_family_count") != 38:
+if report.get("canonical_family_selection_review_family_count") != 40:
     raise SystemExit(
         f"FAIL: unexpected canonical-family selection review family count: {report.get('canonical_family_selection_review_family_count')!r}"
     )

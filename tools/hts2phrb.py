@@ -260,8 +260,12 @@ def try_load_reusable_report(report_path: Path, request_signature: dict):
     return report
 
 
-def _count_runtime_ready_records(manifest_path: Path):
-    manifest = json.loads(manifest_path.read_text())
+def _manifest_value_or_default(manifest, key, default):
+    value = manifest.get(key, default)
+    return default if value is None else value
+
+
+def _normalize_runtime_manifest_summary(manifest):
     records = manifest.get("records", [])
     runtime_ready_count = sum(1 for record in records if bool(record.get("runtime_ready")))
     runtime_deferred_count = max(int(manifest.get("record_count", len(records))) - runtime_ready_count, 0)
@@ -273,58 +277,118 @@ def _count_runtime_ready_records(manifest_path: Path):
             runtime_ready_record_kind_counts[record_kind] += 1
         else:
             runtime_deferred_record_kind_counts[record_kind] += 1
+
     runtime_ready_native_sampled_record_count = int(runtime_ready_record_kind_counts.get("canonical-sampled", 0))
     runtime_deferred_native_sampled_record_count = int(runtime_deferred_record_kind_counts.get("canonical-sampled", 0))
+    runtime_ready_compat_record_count = max(runtime_ready_count - runtime_ready_native_sampled_record_count, 0)
+    runtime_deferred_compat_record_count = max(runtime_deferred_count - runtime_deferred_native_sampled_record_count, 0)
+
     return {
-        "record_count": int(manifest.get("record_count", len(records))),
-        "runtime_ready_record_count": int(manifest.get("runtime_ready_record_count", runtime_ready_count)),
-        "runtime_deferred_record_count": int(
-            manifest.get(
-                "runtime_deferred_record_count",
-                runtime_deferred_count,
-            )
-        ),
+        "record_count": int(_manifest_value_or_default(manifest, "record_count", len(records))),
+        "runtime_ready_record_count": int(_manifest_value_or_default(manifest, "runtime_ready_record_count", runtime_ready_count)),
+        "runtime_deferred_record_count": int(_manifest_value_or_default(manifest, "runtime_deferred_record_count", runtime_deferred_count)),
         "runtime_ready_records_from_entries": runtime_ready_count,
         "runtime_deferred_records_from_entries": runtime_deferred_count,
         "runtime_ready_record_kind_counts": dict(
-            manifest.get("runtime_ready_record_kind_counts") or dict(sorted(runtime_ready_record_kind_counts.items()))
+            _manifest_value_or_default(
+                manifest,
+                "runtime_ready_record_kind_counts",
+                dict(sorted(runtime_ready_record_kind_counts.items())),
+            )
         ),
         "runtime_ready_record_kind_counts_from_entries": dict(sorted(runtime_ready_record_kind_counts.items())),
         "runtime_deferred_record_kind_counts": dict(
-            manifest.get("runtime_deferred_record_kind_counts") or dict(sorted(runtime_deferred_record_kind_counts.items()))
+            _manifest_value_or_default(
+                manifest,
+                "runtime_deferred_record_kind_counts",
+                dict(sorted(runtime_deferred_record_kind_counts.items())),
+            )
         ),
         "runtime_deferred_record_kind_counts_from_entries": dict(sorted(runtime_deferred_record_kind_counts.items())),
         "runtime_ready_native_sampled_record_count": int(
-            manifest.get("runtime_ready_native_sampled_record_count", runtime_ready_native_sampled_record_count)
+            _manifest_value_or_default(
+                manifest,
+                "runtime_ready_native_sampled_record_count",
+                runtime_ready_native_sampled_record_count,
+            )
         ),
         "runtime_ready_compat_record_count": int(
-            manifest.get("runtime_ready_compat_record_count", max(runtime_ready_count - runtime_ready_native_sampled_record_count, 0))
+            _manifest_value_or_default(
+                manifest,
+                "runtime_ready_compat_record_count",
+                runtime_ready_compat_record_count,
+            )
         ),
         "runtime_deferred_native_sampled_record_count": int(
-            manifest.get("runtime_deferred_native_sampled_record_count", runtime_deferred_native_sampled_record_count)
+            _manifest_value_or_default(
+                manifest,
+                "runtime_deferred_native_sampled_record_count",
+                runtime_deferred_native_sampled_record_count,
+            )
         ),
         "runtime_deferred_compat_record_count": int(
-            manifest.get("runtime_deferred_compat_record_count", max(runtime_deferred_count - runtime_deferred_native_sampled_record_count, 0))
+            _manifest_value_or_default(
+                manifest,
+                "runtime_deferred_compat_record_count",
+                runtime_deferred_compat_record_count,
+            )
         ),
         "runtime_ready_record_class": str(
-            manifest.get(
+            _manifest_value_or_default(
+                manifest,
                 "runtime_ready_record_class",
                 classify_runtime_record_class(
                     runtime_ready_native_sampled_record_count,
-                    max(runtime_ready_count - runtime_ready_native_sampled_record_count, 0),
+                    runtime_ready_compat_record_count,
                 ),
             )
         ),
         "runtime_deferred_record_class": str(
-            manifest.get(
+            _manifest_value_or_default(
+                manifest,
                 "runtime_deferred_record_class",
                 classify_runtime_record_class(
                     runtime_deferred_native_sampled_record_count,
-                    max(runtime_deferred_count - runtime_deferred_native_sampled_record_count, 0),
+                    runtime_deferred_compat_record_count,
                 ),
             )
         ),
     }
+
+
+def _backfill_runtime_manifest_summary(manifest):
+    stats = _normalize_runtime_manifest_summary(manifest)
+    changed = False
+    for key in (
+        "record_count",
+        "runtime_ready_record_count",
+        "runtime_deferred_record_count",
+        "runtime_ready_record_kind_counts",
+        "runtime_deferred_record_kind_counts",
+        "runtime_ready_native_sampled_record_count",
+        "runtime_ready_compat_record_count",
+        "runtime_deferred_native_sampled_record_count",
+        "runtime_deferred_compat_record_count",
+        "runtime_ready_record_class",
+        "runtime_deferred_record_class",
+    ):
+        if manifest.get(key) != stats[key]:
+            manifest[key] = stats[key]
+            changed = True
+    return stats, changed
+
+
+def _load_runtime_manifest_stats(manifest_path: Path):
+    manifest = json.loads(manifest_path.read_text())
+    stats, changed = _backfill_runtime_manifest_summary(manifest)
+    if changed:
+        manifest_path.write_text(json.dumps(manifest, indent=2) + "\n")
+    return manifest, stats
+
+
+def _count_runtime_ready_records(manifest_path: Path):
+    _, stats = _load_runtime_manifest_stats(manifest_path)
+    return stats
 
 
 def _runtime_stats_are_self_consistent(stats):
@@ -622,43 +686,67 @@ def summarize_package_manifest(package_manifest):
                 runtime_ready_family_keys.add(family_key)
 
     return {
-        "record_count": int(package_manifest.get("record_count", 0)),
-        "runtime_ready_record_count": int(package_manifest.get("runtime_ready_record_count", 0)),
-        "runtime_deferred_record_count": int(package_manifest.get("runtime_deferred_record_count", 0)),
-        "asset_candidate_total": int(package_manifest.get("asset_candidate_total", 0)),
+        "record_count": int(_manifest_value_or_default(package_manifest, "record_count", 0)),
+        "runtime_ready_record_count": int(_manifest_value_or_default(package_manifest, "runtime_ready_record_count", 0)),
+        "runtime_deferred_record_count": int(_manifest_value_or_default(package_manifest, "runtime_deferred_record_count", 0)),
+        "asset_candidate_total": int(_manifest_value_or_default(package_manifest, "asset_candidate_total", 0)),
         "family_key_count": len(family_key_counts),
         "family_key_counts": dict(sorted(family_key_counts.items())),
         "runtime_ready_family_keys": sorted(runtime_ready_family_keys),
         "runtime_ready_record_kind_counts": dict(
-            package_manifest.get("runtime_ready_record_kind_counts") or dict(sorted(runtime_ready_record_kind_counts.items()))
+            _manifest_value_or_default(
+                package_manifest,
+                "runtime_ready_record_kind_counts",
+                dict(sorted(runtime_ready_record_kind_counts.items())),
+            )
         ),
         "runtime_deferred_record_kind_counts": dict(
-            package_manifest.get("runtime_deferred_record_kind_counts") or dict(sorted(runtime_deferred_record_kind_counts.items()))
+            _manifest_value_or_default(
+                package_manifest,
+                "runtime_deferred_record_kind_counts",
+                dict(sorted(runtime_deferred_record_kind_counts.items())),
+            )
         ),
         "runtime_ready_native_sampled_record_count": int(
-            package_manifest.get("runtime_ready_native_sampled_record_count", runtime_ready_record_kind_counts.get("canonical-sampled", 0))
+            _manifest_value_or_default(
+                package_manifest,
+                "runtime_ready_native_sampled_record_count",
+                runtime_ready_record_kind_counts.get("canonical-sampled", 0),
+            )
         ),
         "runtime_ready_compat_record_count": int(
-            package_manifest.get(
+            _manifest_value_or_default(
+                package_manifest,
                 "runtime_ready_compat_record_count",
                 sum(count for kind, count in runtime_ready_record_kind_counts.items() if kind != "canonical-sampled"),
             )
         ),
         "runtime_deferred_native_sampled_record_count": int(
-            package_manifest.get("runtime_deferred_native_sampled_record_count", runtime_deferred_record_kind_counts.get("canonical-sampled", 0))
+            _manifest_value_or_default(
+                package_manifest,
+                "runtime_deferred_native_sampled_record_count",
+                runtime_deferred_record_kind_counts.get("canonical-sampled", 0),
+            )
         ),
         "runtime_deferred_compat_record_count": int(
-            package_manifest.get(
+            _manifest_value_or_default(
+                package_manifest,
                 "runtime_deferred_compat_record_count",
                 sum(count for kind, count in runtime_deferred_record_kind_counts.items() if kind != "canonical-sampled"),
             )
         ),
         "runtime_ready_record_class": str(
-            package_manifest.get(
+            _manifest_value_or_default(
+                package_manifest,
                 "runtime_ready_record_class",
                 classify_runtime_record_class(
-                    package_manifest.get("runtime_ready_native_sampled_record_count", runtime_ready_record_kind_counts.get("canonical-sampled", 0)),
-                    package_manifest.get(
+                    _manifest_value_or_default(
+                        package_manifest,
+                        "runtime_ready_native_sampled_record_count",
+                        runtime_ready_record_kind_counts.get("canonical-sampled", 0),
+                    ),
+                    _manifest_value_or_default(
+                        package_manifest,
                         "runtime_ready_compat_record_count",
                         sum(count for kind, count in runtime_ready_record_kind_counts.items() if kind != "canonical-sampled"),
                     ),
@@ -666,11 +754,17 @@ def summarize_package_manifest(package_manifest):
             )
         ),
         "runtime_deferred_record_class": str(
-            package_manifest.get(
+            _manifest_value_or_default(
+                package_manifest,
                 "runtime_deferred_record_class",
                 classify_runtime_record_class(
-                    package_manifest.get("runtime_deferred_native_sampled_record_count", runtime_deferred_record_kind_counts.get("canonical-sampled", 0)),
-                    package_manifest.get(
+                    _manifest_value_or_default(
+                        package_manifest,
+                        "runtime_deferred_native_sampled_record_count",
+                        runtime_deferred_record_kind_counts.get("canonical-sampled", 0),
+                    ),
+                    _manifest_value_or_default(
+                        package_manifest,
                         "runtime_deferred_compat_record_count",
                         sum(count for kind, count in runtime_deferred_record_kind_counts.items() if kind != "canonical-sampled"),
                     ),
@@ -910,14 +1004,31 @@ def classify_runtime_record_class(native_count: int, compat_count: int) -> str:
 
 
 def synchronize_report_summary_fields(report: dict):
+    package_manifest_path = None
+    if report.get("package_dir"):
+        candidate = Path(report["package_dir"]) / "package-manifest.json"
+        if candidate.exists():
+            package_manifest_path = candidate
+    if package_manifest_path is not None:
+        package_manifest, _ = _load_runtime_manifest_stats(package_manifest_path)
+        report["package_manifest_summary"] = summarize_package_manifest(package_manifest)
+        report["package_manifest_record_count"] = int(_manifest_value_or_default(package_manifest, "record_count", 0))
+        report["package_manifest_runtime_ready_record_count"] = int(
+            _manifest_value_or_default(package_manifest, "runtime_ready_record_count", 0)
+        )
+        report["package_manifest_runtime_deferred_record_count"] = int(
+            _manifest_value_or_default(package_manifest, "runtime_deferred_record_count", 0)
+        )
     requested_family_states = report.get("requested_family_states") or {}
     package_manifest_summary = report.get("package_manifest_summary") or {}
     imported_index_summary = report.get("imported_index_summary") or {}
     report["import_state_counts"] = requested_family_states.get("import_state_counts") or {}
     report["runtime_state_counts"] = requested_family_states.get("runtime_state_counts") or {}
     report["total_runtime_ms"] = float((report.get("stage_timings_ms") or {}).get("total", 0.0))
+    report["total_ms"] = report["total_runtime_ms"]
     report["context_bundle_input_count"] = len(report.get("context_bundle_paths") or [])
     report["context_bundle_resolution_count"] = len(report.get("context_bundle_resolutions") or [])
+    report["artifact_contract_version"] = HTS2PHRB_ARTIFACT_VERSION
     report["runtime_overlay_artifacts_emitted"] = bool(
         report.get(
             "runtime_overlay_artifacts_emitted",

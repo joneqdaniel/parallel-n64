@@ -26,6 +26,11 @@ add_test(
 )
 
 add_test(
+  NAME emu.support.libretro_hires_source_mode_contract
+  COMMAND bash "${EMU_BEHAVIOR_SUPPORT_DIR}/emu_libretro_hires_source_mode_contract.sh"
+)
+
+add_test(
   NAME emu.support.paper_mario_full_cache_phrb_authority_refresh_contract
   COMMAND bash "${EMU_BEHAVIOR_SUPPORT_DIR}/emu_paper_mario_full_cache_phrb_authority_refresh_contract.sh"
 )

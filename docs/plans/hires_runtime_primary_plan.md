@@ -399,6 +399,7 @@ This checklist is the current execution surface when work is intentionally narro
 - [x] Separate native sampled records from compat low32 families in provider internals.
 - [x] Add direct provider/package coverage for the preserved-identity seam.
 - [x] Make runtime source policy explicit (`all`, `auto`, `phrb-only`, `legacy-only`) and thread it through the runtime entrypoint without changing current defaults implicitly.
+  - current product-path state: libretro now exposes `parallel-n64-parallel-rdp-hirestex-source-mode`, defaulting to `auto`; scenario env overrides still win when a lane intentionally forces `phrb-only`.
 - [x] Narrow explicit selected-package runtime lanes to `phrb-only` by policy instead of relying on artifact convention alone.
 - [ ] Widen structured sampled-object lookup beyond the current exact seam only where direct tests exist.
 - [ ] Replace checksum-shaped primary lookup with structured sampled-object identity across the remaining runtime path.

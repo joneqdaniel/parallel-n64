@@ -910,7 +910,8 @@ void CommandProcessor::set_quirks(const Quirks &quirks_)
 	enqueue_command(2, words);
 }
 
-void CommandProcessor::configure_hires_replacement(bool enable, const char *cache_path)
+void CommandProcessor::configure_hires_replacement(bool enable, const char *cache_path,
+                                                   ReplacementProvider::CacheSourcePolicy cache_source_policy)
 {
 	replacement_provider.clear();
 	replacement_provider.set_enabled(enable);
@@ -926,8 +927,6 @@ void CommandProcessor::configure_hires_replacement(bool enable, const char *cach
 		return;
 	}
 
-	const auto cache_source_policy =
-		detail::parse_hires_cache_source_policy_env(getenv("PARALLEL_RDP_HIRES_RUNTIME_SOURCE_MODE"));
 	const bool load_ok = replacement_provider.load_cache_dir(cache_path, cache_source_policy);
 	outcome = detail::classify_hires_configure_outcome(enable, cache_path, load_ok);
 	if (outcome == detail::HiresConfigureOutcome::LoadFailed)

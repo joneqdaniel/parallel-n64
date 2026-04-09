@@ -320,6 +320,7 @@ sampled_object_family_buckets = {}
 sampled_pool_stream_buckets = {}
 sampled_pool_stream_family_buckets = {}
 sampled_duplicate_buckets = {}
+resolution_reason_counts = {}
 
 def parse_fields(detail):
     fields = {}
@@ -1528,9 +1529,11 @@ for line in log_path.read_text(errors="replace").splitlines():
         kind = m.group(1)
         detail = m.group(2).strip()
         result["debug_line_counts"][kind] += 1
+        fields = parse_fields(detail)
+        if kind == "hit":
+            increment_counter(resolution_reason_counts, fields.get("resolution_reason"))
         update_bucket(kind, detail)
         if kind == "miss":
-            fields = parse_fields(detail)
             key_value = fields.get("key")
             formatsize_value = fields.get("fs")
             if key_value is not None and formatsize_value is not None:
@@ -1587,6 +1590,10 @@ finalize_sampled_object_summary()
 finalize_sampled_pool_stream_summary()
 finalize_sampled_duplicate_summary()
 finalize_pack_crosscheck()
+if result.get("summary") is not None and resolution_reason_counts:
+    result["summary"]["resolution_reason_counts"] = dict(
+        sorted(resolution_reason_counts.items(), key=lambda item: (-item[1], item[0]))
+    )
 
 output_path.write_text(json.dumps(result, indent=2) + "\n")
 PY

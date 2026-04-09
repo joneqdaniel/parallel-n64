@@ -194,6 +194,7 @@ for label, fixture_id in fixtures:
             "descriptor_path_counts": ((hires_evidence.get("summary") or {}).get("descriptor_path_counts") or {}),
             "descriptor_path_class": actual.get("hires_summary_descriptor_path_class") or ((hires_evidence.get("summary") or {}).get("descriptor_path_class")),
             "descriptor_path_detail_counts": ((hires_evidence.get("summary") or {}).get("descriptor_path_detail_counts") or {}),
+            "resolution_reason_counts": ((hires_evidence.get("summary") or {}).get("resolution_reason_counts") or {}),
         },
         "sampled_object_probe": {
             "exact_hit_count": actual.get("hires_exact_hit_count"),
@@ -226,6 +227,7 @@ for fixture in summary["fixtures"]:
     probe = fixture["sampled_object_probe"]
     descriptor_paths = hires.get("descriptor_path_counts") or {}
     descriptor_detail = hires.get("descriptor_path_detail_counts") or {}
+    resolution_reasons = hires.get("resolution_reason_counts") or {}
     md.extend([
         f"## {fixture['label']}",
         f"- Bundle: [{Path(fixture['bundle_dir']).name}]({fixture['bundle_dir']})",
@@ -246,6 +248,12 @@ for fixture in summary["fixtures"]:
             f"generic identity assisted `{descriptor_detail.get('generic_identity_assisted', 0)}`, "
             f"generic plain `{descriptor_detail.get('generic_plain', 0)}`"
         )
+    if resolution_reasons:
+        formatted_reasons = ", ".join(
+            f"`{reason}` x `{count}`"
+            for reason, count in list(resolution_reasons.items())[:6]
+        )
+        md.append(f"- Resolution reasons: {formatted_reasons}")
     if fixture["failures"]:
         md.append(f"- Failures: `{' | '.join(fixture['failures'])}`")
     md.append("")

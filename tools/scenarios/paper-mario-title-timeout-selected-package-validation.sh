@@ -631,6 +631,7 @@ for step in summary['steps']:
         )
     descriptor_path_counts = step.get('descriptor_path_counts') or {}
     descriptor_detail = hires_summary.get('descriptor_path_detail_counts') or {}
+    resolution_reasons = hires_summary.get('resolution_reason_counts') or {}
     if descriptor_path_counts:
         summary_line += (
             f', descriptor paths sampled `{descriptor_path_counts.get("sampled", 0)}`'
@@ -646,6 +647,12 @@ for step in summary['steps']:
             f', generic detail identity assisted `{descriptor_detail.get("generic_identity_assisted", 0)}`'
             f' / plain `{descriptor_detail.get("generic_plain", 0)}`'
         )
+    if resolution_reasons:
+        formatted_reasons = ", ".join(
+            f'`{reason}` x `{count}`'
+            for reason, count in list(resolution_reasons.items())[:6]
+        )
+        summary_line += f', resolution reasons {formatted_reasons}'
     md.extend([
         summary_line,
         f'- Sampled exact hits: `{step["sampled_object_probe"]["exact_hit_count"]}`',

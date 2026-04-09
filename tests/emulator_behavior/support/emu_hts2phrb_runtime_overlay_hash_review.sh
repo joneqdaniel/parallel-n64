@@ -61,6 +61,7 @@ sys.path.insert(0, str(root_dir / "tools"))
 
 from hts2phrb import (
     build_runtime_overlay_candidate_set_review_payload,
+    build_runtime_overlay_linked_import_review_payload,
     build_runtime_overlay_review_payload,
     synchronize_report_summary_fields,
 )
@@ -151,6 +152,47 @@ review = build_runtime_overlay_review_payload(
     {"requested_family_states": {"families": []}},
 )
 candidate_set_review = build_runtime_overlay_candidate_set_review_payload(review)
+linked_import_review = build_runtime_overlay_linked_import_review_payload(
+    {
+        "entries": [
+            {
+                "policy_key": "overlay-linked",
+                "sampled_object_id": "sampled-linked",
+                "blocker_cluster_class": "linked-import-ambiguity",
+                "linked_unresolved_family_keys": ["linked-a:fs0", "linked-b:fs0"],
+                "transport_candidate_count": 5,
+                "transport_candidate_palette_count": 4,
+                "transport_candidate_dims": [{"dims": "64x64", "count": 3}, {"dims": "120x120", "count": 2}],
+                "transport_candidate_unique_dims": ["64x64", "120x120"],
+                "source_policy_status_counts": {"deterministic": 1, "manual-disambiguation-required": 2},
+                "hash_review_class": "pixel-divergent-multi-dim",
+                "action_hint": "defer-to-import-family-work",
+            }
+        ]
+    },
+    {
+        "families": [
+            {
+                "family_key": "linked-a:fs0",
+                "runtime_state": "runtime-ready-package",
+                "reason": "exact-family-ambiguous",
+                "variant_group_count": 3,
+                "candidate_replacement_count": 8,
+                "variant_group_dims": ["64x64", "120x120"],
+                "sampled_object_ids": ["sampled-linked"],
+            },
+            {
+                "family_key": "linked-b:fs0",
+                "runtime_state": "runtime-ready-package",
+                "reason": "exact-family-ambiguous",
+                "variant_group_count": 4,
+                "candidate_replacement_count": 12,
+                "variant_group_dims": ["64x64", "144x144"],
+                "sampled_object_ids": ["sampled-linked"],
+            },
+        ]
+    },
+)
 
 if review.get("unresolved_overlay_count") != 4:
     raise SystemExit(f"unexpected unresolved overlay count: {review!r}")
@@ -185,6 +227,17 @@ if candidate_set_review.get("candidate_set_review_group_count") != 1:
     raise SystemExit(f"unexpected candidate-set review group count: {candidate_set_review!r}")
 if [group.get("policy_keys") for group in (candidate_set_review.get("groups") or [])] != [["overlay-case-2", "overlay-case-3"]]:
     raise SystemExit(f"unexpected candidate-set review groups: {candidate_set_review!r}")
+if linked_import_review.get("linked_import_review_group_count") != 1:
+    raise SystemExit(f"unexpected linked-import review group count: {linked_import_review!r}")
+linked_group = (linked_import_review.get("groups") or [{}])[0]
+if linked_group.get("linked_unresolved_family_keys") != ["linked-a:fs0", "linked-b:fs0"]:
+    raise SystemExit(f"unexpected linked-import family keys: {linked_group!r}")
+if linked_group.get("linked_variant_group_count_counts") != {"3": 1, "4": 1}:
+    raise SystemExit(f"unexpected linked-import variant-group counts: {linked_group!r}")
+if linked_group.get("linked_candidate_replacement_count_counts") != {"8": 1, "12": 1}:
+    raise SystemExit(f"unexpected linked-import candidate replacement counts: {linked_group!r}")
+if linked_group.get("linked_variant_group_dims") != ["120x120", "144x144", "64x64"]:
+    raise SystemExit(f"unexpected linked-import dims: {linked_group!r}")
 
 entries = {entry["policy_key"]: entry for entry in review.get("entries") or []}
 if entries["overlay-case-1"]["hash_review_class"] != "pixel-identical-single-dim":
@@ -223,6 +276,7 @@ with TemporaryDirectory() as tmpdir:
         "stage_timings_ms": {"total": 1.0},
         "runtime_overlay_review_summary": review,
         "runtime_overlay_candidate_set_review_summary": candidate_set_review,
+        "runtime_overlay_linked_import_review_summary": linked_import_review,
     }
     synchronize_report_summary_fields(report)
     if report.get("runtime_overlay_unresolved_count") != 4:
@@ -265,6 +319,10 @@ with TemporaryDirectory() as tmpdir:
     if report.get("runtime_overlay_candidate_set_review_group_count") != 1:
         raise SystemExit(
             f"unexpected top-level candidate-set review group count: {report.get('runtime_overlay_candidate_set_review_group_count')!r}"
+        )
+    if report.get("runtime_overlay_linked_import_review_group_count") != 1:
+        raise SystemExit(
+            f"unexpected top-level linked-import review group count: {report.get('runtime_overlay_linked_import_review_group_count')!r}"
         )
 PY
 

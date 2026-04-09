@@ -119,6 +119,7 @@ expected = {
         "manual-selection-review": 4,
     },
     "runtime_overlay_candidate_set_review_group_count": 0,
+    "runtime_overlay_linked_import_review_group_count": 1,
     "runtime_overlay_blockers": [
         {"code": "overlay-proxy-transport-selection-required-cases", "count": 9},
         {"code": "overlay-pixel-divergent-single-dim-cases", "count": 6},
@@ -157,6 +158,23 @@ if overlay_review.get("candidate_set_cluster_size_counts") != {"1": 9}:
 overlay_candidate_review = report.get("runtime_overlay_candidate_set_review_summary") or {}
 if overlay_candidate_review.get("candidate_set_review_group_count") != 0:
     raise SystemExit(f"FAIL: expected the tracked review profile to eliminate candidate-set review groups: {overlay_candidate_review!r}")
+overlay_linked_import_review = report.get("runtime_overlay_linked_import_review_summary") or {}
+if overlay_linked_import_review.get("linked_import_review_group_count") != 1:
+    raise SystemExit(f"FAIL: expected one linked-import review group on the tracked overlay profile: {overlay_linked_import_review!r}")
+linked_group = (overlay_linked_import_review.get("groups") or [{}])[0]
+if linked_group.get("policy_key") != "sampled-fmt2-siz0-off0-stride8-wh16x16-fs2-low327064585c":
+    raise SystemExit(f"FAIL: unexpected linked-import review policy key: {linked_group!r}")
+if linked_group.get("linked_unresolved_family_keys") != [
+    "5464fdf1:fs0",
+    "42779bdd:fs0",
+    "53302ad5:fs0",
+    "469bad6f:fs0",
+]:
+    raise SystemExit(f"FAIL: unexpected linked-import family keys: {linked_group!r}")
+if not report.get("runtime_overlay_linked_import_review_json_path") or not Path(report["runtime_overlay_linked_import_review_json_path"]).exists():
+    raise SystemExit(f"FAIL: linked-import review json path missing: {report.get('runtime_overlay_linked_import_review_json_path')!r}")
+if not report.get("runtime_overlay_linked_import_review_markdown_path") or not Path(report["runtime_overlay_linked_import_review_markdown_path"]).exists():
+    raise SystemExit(f"FAIL: linked-import review markdown path missing: {report.get('runtime_overlay_linked_import_review_markdown_path')!r}")
 
 summary_text = Path(report["summary_path"]).read_text()
 if f"- Transport policy: `{transport_policy_path}`" not in summary_text:

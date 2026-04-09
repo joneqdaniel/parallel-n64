@@ -1054,6 +1054,17 @@ int main()
 	      "legacy-only generic lookup helper should not synthesize native sampled identity for compat entries");
 	check(legacy_only_source_class == ResolvedEntrySourceClass::Compat,
 	      "legacy-only generic lookup helper should classify compat entries explicitly");
+	ReplacementResolution legacy_only_resolution = {};
+	check(legacy_only_provider.resolve_with_selector(
+	          mixed_checksum64,
+	          258,
+	          0,
+	          &legacy_only_resolution),
+	      "typed generic resolution should resolve legacy-only compat entries");
+	check(legacy_only_resolution.kind == ReplacementResolutionKind::GenericCompat,
+	      "typed generic resolution should classify legacy-only compat entries explicitly");
+	check(!legacy_only_resolution.identity.valid,
+	      "typed generic resolution should not synthesize native identity for compat entries");
 	ReplacementProviderStats legacy_only_stats = legacy_only_provider.get_stats();
 	check(legacy_only_stats.source_phrb_entry_count == 0, "legacy-only stats should exclude PHRB-backed entries");
 	check(legacy_only_stats.source_htc_entry_count == 1, "legacy-only stats should preserve HTC-backed entries");
@@ -1151,6 +1162,29 @@ int main()
 	      "family-singleton sampled lookup should preserve the singleton checksum");
 	check(ordered_singleton_meta.repl_w == 2 && ordered_singleton_meta.repl_h == 2,
 	      "family-singleton sampled lookup should preserve ordered-surface singleton replacement dimensions");
+	ReplacementResolution ordered_singleton_resolution = {};
+	check(ordered_singleton_provider.resolve_upload_candidate(
+	          ordered_singleton_checksum64,
+	          258,
+	          2,
+	          1,
+	          96,
+	          16,
+	          2,
+	          2,
+	          ordered_singleton_sampled_low32,
+	          ordered_singleton_palette_crc,
+	          0,
+	          &ordered_singleton_resolution),
+	      "typed upload resolution should resolve ordered-surface singleton sampled families");
+	check(ordered_singleton_resolution.kind == ReplacementResolutionKind::SampledFamilySingleton,
+	      "typed upload resolution should classify ordered-surface singleton families as sampled-family singletons");
+	check(ordered_singleton_resolution.ordered_surface_singleton,
+	      "typed upload resolution should preserve ordered-surface singleton classification");
+	check(ordered_singleton_resolution.identity.valid,
+	      "typed upload resolution should preserve sampled identity for ordered-surface singletons");
+	check(ordered_singleton_resolution.resolved_selector_checksum64 == ordered_singleton_selector,
+	      "typed upload resolution should preserve the ordered-surface selector");
 	SampledFamilyDiagnostics ordered_singleton_diag = {};
 	check(ordered_singleton_provider.describe_sampled_family(
 	          2,
@@ -1344,6 +1378,17 @@ int main()
 	check(phrb_preference_resolved_checksum64 == phrb_preference_checksum64 &&
 	          phrb_preference_resolved_selector_checksum64 == 0,
 	      "generic lookup helper should report the native exact checksum and selector");
+	ReplacementResolution phrb_preference_resolution = {};
+	check(phrb_preference_provider.resolve_with_selector(
+	          phrb_preference_checksum64,
+	          258,
+	          0,
+	          &phrb_preference_resolution),
+	      "typed generic resolution should prefer native sampled PHRB entries over family-runtime compat duplicates");
+	check(phrb_preference_resolution.kind == ReplacementResolutionKind::GenericNativeIdentity,
+	      "typed generic resolution should classify native sampled winners distinctly");
+	check(phrb_preference_resolution.identity.valid,
+	      "typed generic resolution should preserve native sampled identity");
 	ReplacementMeta phrb_preference_compat_meta = {};
 	check(phrb_preference_provider.lookup_compat_with_selector(
 	          phrb_preference_checksum64,

@@ -889,6 +889,57 @@ const ReplacementProvider::Entry *ReplacementProvider::find_singleton_sampled_fa
 	return entry;
 }
 
+void ReplacementProvider::populate_meta_from_entry(const Entry &entry, ReplacementMeta *out) const
+{
+	if (!out)
+		return;
+
+	out->repl_w = entry.width;
+	out->repl_h = entry.height;
+	out->orig_w = 0;
+	out->orig_h = 0;
+	out->vk_image_index = 0xffffffffu;
+	out->has_mips = false;
+	out->srgb = false;
+}
+
+void ReplacementProvider::populate_identity_from_entry(const Entry &entry, NativeSampledIdentity *out) const
+{
+	if (!out)
+		return;
+
+	out->valid = entry.has_native_sampled_identity;
+	out->sampled_fmt = entry.sampled_fmt;
+	out->sampled_siz = entry.sampled_siz;
+	out->sampled_tex_offset = entry.sampled_tex_offset;
+	out->sampled_stride = entry.sampled_stride;
+	out->sampled_width = entry.sampled_width;
+	out->sampled_height = entry.sampled_height;
+	out->sampled_low32 = entry.sampled_low32;
+	out->sampled_palette_crc = entry.sampled_palette_crc;
+	out->formatsize = entry.formatsize;
+	out->selector_checksum64 = entry.selector_checksum64;
+}
+
+bool ReplacementProvider::populate_resolution_from_entry(const Entry *entry,
+                                                         ReplacementResolutionKind kind,
+                                                         bool ordered_surface_singleton,
+                                                         ReplacementResolution *out) const
+{
+	if (!entry || !out)
+		return false;
+
+	out->available = true;
+	out->kind = kind;
+	populate_meta_from_entry(*entry, &out->meta);
+	populate_identity_from_entry(*entry, &out->identity);
+	out->source_class = entry->has_native_sampled_identity ? ResolvedEntrySourceClass::Native : ResolvedEntrySourceClass::Compat;
+	out->resolved_checksum64 = entry->checksum64;
+	out->resolved_selector_checksum64 = entry->selector_checksum64;
+	out->ordered_surface_singleton = ordered_surface_singleton;
+	return true;
+}
+
 bool ReplacementProvider::lookup(uint64_t checksum64, uint16_t formatsize, ReplacementMeta *out) const
 {
 	return lookup_with_selector(checksum64, formatsize, 0, out);
@@ -924,17 +975,7 @@ bool ReplacementProvider::lookup_with_selector(uint64_t checksum64, uint16_t for
 	if (!entry)
 		return false;
 
-	ReplacementMeta meta = {};
-	meta.repl_w = entry->width;
-	meta.repl_h = entry->height;
-	meta.vk_image_index = 0xffffffffu;
-	out->repl_w = meta.repl_w;
-	out->repl_h = meta.repl_h;
-	out->orig_w = meta.orig_w;
-	out->orig_h = meta.orig_h;
-	out->vk_image_index = meta.vk_image_index;
-	out->has_mips = meta.has_mips;
-	out->srgb = meta.srgb;
+	populate_meta_from_entry(*entry, out);
 	return true;
 }
 
@@ -954,34 +995,84 @@ bool ReplacementProvider::lookup_with_selector_and_identity(uint64_t checksum64,
 	if (!entry)
 		return false;
 
-	out->repl_w = entry->width;
-	out->repl_h = entry->height;
-	out->orig_w = 0;
-	out->orig_h = 0;
-	out->vk_image_index = 0xffffffffu;
-	out->has_mips = false;
-	out->srgb = false;
+	populate_meta_from_entry(*entry, out);
 	if (resolved_source_class)
-		*resolved_source_class = entry->is_runtime_family_compat ? ResolvedEntrySourceClass::Compat : ResolvedEntrySourceClass::Native;
-	if (identity)
-	{
-		identity->valid = entry->has_native_sampled_identity;
-		identity->sampled_fmt = entry->sampled_fmt;
-		identity->sampled_siz = entry->sampled_siz;
-		identity->sampled_tex_offset = entry->sampled_tex_offset;
-		identity->sampled_stride = entry->sampled_stride;
-		identity->sampled_width = entry->sampled_width;
-		identity->sampled_height = entry->sampled_height;
-		identity->sampled_low32 = entry->sampled_low32;
-		identity->sampled_palette_crc = entry->sampled_palette_crc;
-		identity->formatsize = entry->formatsize;
-		identity->selector_checksum64 = entry->selector_checksum64;
-	}
+		*resolved_source_class = entry->has_native_sampled_identity ? ResolvedEntrySourceClass::Native : ResolvedEntrySourceClass::Compat;
+	populate_identity_from_entry(*entry, identity);
 	if (resolved_checksum64)
 		*resolved_checksum64 = entry->checksum64;
 	if (resolved_selector_checksum64)
 		*resolved_selector_checksum64 = entry->selector_checksum64;
 	return true;
+}
+
+bool ReplacementProvider::resolve_with_selector(uint64_t checksum64,
+                                                uint16_t formatsize,
+                                                uint64_t selector_checksum64,
+                                                ReplacementResolution *out) const
+{
+	if (!enabled_ || !out)
+		return false;
+
+	const Entry *entry = find_entry(checksum64, formatsize, selector_checksum64);
+	if (!entry)
+		return false;
+
+	ReplacementResolutionKind kind = ReplacementResolutionKind::GenericUnknown;
+	if (entry->has_native_sampled_identity)
+		kind = ReplacementResolutionKind::GenericNativeIdentity;
+	else
+		kind = ReplacementResolutionKind::GenericCompat;
+
+	return populate_resolution_from_entry(entry, kind, false, out);
+}
+
+bool ReplacementProvider::resolve_upload_candidate(uint64_t checksum64,
+                                                   uint16_t formatsize,
+                                                   uint32_t sampled_fmt,
+                                                   uint32_t sampled_siz,
+                                                   uint32_t sampled_tex_offset,
+                                                   uint32_t sampled_stride,
+                                                   uint32_t sampled_width,
+                                                   uint32_t sampled_height,
+                                                   uint32_t sampled_low32,
+                                                   uint32_t palette_crc,
+                                                   uint64_t selector_checksum64,
+                                                   ReplacementResolution *out) const
+{
+	if (!enabled_ || !out)
+		return false;
+
+	bool ordered_surface_singleton = false;
+	const Entry *family_entry = find_singleton_sampled_family_entry(
+		sampled_fmt,
+		sampled_siz,
+		sampled_tex_offset,
+		sampled_stride,
+		sampled_width,
+		sampled_height,
+		sampled_low32,
+		palette_crc,
+		formatsize,
+		true,
+		nullptr,
+		&ordered_surface_singleton);
+	if (family_entry)
+		return populate_resolution_from_entry(
+			family_entry,
+			ReplacementResolutionKind::SampledFamilySingleton,
+			ordered_surface_singleton,
+			out);
+
+	const Entry *native_entry = find_native_entry(checksum64, formatsize, selector_checksum64);
+	if (native_entry)
+		return populate_resolution_from_entry(
+			native_entry,
+			ReplacementResolutionKind::ExactNativeSampled,
+			false,
+			out);
+
+	return resolve_with_selector(checksum64, formatsize, selector_checksum64, out);
 }
 
 bool ReplacementProvider::lookup_native_with_selector(uint64_t checksum64,
@@ -998,27 +1089,8 @@ bool ReplacementProvider::lookup_native_with_selector(uint64_t checksum64,
 	if (!entry)
 		return false;
 
-	out->repl_w = entry->width;
-	out->repl_h = entry->height;
-	out->orig_w = 0;
-	out->orig_h = 0;
-	out->vk_image_index = 0xffffffffu;
-	out->has_mips = false;
-	out->srgb = false;
-	if (identity)
-	{
-		identity->valid = entry->has_native_sampled_identity;
-		identity->sampled_fmt = entry->sampled_fmt;
-		identity->sampled_siz = entry->sampled_siz;
-		identity->sampled_tex_offset = entry->sampled_tex_offset;
-		identity->sampled_stride = entry->sampled_stride;
-		identity->sampled_width = entry->sampled_width;
-		identity->sampled_height = entry->sampled_height;
-		identity->sampled_low32 = entry->sampled_low32;
-		identity->sampled_palette_crc = entry->sampled_palette_crc;
-		identity->formatsize = entry->formatsize;
-		identity->selector_checksum64 = entry->selector_checksum64;
-	}
+	populate_meta_from_entry(*entry, out);
+	populate_identity_from_entry(*entry, identity);
 	if (resolved_checksum64)
 		*resolved_checksum64 = entry->checksum64;
 	return true;
@@ -1033,13 +1105,7 @@ bool ReplacementProvider::lookup_compat_with_selector(uint64_t checksum64, uint1
 	if (!entry)
 		return false;
 
-	out->repl_w = entry->width;
-	out->repl_h = entry->height;
-	out->orig_w = 0;
-	out->orig_h = 0;
-	out->vk_image_index = 0xffffffffu;
-	out->has_mips = false;
-	out->srgb = false;
+	populate_meta_from_entry(*entry, out);
 	return true;
 }
 
@@ -1073,13 +1139,7 @@ bool ReplacementProvider::lookup_sampled_with_selector(uint32_t sampled_fmt,
 	if (!entry)
 		return false;
 
-	out->repl_w = entry->width;
-	out->repl_h = entry->height;
-	out->orig_w = 0;
-	out->orig_h = 0;
-	out->vk_image_index = 0xffffffffu;
-	out->has_mips = false;
-	out->srgb = false;
+	populate_meta_from_entry(*entry, out);
 	if (resolved_checksum64)
 		*resolved_checksum64 = entry->checksum64;
 	return true;
@@ -1115,13 +1175,7 @@ bool ReplacementProvider::lookup_sampled_family_unique(uint32_t sampled_fmt,
 	if (!entry)
 		return false;
 
-	out->repl_w = entry->width;
-	out->repl_h = entry->height;
-	out->orig_w = 0;
-	out->orig_h = 0;
-	out->vk_image_index = 0xffffffffu;
-	out->has_mips = false;
-	out->srgb = false;
+	populate_meta_from_entry(*entry, out);
 	if (resolved_checksum64)
 		*resolved_checksum64 = entry->checksum64;
 	return true;
@@ -1160,13 +1214,7 @@ bool ReplacementProvider::lookup_sampled_family_singleton(uint32_t sampled_fmt,
 	if (!entry)
 		return false;
 
-	out->repl_w = entry->width;
-	out->repl_h = entry->height;
-	out->orig_w = 0;
-	out->orig_h = 0;
-	out->vk_image_index = 0xffffffffu;
-	out->has_mips = false;
-	out->srgb = false;
+	populate_meta_from_entry(*entry, out);
 	if (resolved_checksum64)
 		*resolved_checksum64 = entry->checksum64;
 	return true;
@@ -1306,13 +1354,7 @@ bool ReplacementProvider::lookup_ci_low32_repl_dims_unique(uint32_t checksum_low
 	if (!entry)
 		return false;
 
-	out->repl_w = entry->width;
-	out->repl_h = entry->height;
-	out->orig_w = 0;
-	out->orig_h = 0;
-	out->vk_image_index = 0xffffffffu;
-	out->has_mips = false;
-	out->srgb = false;
+	populate_meta_from_entry(*entry, out);
 	if (resolved_checksum64)
 		*resolved_checksum64 = entry->checksum64;
 	return true;

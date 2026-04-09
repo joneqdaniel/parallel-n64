@@ -133,6 +133,29 @@ enum class ResolvedEntrySourceClass
 	Compat,
 };
 
+enum class ReplacementResolutionKind
+{
+	None = 0,
+	SampledFamilySingleton,
+	ExactNativeSampled,
+	GenericNativeIdentity,
+	GenericNativeChecksum,
+	GenericCompat,
+	GenericUnknown,
+};
+
+struct ReplacementResolution
+{
+	bool available = false;
+	ReplacementResolutionKind kind = ReplacementResolutionKind::None;
+	ReplacementMeta meta = {};
+	NativeSampledIdentity identity = {};
+	ResolvedEntrySourceClass source_class = ResolvedEntrySourceClass::Unknown;
+	uint64_t resolved_checksum64 = 0;
+	uint64_t resolved_selector_checksum64 = 0;
+	bool ordered_surface_singleton = false;
+};
+
 class ReplacementProvider
 {
 public:
@@ -158,6 +181,22 @@ public:
 	                                       ResolvedEntrySourceClass *resolved_source_class = nullptr,
 	                                       uint64_t *resolved_checksum64 = nullptr,
 	                                       uint64_t *resolved_selector_checksum64 = nullptr) const;
+	bool resolve_with_selector(uint64_t checksum64,
+	                           uint16_t formatsize,
+	                           uint64_t selector_checksum64,
+	                           ReplacementResolution *out) const;
+	bool resolve_upload_candidate(uint64_t checksum64,
+	                              uint16_t formatsize,
+	                              uint32_t sampled_fmt,
+	                              uint32_t sampled_siz,
+	                              uint32_t sampled_tex_offset,
+	                              uint32_t sampled_stride,
+	                              uint32_t sampled_width,
+	                              uint32_t sampled_height,
+	                              uint32_t sampled_low32,
+	                              uint32_t palette_crc,
+	                              uint64_t selector_checksum64,
+	                              ReplacementResolution *out) const;
 	bool lookup_native_with_selector(uint64_t checksum64,
 	                                 uint16_t formatsize,
 	                                 uint64_t selector_checksum64,
@@ -399,6 +438,12 @@ private:
 	bool load_phrb(const std::string &path);
 	bool read_blob(const Entry &entry, std::vector<uint8_t> &blob) const;
 	bool decode_entry_rgba8(const Entry &entry, ReplacementImage *out) const;
+	void populate_meta_from_entry(const Entry &entry, ReplacementMeta *out) const;
+	void populate_identity_from_entry(const Entry &entry, NativeSampledIdentity *out) const;
+	bool populate_resolution_from_entry(const Entry *entry,
+	                                    ReplacementResolutionKind kind,
+	                                    bool ordered_surface_singleton,
+	                                    ReplacementResolution *out) const;
 	static bool decode_pixels_rgba8(const Entry &entry, const std::vector<uint8_t> &pixel_data, std::vector<uint8_t> &rgba8);
 	static bool decompress_if_needed(const Entry &entry, const std::vector<uint8_t> &blob, std::vector<uint8_t> &pixel_data);
 	static uint32_t expected_decoded_size(const Entry &entry);

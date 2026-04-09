@@ -4012,6 +4012,122 @@ bool Renderer::resolve_hires_native_checksum_replacement_descriptor(uint64_t che
 	return true;
 }
 
+bool Renderer::resolve_hires_provider_resolution_descriptor(const ::RDP::ReplacementResolution &resolution,
+                                                            uint16_t formatsize,
+                                                            uint32_t orig_w,
+                                                            uint32_t orig_h,
+                                                            ReplacementMeta &meta,
+                                                            Renderer::HiresProviderDescriptorPathKind *resolved_path_kind,
+                                                            uint64_t *resolved_selector_checksum64,
+                                                            const char **resolved_path_class)
+{
+	meta.vk_image_index = detail::hires_invalid_descriptor_index();
+	if (resolved_path_kind)
+		*resolved_path_kind = HiresProviderDescriptorPathKind::None;
+	if (resolved_selector_checksum64)
+		*resolved_selector_checksum64 = resolution.resolved_selector_checksum64;
+	if (resolved_path_class)
+		*resolved_path_class = nullptr;
+
+	if (!replacement_provider || !caps.hires_replacement_shader || !resolution.available)
+		return false;
+
+	ReplacementMeta resolved_meta = resolution.meta;
+	resolved_meta.orig_w = orig_w;
+	resolved_meta.orig_h = orig_h;
+
+	auto finalize = [&](HiresProviderDescriptorPathKind path_kind,
+	                    const char *path_class,
+	                    uint64_t selector_checksum64) {
+		meta = resolved_meta;
+		if (resolved_path_kind)
+			*resolved_path_kind = path_kind;
+		if (resolved_selector_checksum64)
+			*resolved_selector_checksum64 = selector_checksum64;
+		if (resolved_path_class)
+			*resolved_path_class = path_class;
+		return true;
+	};
+	auto try_sampled = [&](uint64_t selector_checksum64) {
+		if (!resolution.identity.valid)
+			return false;
+		if (!resolve_hires_sampled_replacement_descriptor(
+			    resolution.identity.sampled_fmt,
+			    resolution.identity.sampled_siz,
+			    resolution.identity.sampled_tex_offset,
+			    resolution.identity.sampled_stride,
+			    resolution.identity.sampled_width,
+			    resolution.identity.sampled_height,
+			    resolution.identity.sampled_low32,
+			    resolution.identity.sampled_palette_crc,
+			    resolution.identity.formatsize,
+			    resolution.resolved_checksum64,
+			    selector_checksum64,
+			    resolved_meta))
+			return false;
+		return finalize(HiresProviderDescriptorPathKind::Sampled, "sampled", selector_checksum64);
+	};
+	auto try_native_checksum = [&](uint64_t selector_checksum64, HiresNativeChecksumDetailClass detail_class) {
+		if (!resolve_hires_native_checksum_replacement_descriptor(
+			    resolution.resolved_checksum64,
+			    formatsize,
+			    selector_checksum64,
+			    resolved_meta,
+			    detail_class))
+			return false;
+		resolved_meta.orig_w = orig_w;
+		resolved_meta.orig_h = orig_h;
+		return finalize(HiresProviderDescriptorPathKind::NativeChecksum, "native_checksum", selector_checksum64);
+	};
+	auto try_compat = [&](uint64_t selector_checksum64) {
+		if (!resolve_hires_compat_replacement_descriptor(
+			    resolution.resolved_checksum64,
+			    formatsize,
+			    selector_checksum64,
+			    resolved_meta))
+			return false;
+		resolved_meta.orig_w = orig_w;
+		resolved_meta.orig_h = orig_h;
+		return finalize(HiresProviderDescriptorPathKind::Compat, "compat", selector_checksum64);
+	};
+
+	switch (resolution.kind)
+	{
+	case ReplacementResolutionKind::SampledExactSelector:
+	case ReplacementResolutionKind::SampledOrderedSurfaceReservedSelector:
+	case ReplacementResolutionKind::SampledFamilySingleton:
+		return try_sampled(resolution.resolved_selector_checksum64);
+
+	case ReplacementResolutionKind::ExactNativeSampled:
+		if (!resolution.identity.valid)
+			return false;
+		return try_sampled(resolution.identity.selector_checksum64) ||
+		       try_native_checksum(resolution.identity.selector_checksum64, HiresNativeChecksumDetailClass::Exact);
+
+	case ReplacementResolutionKind::GenericNativeIdentity:
+		if (!resolution.identity.valid)
+			return false;
+		return try_sampled(resolution.identity.selector_checksum64) ||
+		       try_native_checksum(resolution.identity.selector_checksum64, HiresNativeChecksumDetailClass::IdentityAssisted);
+
+	case ReplacementResolutionKind::GenericNativeChecksum:
+		return try_native_checksum(resolution.resolved_selector_checksum64, HiresNativeChecksumDetailClass::GenericFallback);
+
+	case ReplacementResolutionKind::GenericCompat:
+	case ReplacementResolutionKind::CILow32SelectedDims:
+	case ReplacementResolutionKind::CILow32ReplacementDimsUnique:
+	case ReplacementResolutionKind::CILow32Unique:
+	case ReplacementResolutionKind::CILow32Any:
+		return try_compat(resolution.resolved_selector_checksum64);
+
+	case ReplacementResolutionKind::GenericUnknown:
+	case ReplacementResolutionKind::None:
+		return false;
+	}
+
+	return false;
+}
+
 bool Renderer::resolve_hires_replacement_descriptor(uint64_t checksum64, uint16_t formatsize, uint64_t selector_checksum64, ReplacementMeta &meta, const char **resolved_path_class)
 {
 	meta.vk_image_index = detail::hires_invalid_descriptor_index();
@@ -4027,9 +4143,6 @@ bool Renderer::resolve_hires_replacement_descriptor(uint64_t checksum64, uint16_
 	if (!replacement_provider->resolve_with_selector(checksum64, formatsize, selector_checksum64, &resolution))
 		return false;
 
-	ReplacementMeta resolved_meta = resolution.meta;
-	resolved_meta.orig_w = orig_w;
-	resolved_meta.orig_h = orig_h;
 	const ResolvedEntrySourceClass resolved_source_class = resolution.source_class;
 	const uint64_t resolved_checksum64 = resolution.resolved_checksum64;
 	const uint64_t resolved_selector_checksum64 = resolution.resolved_selector_checksum64;
@@ -4068,95 +4181,16 @@ bool Renderer::resolve_hires_replacement_descriptor(uint64_t checksum64, uint16_
 			return HiresKeySource::Generic;
 		}
 	};
-
-	switch (resolution.kind)
-	{
-	case ReplacementResolutionKind::GenericNativeIdentity:
-	case ReplacementResolutionKind::ExactNativeSampled:
-	case ReplacementResolutionKind::SampledFamilySingleton:
-		if (resolution.identity.valid)
-		{
-			if (resolve_hires_sampled_replacement_descriptor(
-				    resolution.identity.sampled_fmt,
-				    resolution.identity.sampled_siz,
-				    resolution.identity.sampled_tex_offset,
-				    resolution.identity.sampled_stride,
-				    resolution.identity.sampled_width,
-				    resolution.identity.sampled_height,
-				    resolution.identity.sampled_low32,
-				    resolution.identity.sampled_palette_crc,
-				    resolution.identity.formatsize,
-				    resolved_checksum64,
-				    resolution.identity.selector_checksum64,
-				    resolved_meta))
-			{
-				meta = resolved_meta;
-				if (resolved_path_class)
-					*resolved_path_class = "sampled";
-				return true;
-			}
-
-			if (resolution.kind != ReplacementResolutionKind::SampledFamilySingleton)
-			{
-				const HiresNativeChecksumDetailClass detail_class =
-					resolution.kind == ReplacementResolutionKind::ExactNativeSampled
-						? HiresNativeChecksumDetailClass::Exact
-						: HiresNativeChecksumDetailClass::IdentityAssisted;
-				if (resolve_hires_native_checksum_replacement_descriptor(
-					    resolved_checksum64,
-					    formatsize,
-					    resolution.identity.selector_checksum64,
-					    resolved_meta,
-					    detail_class))
-				{
-					resolved_meta.orig_w = orig_w;
-					resolved_meta.orig_h = orig_h;
-					meta = resolved_meta;
-					if (resolved_path_class)
-						*resolved_path_class = "native_checksum";
-					return true;
-				}
-			}
-		}
-		break;
-
-	case ReplacementResolutionKind::GenericNativeChecksum:
-		if (resolve_hires_native_checksum_replacement_descriptor(
-			    resolved_checksum64,
-			    formatsize,
-			    resolved_selector_checksum64,
-			    resolved_meta,
-			    HiresNativeChecksumDetailClass::GenericFallback))
-		{
-			resolved_meta.orig_w = orig_w;
-			resolved_meta.orig_h = orig_h;
-			meta = resolved_meta;
-			if (resolved_path_class)
-				*resolved_path_class = "native_checksum";
-			return true;
-		}
-		break;
-
-	case ReplacementResolutionKind::GenericCompat:
-		if (resolve_hires_compat_replacement_descriptor(
-			    resolved_checksum64,
-			    formatsize,
-			    resolved_selector_checksum64,
-			    resolved_meta))
-		{
-			resolved_meta.orig_w = orig_w;
-			resolved_meta.orig_h = orig_h;
-			meta = resolved_meta;
-			if (resolved_path_class)
-				*resolved_path_class = "compat";
-			return true;
-		}
-		break;
-
-	case ReplacementResolutionKind::GenericUnknown:
-	case ReplacementResolutionKind::None:
-		break;
-	}
+	if (resolve_hires_provider_resolution_descriptor(
+		    resolution,
+		    formatsize,
+		    orig_w,
+		    orig_h,
+		    meta,
+		    nullptr,
+		    nullptr,
+		    resolved_path_class))
+		return true;
 
 	HiresKey key = {};
 	key.checksum64 = resolved_checksum64;
@@ -4897,6 +4931,7 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 			ReplacementMeta repl_meta = {};
 			const char *native_lookup_resolution_reason = nullptr;
 			const char *descriptor_path_class = nullptr;
+			HiresProviderDescriptorPathKind descriptor_path_kind = HiresProviderDescriptorPathKind::None;
 			ReplacementResolution resolution = {};
 			bool hit = replacement_provider->resolve_upload_candidate(
 				checksum64,
@@ -4918,26 +4953,20 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 				repl_meta.orig_h = key_height_pixels;
 				resolved_checksum64 = resolution.resolved_checksum64;
 				resolved_selector_checksum64 = resolution.resolved_selector_checksum64;
-
-				switch (resolution.kind)
+				hit = resolve_hires_provider_resolution_descriptor(
+					resolution,
+					formatsize,
+					key_width_pixels,
+					key_height_pixels,
+					repl_meta,
+					&descriptor_path_kind,
+					&resolved_selector_checksum64,
+					&descriptor_path_class);
+				if (hit)
 				{
-				case ReplacementResolutionKind::SampledFamilySingleton:
-					if (resolution.identity.valid &&
-					    resolve_hires_sampled_replacement_descriptor(
-						    resolution.identity.sampled_fmt,
-						    resolution.identity.sampled_siz,
-						    resolution.identity.sampled_tex_offset,
-						    resolution.identity.sampled_stride,
-						    resolution.identity.sampled_width,
-						    resolution.identity.sampled_height,
-						    resolution.identity.sampled_low32,
-						    resolution.identity.sampled_palette_crc,
-						    resolution.identity.formatsize,
-						    resolved_checksum64,
-						    resolved_selector_checksum64,
-						    repl_meta))
+					switch (resolution.kind)
 					{
-						descriptor_path_class = "sampled";
+					case ReplacementResolutionKind::SampledFamilySingleton:
 						native_lookup_resolution_reason =
 							resolution.ordered_surface_singleton
 								? "sampled-family-ordered-surface-singleton-upload"
@@ -4946,124 +4975,37 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 							hires_descriptor_sampled_ordered_surface_singleton_resolutions++;
 						else
 							hires_descriptor_sampled_family_singleton_resolutions++;
-					}
-					else
-						hit = false;
-					break;
+						break;
 
-				case ReplacementResolutionKind::ExactNativeSampled:
-					if (resolution.identity.valid &&
-					    resolve_hires_sampled_replacement_descriptor(
-						    resolution.identity.sampled_fmt,
-						    resolution.identity.sampled_siz,
-						    resolution.identity.sampled_tex_offset,
-						    resolution.identity.sampled_stride,
-						    resolution.identity.sampled_width,
-						    resolution.identity.sampled_height,
-						    resolution.identity.sampled_low32,
-						    resolution.identity.sampled_palette_crc,
-						    resolution.identity.formatsize,
-						    resolved_checksum64,
-						    resolution.identity.selector_checksum64,
-						    repl_meta))
-					{
-						resolved_selector_checksum64 = resolution.identity.selector_checksum64;
-						descriptor_path_class = "sampled";
-						native_lookup_resolution_reason = "native-checksum-exact-upload";
-					}
-					else if (resolution.identity.valid &&
-					         resolve_hires_native_checksum_replacement_descriptor(
-						         resolved_checksum64,
-						         formatsize,
-						         resolution.identity.selector_checksum64,
-						         repl_meta,
-						         HiresNativeChecksumDetailClass::Exact))
-					{
-						resolved_selector_checksum64 = resolution.identity.selector_checksum64;
-						repl_meta.orig_w = key_width_pixels;
-						repl_meta.orig_h = key_height_pixels;
-						descriptor_path_class = "native_checksum";
-						native_lookup_resolution_reason = "native-checksum-exact-fallback-upload";
-					}
-					else
-						hit = false;
-					break;
+					case ReplacementResolutionKind::ExactNativeSampled:
+						native_lookup_resolution_reason =
+							descriptor_path_kind == HiresProviderDescriptorPathKind::Sampled
+								? "native-checksum-exact-upload"
+								: "native-checksum-exact-fallback-upload";
+						break;
 
-				case ReplacementResolutionKind::GenericNativeIdentity:
-					if (resolution.identity.valid &&
-					    resolve_hires_sampled_replacement_descriptor(
-						    resolution.identity.sampled_fmt,
-						    resolution.identity.sampled_siz,
-						    resolution.identity.sampled_tex_offset,
-						    resolution.identity.sampled_stride,
-						    resolution.identity.sampled_width,
-						    resolution.identity.sampled_height,
-						    resolution.identity.sampled_low32,
-						    resolution.identity.sampled_palette_crc,
-						    resolution.identity.formatsize,
-						    resolved_checksum64,
-						    resolution.identity.selector_checksum64,
-						    repl_meta))
-					{
-						resolved_selector_checksum64 = resolution.identity.selector_checksum64;
-						descriptor_path_class = "sampled";
-						native_lookup_resolution_reason = "native-checksum-generic-upload";
-					}
-					else if (resolution.identity.valid &&
-					         resolve_hires_native_checksum_replacement_descriptor(
-						         resolved_checksum64,
-						         formatsize,
-						         resolution.identity.selector_checksum64,
-						         repl_meta,
-						         HiresNativeChecksumDetailClass::IdentityAssisted))
-					{
-						resolved_selector_checksum64 = resolution.identity.selector_checksum64;
-						repl_meta.orig_w = key_width_pixels;
-						repl_meta.orig_h = key_height_pixels;
-						descriptor_path_class = "native_checksum";
-						native_lookup_resolution_reason = "native-checksum-generic-fallback-upload";
-					}
-					else
-						hit = false;
-					break;
+					case ReplacementResolutionKind::GenericNativeIdentity:
+					case ReplacementResolutionKind::GenericNativeChecksum:
+						native_lookup_resolution_reason =
+							descriptor_path_kind == HiresProviderDescriptorPathKind::Sampled
+								? "native-checksum-generic-upload"
+								: "native-checksum-generic-fallback-upload";
+						break;
 
-				case ReplacementResolutionKind::GenericNativeChecksum:
-					if (resolve_hires_native_checksum_replacement_descriptor(
-						    resolved_checksum64,
-						    formatsize,
-						    resolved_selector_checksum64,
-						    repl_meta,
-						    HiresNativeChecksumDetailClass::GenericFallback))
-					{
-						repl_meta.orig_w = key_width_pixels;
-						repl_meta.orig_h = key_height_pixels;
-						descriptor_path_class = "native_checksum";
-						native_lookup_resolution_reason = "native-checksum-generic-fallback-upload";
-					}
-					else
-						hit = false;
-					break;
-
-				case ReplacementResolutionKind::GenericCompat:
-					if (resolve_hires_compat_replacement_descriptor(
-						    resolved_checksum64,
-						    formatsize,
-						    resolved_selector_checksum64,
-						    repl_meta))
-					{
-						repl_meta.orig_w = key_width_pixels;
-						repl_meta.orig_h = key_height_pixels;
-						descriptor_path_class = "compat";
+					case ReplacementResolutionKind::GenericCompat:
 						native_lookup_resolution_reason = "generic-compat-upload";
-					}
-					else
-						hit = false;
-					break;
+						break;
 
-				case ReplacementResolutionKind::GenericUnknown:
-				case ReplacementResolutionKind::None:
-					hit = false;
-					break;
+					case ReplacementResolutionKind::SampledExactSelector:
+					case ReplacementResolutionKind::SampledOrderedSurfaceReservedSelector:
+					case ReplacementResolutionKind::CILow32SelectedDims:
+					case ReplacementResolutionKind::CILow32ReplacementDimsUnique:
+					case ReplacementResolutionKind::CILow32Unique:
+					case ReplacementResolutionKind::CILow32Any:
+					case ReplacementResolutionKind::GenericUnknown:
+					case ReplacementResolutionKind::None:
+						break;
+					}
 				}
 			}
 			const char *ci_lookup_resolution_reason = nullptr;
@@ -5071,18 +5013,23 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 				ReplacementMeta compat_meta = resolution.meta;
 				compat_meta.orig_w = key_width_pixels;
 				compat_meta.orig_h = key_height_pixels;
-				if (!resolve_hires_compat_replacement_descriptor(
-					    resolution.resolved_checksum64,
+				HiresProviderDescriptorPathKind compat_path_kind = HiresProviderDescriptorPathKind::None;
+				if (!resolve_hires_provider_resolution_descriptor(
+					    resolution,
 					    formatsize,
-					    resolution.resolved_selector_checksum64,
-					    compat_meta))
+					    key_width_pixels,
+					    key_height_pixels,
+					    compat_meta,
+					    &compat_path_kind,
+					    &resolved_selector_checksum64,
+					    &descriptor_path_class))
+					return false;
+				if (compat_path_kind != HiresProviderDescriptorPathKind::Compat)
 					return false;
 
 				repl_meta = compat_meta;
 				resolved_checksum64 = resolution.resolved_checksum64;
-				resolved_selector_checksum64 = resolution.resolved_selector_checksum64;
 				hit = true;
-				descriptor_path_class = "compat";
 				ci_lookup_resolution_reason = reason;
 				return true;
 			};

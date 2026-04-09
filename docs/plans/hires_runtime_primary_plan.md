@@ -48,6 +48,7 @@
 
 - The project now treats Glide-era packs as import input instead of product truth.
 - The renderer has a real sampled-object exact-lookup seam in [`rdp_renderer.cpp`](/home/auro/code/parallel-n64/mupen64plus-video-paraLLEl/parallel-rdp/parallel-rdp/rdp_renderer.cpp).
+- The renderer now routes generic descriptor resolution, upload-time resolution, and CI low32 compat materialization through one shared typed provider-resolution helper instead of keeping those fallback ladders open-coded in separate branches.
 - The tooling now carries canonical sampled-object identity, ordered surfaces, policy-backed selection, and reproducible evidence artifacts.
 - Validation and fixtures are much more disciplined than the earlier failed branch.
 - Using Paper Mario first is a reasonable bootstrap strategy because it currently has the deepest local evidence base.

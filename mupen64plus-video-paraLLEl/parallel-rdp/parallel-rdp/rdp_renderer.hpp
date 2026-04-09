@@ -35,6 +35,7 @@ namespace RDP
 {
 struct CoherencyOperation;
 struct ReplacementMeta;
+struct ReplacementResolution;
 struct CILow32DimsSelector;
 class ReplacementProvider;
 
@@ -236,6 +237,13 @@ private:
 		IdentityAssisted,
 		GenericFallback
 	};
+	enum class HiresProviderDescriptorPathKind : uint8_t
+	{
+		None = 0,
+		Sampled,
+		NativeChecksum,
+		Compat,
+	};
 	bool resolve_hires_replacement_descriptor(uint64_t checksum64, uint16_t formatsize, ReplacementMeta &meta, const char **resolved_path_class = nullptr);
 	bool resolve_hires_replacement_descriptor(uint64_t checksum64, uint16_t formatsize, uint64_t selector_checksum64, ReplacementMeta &meta, const char **resolved_path_class = nullptr);
 	bool resolve_hires_compat_replacement_descriptor(uint64_t checksum64, uint16_t formatsize, ReplacementMeta &meta);
@@ -253,6 +261,14 @@ private:
 	                                                 uint64_t resolved_checksum64,
 	                                                 uint64_t selector_checksum64,
 	                                                 ReplacementMeta &meta);
+	bool resolve_hires_provider_resolution_descriptor(const ::RDP::ReplacementResolution &resolution,
+	                                                  uint16_t formatsize,
+	                                                  uint32_t orig_w,
+	                                                  uint32_t orig_h,
+	                                                  ReplacementMeta &meta,
+	                                                  Renderer::HiresProviderDescriptorPathKind *resolved_path_kind = nullptr,
+	                                                  uint64_t *resolved_selector_checksum64 = nullptr,
+	                                                  const char **resolved_path_class = nullptr);
 	void apply_hires_tile_binding(unsigned tile, const ReplacementTileState &state);
 	void clear_hires_tile_binding(unsigned tile);
 

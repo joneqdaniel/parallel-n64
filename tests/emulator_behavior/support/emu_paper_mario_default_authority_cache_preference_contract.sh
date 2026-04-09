@@ -10,6 +10,7 @@ KMR_SCENARIO="$REPO_ROOT/tools/scenarios/paper-mario-kmr-03-entry-5.sh"
 TITLE_ENV="$REPO_ROOT/tools/scenarios/paper-mario-title-screen.runtime.env"
 FILE_ENV="$REPO_ROOT/tools/scenarios/paper-mario-file-select.runtime.env"
 KMR_ENV="$REPO_ROOT/tools/scenarios/paper-mario-kmr-03-entry-5.runtime.env"
+FULL_CACHE_CONFORMANCE="$REPO_ROOT/tests/emulator_behavior/support/emu_conformance_paper_mario_full_cache_phrb_authorities.sh"
 
 require_pattern() {
   local pattern="$1"
@@ -39,6 +40,15 @@ if grep -Fq 'assets/PAPER MARIO_HIRESTEXTURES.hts' "$COMMON_SH"; then
 fi
 require_pattern 'No default Paper Mario PHRB runtime cache found.' "$COMMON_SH" \
   "default cache resolver should fail closed when no promoted PHRB runtime cache is available"
+
+require_pattern 'CACHE_PATH="$ENRICHED_CACHE_PATH_CURRENT"' "$FULL_CACHE_CONFORMANCE" \
+  "default full-cache conformance should prefer the current enriched PHRB artifact first"
+require_pattern 'CACHE_PATH="$ENRICHED_CACHE_PATH_LEGACY"' "$FULL_CACHE_CONFORMANCE" \
+  "default full-cache conformance should preserve the older enriched PHRB artifact as fallback"
+if grep -Fq 'CACHE_PATH="$ZERO_CONFIG_CACHE_PATH"' "$FULL_CACHE_CONFORMANCE"; then
+  echo "FAIL: default full-cache conformance should not fall back to the zero-config PHRB artifact implicitly." >&2
+  exit 1
+fi
 
 for scenario in "$TITLE_SCENARIO" "$FILE_SCENARIO" "$KMR_SCENARIO"; do
   require_pattern 'PACK_PATH="$(scenario_default_paper_mario_hires_cache "$REPO_ROOT")"' "$scenario" \

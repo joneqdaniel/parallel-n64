@@ -64,6 +64,7 @@ Within the existing phase ladder, the active near-term order is:
 Current runtime split:
 
 - active Paper Mario authorities now resolve only through the promoted full-cache `PHRB` artifacts by default and fail closed if no preferred `PHRB` artifact is available
+- remaining repo-local `.hts` references on the runtime side are explicit refresh, probe, or review inputs rather than silent defaults; the default-authority contract now also verifies that both the shared scenario cache resolver and the default full-cache conformance wrapper stay enriched-`PHRB`-first and do not implicitly fall back to zero-config or legacy artifacts
 - selected-package timeout validation is the current deeper `PHRB` runtime lane
 - selected-package authority validation now also proves the same explicit `PHRB` lane across title screen, file select, and `kmr_03 ENTRY_5`
 - both selected-package lanes are now part of the opt-in runtime-conformance tier:

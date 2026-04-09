@@ -773,7 +773,7 @@ The project should not declare the native format/runtime seam ready until all of
   - active Paper Mario authorities now prefer the enriched full-cache `PHRB` artifact by default and currently run `phrb-only`
   - selected-package timeout validation is `phrb-only`
   - selected-package authority validation is also now `phrb-only` across title screen, file select, and `kmr_03 ENTRY_5`
-  - if the preferred `PHRB` artifacts are absent, the shared default cache resolver still falls back to legacy `.hts` rather than failing open
+  - the shared default authority-cache resolver now fails closed if none of the promoted `PHRB` artifacts are present, so repo-default authority scenarios no longer silently drop back to legacy `.hts`
 - The timeout selected-package review path can now also tell whether each family still has legacy transport candidates:
   - the dominant absent triangle families `91887078`, `6af0d9ca`, and `e0d4d0dc` are now explicitly candidate-free under the current `.hts` transport model
   - the new alternate-source review lane now gives those same families a bounded review-only source path instead of leaving them as abstract future work

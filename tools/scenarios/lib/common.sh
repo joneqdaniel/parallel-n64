@@ -30,7 +30,6 @@ scenario_default_paper_mario_hires_cache() {
     "$repo_root/artifacts/hts2phrb-review/20260408-pm64-all-families-authority-context-abs-summary/package.phrb"
     "$repo_root/artifacts/hts2phrb-review/20260407-pm64-all-families-authority-context-root/package.phrb"
     "$repo_root/artifacts/hts2phrb/paper-mario-hirestextures-9fa7bc07-all-families/package.phrb"
-    "$repo_root/assets/PAPER MARIO_HIRESTEXTURES.hts"
   )
 
   local candidate
@@ -41,7 +40,8 @@ scenario_default_paper_mario_hires_cache() {
     fi
   done
 
-  printf '%s\n' "$repo_root/assets/PAPER MARIO_HIRESTEXTURES.hts"
+  echo "No default Paper Mario PHRB runtime cache found. Generate one with hts2phrb or the full-cache refresh workflow before using the default authority scenarios." >&2
+  return 1
 }
 
 scenario_configure_hires_runtime_env_for_cache() {

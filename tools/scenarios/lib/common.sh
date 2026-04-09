@@ -279,6 +279,7 @@ summary_re = re.compile(
     r"(?: sampled_dupe_keys=(\d+) sampled_dupe_entries=(\d+))?"
     r" sampled_families=(\d+) compat_low32_families=(\d+) sources\(phrb=(\d+) hts=(\d+) htc=(\d+)\))?"
     r"(?: descriptor_paths\(sampled=(\d+) native_checksum=(\d+) generic=(\d+) compat=(\d+)\))?"
+    r"(?: sampled_detail\(family_singleton=(\d+) ordered_surface_singleton=(\d+)\))?"
     r"(?: generic_detail\(identity_assisted=(\d+) plain=(\d+)\))?"
     r"\."
 )
@@ -867,9 +868,16 @@ for line in log_path.read_text(errors="replace").splitlines():
                 }
             if m.group(22) is not None:
                 summary["descriptor_path_detail_counts"] = {
-                    "generic_identity_assisted": int(m.group(22)),
-                    "generic_plain": int(m.group(23)),
+                    "sampled_family_singleton": int(m.group(22)),
+                    "sampled_ordered_surface_singleton": int(m.group(23)),
                 }
+            if m.group(24) is not None:
+                detail_counts = summary.get("descriptor_path_detail_counts") or {}
+                detail_counts.update({
+                    "generic_identity_assisted": int(m.group(24)),
+                    "generic_plain": int(m.group(25)),
+                })
+                summary["descriptor_path_detail_counts"] = detail_counts
             if source_counts["phrb"] > 0 and source_counts["hts"] == 0 and source_counts["htc"] == 0:
                 summary["source_mode"] = "phrb-only"
             elif source_counts["phrb"] == 0 and (source_counts["hts"] > 0 or source_counts["htc"] > 0):

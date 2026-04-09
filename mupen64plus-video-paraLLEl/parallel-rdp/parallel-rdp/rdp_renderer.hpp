@@ -317,6 +317,8 @@ private:
 	uint64_t hires_lookup_filtered = 0;
 	uint64_t hires_lookup_block_shape_probe_hits = 0;
 	uint64_t hires_descriptor_sampled_resolutions = 0;
+	uint64_t hires_descriptor_sampled_family_singleton_resolutions = 0;
+	uint64_t hires_descriptor_sampled_ordered_surface_singleton_resolutions = 0;
 	uint64_t hires_descriptor_native_checksum_resolutions = 0;
 	uint64_t hires_descriptor_native_checksum_exact_resolutions = 0;
 	uint64_t hires_descriptor_native_checksum_identity_assisted_resolutions = 0;

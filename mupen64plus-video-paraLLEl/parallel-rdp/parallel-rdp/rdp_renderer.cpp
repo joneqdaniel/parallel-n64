@@ -957,6 +957,8 @@ void Renderer::set_replacement_provider(const ReplacementProvider *provider)
 	hires_lookup_filtered = 0;
 	hires_lookup_block_shape_probe_hits = 0;
 	hires_descriptor_sampled_resolutions = 0;
+	hires_descriptor_sampled_family_singleton_resolutions = 0;
+	hires_descriptor_sampled_ordered_surface_singleton_resolutions = 0;
 	hires_descriptor_native_checksum_resolutions = 0;
 	hires_descriptor_native_checksum_exact_resolutions = 0;
 	hires_descriptor_native_checksum_identity_assisted_resolutions = 0;
@@ -1076,7 +1078,7 @@ void Renderer::log_hires_summary() const
 	if (replacement_provider)
 	{
 		ReplacementProviderStats provider_stats = replacement_provider->get_stats();
-		LOGI("Hi-res keying summary: lookups=%llu hits=%llu misses=%llu filtered=%llu block_probe_hits=%llu provider=on entries=%u native_sampled=%u compat=%u sampled_index=%u sampled_dupe_keys=%u sampled_dupe_entries=%u sampled_families=%u compat_low32_families=%u sources(phrb=%u hts=%u htc=%u) descriptor_paths(sampled=%llu native_checksum=%llu generic=%llu compat=%llu) generic_detail(identity_assisted=%llu plain=%llu).\n",
+		LOGI("Hi-res keying summary: lookups=%llu hits=%llu misses=%llu filtered=%llu block_probe_hits=%llu provider=on entries=%u native_sampled=%u compat=%u sampled_index=%u sampled_dupe_keys=%u sampled_dupe_entries=%u sampled_families=%u compat_low32_families=%u sources(phrb=%u hts=%u htc=%u) descriptor_paths(sampled=%llu native_checksum=%llu generic=%llu compat=%llu) sampled_detail(family_singleton=%llu ordered_surface_singleton=%llu) generic_detail(identity_assisted=%llu plain=%llu).\n",
 		     static_cast<unsigned long long>(hires_lookup_total),
 		     static_cast<unsigned long long>(hires_lookup_hits),
 		     static_cast<unsigned long long>(hires_lookup_misses),
@@ -1097,6 +1099,8 @@ void Renderer::log_hires_summary() const
 		     static_cast<unsigned long long>(hires_descriptor_native_checksum_resolutions),
 		     static_cast<unsigned long long>(hires_descriptor_generic_resolutions),
 		     static_cast<unsigned long long>(hires_descriptor_compat_resolutions),
+		     static_cast<unsigned long long>(hires_descriptor_sampled_family_singleton_resolutions),
+		     static_cast<unsigned long long>(hires_descriptor_sampled_ordered_surface_singleton_resolutions),
 		     static_cast<unsigned long long>(hires_descriptor_generic_identity_assisted_resolutions),
 		     static_cast<unsigned long long>(hires_descriptor_generic_plain_resolutions));
 		LOGI("Hi-res native checksum detail: exact=%llu identity_assisted=%llu generic_fallback=%llu.\n",
@@ -2132,6 +2136,10 @@ void Renderer::draw_shaded_primitive(const TriangleSetup &setup, const Attribute
 			sampled_checksum64 = resolved_checksum64;
 			sampled_resolved_selector_checksum64 = resolved_selector_checksum64;
 			sampled_reason = resolved_reason;
+			if (std::strcmp(resolved_reason, reason_family_unique) == 0)
+				hires_descriptor_sampled_family_singleton_resolutions++;
+			else if (std::strcmp(resolved_reason, reason_ordered_surface) == 0)
+				hires_descriptor_sampled_ordered_surface_singleton_resolutions++;
 			return true;
 		};
 
@@ -4894,6 +4902,10 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 						sampled_family_ordered_surface_singleton
 							? "sampled-family-ordered-surface-singleton-upload"
 							: "sampled-family-unique-upload";
+					if (sampled_family_ordered_surface_singleton)
+						hires_descriptor_sampled_ordered_surface_singleton_resolutions++;
+					else
+						hires_descriptor_sampled_family_singleton_resolutions++;
 				}
 			}
 			if (!hit)

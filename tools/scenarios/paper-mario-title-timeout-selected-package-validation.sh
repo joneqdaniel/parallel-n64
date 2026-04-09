@@ -641,6 +641,8 @@ for step in summary['steps']:
         )
     if descriptor_detail:
         summary_line += (
+            f', sampled detail family singleton `{descriptor_detail.get("sampled_family_singleton", 0)}`'
+            f' / ordered-surface singleton `{descriptor_detail.get("sampled_ordered_surface_singleton", 0)}`'
             f', native checksum detail exact `{descriptor_detail.get("native_checksum_exact", 0)}`'
             f' / identity assisted `{descriptor_detail.get("native_checksum_identity_assisted", 0)}`'
             f' / generic fallback `{descriptor_detail.get("native_checksum_generic_fallback", 0)}`'

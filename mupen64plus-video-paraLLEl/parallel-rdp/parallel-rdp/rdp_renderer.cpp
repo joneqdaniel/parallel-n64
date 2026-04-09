@@ -4033,6 +4033,7 @@ bool Renderer::resolve_hires_replacement_descriptor(uint64_t checksum64, uint16_
 	const uint32_t orig_h = meta.orig_h;
 	NativeSampledIdentity native_identity = {};
 	ReplacementMeta native_meta = {};
+	ResolvedEntrySourceClass resolved_source_class = ResolvedEntrySourceClass::Unknown;
 	uint64_t resolved_checksum64 = checksum64;
 	uint64_t resolved_selector_checksum64 = selector_checksum64;
 	bool generic_lookup_hit = false;
@@ -4043,6 +4044,7 @@ bool Renderer::resolve_hires_replacement_descriptor(uint64_t checksum64, uint16_
 		    selector_checksum64,
 		    &native_meta,
 		    &native_identity,
+		    &resolved_source_class,
 		    &resolved_checksum64,
 		    &resolved_selector_checksum64))
 	{
@@ -4089,50 +4091,41 @@ bool Renderer::resolve_hires_replacement_descriptor(uint64_t checksum64, uint16_
 	}
 	if (generic_lookup_hit && !native_identity.valid)
 	{
-		ReplacementMeta native_checksum_meta = {};
-		NativeSampledIdentity native_checksum_identity = {};
-		uint64_t native_checksum64 = resolved_checksum64;
-		if (replacement_provider->lookup_native_with_selector(
-			    resolved_checksum64,
-			    formatsize,
-			    resolved_selector_checksum64,
-			    &native_checksum_meta,
-			    &native_checksum_identity,
-			    &native_checksum64))
+		if (resolved_source_class == ResolvedEntrySourceClass::Native)
 		{
-			const uint64_t native_selector_checksum64 =
-				native_checksum_identity.selector_checksum64 != 0 ? native_checksum_identity.selector_checksum64 : resolved_selector_checksum64;
 			if (resolve_hires_native_checksum_replacement_descriptor(
-				    native_checksum64,
+				    resolved_checksum64,
 				    formatsize,
-				    native_selector_checksum64,
-				    native_checksum_meta,
+				    resolved_selector_checksum64,
+				    native_meta,
 				    HiresNativeChecksumDetailClass::GenericFallback))
 			{
-				native_checksum_meta.orig_w = orig_w;
-				native_checksum_meta.orig_h = orig_h;
-				meta = native_checksum_meta;
+				native_meta.orig_w = orig_w;
+				native_meta.orig_h = orig_h;
+				meta = native_meta;
 				if (resolved_path_class)
 					*resolved_path_class = "native_checksum";
 				return true;
 			}
 		}
-
-		ReplacementMeta compat_meta = native_meta;
-		compat_meta.orig_w = orig_w;
-		compat_meta.orig_h = orig_h;
-		if (resolve_hires_compat_replacement_descriptor(
-			    resolved_checksum64,
-			    formatsize,
-			    resolved_selector_checksum64,
-			    compat_meta))
+		else if (resolved_source_class == ResolvedEntrySourceClass::Compat)
 		{
+			ReplacementMeta compat_meta = native_meta;
 			compat_meta.orig_w = orig_w;
 			compat_meta.orig_h = orig_h;
-			meta = compat_meta;
-			if (resolved_path_class)
-				*resolved_path_class = "compat";
-			return true;
+			if (resolve_hires_compat_replacement_descriptor(
+				    resolved_checksum64,
+				    formatsize,
+				    resolved_selector_checksum64,
+				    compat_meta))
+			{
+				compat_meta.orig_w = orig_w;
+				compat_meta.orig_h = orig_h;
+				meta = compat_meta;
+				if (resolved_path_class)
+					*resolved_path_class = "compat";
+				return true;
+			}
 		}
 	}
 
@@ -4961,6 +4954,7 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 			{
 				NativeSampledIdentity generic_identity = {};
 				ReplacementMeta generic_meta = {};
+				ResolvedEntrySourceClass generic_source_class = ResolvedEntrySourceClass::Unknown;
 				uint64_t generic_resolved_checksum64 = checksum64;
 				uint64_t generic_resolved_selector_checksum64 = 0;
 				if (replacement_provider->lookup_with_selector_and_identity(
@@ -4969,6 +4963,7 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 						    0,
 						    &generic_meta,
 						    &generic_identity,
+						    &generic_source_class,
 						    &generic_resolved_checksum64,
 						    &generic_resolved_selector_checksum64))
 				{
@@ -5013,7 +5008,25 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 							native_lookup_resolution_reason = "native-checksum-generic-fallback-upload";
 						}
 					}
-					else
+					else if (generic_source_class == ResolvedEntrySourceClass::Native)
+					{
+						if (resolve_hires_native_checksum_replacement_descriptor(
+						         resolved_checksum64,
+						         formatsize,
+						         generic_resolved_selector_checksum64,
+						         generic_meta,
+						         HiresNativeChecksumDetailClass::GenericFallback))
+						{
+							generic_meta.orig_w = key_width_pixels;
+							generic_meta.orig_h = key_height_pixels;
+							repl_meta = generic_meta;
+							resolved_selector_checksum64 = generic_resolved_selector_checksum64;
+							hit = true;
+							descriptor_path_class = "native_checksum";
+							native_lookup_resolution_reason = "native-checksum-generic-fallback-upload";
+						}
+					}
+					else if (generic_source_class == ResolvedEntrySourceClass::Compat)
 					{
 						repl_meta = generic_meta;
 						resolved_selector_checksum64 = generic_resolved_selector_checksum64;

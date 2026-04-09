@@ -126,6 +126,13 @@ struct NativeSampledIdentity
 	uint64_t selector_checksum64 = 0;
 };
 
+enum class ResolvedEntrySourceClass
+{
+	Unknown = 0,
+	Native,
+	Compat,
+};
+
 class ReplacementProvider
 {
 public:
@@ -148,6 +155,7 @@ public:
 	                                       uint64_t selector_checksum64,
 	                                       ReplacementMeta *out,
 	                                       NativeSampledIdentity *identity,
+	                                       ResolvedEntrySourceClass *resolved_source_class = nullptr,
 	                                       uint64_t *resolved_checksum64 = nullptr,
 	                                       uint64_t *resolved_selector_checksum64 = nullptr) const;
 	bool lookup_native_with_selector(uint64_t checksum64,

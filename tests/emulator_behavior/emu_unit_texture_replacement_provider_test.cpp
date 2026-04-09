@@ -734,15 +734,19 @@ int main()
 	      "family runtime-ready record should preserve its sampled object id");
 	ReplacementMeta family_meta = {};
 	NativeSampledIdentity family_identity = {};
+	ResolvedEntrySourceClass family_source_class = ResolvedEntrySourceClass::Unknown;
 	check(family_provider.lookup_with_selector_and_identity(
 	          family_checksum64,
 	          258,
 	          0,
 	          &family_meta,
 	          &family_identity,
+	          &family_source_class,
 	          &resolved_checksum64),
 	      "family runtime-ready PHRB record should resolve through the generic exact checksum path");
 	check(!family_identity.valid, "family runtime-ready PHRB record should not synthesize native sampled identity");
+	check(family_source_class == ResolvedEntrySourceClass::Compat,
+	      "family runtime-ready PHRB record should classify the generic winning entry as compat");
 	check(family_meta.repl_w == 2 && family_meta.repl_h == 2,
 	      "family runtime-ready PHRB record should preserve replacement dimensions");
 	check(resolved_checksum64 == family_checksum64,
@@ -902,16 +906,20 @@ int main()
 	      "mixed-source native lookup should report the resolved checksum");
 	ReplacementMeta mixed_lookup_meta = {};
 	NativeSampledIdentity mixed_lookup_identity = {};
+	ResolvedEntrySourceClass mixed_lookup_source_class = ResolvedEntrySourceClass::Unknown;
 	check(mixed_all_provider.lookup_with_selector_and_identity(
 	          mixed_checksum64,
 	          258,
 	          0,
 	          &mixed_lookup_meta,
 	          &mixed_lookup_identity,
+	          &mixed_lookup_source_class,
 	          &resolved_checksum64),
 	      "mixed-source generic lookup helper should resolve duplicate checksum entries");
 	check(mixed_lookup_meta.repl_w == 2 && mixed_lookup_meta.repl_h == 2,
 	      "mixed-source generic lookup helper should preserve the winning replacement dimensions");
+	check(mixed_lookup_source_class == ResolvedEntrySourceClass::Native,
+	      "mixed-source generic lookup helper should classify the winning PHRB entry as native");
 	check(mixed_lookup_identity.valid,
 	      "mixed-source generic lookup helper should preserve native sampled identity for the winning PHRB entry");
 	check(mixed_lookup_identity.sampled_low32 == mixed_sampled_low32 &&
@@ -1032,16 +1040,20 @@ int main()
 	      "legacy-only provider should still expose the legacy compat entry");
 	ReplacementMeta legacy_only_lookup_meta = {};
 	NativeSampledIdentity legacy_only_identity = {};
+	ResolvedEntrySourceClass legacy_only_source_class = ResolvedEntrySourceClass::Unknown;
 	check(legacy_only_provider.lookup_with_selector_and_identity(
 	          mixed_checksum64,
 	          258,
 	          0,
 	          &legacy_only_lookup_meta,
 	          &legacy_only_identity,
+	          &legacy_only_source_class,
 	          &resolved_checksum64),
 	      "legacy-only generic lookup helper should still resolve compat entries");
 	check(!legacy_only_identity.valid,
 	      "legacy-only generic lookup helper should not synthesize native sampled identity for compat entries");
+	check(legacy_only_source_class == ResolvedEntrySourceClass::Compat,
+	      "legacy-only generic lookup helper should classify compat entries explicitly");
 	ReplacementProviderStats legacy_only_stats = legacy_only_provider.get_stats();
 	check(legacy_only_stats.source_phrb_entry_count == 0, "legacy-only stats should exclude PHRB-backed entries");
 	check(legacy_only_stats.source_htc_entry_count == 1, "legacy-only stats should preserve HTC-backed entries");
@@ -1307,6 +1319,7 @@ int main()
 	      "generic entry lookup should preserve the native replacement dimensions");
 	ReplacementMeta phrb_preference_meta = {};
 	NativeSampledIdentity phrb_preference_identity = {};
+	ResolvedEntrySourceClass phrb_preference_source_class = ResolvedEntrySourceClass::Unknown;
 	uint64_t phrb_preference_resolved_checksum64 = 0;
 	uint64_t phrb_preference_resolved_selector_checksum64 = 0xffffffffu;
 	check(phrb_preference_provider.lookup_with_selector_and_identity(
@@ -1315,6 +1328,7 @@ int main()
 	          0,
 	          &phrb_preference_meta,
 	          &phrb_preference_identity,
+	          &phrb_preference_source_class,
 	          &phrb_preference_resolved_checksum64,
 	          &phrb_preference_resolved_selector_checksum64),
 	      "generic lookup helper should resolve native sampled PHRB entries ahead of family-runtime compat duplicates");
@@ -1322,6 +1336,8 @@ int main()
 	      "generic lookup helper should preserve native replacement dimensions when a compat family stub shares the checksum");
 	check(phrb_preference_identity.valid,
 	      "generic lookup helper should preserve native sampled identity when a compat family stub shares the checksum");
+	check(phrb_preference_source_class == ResolvedEntrySourceClass::Native,
+	      "generic lookup helper should classify native sampled PHRB winners explicitly");
 	check(phrb_preference_identity.sampled_low32 == phrb_preference_sampled_low32 &&
 	          phrb_preference_identity.sampled_palette_crc == phrb_preference_palette_crc,
 	      "generic lookup helper should expose the native sampled checksum identity");
@@ -1424,6 +1440,7 @@ int main()
 	      "duplicate diagnostic should preserve active replacement dimensions");
 	ReplacementMeta duplicate_lookup_meta = {};
 	NativeSampledIdentity duplicate_lookup_identity = {};
+	ResolvedEntrySourceClass duplicate_lookup_source_class = ResolvedEntrySourceClass::Unknown;
 	uint64_t duplicate_resolved_checksum64 = 0;
 	uint64_t duplicate_resolved_selector_checksum64 = 0;
 	check(duplicate_provider.lookup_with_selector_and_identity(
@@ -1432,11 +1449,14 @@ int main()
 	          duplicate_selector,
 	          &duplicate_lookup_meta,
 	          &duplicate_lookup_identity,
+	          &duplicate_lookup_source_class,
 	          &duplicate_resolved_checksum64,
 	          &duplicate_resolved_selector_checksum64),
 	      "selector-bearing generic lookup helper should resolve duplicate sampled entries");
 	check(duplicate_lookup_identity.valid,
 	      "selector-bearing generic lookup helper should preserve native sampled identity");
+	check(duplicate_lookup_source_class == ResolvedEntrySourceClass::Native,
+	      "selector-bearing generic lookup helper should classify sampled duplicate winners as native");
 	check(duplicate_resolved_checksum64 == duplicate_diags[0].active_checksum64,
 	      "selector-bearing generic lookup helper should report the resolved checksum");
 	check(duplicate_resolved_selector_checksum64 == duplicate_selector,

@@ -943,6 +943,7 @@ bool ReplacementProvider::lookup_with_selector_and_identity(uint64_t checksum64,
                                                             uint64_t selector_checksum64,
                                                             ReplacementMeta *out,
                                                             NativeSampledIdentity *identity,
+                                                            ResolvedEntrySourceClass *resolved_source_class,
                                                             uint64_t *resolved_checksum64,
                                                             uint64_t *resolved_selector_checksum64) const
 {
@@ -960,6 +961,8 @@ bool ReplacementProvider::lookup_with_selector_and_identity(uint64_t checksum64,
 	out->vk_image_index = 0xffffffffu;
 	out->has_mips = false;
 	out->srgb = false;
+	if (resolved_source_class)
+		*resolved_source_class = entry->is_runtime_family_compat ? ResolvedEntrySourceClass::Compat : ResolvedEntrySourceClass::Native;
 	if (identity)
 	{
 		identity->valid = entry->has_native_sampled_identity;

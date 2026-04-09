@@ -938,6 +938,28 @@ int main()
 	      "family-unique sampled lookup should preserve the singleton selector");
 	check(resolved_checksum64 == mixed_checksum64,
 	      "family-unique sampled lookup should preserve the singleton checksum");
+	bool mixed_ordered_surface_singleton = true;
+	check(mixed_all_provider.lookup_sampled_family_singleton(
+	          2,
+	          1,
+	          32,
+	          16,
+	          2,
+	          2,
+	          mixed_sampled_low32,
+	          mixed_palette_crc,
+	          258,
+	          &mixed_native_meta,
+	          &resolved_checksum64,
+	          &mixed_resolved_selector_checksum64,
+	          &mixed_ordered_surface_singleton),
+	      "family-singleton sampled lookup should continue to resolve plain singleton native sampled families");
+	check(mixed_resolved_selector_checksum64 == 0,
+	      "family-singleton sampled lookup should preserve the singleton selector");
+	check(!mixed_ordered_surface_singleton,
+	      "family-singleton sampled lookup should not classify plain singletons as ordered-surface families");
+	check(resolved_checksum64 == mixed_checksum64,
+	      "family-singleton sampled lookup should preserve the singleton checksum");
 	ReplacementMeta mixed_compat_meta = {};
 	check(mixed_all_provider.lookup_compat_with_selector(mixed_checksum64, 258, 0, &mixed_compat_meta),
 	      "all-policy compat lookup should resolve duplicate checksum entries");
@@ -1040,6 +1062,121 @@ int main()
 	check(auto_stats.source_htc_entry_count == 0, "auto stats should exclude HTC-backed entries from mixed-source directories");
 	check(auto_stats.compat_entry_count == 0, "auto stats should exclude compat entries in mixed-source auto mode");
 	remove_tree(mixed_dir);
+
+	const std::string ordered_singleton_dir = make_temp_dir();
+	const uint32_t ordered_singleton_palette_crc = 0x13572468u;
+	const uint32_t ordered_singleton_sampled_low32 = 0x24681357u;
+	const uint64_t ordered_singleton_selector = ReplacementProvider::ordered_surface_slot_selector_checksum64(0);
+	const uint64_t ordered_singleton_checksum64 =
+		(uint64_t(ordered_singleton_palette_crc) << 32u) | uint64_t(ordered_singleton_sampled_low32);
+	const std::vector<uint8_t> ordered_singleton_rgba = {
+		0x21, 0x43, 0x65, 0xff,
+		0x87, 0xa9, 0xcb, 0xff,
+		0xed, 0x0f, 0x10, 0xff,
+		0x32, 0x54, 0x76, 0xff,
+	};
+	write_single_asset_phrb(
+		ordered_singleton_dir + "/ordered-singleton.phrb",
+		"ordered-singleton",
+		"ordered-singleton-replacement",
+		"sampled-fmt2-siz1-off96-stride16-wh2x2-fs258-low3224681357",
+		2,
+		1,
+		96,
+		16,
+		2,
+		2,
+		258,
+		ordered_singleton_sampled_low32,
+		ordered_singleton_palette_crc,
+		ordered_singleton_selector,
+		2,
+		2,
+		ordered_singleton_rgba);
+
+	ReplacementProvider ordered_singleton_provider;
+	check(ordered_singleton_provider.load_cache_dir(ordered_singleton_dir),
+	      "provider should load ordered-surface singleton sampled families");
+	ordered_singleton_provider.set_enabled(true);
+	ReplacementMeta ordered_singleton_meta = {};
+	uint64_t ordered_singleton_resolved_checksum64 = 0;
+	uint64_t ordered_singleton_resolved_selector_checksum64 = 0xffffffffu;
+	check(!ordered_singleton_provider.lookup_sampled_family_unique(
+	          2,
+	          1,
+	          96,
+	          16,
+	          2,
+	          2,
+	          ordered_singleton_sampled_low32,
+	          ordered_singleton_palette_crc,
+	          258,
+	          &ordered_singleton_meta,
+	          &ordered_singleton_resolved_checksum64,
+	          &ordered_singleton_resolved_selector_checksum64),
+	      "family-unique sampled lookup should continue to reject ordered-surface singleton families");
+	bool ordered_singleton_flag = false;
+	check(ordered_singleton_provider.lookup_sampled_family_singleton(
+	          2,
+	          1,
+	          96,
+	          16,
+	          2,
+	          2,
+	          ordered_singleton_sampled_low32,
+	          ordered_singleton_palette_crc,
+	          258,
+	          &ordered_singleton_meta,
+	          &ordered_singleton_resolved_checksum64,
+	          &ordered_singleton_resolved_selector_checksum64,
+	          &ordered_singleton_flag),
+	      "family-singleton sampled lookup should resolve ordered-surface singleton families");
+	check(ordered_singleton_flag,
+	      "family-singleton sampled lookup should classify ordered-surface singleton families explicitly");
+	check(ordered_singleton_resolved_selector_checksum64 == ordered_singleton_selector,
+	      "family-singleton sampled lookup should preserve the ordered-surface selector");
+	check(ordered_singleton_resolved_checksum64 == ordered_singleton_checksum64,
+	      "family-singleton sampled lookup should preserve the singleton checksum");
+	check(ordered_singleton_meta.repl_w == 2 && ordered_singleton_meta.repl_h == 2,
+	      "family-singleton sampled lookup should preserve ordered-surface singleton replacement dimensions");
+	SampledFamilyDiagnostics ordered_singleton_diag = {};
+	check(ordered_singleton_provider.describe_sampled_family(
+	          2,
+	          1,
+	          96,
+	          16,
+	          2,
+	          2,
+	          ordered_singleton_sampled_low32,
+	          ordered_singleton_palette_crc,
+	          258,
+	          ordered_singleton_selector,
+	          &ordered_singleton_diag),
+	      "ordered-surface singleton sampled family should expose diagnostics");
+	check(ordered_singleton_diag.active_has_ordered_surface_selectors,
+	      "ordered-surface singleton diagnostics should report ordered selectors");
+	check(ordered_singleton_diag.active_ordered_surface_selector_count == 1,
+	      "ordered-surface singleton diagnostics should preserve the ordered selector count");
+	check(!ordered_singleton_diag.active_is_pool,
+	      "ordered-surface singleton diagnostics should not classify the family as a pool");
+	ReplacementImage ordered_singleton_image = {};
+	check(ordered_singleton_provider.decode_sampled_rgba8_with_selector(
+	          2,
+	          1,
+	          96,
+	          16,
+	          2,
+	          2,
+	          ordered_singleton_sampled_low32,
+	          ordered_singleton_palette_crc,
+	          258,
+	          ordered_singleton_selector,
+	          &ordered_singleton_image,
+	          &ordered_singleton_resolved_checksum64),
+	      "ordered-surface singleton sampled decode should resolve via the explicit selector path");
+	check(ordered_singleton_image.rgba8 == ordered_singleton_rgba,
+	      "ordered-surface singleton sampled decode should preserve the payload");
+	remove_tree(ordered_singleton_dir);
 
 	const std::string auto_fallback_dir = make_temp_dir();
 	const uint32_t auto_fallback_palette_crc = 0x0badc0deu;

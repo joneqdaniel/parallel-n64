@@ -804,6 +804,34 @@ const ReplacementProvider::Entry *ReplacementProvider::find_unique_sampled_famil
                                                                                         uint16_t formatsize,
                                                                                         uint64_t *resolved_selector_checksum64) const
 {
+	return find_singleton_sampled_family_entry(
+		sampled_fmt,
+		sampled_siz,
+		sampled_tex_offset,
+		sampled_stride,
+		sampled_width,
+		sampled_height,
+		sampled_low32,
+		palette_crc,
+		formatsize,
+		false,
+		resolved_selector_checksum64,
+		nullptr);
+}
+
+const ReplacementProvider::Entry *ReplacementProvider::find_singleton_sampled_family_entry(uint32_t sampled_fmt,
+                                                                                            uint32_t sampled_siz,
+                                                                                            uint32_t sampled_tex_offset,
+                                                                                            uint32_t sampled_stride,
+                                                                                            uint32_t sampled_width,
+                                                                                            uint32_t sampled_height,
+                                                                                            uint32_t sampled_low32,
+                                                                                            uint32_t palette_crc,
+                                                                                            uint16_t formatsize,
+                                                                                            bool allow_ordered_surface_selectors,
+                                                                                            uint64_t *resolved_selector_checksum64,
+                                                                                            bool *resolved_ordered_surface_singleton) const
+{
 	auto find_family = [&](uint16_t candidate_formatsize) -> const std::vector<size_t> * {
 		auto key = make_sampled_family_lookup_key(
 			sampled_fmt,
@@ -835,7 +863,9 @@ const ReplacementProvider::Entry *ReplacementProvider::find_unique_sampled_famil
 		return nullptr;
 
 	const uint64_t selected_selector_checksum64 = unique_selectors.front();
-	if (selected_selector_checksum64 != 0 && is_ordered_surface_selector(selected_selector_checksum64))
+	const bool ordered_surface_singleton =
+		selected_selector_checksum64 != 0 && is_ordered_surface_selector(selected_selector_checksum64);
+	if (ordered_surface_singleton && !allow_ordered_surface_selectors)
 		return nullptr;
 
 	const Entry *entry = find_sampled_entry(
@@ -854,6 +884,8 @@ const ReplacementProvider::Entry *ReplacementProvider::find_unique_sampled_famil
 
 	if (resolved_selector_checksum64)
 		*resolved_selector_checksum64 = selected_selector_checksum64;
+	if (resolved_ordered_surface_singleton)
+		*resolved_ordered_surface_singleton = ordered_surface_singleton;
 	return entry;
 }
 
@@ -1077,6 +1109,51 @@ bool ReplacementProvider::lookup_sampled_family_unique(uint32_t sampled_fmt,
 		palette_crc,
 		formatsize,
 		resolved_selector_checksum64);
+	if (!entry)
+		return false;
+
+	out->repl_w = entry->width;
+	out->repl_h = entry->height;
+	out->orig_w = 0;
+	out->orig_h = 0;
+	out->vk_image_index = 0xffffffffu;
+	out->has_mips = false;
+	out->srgb = false;
+	if (resolved_checksum64)
+		*resolved_checksum64 = entry->checksum64;
+	return true;
+}
+
+bool ReplacementProvider::lookup_sampled_family_singleton(uint32_t sampled_fmt,
+                                                          uint32_t sampled_siz,
+                                                          uint32_t sampled_tex_offset,
+                                                          uint32_t sampled_stride,
+                                                          uint32_t sampled_width,
+                                                          uint32_t sampled_height,
+                                                          uint32_t sampled_low32,
+                                                          uint32_t palette_crc,
+                                                          uint16_t formatsize,
+                                                          ReplacementMeta *out,
+                                                          uint64_t *resolved_checksum64,
+                                                          uint64_t *resolved_selector_checksum64,
+                                                          bool *resolved_ordered_surface_singleton) const
+{
+	if (!enabled_ || !out)
+		return false;
+
+	const Entry *entry = find_singleton_sampled_family_entry(
+		sampled_fmt,
+		sampled_siz,
+		sampled_tex_offset,
+		sampled_stride,
+		sampled_width,
+		sampled_height,
+		sampled_low32,
+		palette_crc,
+		formatsize,
+		true,
+		resolved_selector_checksum64,
+		resolved_ordered_surface_singleton);
 	if (!entry)
 		return false;
 

@@ -4852,7 +4852,7 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 			const char *native_lookup_resolution_reason = nullptr;
 			const char *descriptor_path_class = nullptr;
 			bool sampled_family_ordered_surface_singleton = false;
-			bool hit = replacement_provider->lookup_sampled_family_unique(
+			bool hit = replacement_provider->lookup_sampled_family_singleton(
 					uint32_t(meta.fmt),
 					uint32_t(meta.size),
 					meta.offset,
@@ -4864,36 +4864,8 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 					formatsize,
 					&repl_meta,
 					&resolved_checksum64,
-					&resolved_selector_checksum64);
-			if (!hit)
-			{
-				const uint32_t ordered_surface_selector_count =
-					replacement_provider->ordered_surface_selector_count(checksum64, formatsize);
-				if (ordered_surface_selector_count == 1)
-				{
-					const uint64_t ordered_surface_selector =
-						replacement_provider->ordered_surface_selector_checksum64(checksum64, formatsize, 0);
-					if (ordered_surface_selector != 0 &&
-					    replacement_provider->lookup_sampled_with_selector(
-						    uint32_t(meta.fmt),
-						    uint32_t(meta.size),
-						    meta.offset,
-						    row_stride_bytes,
-						    key_width_pixels,
-						    key_height_pixels,
-						    texture_crc,
-						    palette_crc,
-						    formatsize,
-						    ordered_surface_selector,
-						    &repl_meta,
-						    &resolved_checksum64))
-					{
-						resolved_selector_checksum64 = ordered_surface_selector;
-						sampled_family_ordered_surface_singleton = true;
-						hit = true;
-					}
-				}
-			}
+					&resolved_selector_checksum64,
+					&sampled_family_ordered_surface_singleton);
 			if (hit)
 			{
 				repl_meta.orig_w = key_width_pixels;

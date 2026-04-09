@@ -181,6 +181,19 @@ public:
 	                                  ReplacementMeta *out,
 	                                  uint64_t *resolved_checksum64 = nullptr,
 	                                  uint64_t *resolved_selector_checksum64 = nullptr) const;
+	bool lookup_sampled_family_singleton(uint32_t sampled_fmt,
+	                                     uint32_t sampled_siz,
+	                                     uint32_t sampled_tex_offset,
+	                                     uint32_t sampled_stride,
+	                                     uint32_t sampled_width,
+	                                     uint32_t sampled_height,
+	                                     uint32_t sampled_low32,
+	                                     uint32_t palette_crc,
+	                                     uint16_t formatsize,
+	                                     ReplacementMeta *out,
+	                                     uint64_t *resolved_checksum64 = nullptr,
+	                                     uint64_t *resolved_selector_checksum64 = nullptr,
+	                                     bool *resolved_ordered_surface_singleton = nullptr) const;
 	bool decode_sampled_rgba8_with_selector(uint32_t sampled_fmt,
 	                                        uint32_t sampled_siz,
 	                                        uint32_t sampled_tex_offset,
@@ -361,6 +374,18 @@ private:
 	                                              uint32_t palette_crc,
 	                                              uint16_t formatsize,
 	                                              uint64_t *resolved_selector_checksum64 = nullptr) const;
+	const Entry *find_singleton_sampled_family_entry(uint32_t sampled_fmt,
+	                                                 uint32_t sampled_siz,
+	                                                 uint32_t sampled_tex_offset,
+	                                                 uint32_t sampled_stride,
+	                                                 uint32_t sampled_width,
+	                                                 uint32_t sampled_height,
+	                                                 uint32_t sampled_low32,
+	                                                 uint32_t palette_crc,
+	                                                 uint16_t formatsize,
+	                                                 bool allow_ordered_surface_selectors,
+	                                                 uint64_t *resolved_selector_checksum64 = nullptr,
+	                                                 bool *resolved_ordered_surface_singleton = nullptr) const;
 	bool load_hts(const std::string &path);
 	bool load_htc(const std::string &path);
 	bool load_phrb(const std::string &path);

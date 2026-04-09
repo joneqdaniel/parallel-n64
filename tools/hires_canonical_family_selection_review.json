@@ -578,6 +578,42 @@
       ],
       "review_group_cluster_class": "same-aspect",
       "review_group_action_hint": "context-bundle-review"
+    },
+    {
+      "family_key": "356a2060:fs0",
+      "selected_variant_group_dims": "1024x1024",
+      "selection_reason": "review-family-selection",
+      "review_group_variant_group_dims": [
+        "1024x1024",
+        "128x128",
+        "512x512"
+      ],
+      "review_group_cluster_class": "same-aspect",
+      "review_group_action_hint": "context-bundle-review"
+    },
+    {
+      "family_key": "97500162:fs0",
+      "selected_variant_group_dims": "512x1024",
+      "selection_reason": "review-family-selection",
+      "review_group_variant_group_dims": [
+        "256x512",
+        "512x1024",
+        "64x128"
+      ],
+      "review_group_cluster_class": "same-aspect",
+      "review_group_action_hint": "context-bundle-review"
+    },
+    {
+      "family_key": "ec2ed666:fs0",
+      "selected_variant_group_dims": "512x512",
+      "selection_reason": "review-family-selection",
+      "review_group_variant_group_dims": [
+        "160x160",
+        "320x320",
+        "512x512"
+      ],
+      "review_group_cluster_class": "same-aspect",
+      "review_group_action_hint": "context-bundle-review"
     }
   ]
 }

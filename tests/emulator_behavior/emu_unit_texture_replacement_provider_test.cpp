@@ -1231,6 +1231,29 @@ int main()
 	      "typed upload resolution should preserve sampled identity for ordered-surface singletons");
 	check(ordered_singleton_resolution.resolved_selector_checksum64 == ordered_singleton_selector,
 	      "typed upload resolution should preserve the ordered-surface selector");
+	ReplacementResolution ordered_singleton_reserved_resolution = {};
+	check(ordered_singleton_provider.resolve_reserved_ordered_surface_candidate(
+	          2,
+	          1,
+	          96,
+	          16,
+	          2,
+	          2,
+	          ordered_singleton_sampled_low32,
+	          ordered_singleton_palette_crc,
+	          258,
+	          ordered_singleton_selector,
+	          &ordered_singleton_reserved_resolution),
+	      "typed reserved ordered-surface resolution should resolve the explicit reserved selector path");
+	check(ordered_singleton_reserved_resolution.kind ==
+	          ReplacementResolutionKind::SampledOrderedSurfaceReservedSelector,
+	      "typed reserved ordered-surface resolution should keep the ordered-surface path distinct from normal exact selectors");
+	check(!ordered_singleton_reserved_resolution.ordered_surface_singleton,
+	      "typed reserved ordered-surface resolution should not relabel the reserved selector path as family-singleton fallback");
+	check(ordered_singleton_reserved_resolution.resolved_selector_checksum64 == ordered_singleton_selector,
+	      "typed reserved ordered-surface resolution should preserve the reserved selector");
+	check(ordered_singleton_reserved_resolution.resolved_checksum64 == ordered_singleton_checksum64,
+	      "typed reserved ordered-surface resolution should preserve the ordered-surface checksum");
 	ReplacementResolution ordered_singleton_exact_resolution = {};
 	check(ordered_singleton_provider.resolve_sampled_candidate(
 	          2,

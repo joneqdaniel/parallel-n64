@@ -1133,6 +1133,42 @@ bool ReplacementProvider::resolve_sampled_candidate(uint32_t sampled_fmt,
 	return false;
 }
 
+bool ReplacementProvider::resolve_reserved_ordered_surface_candidate(uint32_t sampled_fmt,
+                                                                    uint32_t sampled_siz,
+                                                                    uint32_t sampled_tex_offset,
+                                                                    uint32_t sampled_stride,
+                                                                    uint32_t sampled_width,
+                                                                    uint32_t sampled_height,
+                                                                    uint32_t sampled_low32,
+                                                                    uint32_t palette_crc,
+                                                                    uint16_t formatsize,
+                                                                    uint64_t ordered_surface_selector_checksum64,
+                                                                    ReplacementResolution *out) const
+{
+	if (!enabled_ || !out || !is_ordered_surface_selector(ordered_surface_selector_checksum64))
+		return false;
+
+	const Entry *sampled_entry = find_sampled_entry(
+		sampled_fmt,
+		sampled_siz,
+		sampled_tex_offset,
+		sampled_stride,
+		sampled_width,
+		sampled_height,
+		sampled_low32,
+		palette_crc,
+		formatsize,
+		ordered_surface_selector_checksum64);
+	if (!sampled_entry)
+		return false;
+
+	return populate_resolution_from_entry(
+		sampled_entry,
+		ReplacementResolutionKind::SampledOrderedSurfaceReservedSelector,
+		false,
+		out);
+}
+
 const ReplacementProvider::Entry *ReplacementProvider::find_ci_low32_entry(uint32_t checksum_low32,
                                                                            uint16_t formatsize,
                                                                            uint32_t preferred_palette_crc,

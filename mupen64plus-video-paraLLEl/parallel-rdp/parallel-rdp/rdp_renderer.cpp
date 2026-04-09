@@ -2070,9 +2070,7 @@ void Renderer::draw_shaded_primitive(const TriangleSetup &setup, const Attribute
 				resolved_reason = resolution.ordered_surface_singleton ? reason_ordered_surface : reason_family_unique;
 			if (!lookup_hit && reserve_ordered_surface_selector(checksum64, sampled_identity.formatsize))
 			{
-				resolved_selector_checksum64 = ordered_surface_selector_checksum64;
-				resolved_reason = reason_ordered_surface;
-				lookup_hit = replacement_provider->lookup_sampled_with_selector(
+				lookup_hit = replacement_provider->resolve_reserved_ordered_surface_candidate(
 					uint32_t(base_meta.fmt),
 					uint32_t(base_meta.size),
 					base_meta.offset,
@@ -2082,9 +2080,15 @@ void Renderer::draw_shaded_primitive(const TriangleSetup &setup, const Attribute
 					sampled_identity.texture_crc,
 					palette_crc,
 					sampled_identity.formatsize,
-					resolved_selector_checksum64,
-					&candidate_meta,
-					&resolved_checksum64);
+					ordered_surface_selector_checksum64,
+					&resolution);
+				if (lookup_hit)
+				{
+					candidate_meta = resolution.meta;
+					resolved_checksum64 = resolution.resolved_checksum64;
+					resolved_selector_checksum64 = resolution.resolved_selector_checksum64;
+					resolved_reason = reason_ordered_surface;
+				}
 			}
 			if (!lookup_hit)
 			{

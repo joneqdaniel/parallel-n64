@@ -23,10 +23,6 @@
 
 - [Paper Mario Runtime Research](/home/auro/code/parallel-n64/docs/PAPER_MARIO_RUNTIME_RESEARCH.md)
 
-## Supplemental Research
-
-- [Paper Mario Runtime Research](/home/auro/code/parallel-n64/docs/PAPER_MARIO_RUNTIME_RESEARCH.md)
-
 ## Workflow Directories
 
 - [tools/fixtures](/home/auro/code/parallel-n64/tools/fixtures)

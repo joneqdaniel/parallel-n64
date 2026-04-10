@@ -37,11 +37,16 @@
   - `descriptor_paths(sampled=66 native_checksum=0 generic=0 compat=0)`
   - current proof: [validation-summary.md](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260407-selected-package-timeout-current-contract/validation-summary.md)
 - The default Paper Mario authority fixtures now resolve only through promoted enriched full-cache `PHRB` artifacts by default and fail closed if no promoted enriched artifact exists.
+- The upload-path resolution cascade now includes a sampled-exact-selector step between the singleton-family check and the checksum fallback.
+- The PHRB self-test now validates the sampled index instead of the checksum index.
+- `.phrb` is the default runtime source mode; `.hts`/`.htc` require explicit opt-in via core option or env var.
+- `resolve_hires_replacement_descriptor` (the generic checksum-only descriptor path) has no live callers.
 - Current default authority outcome:
   - `source_mode=phrb-only`
-  - `entry_count=12754`
+  - `entry_count=12761`
   - `native_sampled_entry_count=503`
   - sampled-only descriptor traffic on title screen, file select, and `kmr_03 ENTRY_5`
+  - `6` entries resolve through native-checksum fallback (geometry mismatch, not a code gap)
 
 ### Converter State
 

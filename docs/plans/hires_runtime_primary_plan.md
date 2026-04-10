@@ -139,10 +139,10 @@ The project should not spend the next cycle on:
 - [x] Add direct provider/package coverage for the preserved-identity seam.
 - [x] Make runtime source policy explicit and thread it through runtime entrypoints.
 - [x] Narrow explicit selected-package runtime lanes to `phrb-only` by policy.
-- [ ] Widen structured sampled-object lookup beyond the current exact seam only where direct tests exist.
+- [x] Widen structured sampled-object lookup beyond the current exact seam only where direct tests exist.
 - [ ] Replace checksum-shaped primary lookup with structured sampled-object identity across the remaining runtime path.
-- [ ] Make `.phrb` the only production runtime source.
-- [ ] Move `.hts` / `.htc` to import-only status for the default runtime path.
+- [x] Make `.phrb` the only production runtime source.
+- [x] Move `.hts` / `.htc` to import-only status for the default runtime path.
 - [ ] Preserve ordered-surface metadata as a runtime-native concept instead of selector hashes.
 - [x] Ship the first `hts2phrb` skeleton over the existing pipeline.
 - [ ] Strengthen `hts2phrb` until it is the clear common-case front door rather than a thin orchestration wrapper.

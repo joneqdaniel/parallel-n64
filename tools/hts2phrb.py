@@ -467,7 +467,7 @@ def should_build_runtime_overlay(args):
         return True, "forced"
     if args.runtime_overlay_mode == "never":
         return False, "disabled"
-    if args.bundle or args.low32 or getattr(args, "resolved_transport_policy_path", None) or args.context_bundle:
+    if args.bundle or args.low32 or getattr(args, "resolved_transport_policy_path", None) or args.context_bundle or args.context_dir:
         return True, "runtime-context-available"
     return False, "no-runtime-context"
 
@@ -2804,7 +2804,7 @@ def synchronize_report_summary_fields(report: dict):
     report["runtime_state_counts"] = requested_family_states.get("runtime_state_counts") or {}
     report["total_runtime_ms"] = float((report.get("stage_timings_ms") or {}).get("total", 0.0))
     report["total_ms"] = report["total_runtime_ms"]
-    report["context_bundle_input_count"] = len(report.get("context_bundle_paths") or [])
+    report["context_bundle_input_count"] = len(report.get("context_bundle_paths") or []) + len(report.get("context_dir_paths") or [])
     report["context_bundle_resolution_count"] = len(report.get("context_bundle_resolutions") or [])
     report["artifact_contract_version"] = HTS2PHRB_ARTIFACT_VERSION
     report["runtime_overlay_artifacts_emitted"] = bool(
@@ -3647,6 +3647,27 @@ def build_conversion(args):
                 mode=args.bundle_mode,
             )
         )
+    context_dir_discovered = 0
+    context_dir_skipped = 0
+    for context_dir in args.context_dir or []:
+        context_dir_path = Path(context_dir)
+        if not context_dir_path.is_dir():
+            raise ValueError(f"--context-dir path is not a directory: {context_dir}")
+        for summary_path in sorted(context_dir_path.rglob("validation-summary.json")):
+            try:
+                context_bundle_resolutions.extend(
+                    resolve_context_bundle_input_paths(
+                        summary_path,
+                        step_frames=args.bundle_step,
+                        mode=args.bundle_mode,
+                    )
+                )
+                context_dir_discovered += 1
+            except (ValueError, KeyError, FileNotFoundError) as exc:
+                context_dir_skipped += 1
+                print(f"context-dir: skipping {summary_path}: {exc}", file=sys.stderr)
+    if context_dir_discovered or context_dir_skipped:
+        print(f"context-dir: discovered {context_dir_discovered}, skipped {context_dir_skipped}", file=sys.stderr)
     context_bundle_resolutions = dedupe_context_bundle_resolutions(context_bundle_resolutions)
     stage_timings_ms["resolve_context_bundles"] = round((time.perf_counter() - stage_started) * 1000.0, 3)
     args.context_bundle_resolutions = context_bundle_resolutions
@@ -4349,6 +4370,7 @@ def build_conversion(args):
         "bundle_resolution": bundle_resolution,
         "resolved_bundle_path": bundle_resolution["resolved_bundle_path"] if bundle_resolution else None,
         "context_bundle_paths": args.context_bundle,
+        "context_dir_paths": args.context_dir,
         "context_bundle_resolutions": context_bundle_resolutions,
         "review_profile_paths": [str(path) for path in args.resolved_review_profile_paths],
         "duplicate_review_paths": [str(path) for path in args.resolved_duplicate_review_paths],
@@ -4549,6 +4571,7 @@ def main():
     parser.add_argument("--cache", required=True, help="Path to the legacy .hts/.htc cache file or a directory containing one.")
     parser.add_argument("--bundle", help="Optional evidence input. Accepts a bundle directory, traces/hires-evidence.json, validation-summary.json, or validation-summary.md.")
     parser.add_argument("--context-bundle", action="append", default=[], help="Optional evidence input used only to enrich sampled/CI context. Pass multiple times. Does not change requested families unless --bundle is also supplied.")
+    parser.add_argument("--context-dir", action="append", default=[], help="Directory to scan recursively for validation-summary.json files. Each discovered summary is treated as an implicit --context-bundle input. Pass multiple times.")
     parser.add_argument("--bundle-step", type=int, help="When --bundle points to a validation summary, select this step_frames value.")
     parser.add_argument("--bundle-mode", choices=("on", "off"), default="on", help="When --bundle points to a validation summary, choose which bundle side to resolve. Defaults to on.")
     parser.add_argument("--low32", action="append", default=[], help="Optional low32 texture CRC in hex.")

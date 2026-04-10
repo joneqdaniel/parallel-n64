@@ -51,8 +51,8 @@
 ### What Is Still Wrong
 
 - Structured sampled-object identity is not yet the primary runtime key across the full renderer.
-- Some checksum-shaped runtime seams still remain.
-- `.phrb` is not yet the only production runtime source repo-wide.
+- Some checksum-shaped runtime seams still remain (compat fallback, native-checksum fallback).
+- The dead generic checksum-only descriptor path has been removed.
 - Converter ambiguity and overlay residue are reduced, but not eliminated.
 - Cross-game breadth is still missing.
 
@@ -74,10 +74,7 @@
 
 ### Still Open
 
-- Broaden structured sampled-object lookup beyond the current bounded seams.
-- Finish replacing checksum-shaped primary lookup with structured runtime identity.
-- Make `.phrb` the only production runtime source.
-- Preserve ordered-surface runtime identity cleanly.
+- Preserve ordered-surface runtime identity cleanly instead of synthetic selector hashes.
 - Reduce converter canonical-only ambiguity and overlay residue further.
 - Add non-Paper-Mario converter breadth once a local legacy pack exists.
 - Start second-game validation only after the runtime/converter picture is cleaner.
@@ -140,12 +137,14 @@ The project should not spend the next cycle on:
 - [x] Make runtime source policy explicit and thread it through runtime entrypoints.
 - [x] Narrow explicit selected-package runtime lanes to `phrb-only` by policy.
 - [x] Widen structured sampled-object lookup beyond the current exact seam only where direct tests exist.
-- [ ] Replace checksum-shaped primary lookup with structured sampled-object identity across the remaining runtime path.
+- [x] Remove the dead generic checksum-only descriptor path (`resolve_hires_replacement_descriptor`).
+- [ ] Replace remaining checksum-shaped fallback seams with structured identity where evidence supports it.
 - [x] Make `.phrb` the only production runtime source.
 - [x] Move `.hts` / `.htc` to import-only status for the default runtime path.
 - [ ] Preserve ordered-surface metadata as a runtime-native concept instead of selector hashes.
 - [x] Ship the first `hts2phrb` skeleton over the existing pipeline.
-- [ ] Strengthen `hts2phrb` until it is the clear common-case front door rather than a thin orchestration wrapper.
+- [x] Add `--context-dir` automatic enrichment discovery to `hts2phrb`.
+- [ ] Strengthen `hts2phrb` further: improve deferred family diagnostics, non-Paper-Mario proof.
 - [ ] Add at least one non-Paper-Mario zero-config converter proof.
 - [x] Add representative-pack converter operational gates for timing, cache behavior, and output sizing.
 - [ ] Keep first-load `.hts` to cached `.phrb` auto-conversion disabled until default-path promotion, then add direct tests for it.

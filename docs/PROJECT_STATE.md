@@ -41,7 +41,7 @@
 - The upload-path resolution cascade now includes a sampled-exact-selector step between the singleton-family check and the checksum fallback.
 - The PHRB self-test now validates the sampled index instead of the checksum index.
 - `.phrb` is the default runtime source mode; `.hts`/`.htc` require explicit opt-in via core option or env var.
-- `resolve_hires_replacement_descriptor` (the generic checksum-only descriptor path) has no live callers.
+- The dead generic checksum-only descriptor path (`resolve_hires_replacement_descriptor`) has been removed.
 - The authority refresh now uses `--context-dir` to automatically discover all local validation summaries as enrichment sources.
 - Current default authority outcome:
   - `source_mode=phrb-only`

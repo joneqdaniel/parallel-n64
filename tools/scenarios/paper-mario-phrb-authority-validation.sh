@@ -243,7 +243,8 @@ for fixture in summary["fixtures"]:
     if descriptor_detail:
         md.append(
             f"- Sampled detail: family singleton `{descriptor_detail.get('sampled_family_singleton', 0)}`, "
-            f"ordered-surface singleton `{descriptor_detail.get('sampled_ordered_surface_singleton', 0)}`"
+            f"ordered-surface singleton `{descriptor_detail.get('sampled_ordered_surface_singleton', 0)}`, "
+            f"exact selector `{descriptor_detail.get('sampled_exact_selector', 0)}`"
         )
         md.append(
             f"- Descriptor detail: native checksum exact `{descriptor_detail.get('native_checksum_exact', 0)}`, "

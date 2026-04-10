@@ -959,6 +959,7 @@ void Renderer::set_replacement_provider(const ReplacementProvider *provider)
 	hires_descriptor_sampled_resolutions = 0;
 	hires_descriptor_sampled_family_singleton_resolutions = 0;
 	hires_descriptor_sampled_ordered_surface_singleton_resolutions = 0;
+	hires_descriptor_sampled_exact_selector_resolutions = 0;
 	hires_descriptor_native_checksum_resolutions = 0;
 	hires_descriptor_native_checksum_exact_resolutions = 0;
 	hires_descriptor_native_checksum_identity_assisted_resolutions = 0;
@@ -1081,7 +1082,7 @@ void Renderer::log_hires_summary() const
 	if (replacement_provider)
 	{
 		ReplacementProviderStats provider_stats = replacement_provider->get_stats();
-		LOGI("Hi-res keying summary: lookups=%llu hits=%llu misses=%llu filtered=%llu block_probe_hits=%llu provider=on entries=%u native_sampled=%u compat=%u sampled_index=%u sampled_dupe_keys=%u sampled_dupe_entries=%u sampled_families=%u compat_low32_families=%u sources(phrb=%u hts=%u htc=%u) descriptor_paths(sampled=%llu native_checksum=%llu generic=%llu compat=%llu) sampled_detail(family_singleton=%llu ordered_surface_singleton=%llu) generic_detail(identity_assisted=%llu plain=%llu native=%llu compat=%llu unknown=%llu).\n",
+		LOGI("Hi-res keying summary: lookups=%llu hits=%llu misses=%llu filtered=%llu block_probe_hits=%llu provider=on entries=%u native_sampled=%u compat=%u sampled_index=%u sampled_dupe_keys=%u sampled_dupe_entries=%u sampled_families=%u compat_low32_families=%u sources(phrb=%u hts=%u htc=%u) descriptor_paths(sampled=%llu native_checksum=%llu generic=%llu compat=%llu) sampled_detail(family_singleton=%llu ordered_surface_singleton=%llu exact_selector=%llu) generic_detail(identity_assisted=%llu plain=%llu native=%llu compat=%llu unknown=%llu).\n",
 		     static_cast<unsigned long long>(hires_lookup_total),
 		     static_cast<unsigned long long>(hires_lookup_hits),
 		     static_cast<unsigned long long>(hires_lookup_misses),
@@ -1104,6 +1105,7 @@ void Renderer::log_hires_summary() const
 		     static_cast<unsigned long long>(hires_descriptor_compat_resolutions),
 		     static_cast<unsigned long long>(hires_descriptor_sampled_family_singleton_resolutions),
 		     static_cast<unsigned long long>(hires_descriptor_sampled_ordered_surface_singleton_resolutions),
+		     static_cast<unsigned long long>(hires_descriptor_sampled_exact_selector_resolutions),
 		     static_cast<unsigned long long>(hires_descriptor_generic_identity_assisted_resolutions),
 		     static_cast<unsigned long long>(hires_descriptor_generic_plain_resolutions),
 		     static_cast<unsigned long long>(hires_descriptor_generic_native_plain_resolutions),
@@ -4997,6 +4999,10 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 						break;
 
 					case ReplacementResolutionKind::SampledExactSelector:
+						native_lookup_resolution_reason = "sampled-exact-selector-upload";
+						hires_descriptor_sampled_exact_selector_resolutions++;
+						break;
+
 					case ReplacementResolutionKind::SampledOrderedSurfaceReservedSelector:
 					case ReplacementResolutionKind::CILow32SelectedDims:
 					case ReplacementResolutionKind::CILow32ReplacementDimsUnique:

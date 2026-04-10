@@ -1,6 +1,7 @@
 #include "texture_replacement.hpp"
 #include "logging.hpp"
 #include <algorithm>
+#include <functional>
 #include <cerrno>
 #include <cstdlib>
 #include <cstring>
@@ -1065,6 +1066,17 @@ bool ReplacementProvider::resolve_upload_candidate(uint64_t checksum64,
 			ordered_surface_singleton,
 			out);
 
+	const Entry *sampled_entry = find_sampled_entry(
+		sampled_fmt, sampled_siz, sampled_tex_offset, sampled_stride,
+		sampled_width, sampled_height, sampled_low32, palette_crc,
+		formatsize, selector_checksum64);
+	if (sampled_entry)
+		return populate_resolution_from_entry(
+			sampled_entry,
+			ReplacementResolutionKind::SampledExactSelector,
+			false,
+			out);
+
 	const Entry *native_entry = find_native_entry(checksum64, formatsize, selector_checksum64);
 	if (native_entry)
 		return populate_resolution_from_entry(
@@ -1187,7 +1199,8 @@ const ReplacementProvider::Entry *ReplacementProvider::find_ci_low32_entry(uint3
 	if (it == compat_checksum_low32_index_.end())
 		return nullptr;
 
-	auto find_matching = [&](uint16_t candidate_formatsize, auto &&predicate) -> const Entry * {
+	auto find_matching = [&](uint16_t candidate_formatsize,
+	                         const std::function<bool(const Entry &)> &predicate) -> const Entry * {
 		for (auto itr = it->second.rbegin(); itr != it->second.rend(); ++itr)
 		{
 			const Entry &entry = entries_[*itr];
@@ -2532,7 +2545,9 @@ bool ReplacementProvider::load_phrb(const std::string &path)
 				record.sampled_sparse_pcrc != 0 ? record.sampled_sparse_pcrc : record.sampled_entry_pcrc;
 			const uint64_t self_test_checksum64 = (uint64_t(self_test_palette_crc) << 32u) | uint64_t(record.sampled_low32);
 			const Entry *self_test_entry = loaded_asset_count != 0
-				? find_entry(self_test_checksum64, uint16_t(record.formatsize), first_selector)
+				? find_sampled_entry(record.fmt, record.siz, record.tex_offset, record.stride,
+				                     record.width, record.height, record.sampled_low32,
+				                     self_test_palette_crc, uint16_t(record.formatsize), first_selector)
 				: nullptr;
 			LOGI("Hi-res PHRB record: policy=%s sampled_low32=%08x fs=%u asset_candidates=%u loaded_assets=%u unique_selectors=%zu duplicate_selectors=%u zero_selectors=%u first_selector=%016llx last_selector=%016llx self_test=%u self_test_key=%016llx.\n",
 			     policy_key.c_str(),

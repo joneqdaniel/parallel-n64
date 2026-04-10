@@ -651,6 +651,50 @@ int main()
 	check(stats.source_hts_entry_count == 1, "provider stats should report HTS-backed entries");
 	check(stats.source_htc_entry_count == 0, "provider stats should not invent HTC-backed entries");
 
+	ReplacementResolution upload_sampled_exact_resolution = {};
+	const uint64_t upload_checksum64 = (uint64_t(record.sampled_sparse_pcrc) << 32u) | uint64_t(record.sampled_low32);
+	check(provider.resolve_upload_candidate(
+		      upload_checksum64,
+		      record.formatsize,
+		      record.fmt,
+		      record.siz,
+		      record.tex_offset,
+		      record.stride,
+		      record.width,
+		      record.height,
+		      record.sampled_low32,
+		      record.sampled_sparse_pcrc,
+		      asset.selector_checksum64,
+		      &upload_sampled_exact_resolution),
+	      "upload candidate resolution should resolve multi-selector native sampled entries via sampled-exact lookup");
+	check(upload_sampled_exact_resolution.kind == ReplacementResolutionKind::SampledExactSelector,
+	      "upload candidate resolution should classify multi-selector sampled hits as SampledExactSelector");
+	check(upload_sampled_exact_resolution.identity.valid,
+	      "upload candidate resolution should preserve native sampled identity for sampled-exact hits");
+	check(upload_sampled_exact_resolution.source_class == ResolvedEntrySourceClass::Native,
+	      "upload candidate resolution should classify sampled-exact hits as native source");
+	check(upload_sampled_exact_resolution.resolved_selector_checksum64 == asset.selector_checksum64,
+	      "upload candidate resolution should preserve the resolved selector for sampled-exact hits");
+
+	ReplacementResolution upload_wrong_selector_resolution = {};
+	bool upload_wrong_selector_hit = provider.resolve_upload_candidate(
+		upload_checksum64,
+		record.formatsize,
+		record.fmt,
+		record.siz,
+		record.tex_offset,
+		record.stride,
+		record.width,
+		record.height,
+		record.sampled_low32,
+		record.sampled_sparse_pcrc,
+		0xdeadbeefcafebabeull,
+		&upload_wrong_selector_resolution);
+	check(!upload_wrong_selector_hit ||
+	      (upload_wrong_selector_resolution.kind != ReplacementResolutionKind::SampledExactSelector &&
+	       upload_wrong_selector_resolution.kind != ReplacementResolutionKind::SampledFamilySingleton),
+	      "upload candidate resolution should not resolve via sampled paths when the selector does not match");
+
 	const std::string deferred_dir = make_temp_dir();
 	const uint32_t deferred_palette_crc = 0x1234abcdU;
 	const uint32_t deferred_low32 = 0x89abcdefU;

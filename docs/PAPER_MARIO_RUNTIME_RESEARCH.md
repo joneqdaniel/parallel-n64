@@ -10,6 +10,21 @@ Use the controlling docs for current policy and promotion status:
 
 Treat this document as a research notebook, not as plan authority.
 
+## Quick Map
+
+- Use [tools/scenarios/README.md](/home/auro/code/parallel-n64/tools/scenarios/README.md) for maintained runner entrypoints and current authority lanes.
+- Use this note when you need:
+  - historical file-select and title-timeout probe context
+  - the current rationale for deferred seams
+  - offline pack-review workflow reminders
+  - debug-only runtime flag references
+- The most important still-active research conclusions are:
+  - file-select deeper-state work is still menu-bound
+  - title-timeout remains the best no-save deeper-state probe
+  - `64x1 fs514` still looks like authored-surface/block transport work, not transient strip noise
+  - `8x16 fs258` still looks like sampled-object/subrect transport work, not row-byte reinterpretation
+  - source-backed triangle promotion, `1b8530fb` pool semantics, and second-game breadth are still deferred
+
 ## Current Research Boundaries
 
 - The maintained default Paper Mario runtime lane is the promoted enriched full-cache `PHRB` baseline.
@@ -117,26 +132,45 @@ Treat this document as a research notebook, not as plan authority.
   - `75` canonical-only review groups
   - `66` tracked review selections
 
+## Review-Only Package Shaping
+
+- The current tracked reduction inputs are:
+  - [hires_runtime_overlay_review_profile.json](/home/auro/code/parallel-n64/tools/hires_runtime_overlay_review_profile.json)
+  - [hires_runtime_overlay_review_transport_policy.json](/home/auro/code/parallel-n64/tools/hires_runtime_overlay_review_transport_policy.json)
+  - [hires_canonical_family_selection_review.json](/home/auro/code/parallel-n64/tools/hires_canonical_family_selection_review.json)
+- Current persistent proof remains [hts2phrb-report.json](/home/auro/code/parallel-n64/artifacts/hts2phrb-review/20260409-pm64-all-families-authority-context-overlay-review-profile/hts2phrb-report.json):
+  - `19` bindings
+  - `9` unresolved
+  - `302` canonical-only families
+  - `75` canonical-only review groups
+  - `66` tracked review selections
+- This lane is useful for bounded converter reduction work, but it is still explicitly non-default.
+
 ## Offline Tooling References
 
-- Use [hires_pack_family_report.py](/home/auro/code/parallel-n64/tools/hires_pack_family_report.py) to classify low32 families from a strict bundle and cache path.
-- Use [hires_pack_migrate.py](/home/auro/code/parallel-n64/tools/hires_pack_migrate.py) for migration-oriented import plans or imported-index scaffolds.
-- Use [hires_pack_review.py](/home/auro/code/parallel-n64/tools/hires_pack_review.py) when you want a review artifact without treating the imported index as a final format commitment.
-- Use [hires_pack_emit_subset.py](/home/auro/code/parallel-n64/tools/hires_pack_emit_subset.py) for concrete imported review subsets.
-- Use [hires_pack_compare_subsets.py](/home/auro/code/parallel-n64/tools/hires_pack_compare_subsets.py) to compare several review-only subset artifacts side by side.
-- Use [hires_proxy_candidate_review.py](/home/auro/code/parallel-n64/tools/hires_proxy_candidate_review.py) when you need one report that joins runtime bundle distance, exact-hit context, and transported asset similarity.
-- Use [hires_pack_build_package.py](/home/auro/code/parallel-n64/tools/hires_pack_build_package.py) to emit a loader manifest, materialized package, and final `PHRB` from selected bindings.
-- Use [hires_pack_build_selected_package.py](/home/auro/code/parallel-n64/tools/hires_pack_build_selected_package.py) for the policy-driven selected-package build path, including `--review-profile`.
-- Use [hts2phrb.py](/home/auro/code/parallel-n64/tools/hts2phrb.py) for the generic legacy-pack front door. Current important behavior:
-  - zero-config `--cache <pack>` defaults to all-family inventory mode
-  - accepts bundle directories, `traces/hires-evidence.json`, and `validation-summary.{json,md}`
-  - accepts repeatable `--context-bundle` inputs as enrichment-only context
-  - always emits canonical loader/package output
-  - can apply review-only duplicate, alias, and review-profile shaping
-  - emits runtime-overlay artifacts only when overlay building is enabled and deterministic bindings exist, unless overlay is forced
-  - emits `PHRB` v7 with explicit runtime-ready flags, 64-bit blob offsets, and preserved payload format metadata
-  - stores legacy payload blobs directly and streams binary package emission from the legacy cache
-  - supports `--runtime-overlay-mode {auto,always,never}`, `--minimum-outcome`, `--require-promotable`, `--max-total-ms`, and `--max-binary-package-bytes`
+- Family classification:
+  - [hires_pack_family_report.py](/home/auro/code/parallel-n64/tools/hires_pack_family_report.py) classifies low32 families from a strict bundle and cache path.
+  - [hires_pack_migrate.py](/home/auro/code/parallel-n64/tools/hires_pack_migrate.py) emits migration-oriented import plans or imported-index scaffolds.
+  - [hires_pack_review.py](/home/auro/code/parallel-n64/tools/hires_pack_review.py) generates review artifacts without treating the imported index as a final format commitment.
+- Review subsets and comparisons:
+  - [hires_pack_emit_subset.py](/home/auro/code/parallel-n64/tools/hires_pack_emit_subset.py) materializes imported review subsets.
+  - [hires_pack_compare_subsets.py](/home/auro/code/parallel-n64/tools/hires_pack_compare_subsets.py) compares several review-only subset artifacts side by side.
+- Proxy and selected-package review:
+  - [hires_proxy_candidate_review.py](/home/auro/code/parallel-n64/tools/hires_proxy_candidate_review.py) joins runtime bundle distance, exact-hit context, and transported asset similarity.
+  - [hires_pack_build_package.py](/home/auro/code/parallel-n64/tools/hires_pack_build_package.py) emits a loader manifest, materialized package, and final `PHRB` from selected bindings.
+  - [hires_pack_build_selected_package.py](/home/auro/code/parallel-n64/tools/hires_pack_build_selected_package.py) is the policy-driven selected-package build path, including `--review-profile`.
+- Generic legacy-pack front door:
+  - [hts2phrb.py](/home/auro/code/parallel-n64/tools/hts2phrb.py) is the generic legacy-pack front door.
+  - Important behavior:
+    - zero-config `--cache <pack>` defaults to all-family inventory mode
+    - accepts bundle directories, `traces/hires-evidence.json`, and `validation-summary.{json,md}`
+    - accepts repeatable `--context-bundle` inputs as enrichment-only context
+    - always emits canonical loader/package output
+    - can apply review-only duplicate, alias, and review-profile shaping
+    - emits runtime-overlay artifacts only when overlay building is enabled and deterministic bindings exist, unless overlay is forced
+    - emits `PHRB` v7 with explicit runtime-ready flags, 64-bit blob offsets, and preserved payload format metadata
+    - stores legacy payload blobs directly and streams binary package emission from the legacy cache
+    - supports `--runtime-overlay-mode {auto,always,never}`, `--minimum-outcome`, `--require-promotable`, `--max-total-ms`, and `--max-binary-package-bytes`
 
 ## Experimental Overrides And Debug Flags
 

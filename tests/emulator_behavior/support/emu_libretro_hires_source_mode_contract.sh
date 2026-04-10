@@ -24,16 +24,16 @@ require_pattern() {
 
 require_pattern 'parallel-n64-parallel-rdp-hirestex-source-mode' "$LIBRETRO_C" \
   "libretro core options should expose the hi-res source-mode setting"
-require_pattern 'Hi-res texture source mode (restart); auto|phrb-only|legacy-only|all' "$LIBRETRO_C" \
-  "libretro core option should advertise all supported source-mode values"
+require_pattern 'Hi-res texture source mode (restart); phrb-only|auto|legacy-only|all' "$LIBRETRO_C" \
+  "libretro core option should advertise all supported source-mode values with phrb-only as default"
+require_pattern 'parallel_set_hires_source_mode(0);' "$LIBRETRO_C" \
+  "libretro should map auto to the ParaLLEl source-mode setter"
 require_pattern 'parallel_set_hires_source_mode(1);' "$LIBRETRO_C" \
-  "libretro should map phrb-only to the ParaLLEl source-mode setter"
+  "libretro should default the source-mode setter to phrb-only"
 require_pattern 'parallel_set_hires_source_mode(2);' "$LIBRETRO_C" \
   "libretro should map legacy-only to the ParaLLEl source-mode setter"
 require_pattern 'parallel_set_hires_source_mode(3);' "$LIBRETRO_C" \
   "libretro should map all to the ParaLLEl source-mode setter"
-require_pattern 'parallel_set_hires_source_mode(0);' "$LIBRETRO_C" \
-  "libretro should default the source-mode setter back to auto"
 
 require_pattern 'void parallel_set_hires_source_mode(unsigned mode);' "$PARALLEL_H" \
   "parallel frontend header should declare the hi-res source-mode setter"

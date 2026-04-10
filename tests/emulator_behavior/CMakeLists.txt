@@ -256,6 +256,11 @@ add_test(
 )
 
 add_test(
+  NAME emu.support.hts2phrb_context_dir_discovery
+  COMMAND bash "${EMU_BEHAVIOR_SUPPORT_DIR}/emu_hts2phrb_context_dir_discovery.sh"
+)
+
+add_test(
   NAME emu.support.hts2phrb_context_bundle_provenance_hits
   COMMAND bash "${EMU_BEHAVIOR_SUPPORT_DIR}/emu_hts2phrb_context_bundle_provenance_hits.sh"
 )

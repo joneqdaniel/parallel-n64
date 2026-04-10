@@ -270,6 +270,9 @@ CommandProcessor::CommandProcessor(Vulkan::Device &device_, void *rdram_ptr,
 			renderer.set_hires_debug_ci_low32_fallback(HiresDebugCILow32FallbackMode::Off);
 	}
 
+	if (const char *env = getenv("PARALLEL_RDP_HIRES_GLIDEN64_COMPAT_CRC"))
+		renderer.set_hires_gliden64_compat_crc(strtol(env, nullptr, 0) > 0);
+
 	const bool allow_tile = parse_optional_bool_env(getenv("PARALLEL_RDP_HIRES_FILTER_ALLOW_TILE"), true);
 	const bool allow_block = parse_optional_bool_env(getenv("PARALLEL_RDP_HIRES_FILTER_ALLOW_BLOCK"), true);
 	auto blocked_signatures = parse_hires_filter_signatures_env(getenv("PARALLEL_RDP_HIRES_FILTER_SIGNATURES"));

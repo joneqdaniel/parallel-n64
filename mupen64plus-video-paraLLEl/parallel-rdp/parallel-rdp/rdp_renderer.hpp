@@ -154,6 +154,7 @@ public:
 	void set_hires_ci_compatibility_mode(HiresCICompatibilityMode mode);
 	void set_hires_debug_ci_selectors(std::vector<CILow32DimsSelector> selectors);
 	void set_hires_debug_ci_low32_fallback(HiresDebugCILow32FallbackMode mode);
+	void set_hires_gliden64_compat_crc(bool enable);
 	void log_hires_summary() const;
 
 	void set_blend_color(uint32_t color);
@@ -225,6 +226,7 @@ private:
 	HiresCICompatibilityMode hires_ci_compatibility_mode = HiresCICompatibilityMode::Off;
 	std::vector<CILow32DimsSelector> hires_debug_ci_selectors;
 	HiresDebugCILow32FallbackMode hires_debug_ci_low32_fallback = HiresDebugCILow32FallbackMode::Off;
+	bool hires_gliden64_compat_crc_enabled = false;
 
 	bool init_caps();
 	void init_blender_lut();
@@ -322,6 +324,7 @@ private:
 		bool hit = false;
 	};
 	ReplacementTileState replacement_tiles[Limits::MaxNumTiles] = {};
+	uint32_t hires_rdram_load_addr[Limits::MaxNumTiles] = {};
 	uint8_t tlut_shadow[512] = {};
 	uint8_t tlut_tmem_shadow[2048] = {};
 	bool tlut_shadow_valid = false;

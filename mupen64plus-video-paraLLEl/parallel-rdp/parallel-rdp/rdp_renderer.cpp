@@ -222,6 +222,122 @@ static HiresSampledObjectIdentity compute_hires_sampled_object_identity(const Ti
 	return identity;
 }
 
+// Scan RDRAM CI texture data to find the maximum palette index used (GlideN64's "cimax").
+// CI8: each byte is an index. CI4: each byte has two 4-bit indices.
+static uint32_t scan_rdram_ci_max_index(
+	const uint8_t *cpu_rdram, size_t rdram_size,
+	uint32_t addr, uint32_t width, uint32_t height,
+	uint32_t size_enum, uint32_t row_stride)
+{
+	uint32_t cimax = 0;
+	const uint32_t limit = (size_enum == 0) ? 0x0fu : 0xffu;
+
+	for (uint32_t y = 0; y < height && cimax < limit; y++)
+	{
+		const uint32_t row_addr = addr + y * row_stride;
+		if (size_enum == 0)
+		{
+			// CI4: two indices per byte, width/2 bytes per row (round up)
+			const uint32_t bytes_per_row = (width + 1) >> 1;
+			for (uint32_t x = 0; x < bytes_per_row && cimax < limit; x++)
+			{
+				const uint8_t b = cpu_rdram[(row_addr + x) & (rdram_size - 1)];
+				const uint32_t hi = (b >> 4) & 0x0f;
+				const uint32_t lo = b & 0x0f;
+				if (hi > cimax) cimax = hi;
+				if (lo > cimax) cimax = lo;
+			}
+		}
+		else
+		{
+			// CI8: one index per byte
+			for (uint32_t x = 0; x < width && cimax < limit; x++)
+			{
+				const uint8_t idx = cpu_rdram[(row_addr + x) & (rdram_size - 1)];
+				if (idx > cimax) cimax = idx;
+			}
+		}
+	}
+	return cimax;
+}
+
+// Compute Rice CRC using GlideN64-compatible parameters derived from the draw-time tile descriptor.
+// GlideN64 computes CRC lazily at draw time using the rendering tile's SetTileSize dimensions
+// and the tile's line-based stride, not the upload-path's raw LoadBlock dimensions.
+static uint64_t compute_gliden64_compat_checksum64(
+	const uint8_t *cpu_rdram, size_t rdram_size,
+	uint32_t rdram_load_addr,
+	const TileMeta &meta,
+	const TileSize &tile_size,
+	const uint8_t *tlut_shadow,
+	bool tlut_shadow_valid)
+{
+	if (!cpu_rdram || rdram_size == 0)
+		return 0;
+
+	uint32_t tile_width = 0, tile_height = 0;
+	if (!compute_hires_tile_size_pixels(tile_size, tile_width, tile_height))
+		return 0;
+
+	// Apply mask clamping (GlideN64 convention for non-tile-loaded textures)
+	if (meta.mask_s != 0)
+		tile_width = std::min(tile_width, 1u << meta.mask_s);
+	if (meta.mask_t != 0)
+		tile_height = std::min(tile_height, 1u << meta.mask_t);
+
+	if (tile_width == 0 || tile_height == 0)
+		return 0;
+
+	// Stride = tile line bytes. For 32bpp GlideN64 uses line << 4 instead of line << 3.
+	uint32_t bpl = meta.stride;
+	if (meta.size == TextureSize::Bpp32)
+		bpl <<= 1;
+	if (bpl == 0)
+		return 0;
+
+	// GlideN64 uses the tile descriptor's size (meta.size), not SetTextureImage's size.
+	// For IA textures, SetTextureImage.size may be 16bpp while tile.size is 8bpp.
+	const uint32_t tile_size_enum = uint32_t(meta.size);
+
+	uint32_t texture_crc = rice_crc32_wrapped(
+		cpu_rdram, rdram_size, rdram_load_addr,
+		tile_width, tile_height,
+		tile_size_enum, bpl);
+
+	// For CI textures, compute palette CRC matching GlideN64's checksum64 convention:
+	// checksum64 = (palette_crc << 32) | texture_crc
+	if (meta.fmt == TextureFormat::CI && tlut_shadow && tlut_shadow_valid)
+	{
+		const uint32_t cimax = scan_rdram_ci_max_index(
+			cpu_rdram, rdram_size, rdram_load_addr,
+			tile_width, tile_height, tile_size_enum, bpl);
+
+		uint32_t palette_crc = 0;
+		if (meta.size == TextureSize::Bpp8)
+		{
+			// CI8: CRC over full palette, stride=512 (256 entries × 2 bytes)
+			palette_crc = rice_crc32_wrapped(
+				tlut_shadow, 512, 0,
+				cimax + 1, 1, 2, 512);
+		}
+		else
+		{
+			// CI4: CRC over 16-entry palette bank, stride=32 (16 entries × 2 bytes)
+			const uint32_t bank_offset = uint32_t(meta.palette) * 32u;
+			if (bank_offset + 32u <= 512u)
+			{
+				palette_crc = rice_crc32_wrapped(
+					tlut_shadow, 512, bank_offset,
+					cimax + 1, 1, 2, 32);
+			}
+		}
+
+		return (uint64_t(palette_crc) << 32) | uint64_t(texture_crc);
+	}
+
+	return uint64_t(texture_crc);
+}
+
 static bool ranges_overlap_u32(uint32_t a_addr, uint32_t a_size, uint32_t b_addr, uint32_t b_size)
 {
 	if (a_size == 0 || b_size == 0)
@@ -1074,6 +1190,13 @@ void Renderer::set_hires_debug_ci_low32_fallback(HiresDebugCILow32FallbackMode m
 		LOGI("Hi-res debug CI low32 fallback enabled: replacement-dims-unique.\n");
 }
 
+void Renderer::set_hires_gliden64_compat_crc(bool enable)
+{
+	hires_gliden64_compat_crc_enabled = enable;
+	if (enable)
+		LOGI("Hi-res GlideN64-compat RDRAM CRC fallback enabled.\n");
+}
+
 void Renderer::log_hires_summary() const
 {
 	if (!replacement_provider && !hires_debug)
@@ -1900,6 +2023,69 @@ void Renderer::draw_shaded_primitive(const TriangleSetup &setup, const Attribute
 	const unsigned texel1_tile = (base_tile + 1u) & 7u;
 	const auto &base_meta = tiles[base_tile].meta;
 	const auto &base_size = tiles[base_tile].size;
+	// GlideN64-compat RDRAM CRC fallback: if the upload path missed, try computing CRC
+	// at draw time using the rendering tile's SetTileSize dimensions and line-based stride.
+	// GlideN64 computes its Rice CRC lazily at draw/cache time with these parameters.
+	if (!replacement_tiles[base_tile].hit &&
+	    hires_gliden64_compat_crc_enabled &&
+	    replacement_provider && cpu_rdram && rdram_size > 0 &&
+	    hires_rdram_load_addr[base_tile] != 0 && base_meta.stride != 0)
+	{
+		const uint64_t compat_checksum64 = compute_gliden64_compat_checksum64(
+			cpu_rdram, rdram_size,
+			hires_rdram_load_addr[base_tile],
+			base_meta, base_size,
+			tlut_shadow, tlut_shadow_valid);
+
+		if (compat_checksum64 != 0)
+		{
+			const uint16_t compat_formatsize = formatsize_key(base_meta.fmt, base_meta.size);
+			ReplacementResolution compat_resolution = {};
+			bool compat_hit = replacement_provider->resolve_upload_candidate(
+				compat_checksum64, compat_formatsize,
+				uint32_t(base_meta.fmt), uint32_t(base_meta.size),
+				base_meta.offset, base_meta.stride,
+				0, 0, 0, 0, 0, &compat_resolution);
+
+			if (compat_hit)
+			{
+				uint32_t compat_w = 0, compat_h = 0;
+				compute_hires_tile_size_pixels(base_size, compat_w, compat_h);
+				ReplacementMeta compat_repl_meta = compat_resolution.meta;
+				compat_repl_meta.orig_w = compat_w;
+				compat_repl_meta.orig_h = compat_h;
+
+				HiresProviderDescriptorPathKind compat_desc_path = HiresProviderDescriptorPathKind::None;
+				uint64_t compat_selector = 0;
+				const char *compat_desc_class = nullptr;
+				compat_hit = resolve_hires_provider_resolution_descriptor(
+					compat_resolution, compat_formatsize, compat_w, compat_h,
+					compat_repl_meta, &compat_desc_path, &compat_selector, &compat_desc_class);
+
+				if (compat_hit)
+				{
+					auto &repl_state = replacement_tiles[base_tile];
+					detail::write_hires_lookup_tile_state(
+						repl_state, true, compat_checksum64, compat_checksum64,
+						0, compat_formatsize, compat_w, compat_h);
+					repl_state.repl_w = static_cast<uint16_t>(compat_repl_meta.repl_w);
+					repl_state.repl_h = static_cast<uint16_t>(compat_repl_meta.repl_h);
+					repl_state.vk_image_index = compat_repl_meta.vk_image_index;
+					apply_hires_tile_binding(base_tile, repl_state);
+
+					if (hires_debug)
+					{
+						LOGI("Hi-res GlideN64-compat draw-time hit: tile=%u key=%016llx w=%u h=%u stride=%u addr=0x%06x.\n",
+						     base_tile,
+						     static_cast<unsigned long long>(compat_checksum64),
+						     compat_w, compat_h, base_meta.stride,
+						     hires_rdram_load_addr[base_tile] & 0x00ffffffu);
+					}
+				}
+			}
+		}
+	}
+
 	const auto &texel0_state = replacement_tiles[base_tile];
 	const auto &texel1_state = replacement_tiles[texel1_tile];
 
@@ -4669,6 +4855,22 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 		const uint32_t row_stride_bytes = upload.vram_width * bpp_bytes;
 		const uint32_t src_base_addr = info.tex_addr + ((info.tex_width * key_start_y + key_start_x) << (unsigned(info.size) - 1));
 
+		// Persist RDRAM load address for draw-time GlideN64-compat CRC computation.
+		// Propagate to all tiles sharing the same TMEM offset, since the load tile
+		// (e.g. tile 7) and render tile (e.g. tile 0) are typically different but
+		// point to the same TMEM region.
+		{
+			const uint32_t load_tmem_offset = meta.offset;
+			hires_rdram_load_addr[tile & (Limits::MaxNumTiles - 1)] = info.tex_addr;
+			for (unsigned alias = 0; alias < Limits::MaxNumTiles; alias++)
+			{
+				if (alias == (tile & (Limits::MaxNumTiles - 1)))
+					continue;
+				if (tiles[alias].meta.offset == load_tmem_offset)
+					hires_rdram_load_addr[alias] = info.tex_addr;
+			}
+		}
+
 		if (detail::should_update_tlut_shadow(rdram_view_ok, is_tlut_mode))
 		{
 			const uint32_t bytes = key_width_pixels * key_height_pixels * bpp_bytes;
@@ -5062,6 +5264,36 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 					     unsigned(meta.stride),
 					     key_start_x,
 					     key_start_y);
+					{
+						// GlideN64-compat CRC diagnostic: compute what CRC would be with GlideN64-style parameters
+						uint32_t compat_bpl = meta.stride;
+						if (meta.size == TextureSize::Bpp32)
+							compat_bpl <<= 1; // GlideN64: pTile->line << 4 for 32bpp
+						uint32_t compat_width = key_width_pixels;
+						uint32_t compat_height = key_height_pixels;
+						uint32_t compat_size = uint32_t(info.size);
+						if (info.mode == UploadMode::Block && compat_bpl > 0)
+						{
+							// Reconstruct 2D dims from tile line stride (approximate, before SetTileSize)
+							uint32_t texels_per_row = (compat_bpl << 1) >> uint32_t(info.size);
+							if (texels_per_row > 0)
+							{
+								compat_width = texels_per_row;
+								compat_height = (key_width_pixels + texels_per_row - 1) / texels_per_row;
+							}
+						}
+						uint32_t compat_crc = 0;
+						if (compat_width > 0 && compat_height > 0 && compat_bpl > 0)
+							compat_crc = rice_crc32_wrapped(cpu_rdram, rdram_size, src_base_addr,
+							                                compat_width, compat_height,
+							                                compat_size, compat_bpl);
+						LOGI("Hi-res CRC diagnostic: our_crc=%08x compat_crc=%08x stride_ours=%u stride_compat=%u "
+						     "w_ours=%u h_ours=%u w_compat=%u h_compat=%u mode=%s info_size=%u meta_size=%u.\n",
+						     texture_crc, compat_crc, row_stride_bytes, compat_bpl,
+						     key_width_pixels, key_height_pixels, compat_width, compat_height,
+						     info.mode == UploadMode::Block ? "block" : "tile",
+						     uint32_t(info.size), uint32_t(meta.size));
+					}
 					if (hit && ci_lookup_resolution_reason)
 					{
 						LOGI("Hi-res keying compatibility: reason=%s mode=%s addr=0x%06x wh=%ux%u resolved_key=%016llx.\n",

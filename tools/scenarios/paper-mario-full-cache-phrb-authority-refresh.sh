@@ -5,7 +5,8 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "$SCRIPT_DIR/../.." && pwd)"
 
 LEGACY_CACHE_PATH="${REPO_ROOT}/assets/PAPER MARIO_HIRESTEXTURES.hts"
-CONTEXT_SUMMARY_PATH="${REPO_ROOT}/artifacts/paper-mario-probes/validation/20260408-full-cache-phrb-authorities-authority-context-root-provenance-promoted-round2/validation-summary.json"
+CONTEXT_SUMMARY_PATH=""
+CONTEXT_DIR="${REPO_ROOT}/artifacts/paper-mario-probes/validation"
 OUTPUT_DIR=""
 BUNDLE_ROOT=""
 REUSE_EXISTING=0
@@ -17,7 +18,8 @@ Usage:
 
 Options:
   --legacy-cache PATH      Legacy `.hts` cache to convert
-  --context-summary PATH   Validation summary used as authority context input
+  --context-summary PATH   Single validation summary as context (overrides --context-dir)
+  --context-dir PATH       Directory to scan recursively for validation summaries (default: artifacts/paper-mario-probes/validation)
   --output-dir PATH        Converter output directory
   --bundle-root PATH       Validation bundle root
   --reuse-existing         Reuse a matching existing converter artifact when possible
@@ -34,6 +36,10 @@ while (($#)); do
     --context-summary)
       shift
       CONTEXT_SUMMARY_PATH="${1:-}"
+      ;;
+    --context-dir)
+      shift
+      CONTEXT_DIR="${1:-}"
       ;;
     --output-dir)
       shift
@@ -64,8 +70,13 @@ if [[ ! -f "$LEGACY_CACHE_PATH" ]]; then
   exit 2
 fi
 
-if [[ ! -f "$CONTEXT_SUMMARY_PATH" ]]; then
+if [[ -n "$CONTEXT_SUMMARY_PATH" && ! -f "$CONTEXT_SUMMARY_PATH" ]]; then
   echo "Context summary not found: $CONTEXT_SUMMARY_PATH" >&2
+  exit 2
+fi
+
+if [[ -z "$CONTEXT_SUMMARY_PATH" && ! -d "$CONTEXT_DIR" ]]; then
+  echo "Context directory not found: $CONTEXT_DIR" >&2
   exit 2
 fi
 
@@ -82,13 +93,18 @@ fi
 declare -a converter_args
 converter_args=(
   --cache "$LEGACY_CACHE_PATH"
-  --context-bundle "$CONTEXT_SUMMARY_PATH"
   --minimum-outcome partial-runtime-package
   --expect-context-class context-enriched
   --expect-runtime-ready-class mixed-native-and-compat
   --output-dir "$OUTPUT_DIR"
   --stdout-format json
 )
+
+if [[ -n "$CONTEXT_SUMMARY_PATH" ]]; then
+  converter_args+=(--context-bundle "$CONTEXT_SUMMARY_PATH")
+else
+  converter_args+=(--context-dir "$CONTEXT_DIR")
+fi
 
 if (( REUSE_EXISTING )); then
   converter_args+=(--reuse-existing)

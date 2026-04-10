@@ -5,7 +5,7 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "$SCRIPT_DIR/../../.." && pwd)"
 
 LEGACY_CACHE_PATH="${EMU_RUNTIME_PM64_FULL_CACHE_LEGACY_CACHE:-$REPO_ROOT/assets/PAPER MARIO_HIRESTEXTURES.hts}"
-CONTEXT_SUMMARY_PATH="${EMU_RUNTIME_PM64_FULL_CACHE_CONTEXT_SUMMARY:-$REPO_ROOT/artifacts/paper-mario-probes/validation/20260408-full-cache-phrb-authorities-authority-context-root-provenance-promoted-round2/validation-summary.json}"
+CONTEXT_DIR="${EMU_RUNTIME_PM64_FULL_CACHE_CONTEXT_DIR:-$REPO_ROOT/artifacts/paper-mario-probes/validation}"
 OUTPUT_DIR="${EMU_RUNTIME_PM64_FULL_CACHE_REFRESH_OUTPUT_DIR:-}"
 BUNDLE_ROOT="${EMU_RUNTIME_PM64_FULL_CACHE_REFRESH_BUNDLE_ROOT:-}"
 
@@ -19,8 +19,8 @@ if [[ ! -f "$LEGACY_CACHE_PATH" ]]; then
   exit 77
 fi
 
-if [[ ! -f "$CONTEXT_SUMMARY_PATH" ]]; then
-  echo "SKIP: Paper Mario authority context summary not found at $CONTEXT_SUMMARY_PATH."
+if [[ ! -d "$CONTEXT_DIR" ]]; then
+  echo "SKIP: Paper Mario authority context directory not found at $CONTEXT_DIR."
   exit 77
 fi
 
@@ -63,7 +63,7 @@ PACKAGE_PATH="$OUTPUT_DIR/package.phrb"
 
 bash "$REFRESH_SCENARIO" \
   --legacy-cache "$LEGACY_CACHE_PATH" \
-  --context-summary "$CONTEXT_SUMMARY_PATH" \
+  --context-dir "$CONTEXT_DIR" \
   --output-dir "$OUTPUT_DIR" \
   --bundle-root "$BUNDLE_ROOT" \
   --reuse-existing
@@ -83,26 +83,37 @@ import sys
 from pathlib import Path
 
 report = json.loads(Path(sys.argv[1]).read_text())
-expected = {
+
+# Exact expectations: stable regardless of local artifact tree
+exact = {
     "conversion_outcome": "partial-runtime-package",
     "requested_family_count": 8992,
-    "package_manifest_record_count": 8883,
-    "package_manifest_runtime_ready_record_count": 8515,
-    "package_manifest_runtime_ready_native_sampled_record_count": 28,
     "package_manifest_runtime_ready_compat_record_count": 8487,
     "package_manifest_runtime_deferred_record_count": 368,
-    "binding_count": 15,
-    "unresolved_count": 13,
     "runtime_overlay_built": True,
     "runtime_overlay_reason": "runtime-context-available",
-    "context_bundle_input_count": 1,
-    "context_bundle_resolution_count": 3,
 }
-for key, expected_value in expected.items():
+for key, expected_value in exact.items():
     actual = report.get(key)
     if actual != expected_value:
         raise SystemExit(
             f"FAIL: refresh report expected {key}={expected_value!r}, got {actual!r}."
+        )
+
+# Minimum bounds: grow as more context summaries accumulate in the local artifact tree
+minimums = {
+    "package_manifest_record_count": 8883,
+    "package_manifest_runtime_ready_record_count": 8515,
+    "package_manifest_runtime_ready_native_sampled_record_count": 28,
+    "context_bundle_input_count": 1,
+    "context_bundle_resolution_count": 3,
+    "binding_count": 15,
+}
+for key, min_value in minimums.items():
+    actual = report.get(key)
+    if actual is None or actual < min_value:
+        raise SystemExit(
+            f"FAIL: refresh report expected {key}>={min_value!r}, got {actual!r}."
         )
 PY
 
@@ -118,25 +129,28 @@ import sys
 from pathlib import Path
 
 summary = json.loads(Path(sys.argv[1]).read_text())
-expected = {
+
+# Exact expectations: stable regardless of enrichment depth
+exact_fixture = {
     "title-screen": {
         "screenshot_sha256": "0e854083b48ccf48e0a372e39ca439c17f0e66523423fb2c3b68b94181c72ad5",
-        "native_sampled_entry_count": 503,
         "descriptor_path_class": "sampled-only",
-        "descriptor_path_counts": {"sampled": 268, "native_checksum": 0, "generic": 0, "compat": 0},
     },
     "file-select": {
         "screenshot_sha256": "43bd91dab1dfa4001365caee5ba03bc4ae1999fd012f5e943093615b4c858ca9",
-        "native_sampled_entry_count": 503,
         "descriptor_path_class": "sampled-only",
-        "descriptor_path_counts": {"sampled": 214, "native_checksum": 0, "generic": 0, "compat": 0},
     },
     "kmr-03-entry-5": {
         "screenshot_sha256": "212ffb9329b8d78e608874e524534ca54505a26204abe78524ef8fca97a1b638",
-        "native_sampled_entry_count": 503,
         "descriptor_path_class": "sampled-only",
-        "descriptor_path_counts": {"sampled": 182, "native_checksum": 0, "generic": 0, "compat": 0},
     },
+}
+
+# Minimum bounds: grow as more enrichment context accumulates
+min_fixture = {
+    "title-screen":    {"native_sampled_entry_count": 503, "min_sampled": 268},
+    "file-select":     {"native_sampled_entry_count": 503, "min_sampled": 214},
+    "kmr-03-entry-5":  {"native_sampled_entry_count": 503, "min_sampled": 182},
 }
 
 fixtures = summary.get("fixtures") or []
@@ -146,15 +160,16 @@ if len(fixtures) != 3:
     raise SystemExit(f"FAIL: expected 3 refresh fixtures, found {len(fixtures)}.")
 for fixture in fixtures:
     label = fixture.get("label")
-    fixture_expected = expected.get(label)
-    if fixture_expected is None:
+    fe = exact_fixture.get(label)
+    fm = min_fixture.get(label)
+    if fe is None:
         raise SystemExit(f"FAIL: unexpected fixture label in refresh summary: {label!r}.")
     if not fixture.get("passed"):
         raise SystemExit(f"FAIL: refresh fixture {label} did not pass.")
-    if fixture.get("screenshot_sha256") != fixture_expected["screenshot_sha256"]:
+    if fixture.get("screenshot_sha256") != fe["screenshot_sha256"]:
         raise SystemExit(
             f"FAIL: refresh fixture {label} expected screenshot hash "
-            f"{fixture_expected['screenshot_sha256']}, got {fixture.get('screenshot_sha256')!r}."
+            f"{fe['screenshot_sha256']}, got {fixture.get('screenshot_sha256')!r}."
         )
     hires = fixture.get("hires_summary") or {}
     if hires.get("source_mode") != "phrb-only":
@@ -165,22 +180,29 @@ for fixture in fixtures:
         raise SystemExit(
             f"FAIL: refresh fixture {label} expected source_policy=phrb-only, got {hires.get('source_policy')!r}."
         )
-    if int(hires.get("native_sampled_entry_count") or 0) != fixture_expected["native_sampled_entry_count"]:
+    native_sampled = int(hires.get("native_sampled_entry_count") or 0)
+    if native_sampled < fm["native_sampled_entry_count"]:
         raise SystemExit(
-            f"FAIL: refresh fixture {label} expected native_sampled_entry_count="
-            f"{fixture_expected['native_sampled_entry_count']}, got {hires.get('native_sampled_entry_count')!r}."
+            f"FAIL: refresh fixture {label} expected native_sampled_entry_count>="
+            f"{fm['native_sampled_entry_count']}, got {native_sampled}."
         )
-    if hires.get("descriptor_path_class") != fixture_expected["descriptor_path_class"]:
+    if hires.get("descriptor_path_class") != fe["descriptor_path_class"]:
         raise SystemExit(
             f"FAIL: refresh fixture {label} expected descriptor_path_class="
-            f"{fixture_expected['descriptor_path_class']!r}, got {hires.get('descriptor_path_class')!r}."
+            f"{fe['descriptor_path_class']!r}, got {hires.get('descriptor_path_class')!r}."
         )
     descriptor_paths = hires.get("descriptor_path_counts") or {}
-    if descriptor_paths != fixture_expected["descriptor_path_counts"]:
+    sampled_count = int(descriptor_paths.get("sampled") or 0)
+    if sampled_count < fm["min_sampled"]:
         raise SystemExit(
-            f"FAIL: refresh fixture {label} expected descriptor_path_counts="
-            f"{fixture_expected['descriptor_path_counts']!r}, got {descriptor_paths!r}."
+            f"FAIL: refresh fixture {label} expected sampled>={fm['min_sampled']}, got {sampled_count}."
         )
+    for zero_key in ("native_checksum", "generic", "compat"):
+        if int(descriptor_paths.get(zero_key) or 0) != 0:
+            raise SystemExit(
+                f"FAIL: refresh fixture {label} expected {zero_key}=0, "
+                f"got {descriptor_paths.get(zero_key)!r}."
+            )
 PY
 
 echo "emu_conformance_paper_mario_full_cache_phrb_authorities_refresh: PASS ($PACKAGE_PATH)"

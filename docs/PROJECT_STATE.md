@@ -17,8 +17,9 @@
 
 - Promoted enriched full-cache `PHRB` baseline:
   - default authority path and current default conformance baseline
-  - current converter state: `368` canonical-only families in `134` grouped reviews
-  - current runtime-overlay state: `15` bindings / `13` unresolved overlay families
+  - enrichment via `--context-dir` automatic discovery (103 expanded bundles from local artifact tree)
+  - current converter state: `368` canonical-only families, `143` native sampled / `8487` compat runtime-ready
+  - current runtime-overlay state: `97` bindings / `46` unresolved overlay families
 - Zero-config compat-only full-cache `PHRB` fallback:
   - maintained only through explicit override or the dedicated zero-config refresh lane
   - current converter state: `8620` runtime-ready compat records and `372` deferred compat records
@@ -41,12 +42,13 @@
 - The PHRB self-test now validates the sampled index instead of the checksum index.
 - `.phrb` is the default runtime source mode; `.hts`/`.htc` require explicit opt-in via core option or env var.
 - `resolve_hires_replacement_descriptor` (the generic checksum-only descriptor path) has no live callers.
+- The authority refresh now uses `--context-dir` to automatically discover all local validation summaries as enrichment sources.
 - Current default authority outcome:
   - `source_mode=phrb-only`
-  - `entry_count=12761`
-  - `native_sampled_entry_count=503`
+  - `entry_count=12909`
+  - `native_sampled_entry_count=651`
   - sampled-only descriptor traffic on title screen, file select, and `kmr_03 ENTRY_5`
-  - `6` entries resolve through native-checksum fallback (geometry mismatch, not a code gap)
+  - native-checksum-exact-upload entries resolve geometry-mismatched families (not a code gap)
 
 ### Converter State
 
@@ -55,6 +57,7 @@
   - zero-config `--cache <pack>`
   - bundle and validation-summary inputs
   - enrichment-only `--context-bundle`
+  - recursive enrichment discovery `--context-dir`
   - explicit runtime-class gates
   - `--reuse-existing`
   - review-only duplicate / alias / review-profile overlays

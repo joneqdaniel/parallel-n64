@@ -47,7 +47,7 @@ If that changes later, this file should become the source of truth for local pat
   - `SUPER MARIO 64_HIRESTEXTURES.hts` — SM64 Reloaded v2.6.0 HD (Rice CRC, GlideN64 format `0x08000000`, 2530 entries)
   - `THE LEGEND OF ZELDA_HIRESTEXTURES.hts` — OoT Reloaded v11.0.0 HD (Rice CRC, GlideN64 format `0x08000000`, 43267 entries)
   - `Paper Mario (USA).zip`, `Super Mario 64 (USA).zip`, `Legend of Zelda, The - Ocarina of Time (USA).zip` — ROMs
-  Note: GlideN64 HTS packs use Rice CRC computed from **RDRAM**. Our runtime computes Rice CRC from **TMEM** (same algorithm, different input data). Boot test confirmed 0 hits. Cross-game runtime use requires adding RDRAM-based CRC lookup. The Paper Mario HTS (Glide64mk2-era, version `0x40a20000`) was generated from TMEM CRC and matches our runtime.
+  Note: GlideN64 HTS packs use Rice CRC computed from RDRAM. The GlideN64-compat draw-time CRC fallback (auto-enabled via source mode `all`) resolves this mismatch at runtime. SM64 confirmed working end-to-end (HTS → PHRB → runtime hits). OoT converts cleanly but runtime load exceeds integrated GPU resources at 43K entries / 8.9GB.
 
 - generated workflow artifacts: `/home/auro/code/parallel-n64/artifacts`
   Notes: gitignored except for the tracked README.

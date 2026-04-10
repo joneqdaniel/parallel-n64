@@ -944,6 +944,13 @@ void CommandProcessor::configure_hires_replacement(bool enable, const char *cach
 	     detail::hires_cache_source_policy_name(cache_source_policy));
 	if (detail::should_attach_hires_provider(outcome))
 		renderer.set_replacement_provider(&replacement_provider);
+
+	// Auto-enable GlideN64-compat RDRAM CRC fallback when source mode is "all".
+	// Source mode "all" is the expected mode for GlideN64 community packs (SM64, OoT, etc.)
+	// which use Rice CRC computed from RDRAM with tile-descriptor parameters at draw time.
+	// The env var PARALLEL_RDP_HIRES_GLIDEN64_COMPAT_CRC still overrides this for testing.
+	if (cache_source_policy == ReplacementProvider::CacheSourcePolicy::All)
+		renderer.set_hires_gliden64_compat_crc(true);
 }
 
 void CommandProcessor::set_vi_register(VIRegister reg, uint32_t value)

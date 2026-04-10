@@ -2,921 +2,103 @@
 
 ## Mission
 
-- Build a stable hi-res texture replacement and scaling path for the ParaLLEl video core
-- Keep `feature off` aligned with current baseline behavior and N64 parity goals
-- Build agent-first tooling so debugging and verification are reproducible
+- Build a stable hi-res texture replacement and scaling path for the ParaLLEl video core.
+- Keep `feature off` aligned with baseline behavior and N64 parity goals.
+- Keep debugging, validation, and promotion agent-first and reproducible.
 
 ## Current Status
 
-- The repo is now in the Phase 1 runtime/package shift inside the Phase 0/1 backbone
-- The controlling runtime/package plan is now [Hi-Res Runtime Primary Plan](/home/auro/code/parallel-n64/docs/plans/hires_runtime_primary_plan.md)
-- Implementation is now active against that plan, not just staged for it
-- The repo now maintains three distinct full-cache Paper Mario lanes and treats them differently:
-  - promoted enriched full-cache `PHRB` baseline: the default authority path and the current default conformance baseline
-  - zero-config compat-only full-cache `PHRB` fallback: still maintained, but only through explicit override or the dedicated zero-config refresh lane
-  - tracked review-only reduction lane: current best converter-side ambiguity reduction proof, explicitly non-default
-- The current active execution order is now:
-  - keep the promoted enriched full-cache `PHRB` baseline green for title screen, file select, and `kmr_03 ENTRY_5`
-  - continue provider-owned runtime-contract tightening and remove remaining checksum-shaped seams
-  - continue reducing `hts2phrb` canonical-only ambiguity and overlay residue through bounded review-only policy
-  - keep zero-config compat-only and review-only reduction lanes explicit and non-default
-  - leave pool semantics, source-backed triangle promotion, and second-game breadth deferred until the core runtime/converter gap narrows further
-- The first concrete plan slices are already in:
-  - semantic hi-res evidence now participates in pass/fail on the active title-screen and file-select fixtures
-  - the provider now preserves structured `PHRB` identity at load time instead of discarding it
-  - direct provider/package coverage exists for that seam
-  - native sampled `PHRB` records now have a dedicated structured provider index instead of depending on reverse scans across the whole entry set
-  - CI low32 compatibility families are now explicit compat-only pools and no longer silently treat native sampled `PHRB` records as fallback candidates
-  - the exact sampled-object seam can now prefer structured provider lookup
-  - the current exact-seam widening now includes the narrow single-texture triangle case, and the active file-select plus `kmr_03 ENTRY_5` authorities stayed runtime-neutral under that extension
-  - ordered-surface singleton sampled families now also resolve through an explicit provider helper, so neither the upload path nor the texrect sampled path has to reproduce that one-family selection rule outside `ReplacementProvider`
-  - hi-res evidence summaries now also preserve hit-side `resolution_reason_counts`, so current lanes can report how much traffic came through sampled-family singleton resolution versus native-checksum, generic, or compat fallback without going back to raw logs
-  - normal runtime summaries now also expose aggregate sampled singleton detail counts without requiring hit-side debug logging, so live validation bundles can distinguish plain sampled-family singleton traffic from ordered-surface singleton traffic directly from `hires_summary`; the rebuilt selected-package `960` proof at [`20260408-title-timeout-selected-package-sampled-detail-960-rebuilt/validation-summary.json`](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260408-title-timeout-selected-package-sampled-detail-960-rebuilt/validation-summary.json) reports `sampled_family_singleton=0` and `sampled_ordered_surface_singleton=33`
-  - generic exact-checksum descriptor resolution can now also preserve native sampled identity when the winning entry is a native `PHRB` record, instead of always collapsing back to checksum-only decode/caching
-  - the provider now also returns the winning entry's native-versus-compat source class on generic exact-checksum lookup, so descriptor resolution and the upload path no longer need a second checksum probe just to classify native fallback versus compat fallback
-  - the provider now also owns a typed resolution contract for checksum-driven and upload-time lookup, so the renderer's generic descriptor path and upload path consume one classified result instead of separately reconstructing sampled-family, exact-native, and generic native/compat fallback order from raw provider calls
-  - the renderer now also routes CI low32 compat materialization through that same typed provider-resolution helper, so generic descriptor resolution, upload-time resolution, and CI compat fallback all share one descriptor materialization path
-  - the sampled-exact texrect / narrow triangle seam now also consumes a provider-owned sampled resolution result (`exact-selector` vs `family-singleton`), so that path only keeps the explicit ordered-surface reservation step outside the provider seam
-  - the same generic exact descriptor path now also preserves the provider's resolved selector/checksum pair when it stays on the generic side, so upload/descriptor resolution no longer silently snaps back to selector `0` before cache/decode
-  - compat-backed generic exact upload hits now also materialize through the compat descriptor helper directly once that source class is known, so the upload path no longer re-enters the broad generic resolver just to decode an already-classified compat entry
-  - renderer tile-state bookkeeping now also stores resolved selector identity separately from the resolved replacement checksum, so sampled-object exact probes and later runtime decisions no longer need to overload `checksum64` as both values
-  - sampled-object probe traces now also store the original upload checksum separately from the resolved replacement checksum, so `upload_low32` / `upload_pcrc` evidence stays about the upload seam instead of drifting with replacement selection
-  - native checksum fallback now also has its own renderer cache source and native decode path, so native `PHRB` hits no longer fall back through the same resident-image cache bucket as generic/compat checksum hits when structured sampled resolution is unavailable
-  - draw-side exact sampled lookup no longer depends on probe being enabled just to compute sampled identity; the new probe-off timeout conformance lane keeps the explicit selected-package path hash-identical, `phrb-only`, and sampled-only with `PARALLEL_RDP_HIRES_SAMPLED_OBJECT_LOOKUP=1` plus `PARALLEL_RDP_HIRES_SAMPLED_OBJECT_PROBE=0`, even though the current probe-off residue still only carries the ordered-surface singleton half of the previous `940cea6e` texrect contract (`descriptor_paths.sampled=33`, `sampled_ordered_surface_singleton=33`)
-  - the active selected-package `960` timeout lane now reports descriptor-path usage directly, and the fresh proof bundle shows the current live hits are entirely structured sampled: `descriptor_paths(sampled=66 native_checksum=0 generic=0 compat=0)` in [`20260407-selected-package-timeout-current-contract/validation-summary.md`](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260407-selected-package-timeout-current-contract/validation-summary.md)
-    - practical consequence: the currently trusted explicit `PHRB` timeout proof is no longer “probably native-first”; we can now say the successful live descriptor path in that lane is sampled-only, while native-checksum/generic/compat fallback stays available for other seams
-  - an initial `hts2phrb` front door exists with smoke and round-trip coverage
-  - bundle-driven `hts2phrb` conversion now falls back to sampled-object top groups when CI-family lists are absent, so current selected-package runtime bundles remain usable as conversion seeds
-  - that converter now also emits per-stage timing and output-size telemetry in `hts2phrb-report.json`, so later operational gating can use tracked measurements instead of one-off notes
-  - `hts2phrb` now builds canonical package records first and treats the proxy-binding/runtime path as a separate overlay artifact; the emitted `PHRB` is now version `7` with explicit runtime-ready flags plus 64-bit blob offsets and preserved payload format metadata so canonical non-runtime records can coexist with runtime-ready records safely, and `--runtime-overlay-mode auto` now skips that overlay cleanly when no bundle or other runtime context is present
-  - skipped-overlay runs no longer emit placeholder `bindings.json` or `runtime-loader-manifest.json`; canonical-only runs now report `runtime_overlay_artifacts_emitted=false` and keep overlay state internal to the converter report instead of pretending those files are meaningful outputs
-  - `hts2phrb --reuse-existing` now reuses matching completed output directories on repeat runs, and it backfills the new request-signature metadata on the first rerun of older reports so pre-upgrade converter artifacts are still reusable
-  - `hts2phrb --reuse-existing` now also fingerprints the resolved cache, bundle, and policy inputs and can resume from matching migration / manifest / runtime-overlay intermediates when a prior run lost only the final report/package tail, so interrupted runs no longer have to rebuild those earlier stages
-  - `hts2phrb --reuse-existing` now also normalizes stale loader/package/report runtime-summary metadata in place, so older artifacts with missing or `None` runtime class/count fields are upgraded from their manifest records instead of carrying ambiguous state forward
-  - `hts2phrb` now also accepts review-only duplicate/alias shaping directly (`--duplicate-review`, `--alias-group-review`, `--review-profile`), so the generic converter can emit the same canonical-package review candidates as the selected-package builder without routing that work through a separate build path
-  - those review-only converter inputs now also participate in `--reuse-existing` validity through request fingerprints, so changing a duplicate/alias/profile review invalidates stale canonical-package reuse instead of silently keeping an old reviewed output alive
-  - those review-only converter inputs now also degrade cleanly to explicit `skipped` diagnostics on the generic front door when the current request scope does not include the reviewed family or only carries a candidate-free canonical sampled record, so optional shaping overlays no longer block canonical-package emission
-  - the converter report now also records per-input review overlay state (`applied`, `skipped`, `mixed`, or `none`), and the current Paper Mario timeout review-profile path is covered by a direct support contract that requires those overlays to stay explicit and reusable on the generic front door
-  - the converter report now also lifts blocker runtime-state counts and review-backed blocker reasons to the top level, including an explicit uncovered blocker-family count when unresolved-review reasons do not explain every blocker; practical consequence: full-cache front-door runs now expose the real blocker picture without forcing manual comparison between `promotion_blockers` and nested unresolved-review JSON
-  - the converter now also emits a grouped canonical-only unresolved-family review, so the remaining full-cache import ambiguity is explicit instead of one flat blocker total; the current authority-context Paper Mario lane now reports `134` canonical-only review groups covering `368` families, split into `98` same-aspect/context-review groups and `36` mixed-aspect/manual-review groups
-  - the converter report now also lifts runtime-overlay reason counts and hash-review classes to the top level, so the remaining binding/transport residue is readable directly from `hts2phrb-report.json` instead of only from the nested overlay review artifact
-  - `hts2phrb` now also supports `--minimum-outcome`, so canonical-package-first automation can gate on `canonical-package-only` or `partial-runtime-package` explicitly instead of treating `--require-promotable` as the only success criterion
-  - `hts2phrb` now also supports explicit runtime-class gates (`--expect-context-class` and `--expect-runtime-ready-class`), so the repo can assert “zero-context compat-backed” versus “context-enriched mixed-native-and-compat” directly on the converter path instead of inferring that only from counts
-  - `hts2phrb` now streams binary package emission directly from the legacy cache and stores legacy payload blobs on its own front-door path instead of trying to hold a fully decoded raw-RGBA payload in memory; practical consequence: full-cache conversion is no longer blocked by the old in-memory blob assembly path or by raw-RGBA package inflation
-  - bundle-driven default output dirs are now path-scoped to the resolved bundle root, so different `validation-summary.{json,md}` inputs with the same filename no longer collide under `./artifacts/hts2phrb/`
-  - validation-summary bundle resolution is now robust to summary-relative, repo-root-relative, and cwd-relative bundle paths, and the resolved mode is recorded in `bundle_resolution.bundle_reference_mode`
-  - every converter run now also emits `hts2phrb-family-inventory.{json,md}`, so compact summaries and exhaustive per-family state stay attached to the same front-door artifact
-  - the current representative Paper Mario timeout-slice converter report now lives at [`artifacts/hts2phrb/paper-mario-hirestextures-9fa7bc07-bundle-timeout-960-4df05131/hts2phrb-report.json`](/home/auro/code/parallel-n64/artifacts/hts2phrb/paper-mario-hirestextures-9fa7bc07-bundle-timeout-960-4df05131/hts2phrb-report.json)
-  - current local outcome on that slice: `10` requested families, `10` canonical package records, `0` runtime-ready package records, `0` deterministic bindings, `0` unresolved transport cases, `runtime_overlay_built=false`, `runtime_overlay_reason=no-runtime-ready-records`, `runtime_overlay_artifacts_emitted=false`, `conversion_outcome=canonical-package-only`, and two blocker classes (`missing-active-pool-families=10`, `canonical-only-families=10`)
-  - the paired family inventory at [`artifacts/hts2phrb/paper-mario-hirestextures-9fa7bc07-bundle-timeout-960-4df05131/hts2phrb-family-inventory.md`](/home/auro/code/parallel-n64/artifacts/hts2phrb/paper-mario-hirestextures-9fa7bc07-bundle-timeout-960-4df05131/hts2phrb-family-inventory.md) shows the requested timeout slice entirely in the `canonical-only` runtime state with `missing-active-pool` as the recommended tier for all ten families
-  - practical implication: converter operational telemetry is now real and the canonical-package path is no longer blocked on runtime bindings; bundle-driven auto mode now skips overlay cleanly both when canonical packaging yields zero runtime-ready records and when runtime-ready records exist but binding selection still produces zero deterministic bindings, so the current front door no longer emits empty overlay artifacts just because bundle context was present
-  - emitted loader/package manifests are now self-describing on the same axis: they carry runtime-ready/deferred native-vs-compat counts, per-kind counts, and class strings directly, so converter reuse/consistency checks and support tests no longer have to re-derive that split solely from raw record scans
-  - `--reuse-existing` now also invalidates on runtime-class and per-kind drift, so a stale manifest cannot be reused just because the total runtime-ready count still matches while the native-vs-compat split or record-kind composition no longer does
-  - `hts2phrb-progress.json` now carries that same native-vs-compat and per-kind split during package materialization, so timed-out or still-running front-door conversions expose the runtime class shape before the final report lands
-  - the same converter path now also completes zero-config full-cache conversion for the local Paper Mario legacy pack at [`artifacts/hts2phrb-review/20260407-pm64-all-families-streaming-v7-legacy-blobs/hts2phrb-report.json`](/home/auro/code/parallel-n64/artifacts/hts2phrb-review/20260407-pm64-all-families-streaming-v7-legacy-blobs/hts2phrb-report.json)
-  - current local full-cache outcome: `8992` requested families, `8992` canonical package records, `8620` runtime-ready package records, `372` runtime-deferred package records, `0` deterministic bindings, `0` unresolved transport cases, `runtime_overlay_built=false`, `runtime_overlay_reason=no-runtime-context`, `runtime_overlay_artifacts_emitted=false`, `conversion_outcome=partial-runtime-package`, about `3.93 s` total runtime, and a single remaining blocker class (`canonical-only-families=372`)
-  - that same full-cache run now emits a `1.94 GB` binary package rather than the temporary `51 GB` raw-RGBA form, and the stage timings show the operational bottleneck is now ordinary binary streaming rather than explosive payload expansion (`materialize_package ≈ 272 ms`, `emit_binary_package ≈ 2.23 s`)
-  - the default zero-config artifact at [`artifacts/hts2phrb/paper-mario-hirestextures-9fa7bc07-all-families/hts2phrb-report.json`](/home/auro/code/parallel-n64/artifacts/hts2phrb/paper-mario-hirestextures-9fa7bc07-all-families/hts2phrb-report.json) has been regenerated and now matches the current full-cache state (`partial-runtime-package`, `8620` runtime-ready records); the refreshed report also makes the class split explicit: `context_bundle_class=zero-context`, `package_manifest_runtime_ready_record_class=compat-only`, `0` runtime-ready native-sampled records, `8620` runtime-ready compat records, `package_manifest_runtime_deferred_record_class=compat-only`, and `372` deferred compat records. Earlier repo-local `canonical-package-only` all-families outputs are stale and should not be reused
-  - the first zero-config runtime proof is preserved at [`artifacts/paper-mario-probes/validation/20260407-full-cache-phrb-authorities-default-artifact/validation-summary.json`](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260407-full-cache-phrb-authorities-default-artifact/validation-summary.json); the maintained zero-config baseline is now the refresh lane, which keeps the same locked screenshot hashes and compat-only descriptor traffic with the current regenerated package shape (`entry_count=12427`, `native_sampled_entry_count=0`)
-  - that same proof now records descriptor-path counts in one place; the current full-cache front-door package is entirely compat-path-backed across the authority set (`title-screen compat=178`, `file-select compat=82`, `kmr_03 ENTRY_5 compat=112`, with no sampled/native-checksum hits yet), and the shared authority summary now tags those fixtures as `entry_class=compat-only` plus `descriptor_path_class=compat-only`
-  - `hts2phrb` now also accepts repeatable `--context-bundle` inputs that enrich sampled/CI identity without changing the requested family set, and those inputs can now be fixture-based validation summary roots as well as direct bundle paths; the migration layer still lets `fs0` legacy families adopt matching sampled identities by `low32` when real runtime evidence exists
-  - the promoted enriched full-cache baseline converter proof is [`artifacts/hts2phrb-review/20260408-pm64-all-families-authority-context-abs-summary/hts2phrb-report.json`](/home/auro/code/parallel-n64/artifacts/hts2phrb-review/20260408-pm64-all-families-authority-context-abs-summary/hts2phrb-report.json): one authority-summary-root `--context-bundle` still expands to `3` fixture bundles and yields `8883` package records with `28` canonical sampled records, `8515` runtime-ready records, `368` canonical-only families, `15` deterministic bindings, `13` unresolved overlay families, and `conversion_outcome=partial-runtime-package`. The report now makes the runtime-ready class split explicit: `context_bundle_class=context-enriched`, `package_manifest_runtime_ready_record_class=mixed-native-and-compat`, `28` native-sampled records, `8487` compat records, `0` deferred native-sampled records, and `368` deferred compat records
-  - the same enriched artifact now also emits a dedicated runtime-overlay review at [`hts2phrb-runtime-overlay-review.md`](/home/auro/code/parallel-n64/artifacts/hts2phrb-review/20260408-pm64-all-families-authority-context-abs-summary/hts2phrb-runtime-overlay-review.md), so the remaining `13` overlay misses are classified directly instead of hiding behind one count; the report now splits that residue into `12` direct overlay cases plus `1` import-linked overlay case, and the hash review still makes the residue sharper: all `13` are internally pixel-divergent (`8` single-dimension, `5` multi-dimension), there are no zero-cost identical-candidate wins left inside a case, `4` cases collapse into two exact cross-policy alpha-hash pairings, and the remaining overlap stays in one broader fs258 cluster (`0/1/2/3` overlap counts = `7/3/2/1`)
-  - that same overlay residue is now clustered into `11` candidate-set groups with size histogram `1=9`, `2=4`; blocker classes are `candidate-set-equivalent=4`, `large-single-dim-cluster=3`, `large-multi-dim-cluster=1`, `small-single-dim-cluster=3`, `small-multi-dim-cluster=1`, and `linked-import-ambiguity=1`, with action hints split `candidate-set-review=4`, `manual-selection-review=4`, `defer-large-transport-cluster=4`, and `defer-to-import-family-work=1`
-  - the same authority-context converter lane now also emits a grouped candidate-set review artifact at [`hts2phrb-runtime-overlay-candidate-set-review.md`](/home/auro/code/parallel-n64/artifacts/hts2phrb-review/20260408-pm64-all-families-authority-context-abs-summary/hts2phrb-runtime-overlay-candidate-set-review.md), reducing the repeated paired residue to two explicit manual-review groups: `dc6c6f7048c550ee` (`fs259`) and `ef3705c24cd65620` (`fs4`)
-  - the front-door `hts2phrb-report.json` now mirrors that overlay matrix at top level (`runtime_overlay_unresolved_count`, candidate-set clusters, blocker classes, action hints) instead of forcing automation to re-open the nested review JSON just to understand the current blocker shape; `runtime_overlay_blockers` remains the compact headline view on top of that richer state
-  - there is now one tracked review-only converter profile at [`tools/hires_runtime_overlay_review_profile.json`](/home/auro/code/parallel-n64/tools/hires_runtime_overlay_review_profile.json) backed by [`tools/hires_runtime_overlay_review_transport_policy.json`](/home/auro/code/parallel-n64/tools/hires_runtime_overlay_review_transport_policy.json) plus [`tools/hires_canonical_family_selection_review.json`](/home/auro/code/parallel-n64/tools/hires_canonical_family_selection_review.json). The current persistent proof at [`artifacts/hts2phrb-review/20260409-pm64-all-families-authority-context-overlay-review-profile/hts2phrb-report.json`](/home/auro/code/parallel-n64/artifacts/hts2phrb-review/20260409-pm64-all-families-authority-context-overlay-review-profile/hts2phrb-report.json) still cuts the promoted baseline's overlay residue from `13` unresolved to `9`, raises deterministic bindings from `15` to `19`, keeps the improved split at `8` direct overlay cases plus the same `1` import-linked case, and lowers canonical-only residue from `368` families in `134` review groups to `302` families in `75` groups. The tracked canonical review set is now a proven sixty-six-family same-aspect/context-bundle batch, with the latest small-pair additions `7f732551`, `b81e248a`, `569ba3bc`, `836b34e9`, and `cd867203`, and it still clears the grouped candidate-set review set entirely (`runtime_overlay_candidate_set_review_group_count=0`) while passing the strict [`emu.conformance.paper_mario_full_cache_phrb_authorities`](/home/auro/code/parallel-n64/tests/emulator_behavior/support/emu_conformance_paper_mario_full_cache_phrb_authorities.sh) wrapper. It remains explicitly review-only. The exact-scale same-aspect/context-bundle bucket is exhausted, the tiny same-aspect pairs are now largely mined out, and the remaining shallow residue is now dominated by larger same-aspect and clustered groups.
-  - that review-only lane now also emits [`hts2phrb-runtime-overlay-linked-import-review.md`](/home/auro/code/parallel-n64/artifacts/hts2phrb-review/20260409-pm64-all-families-authority-context-overlay-review-profile/hts2phrb-runtime-overlay-linked-import-review.md), which makes the only remaining non-deferred overlay blocker explicit: sampled object `7064585c` (`sampled-fmt2-siz0-off0-stride8-wh16x16-fs2-low327064585c`) still links to four `runtime-ready-package` unresolved import families (`5464fdf1:fs0`, `42779bdd:fs0`, `53302ad5:fs0`, `469bad6f:fs0`) and `62` transport candidates across six dimension buckets, so it stays classified as `linked-import-ambiguity` / `defer-to-import-family-work` rather than a runtime-overlay promotion target
-  - the matching family inventory is now cleaner too: legacy `fs0` uploads absorbed into sampled canonical records are counted as represented by those package records, so the enriched full-cache family state now reads `runtime-ready-package=8624` and `canonical-only=368` with no stale `diagnostic-only` bucket. The paired unresolved-family review at [`hts2phrb-unresolved-family-review.md`](/home/auro/code/parallel-n64/artifacts/hts2phrb-review/20260408-pm64-all-families-authority-context-abs-summary/hts2phrb-unresolved-family-review.md) now makes the remaining blocker class explicit at two levels: all `372` unresolved import families are still `exact-family-ambiguous`, the runtime-state split is `canonical-only=368` plus `runtime-ready-package=4`, and the remaining ambiguity shape is concentrated in just four variant-group counts (`2=259`, `3=52`, `4=60`, `5=1`)
-  - the new [`hts2phrb-unresolved-family-runtime-ready-review.md`](/home/auro/code/parallel-n64/artifacts/hts2phrb-review/20260409-pm64-all-families-authority-context-overlay-review-profile/hts2phrb-unresolved-family-runtime-ready-review.md) now groups those `4` `runtime-ready-package` exact-authoritative imports into one sampled-object unit tied to `7064585c`, so the import-side half of that seam is finally visible without cross-reading the unresolved-family table and the overlay-linked review together
-  - that reduced blocker count now has one explicit converter-side reason behind it: `hts2phrb` / `hires_pack_migrate.py` can now collapse a very narrow subset of `exact-family-ambiguous` residue offline, namely two-group exact-authoritative families whose groups are internally identical and exact nearest-neighbor scale-equivalents. That rule removes `7` blocker families from both the current local cache and the local pre-v401 cache without changing runtime behavior
-  - that same enriched path now promotes exact-authority families through three bounded converter-side moves instead of more runtime fallback logic: canonical transport now ingests exact-authority sampled identities, `--context-bundle` now parses full provenance-hit rows from each bundle `log_path` when the summarized evidence is not enough to reconstruct sampled geometry, and triangle sampled-probe promotion now requires concrete family signal instead of accepting empty `0x0` review groups
-  - the current fresh full-cache `phrb-only` authority lane is now [`artifacts/paper-mario-probes/validation/20260408-full-cache-phrb-authorities-authority-context-abs-summary-fresh/validation-summary.json`](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260408-full-cache-phrb-authorities-authority-context-abs-summary-fresh/validation-summary.json): all three fixtures still pass with `native_sampled_entry_count=503`, fully sampled descriptor usage (`title-screen 268/0/0/0`, `file-select 214/0/0/0`, `kmr_03 ENTRY_5 182/0/0/0`), the locked screenshot hashes preserved, and `descriptor_path_class=sampled-only` across the whole authority set
-  - that enriched authority-context artifact is now the only repo-default Paper Mario authority baseline: shared default authority scenarios and the default full-cache conformance wrapper no longer fall back to the zero-context compat-only `PHRB`, which now stays available only through explicit override or the dedicated zero-config refresh lane
-  - the remaining repo-local `.hts` references on the runtime side are now explicit refresh, probe, or review inputs rather than silent defaults; the default-authority contract now also verifies that both the shared scenario cache resolver and the default full-cache conformance wrapper stay enriched-`PHRB`-first and do not implicitly fall back to zero-config or legacy artifacts
-  - local Paper Mario legacy-pack variant breadth is now codified on the converter path too: the repo-local pre-v401 cache at [`artifacts/hts2phrb-review/20260408-pm64-pre-v401-all-families-zero-context/hts2phrb-report.json`](/home/auro/code/parallel-n64/artifacts/hts2phrb-review/20260408-pm64-pre-v401-all-families-zero-context/hts2phrb-report.json) and [`artifacts/hts2phrb-review/20260408-pm64-pre-v401-all-families-authority-context/hts2phrb-report.json`](/home/auro/code/parallel-n64/artifacts/hts2phrb-review/20260408-pm64-pre-v401-all-families-authority-context/hts2phrb-report.json) preserves the same class shape as the current local cache: zero-context remains `context_bundle_class=zero-context` plus `package_manifest_runtime_ready_record_class=compat-only`, while authority-context remains `context_bundle_class=context-enriched` plus `package_manifest_runtime_ready_record_class=mixed-native-and-compat`, even though the exact counts shift slightly (`8983/8606/377` zero-context and `8874/8501/373` authority-context); fresh reruns now also confirm the old repo-local `115`-family `diagnostic-only` blocker bucket on that authority-context lane was stale
-  - representative converter operational gates are now real on that same full-cache path instead of only being documented as future policy: [`emu_hts2phrb_paper_mario_full_cache_contract.sh`](/home/auro/code/parallel-n64/tests/emulator_behavior/support/emu_hts2phrb_paper_mario_full_cache_contract.sh) enforces `partial-runtime-package` plus `10 s` / `2.1 GB` limits and `--reuse-existing` on the current cache, while [`emu_hts2phrb_paper_mario_pre_v401_full_cache_contract.sh`](/home/auro/code/parallel-n64/tests/emulator_behavior/support/emu_hts2phrb_paper_mario_pre_v401_full_cache_contract.sh) enforces the same output/cache behavior with a `12 s` timing gate on the older pre-v401 cache
-  - practical implication: the converter’s remaining readiness gap is no longer “there are no representative timing/output gates”; it is broader runtime-key adoption and converter breadth beyond the Paper Mario inputs available in this workspace
-  - the same authority and selected-package summaries now also carry native-checksum descriptor detail counts (`exact`, `identity_assisted`, `generic_fallback`) alongside the existing generic detail counts, so future non-sampled traffic can be classified more precisely than “native checksum” versus “generic”
-  - the same generic detail counts now also split plain generic traffic into `native`, `compat`, and `unknown` buckets while preserving the older aggregate `plain` count, so checksum-shaped fallback residue is easier to classify from one summary line
-  - the renderer resident-image cache now also splits generic descriptor entries by that resolved source class, so native-backed generic traffic and compat-backed generic traffic no longer share one generic cache bucket just because the checksum/selector tuple matches
-  - the final generic decode path now also routes through the matching native or compat provider decode helper when that source class is known, so generic descriptor residue no longer re-enters the broad generic decode helper just to materialize the image bytes
-  - the main CI/low32 compat ladder is now provider-owned too: renderer upload-time CI fallback no longer open-codes `selected-dims`, `replacement-dims-unique`, `unique`, and `any-preferred` compat lookup sequencing, but instead consumes one typed compat resolution result from `ReplacementProvider`; the probe-only CI palette diagnostics still use the raw low32 helpers for now and remain outside the main runtime seam
-  - the last sampled-exact ordered-surface reservation lookup is now provider-owned too: once the renderer reserves an ordered-surface slot, it now asks `ReplacementProvider` for one typed reserved-selector resolution instead of re-entering the raw sampled lookup helper; the renderer still owns the ordered-surface cursor state, but the fallback lookup/classification itself no longer lives there
-  - the intermediate live-core rerun at [`artifacts/paper-mario-probes/validation/20260408-full-cache-phrb-authorities-authority-context-root-native-checksum-fallback-v2/validation-summary.json`](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260408-full-cache-phrb-authorities-authority-context-root-native-checksum-fallback-v2/validation-summary.json) is still important because it proved the leftover generic traffic was plain generic, not identity-assisted; from there the compat-lane proof and provenance-promoted reruns showed the remaining gap was converter-side exact-family promotion, not another renderer fallback seam
-  - adding the current selected-package timeout bundle as a fourth context source now widens the package slightly (`29` canonical sampled records instead of `28`), but the combined-context authority rerun still changes the `kmr_03 ENTRY_5` screenshot hash to `d3d2bf397d9bfd8cd311e51fc356a3130880b1ade5bbd53571ab815a08b965ad` even after loader-manifest upload normalization; that makes the combined-context package useful review-only evidence rather than the promoted full-cache baseline
-  - the runtime-conformance tier now also has a refresh gate for this lane: `emu.conformance.paper_mario_full_cache_phrb_authorities_refresh` regenerates the enriched package from the legacy `.hts` cache plus the authority-summary-root context and then re-runs the authority validation against the current converter counts, live overlay counts (`15` bindings / `13` unresolved), locked screenshot hashes, and sampled-only descriptor-path counts
-  - exact checksum lookup now prefers native sampled `PHRB` entries over later `PHRB` family-runtime compat stubs that share the same legacy checksum, so generic resolution no longer depends on family-stub load order when both representations are present; explicit compat aliases are still fenced behind the compat path instead of being silently erased
-  - practical implication: the default front-door full-cache `PHRB` is now a viable Paper Mario authority path even before native sampled identity is generalized, and the enriched full-cache Paper Mario lane is now fully sampled for the active authority fixtures; the remaining gap is architectural breadth, not whether the converter/runtime contract can replace the legacy container for the current Paper Mario proof set
-  - current limitation: a broader local search still turns up only Paper Mario legacy packs; local converter breadth now covers both the current and pre-v401 Paper Mario variants, but converter breadth beyond Paper Mario remains an explicit open gate
-  - runtime source policy now defaults to `auto`, so mixed cache directories prefer `.phrb` automatically by default while still falling back to legacy-only when no usable `.phrb` content exists; explicit `all` remains available for lanes that intentionally want mixed-source loading
-  - libretro now exposes that same source-policy contract as the `parallel-n64-parallel-rdp-hirestex-source-mode` core option (`auto|phrb-only|legacy-only|all`), so the product path can prefer `.phrb` first without relying on scenario-only environment overrides
-  - the low-level `ReplacementProvider::load_cache_dir(path)` default now matches that same policy, so direct provider callers also get `.phrb`-first mixed-directory behavior unless they opt into `CacheSourcePolicy::All` explicitly
-  - hi-res evidence summaries now also carry both the requested loader policy (`source_policy`) and the actual loaded source mix (`source_mode`), so the new default no longer disappears behind a `phrb-only` provider summary when the runtime loads a direct `PHRB` artifact
-  - `hts2phrb-progress.json` is now always emitted during conversion, so bounded or interrupted runs still leave behind stage-level state and package-materialization progress
-  - the first CI palette-parity pass has bounded the remaining mismatch instead of leaving it open-ended
-  - the first deterministic non-menu Paper Mario authority fixture is now active at `kmr_03 ENTRY_5`
-  - that fixture is savestate-backed, semantically gated in both `off` and `on`, and keeps the earlier live `960`-frame timeout hash only as lineage evidence
-  - the bounded `LoadBlock` investigation now has two explicit offline classification artifacts:
-    - file select `64x1 fs514` -> `no-simple-loadblock-retry`
-    - title `2048x1 fs515` -> `no-simple-loadblock-retry`
-  - selected-package timeout validation now records exact-hit, exact-miss, conflict-miss, and unresolved-miss counts together instead of collapsing back to hits versus misses only
-  - sampled selector review can now classify the main timeout families against a package loader manifest as `absent-from-package` versus `present-selector-conflict`
-  - the same review can now also classify whether those families still have legacy transport candidates under the current `.hts` model or are already candidate-free
-  - the provider can now describe native sampled families directly, including whether a runtime miss is hitting a multi-selector native pool and which `policy_key` / `sampled_object_id` that pool belongs to
-  - mixed-source cache directories now explicitly prefer `PHRB` entries over legacy `.hts` / `.htc` duplicates instead of relying on filename sort order
-  - the first intentionally rejected sampled-family add-back is now recorded as negative data:
-    - re-adding `28916d63` to the active `1b85` gameplay package via [`20260406-selected-plus-timeout-960-v2-add-289/package.phrb`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260406-selected-plus-timeout-960-v2-add-289/package.phrb) raises `960` exact hits from `26804` to `40928` and converts many misses into selector conflicts, but it leaves the `960` gameplay image unchanged at hash `664c0d0784f12cdd6424bce6ae53e828bb08da22a66db0a50f08d6e2de97b3d9`
-    - that same add-back regresses the strict title and file-select authorities to the older dropped hashes [`20260406-144323`](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260406-144323) -> `0a4ab3b92965de412998d94eca82ce6d4e134392fe2243befd481a716bc341c0` and [`20260406-144430`](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260406-144430) -> `9221491f729b2e11a678456362f25c9d28b820b75297e26e373931978b48eb93`
-    - practical implication: `28916d63` is rejected for promotion in the current active package context; keep it as negative data, not the next family to revive
-- Intentionally deferred work is tracked in the controlling plan's `Current Implementation State`, `Deferred Work Register`, and `Immediate Next Step` sections so skipped work does not disappear between slices
-- The current next execution slice is:
-  - apply the current Phase B2 outcomes to the runtime contract
-  - keep simple `LoadBlock` retry and palette-formula chasing out of the default path
-  - use the selected-package review worklist to separate candidate-free absent families, candidate-backed negative-data families, and later pool-semantics runtime seams before changing the next slice
-  - then continue targeted structured lookup widening and native-family promotion only where the evidence stays aligned
-  - the current leading `960` triangle families `91887078`, `6af0d9ca`, and `e0d4d0dc` are now explicitly candidate-free under the current legacy transport model, while `28916d63` is rejected negative data and `1b8530fb` remains a separate `present-pool-selector-conflict` runtime seam
-  - a new review-only alternate-source lane is now in place for that triangle trio:
-    - proof bundle: [`20260406-214200-title-timeout-selected-package-runtime-alt-source/validation-summary.md`](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260406-214200-title-timeout-selected-package-runtime-alt-source/validation-summary.md)
-    - alternate-source review: [`20260406-214200-title-timeout-selected-package-runtime-alt-source/on/timeout-960/traces/hires-alternate-source-review.md`](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260406-214200-title-timeout-selected-package-runtime-alt-source/on/timeout-960/traces/hires-alternate-source-review.md)
-    - current result: the current cache seeds `1` `16x32` candidate for `91887078`, `7` `32x32` candidates for `6af0d9ca`, and `5` `32x16` candidates for `e0d4d0dc`, all explicitly review-only
-    - practical implication: triangle follow-up work is no longer “find any source at all”; it is now “rank and validate bounded source-backed candidates without promoting them early”
-  - the same timeout lane now also has a cross-scene promotion review for the current triangle trio:
-    - cross-scene review: [`20260406-214200-title-timeout-selected-package-runtime-alt-source/on/timeout-960/traces/hires-sampled-cross-scene-review.md`](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260406-214200-title-timeout-selected-package-runtime-alt-source/on/timeout-960/traces/hires-sampled-cross-scene-review.md)
-    - current result: before any promotion, `91887078` and `e0d4d0dc` already share the same absent runtime signatures with title screen and file select, while `6af0d9ca` is shared with title screen and absent on both file select and the steady-state selected-package `kmr_03 ENTRY_5` authority
-    - bounded follow-up: the remaining gap is not source discovery; it is finding a tighter discriminator or scene-bounded activation model for the title/timeout-shared seam, while keeping the world-absent boundary explicit
-  - the same timeout lane now also emits a joined alternate-source activation review for that triangle trio:
-    - proof bundle: [`20260407-selected-package-duplicate-review/validation-summary.md`](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260407-selected-package-duplicate-review/validation-summary.md)
-    - activation review: [`20260407-selected-package-duplicate-review/on/timeout-960/traces/hires-alternate-source-activation-review.md`](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260407-selected-package-duplicate-review/on/timeout-960/traces/hires-alternate-source-activation-review.md)
-    - current result: `91887078`, `6af0d9ca`, and `e0d4d0dc` all still classify as `shared-scene-source-backed-candidates`; the joined review reports `review_bounded_probe_count=0` and `shared_scene_blocked_count=3`
-    - practical implication: the shallow source-backed architecture is now explicit and stable; the next missing piece is a tighter discriminator or scene-bounded activation model, not more source seeding or more cross-scene bookkeeping
-  - the first bounded promotion attempt is now explicit negative data:
-    - candidate package: [`20260406-selected-plus-timeout-960-v3-add-9188-zero/package.phrb`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260406-selected-plus-timeout-960-v3-add-9188-zero/package.phrb)
-    - timeout proof: [`20260406-220100-title-timeout-selected-package-9188-zero/validation-summary.md`](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260406-220100-title-timeout-selected-package-9188-zero/validation-summary.md)
-    - selected-package authority proof: [`20260406-221400-selected-package-authorities-9188-zero/validation-summary.md`](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260406-221400-selected-package-authorities-9188-zero/validation-summary.md)
-    - current result: the zero-selector singleton for `91887078` converts `10296` timeout misses into exact hits and leaves the `960` gameplay frame byte-identical, but it changes selected-package title and file-select screenshots heavily (`AE 354430003` and `259031856` vs the prior selected-package authority lane) while leaving `kmr_03 ENTRY_5` unchanged
-    - practical implication: keep the triangle alternate-source lane review-only until a tighter source-backed selector or scene-bounded activation model exists
-    - the probe emission path now accepts the same cross-scene review and refuses `selector_mode=zero` for shared-scene families unless explicitly overridden for review
-  - later timeout checkpoints now prove the source seam drifts with phase instead of staying fixed to the `960` frame:
-    - phase-drift bundle: [`20260406-222138-title-timeout-selected-package/validation-summary.md`](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260406-222138-title-timeout-selected-package/validation-summary.md)
-    - `1200` result: the selected-package lane moves into battle (`state_init_battle` / `state_step_battle`, `kmr_03`, `entry 0`), stays `phrb-only`, and broadens the candidate-free set to include world-shared seams like `1d02f4d5` plus a partial-overlap world seam `4f88141c`
-    - `1500` result: the lane returns to world (`state_init_world` / `state_step_world`, `kmr_06`, `entry 3`) and the selected-package capture matches `off` exactly even though review-only source candidates and partial-overlap world seams are still present
-    - practical implication: keep `960` as the primary source-path activation target for now; the later checkpoints are useful evidence about phase drift, not immediate promotion targets
-  - that `1b8530fb` deferment is now backed by live timeout-lane review artifacts instead of only prose:
-    - selector review: [`20260406-214200-title-timeout-selected-package-runtime-alt-source/on/timeout-960/traces/hires-sampled-selector-review.md`](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260406-214200-title-timeout-selected-package-runtime-alt-source/on/timeout-960/traces/hires-sampled-selector-review.md)
-    - pool review: [`20260406-214200-title-timeout-selected-package-runtime-alt-source/on/timeout-960/traces/hires-sampled-pool-review-1b8530fb.md`](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260406-214200-title-timeout-selected-package-runtime-alt-source/on/timeout-960/traces/hires-sampled-pool-review-1b8530fb.md)
-    - seam register: [`20260406-214200-title-timeout-selected-package-runtime-alt-source/on/timeout-960/traces/hires-runtime-seam-register.md`](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260406-214200-title-timeout-selected-package-runtime-alt-source/on/timeout-960/traces/hires-runtime-seam-register.md)
-    - current recommendation: keep `1b8530fb` deferred as `defer-runtime-pool-semantics`, and keep the active runtime shape on `keep-flat-runtime-binding`
-    - current rationale: the live pool review still shows `shape_hint=rotating-stream-edge-dwell`, a `33/34` ordered map with one right-edge unresolved slot, and a `33`-frame tail dwell aligned with that unresolved edge slot
-  - that same deferment is now narrowed by direct stream evidence instead of only shape inference:
-    - proof bundle: [`20260407-title-timeout-selected-package-pool-stream-diagnostics-v3/validation-summary.md`](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260407-title-timeout-selected-package-pool-stream-diagnostics-v3/validation-summary.md)
-    - stream register: [`20260407-title-timeout-selected-package-pool-stream-diagnostics-v3/on/timeout-960/traces/hires-runtime-seam-register.md`](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260407-title-timeout-selected-package-pool-stream-diagnostics-v3/on/timeout-960/traces/hires-runtime-seam-register.md)
-    - current result: the active mapped family rotates across `33` unique observed `texel1-peer` selectors with `32` transitions and no repeats inside the mapped set
-    - practical implication: the unresolved dwell still lives outside the mapped `33` selectors, so `1b8530fb` remains deferred on `keep-flat-runtime-binding`
-  - the smallest bounded `1b8530fb` tail-slot follow-up is now classified instead of remaining a loose maybe:
-    - review policy: [`tools/hires_surface_transport_review_policy.json`](/home/auro/code/parallel-n64/tools/hires_surface_transport_review_policy.json)
-    - candidate package: [`20260407-selected-plus-timeout-960-v1-1b85-tail-slot-review/package.phrb`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260407-selected-plus-timeout-960-v1-1b85-tail-slot-review/package.phrb)
-    - builder reproduction: [`20260407-selected-plus-timeout-960-v1-1b85-tail-slot-review-builder/package.phrb`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260407-selected-plus-timeout-960-v1-1b85-tail-slot-review-builder/package.phrb)
-    - selected-package authority proof: [`20260407-selected-package-authorities-1b85-tail-slot-review/validation-summary.md`](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260407-selected-package-authorities-1b85-tail-slot-review/validation-summary.md)
-    - selected-package timeout proof: [`20260407-title-timeout-selected-package-1b85-tail-slot-review/validation-summary.md`](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260407-title-timeout-selected-package-1b85-tail-slot-review/validation-summary.md)
-    - current result: title screen, file select, `kmr_03 ENTRY_5`, and the `960` timeout frame all stay byte-identical to the active selected package, and `1b8530fb` gains `1056` ordered-surface exact hits
-    - current limitation: the gameplay image does not improve, `exact_unresolved_miss_count` stays `90877`, the live pool-review artifact disappears, and the seam expands from `1` sampled-duplicate key / entry to `67` / `67` across `10` duplicate families
-    - practical implication: filling the unresolved tail slot alone is not a runtime fix; `1b8530fb` still stays on `keep-flat-runtime-binding`
-  - the exact sampled runtime path now also resolves descriptors through a native sampled-entry decode path instead of re-entering the provider through checksum-shaped decode after sampled lookup succeeds
-    - proof bundle: [`20260406-180724-title-timeout-selected-package-direct-sampled-decode/validation-summary.md`](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260406-180724-title-timeout-selected-package-direct-sampled-decode/validation-summary.md)
-    - current effect: the `960` screenshot hash and `1b8530fb` pool recommendation stay unchanged
-    - note: small exact-unresolved deltas have not stayed stable across equivalent selected-package reruns. The same `960` frame and semantic state have now reproduced with totals of `90877`, `90885`, and one earlier `90869`, all on the same `phrb-only` lane. Treat those low-count triangle shifts as non-gating telemetry until a change survives repeated reruns with a real behavioral delta
-  - runtime summary logs now also expose provider composition directly, and selected-package validation summaries now surface it at bundle level: total entries, native-sampled vs compat entries, sampled-family counts, compat-low32 family counts, and per-source entry counts for `.phrb`, `.hts`, and `.htc`
-    - proof bundle: [`20260406-194500-title-timeout-selected-package-provider-summary/validation-summary.md`](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260406-194500-title-timeout-selected-package-provider-summary/validation-summary.md)
-    - current `960` selected-package outcome: `source_mode=phrb-only`, `entries=195`, `native_sampled=195`, `compat=0`, `sampled_families=10`, `sources(phrb=195, hts=0, htc=0)`
-    - the timeout selected-package validator now enforces that explicit lane directly, so it fails if the bundle stops being `phrb-only` or loses native sampled / `PHRB` entry presence
-  - the current `194/195` sampled-index split is now explained directly in the live runtime lane instead of being left as unexplained telemetry:
-    - proof bundle: [`20260407-selected-package-duplicate-review/validation-summary.md`](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260407-selected-package-duplicate-review/validation-summary.md)
-    - current `960` selected-package outcome: `sampled_index=194`, `sampled_dupe_keys=1`, `sampled_dupe_entries=1`
-    - current interpretation: one exact sampled-key collision in the selected package accounts for the missing sampled-index slot, and the runtime now resolves that collision deterministically by preserved native `replacement_id` instead of by file load order
-    - the duplicate review now records that seam directly in bundle evidence as `sampled_low32=7701ac09`, `palette_crc=00000000`, `fs=768`, `selector=0000000071c71cdd`, active policy `surface-7701ac09`, active replacement id `legacy-844144ad-00000000-fs0-1600x16`
-    - the new bounded duplicate review now also proves the active selector collision is pixel-identical inside the selected package: both live selector candidates share the same pixel hash, and the broader package duplicate-pixel group already spans `legacy-2cf87740-00000000-fs0-1600x16`, `legacy-844144ad-00000000-fs0-1600x16`, and `legacy-e0dc03d0-00000000-fs0-1600x16`
-    - practical consequence: the bounded next step for this seam is offline dedupe / alias policy, not a wider runtime merge policy, and that offline path is now proven review-only below
-    - that offline path is now proven as a review-only candidate:
-      - candidate package: [`20260407-selected-plus-timeout-960-v1-dedupe-7701ac09/package.phrb`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260407-selected-plus-timeout-960-v1-dedupe-7701ac09/package.phrb)
-      - selected-package authority proof: [`20260407-selected-package-authorities-7701ac09-dedupe-review/validation-summary.md`](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260407-selected-package-authorities-7701ac09-dedupe-review/validation-summary.md)
-      - selected-package timeout proof: [`20260407-title-timeout-selected-package-7701ac09-dedupe-review/validation-summary.md`](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260407-title-timeout-selected-package-7701ac09-dedupe-review/validation-summary.md)
-      - builder reproduction: [`20260407-selected-plus-timeout-960-v1-dedupe-7701ac09-builder/package.phrb`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260407-selected-plus-timeout-960-v1-dedupe-7701ac09-builder/package.phrb) reproduces the same binary package byte-for-byte from the tracked `bindings.json` plus the duplicate-review JSON via [`tools/hires_pack_build_selected_package.py`](/home/auro/code/parallel-n64/tools/hires_pack_build_selected_package.py) `--duplicate-review`
-      - the same builder now also accepts `--surface-transport-policy`, and the `1b8530fb` tail-slot review candidate is reproduced the same way from the tracked historical surface package plus [`tools/hires_surface_transport_review_policy.json`](/home/auro/code/parallel-n64/tools/hires_surface_transport_review_policy.json)
-      - runtime-conformance proof: [`20260407-title-timeout-selected-package-7701ac09-dedupe-conformance/validation-summary.md`](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260407-title-timeout-selected-package-7701ac09-dedupe-conformance/validation-summary.md)
-      - current result: dropping the non-winning `0000000071c71cdd` selector duplicate leaves selected-package title screen, file select, `kmr_03 ENTRY_5`, and the `960` timeout image byte-identical to the active selected package while reducing runtime sampled-duplicate accounting from `1` key / `1` extra entry to `0` / `0`
-      - practical consequence: exact pixel-identical duplicate follow-up is now a bounded offline package-shaping seam; it no longer needs new runtime merge logic to justify further work
-      - that same bounded seam is now also proven one step further as a broader asset-alias candidate:
-        - alias-group review: [`20260407-selected-plus-timeout-960-v1-dedupe-7701ac09-alias-group-review/review.md`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260407-selected-plus-timeout-960-v1-dedupe-7701ac09-alias-group-review/review.md)
-        - candidate package: [`20260407-selected-plus-timeout-960-v1-dedupe-7701ac09-asset-alias-review/package.phrb`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260407-selected-plus-timeout-960-v1-dedupe-7701ac09-asset-alias-review/package.phrb)
-        - selected-package authority proof: [`20260407-selected-package-authorities-7701ac09-asset-alias-review/validation-summary.md`](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260407-selected-package-authorities-7701ac09-asset-alias-review/validation-summary.md)
-        - selected-package timeout proof: [`20260407-title-timeout-selected-package-7701ac09-asset-alias-review/validation-summary.md`](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260407-title-timeout-selected-package-7701ac09-asset-alias-review/validation-summary.md)
-        - builder reproduction: [`20260407-selected-plus-timeout-960-v1-dedupe-7701ac09-asset-alias-review-builder/package.phrb`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260407-selected-plus-timeout-960-v1-dedupe-7701ac09-asset-alias-review-builder/package.phrb) reproduces the same binary package byte-for-byte from tracked `bindings.json` plus the duplicate-review and alias-group review inputs
-        - current result: all four selectors in the broader identical-pixel group now reuse the canonical `legacy-844144ad-00000000-fs0-1600x16` asset while selected-package title screen, file select, `kmr_03 ENTRY_5`, and the `960` timeout image stay byte-identical and runtime sampled-duplicate accounting remains `0` / `0`
-        - practical consequence: broader `7701ac09` identical-pixel follow-up is now an offline asset-alias/promotion question, not a runtime-behavior blocker
-      - the current proven duplicate and alias inputs are now bundled as one tracked review-only build input:
-        - review profile: [`tools/hires_selected_package_review_profile.json`](/home/auro/code/parallel-n64/tools/hires_selected_package_review_profile.json)
-        - builder support: [`tools/hires_pack_build_selected_package.py`](/home/auro/code/parallel-n64/tools/hires_pack_build_selected_package.py) `--review-profile`
-        - current result: the review profile reproduces the explicit duplicate-review plus alias-group-review selected package byte-for-byte
-        - practical consequence: selected-package shaping can stay coherent and reproducible without pretending the review-only inputs are already default build behavior
-    - the seam register now keeps that duplicate next to the rest of the deferred runtime set: candidate-free `91887078` / `6af0d9ca` / `e0d4d0dc`, candidate-backed `28916d63`, and pool-conflict `1b8530fb`
-    - deeper duplicate-family work stays deferred: the runtime now has a bounded stable winner rule, but it still does not claim that duplicate families should be merged, collapsed offline, or treated as canonical package errors
-    - the same register now records that all three candidate-free triangle families already have alternate-source review candidates, carries all three as `no-runtime-discriminator-observed`, and now also records `candidate_free_review_bounded_probe_count=0`
-  - the selected-package authority lane is now proven separately from the default authorities:
-    - proof bundle: [`20260406-201200-selected-package-authorities/validation-summary.md`](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260406-201200-selected-package-authorities/validation-summary.md)
-    - current outcome: title screen, file select, and `kmr_03 ENTRY_5` all pass semantically under the explicit selected `PHRB` package with `source_mode=phrb-only`, `entries=195`, and `native_sampled=195`
-    - runtime-conformance coverage now exists for that lane through `emu.conformance.paper_mario_selected_package_authorities`
-  - the deeper selected-package timeout lane is now in runtime conformance as well:
-    - latest proof bundle: [`20260407-selected-package-timeout-current-contract/validation-summary.md`](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260407-selected-package-timeout-current-contract/validation-summary.md)
-    - current outcome: the active `960` proof still lands on `state_init_world` / `state_step_world`, `kmr_03`, `entry 5`, with `source_mode=phrb-only`, `on_hash=4bd3929dabff3ffb1b7e03a9c10d8ce50e9b6d0f067825d3a788c48a41b6fc62`, `matches_off=true`, `exact_hit_count=66`, `exact_unresolved_miss_count=121647`, and `descriptor_paths(sampled=66 native_checksum=0 generic=0 compat=0)`
-    - the timeout validation lane now emits the pool-review artifact directly plus the bounded pool-regression review and duplicate review, and the runtime-conformance support test now treats that lane as a native-runtime contract proof: sampled descriptor use must stay live, the package must stay `phrb-only`, and the historical `1b8530fb` pool-regression verdict must remain attached even if the live pool review has to defer with `review_status=deferred-no-live-draw-sequence`
-    - that same conformance lane now fails closed if the live pool review drops its `runtime_sample_replacement_id`, if sampled descriptor-path activity disappears, or if the live `7701ac09` duplicate seam drops its active `replacement_id`
-    - the same conformance wrapper now also proves the broader `7701ac09` asset-alias candidate when pointed at the aliased package with duplicate expectations overridden to `0` / `0`
-    - runtime-conformance coverage now exists for that lane through `emu.conformance.paper_mario_selected_package_timeout_validation`
-  - the provider now separates exact duplicate checksum families internally as well:
-    - native and compat checksum duplicates have explicit indices and direct lookup/decode helpers
-    - the mixed-source provider test now proves compat low32 unique lookup stays in the compat pool instead of leaking back to a native `PHRB` duplicate with the same checksum
-    - the renderer now mirrors that split for CI fallback descriptors, so compat-selected checksum keys use a dedicated compat descriptor/cache path instead of re-entering the generic/native resident-image cache
-    - proof bundle: [`20260406-225500-title-timeout-selected-package-compat-resolver-split/validation-summary.md`](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260406-225500-title-timeout-selected-package-compat-resolver-split/validation-summary.md)
-    - current effect: the explicit selected-package `PHRB` lane stays hash-identical and `phrb-only`, while mixed-cache compat CI resolutions are now fenced away from native duplicate descriptor reuse
-  - the repo-default title-screen, file-select, and `kmr_03 ENTRY_5` authority scenarios now resolve only through the promoted full-cache `PHRB` artifacts by default and fail closed if those runtime packages are missing instead of silently dropping back to legacy `.hts`
-    - current authority outcome from the fresh default-path rerun: all three `on` authorities now land on [`artifacts/hts2phrb-review/20260408-pm64-all-families-authority-context-abs-summary/package.phrb`](/home/auro/code/parallel-n64/artifacts/hts2phrb-review/20260408-pm64-all-families-authority-context-abs-summary/package.phrb) with `source_mode=phrb-only`, `entry_count=12754`, `native_sampled=503`, and `descriptor_path_class=sampled-only`
-    - screenshot hashes are now locked on that promoted authority lane as `0e854083b48ccf48e0a372e39ca439c17f0e66523423fb2c3b68b94181c72ad5` (title screen), `43bd91dab1dfa4001365caee5ba03bc4ae1999fd012f5e943093615b4c858ca9` (file select), and `212ffb9329b8d78e608874e524534ca54505a26204abe78524ef8fca97a1b638` (`kmr_03 ENTRY_5`)
-    - practical implication: the current repo-default authority lane is now the enriched full-cache `PHRB` path; the remaining default-path question is broader promotion beyond this Paper Mario authority set, not whether the active authority fixtures are still legacy-default
-- Planning docs are in place and now back the active implementation sequence
-- The first tracked fixture/scenario seed is the Paper Mario title screen scaffold
-- The tracked title-screen save/load loop is currently stabilized by a frontend-side mitigation: the adapter disables RetroArch savestate thumbnails on the Vulkan HW-frame path
-- The repo-default title-screen scenario now produces a savestate, reloads it, and captures a screenshot with savestate thumbnails disabled and explicit waits after `SAVE_STATE` and `LOAD_STATE_SLOT 0`
-- The tracked quit path now exits cleanly with a single `QUIT` command because the adapter forces `confirm_quit = "false"` in its per-run appendconfig
-- The save-state serialization contract now uses a shared computed M64P size and bounded save writes, and the rebuilt core passes the tracked title-screen save/load runtime scenario
-- The authoritative title-screen path now uses explicit RetroArch agent commands and a log-gated startup handoff instead of timing-only waits
-- The authoritative title-screen fixture is now: load savestate paused, settle exactly `3` frames, then capture
-- Tracked runtime scenarios now disable RetroArch widgets and screenshot/save-state notifications so repeated captures can be byte-identical
-- Repeated title-screen authoritative runs now produce byte-identical screenshots at `4x` internal scale after the 3-frame settle
-- RetroArch now has an explicit stdin agent input path for per-port joypad/analog overrides
-- Repeated input probes from the authoritative title-screen state now produce byte-identical post-input captures when holding `START` through a controlled frame advance
-- RetroArch `GET_STATUS frame=` is now trustworthy as a fixture-relative frame clock for the tracked Paper Mario scenarios
-- The tracked adapter now normalizes `GET_STATUS` state matching, so scenario waits remain stable even when RetroArch logs `PAUSED` in uppercase
-- RetroArch `STEP_FRAME` is now trustworthy for long transition-heavy probes as well; the old `int8_t` cap on frame-step requests was removed after it truncated a `300`-frame save-backed gameplay probe at `127` frames
-- The tracked file-select scenario now has an authoritative savestate-backed steady-state path and still preserves the title-screen bootstrap controller path for reminting
-- Repeated file-select authoritative runs now produce byte-identical screenshots at `4x` after the 3-frame settle
-- The canonical Paper Mario fixture workflow is now `load state -> settle 3 frames -> screenshot`; controller scripting is the bootstrap path for minting new authoritative states
-- The tracked Paper Mario scenarios now force the ParaLLEl renderer path explicitly with `PARALLEL_N64_GFX_PLUGIN_OVERRIDE=parallel` and bundle-local RetroArch core options, so fixture baselines are no longer accidentally taken on a GL path
-- The tracked Paper Mario scenarios now use `WAIT_COMMAND_READY` for real command-channel readiness on the ParaLLEl path instead of relying on earlier log-only startup gates
-- The local RetroArch stdin command surface now includes `PING`, and the adapter uses it to prove the command channel is ready before issuing tracked savestate commands
-- The current authoritative file-select state is minted from the deterministic title-screen bootstrap path using a held `START` input for `60` frames and a frame-targeted save at `frame=303`
-- There is now a dedicated file-select input-probe scenario for bundle-backed Phase 1 exploration, and it advances exploratory post-input settles one frame at a time so probe evidence stays reliable without loosening the global adapter contract
-- A savefile-backed branch from that authority is now proven deterministic as well: staging the local `.srm`, holding `START` for `120` frames, and settling to `frame=423` reproduces exactly across repeated runs
-- That savefile-backed branch does not currently reach gameplay; repeated runs stay in `state_init_file_select` / `state_step_file_select` and land on `areaID=0`, `mapID=0 (kmr_00)`, `entryID=11`
-- Inspection of `papermario-dx` now explains why `entryID=11` is misleading there: file-select save scanning can populate map/entry fields while the game is still firmly inside `GAME_MODE_FILE_SELECT`
-- A direct no-input settle from the authoritative file-select state back to `frame=423` reproduces the canonical file-select hash `6fa8688b382fa1e6f0323f054861a85f593d2d47ca737bb78448e3f268ca63e3`, which proves the deeper `89cb1b...` branch is input-caused rather than just a delayed idle path
-- The old hard-coded DX panel-address path is now retired: file-select panel snapshots are derived through the vanilla-safe `filemenu_menus` pointer table at `0x80249B84`
-- Upstream `papermario` and `papermario-dx` agree on the core file-select signal addresses that matter most here:
-  - `state_init_file_select` / `state_step_file_select`
-  - `filemenu_menus`
-  - `filemenu_currentMenu`
-  - `filemenu_pressedButtons`
-  - `filemenu_heldButtons`
-- The current vanilla-safe signal table is now documented in [PAPER_MARIO_SIGNAL_TABLE.md](/home/auro/code/parallel-n64/docs/plans/PAPER_MARIO_SIGNAL_TABLE.md)
-- Pointer-derived panel snapshots are now live in runtime bundles:
-  - the authoritative file-select state decodes as `FILE_MENU_MAIN`, `FM_MAIN_SELECT_FILE`, selected file `2`, with `exit_mode_guess = selected_file`
-  - the same path gives nonzero live `main_panel` / `confirm_panel` structs instead of the earlier zeroed DX-address snapshots
-- Vanilla-safe `gWindows` file-select snapshots are now live in runtime bundles as well:
-  - tracked windows are `WIN_FILES_TITLE`, `WIN_FILES_CONFIRM_PROMPT`, `WIN_FILES_CONFIRM_OPTIONS`, and `WIN_FILES_SLOT2_BODY`
-  - the authoritative file-select state currently shows:
-    - `WIN_FILES_TITLE.fp_update = filemenu_update_show_title`
-    - `WIN_FILES_SLOT2_BODY.fp_update = filemenu_update_show_options_right`
-  - the first deeper `authority + A` branch flips both of those to `filemenu_update_hidden_with_rotation` while the top-level filemenu panel predicates stay unchanged
-- The tracked file-select authority is now also proven to be an empty-slot authority:
-  - `gSaveSlotHasData` currently decodes as `[false, false, false, false]`
-  - selected file `2` therefore has `selected_slot_has_data = false`
-  - the immediate `authority + A` branch now also flips `WIN_FILES_INPUT_FIELD` and `WIN_FILES_INPUT_KEYBOARD` onto `filemenu_update_show_name_input`
-  - while `WIN_FILES_CONFIRM_OPTIONS` stays on `WINDOW_UPDATE_HIDE`
-  - so the hidden branch is now best interpreted as create-file / input-name flow, not start-game confirm flow
-- The first bounded `A` settle sweep across `1, 2, 3, 5, 10, 20` frames now confirms that the current safe file-select panel predicates do not change across that first deeper visual branch:
-  - `FILE_MENU_MAIN`
-  - `FM_MAIN_SELECT_FILE`
-  - `FM_MAIN_OPT_FILE_2`
-  - `exit_mode_guess = selected_file`
-- A bounded `A` settle sweep across `0, 1, 2, 3, 5, 10, 20` frames now confirms the opposite on the window side:
-  - `WIN_FILES_TITLE.fp_update` stays on `filemenu_update_hidden_with_rotation`
-  - `WIN_FILES_SLOT2_BODY.fp_update` stays on `filemenu_update_hidden_with_rotation`
-  - `WIN_FILES_CONFIRM_OPTIONS.fp_pending` stays on `WINDOW_UPDATE_HIDE`
-- A one-frame button sweep across `A`, `B`, `START`, `UP`, `DOWN`, `LEFT`, and `RIGHT`, plus `A` / `START` with `post-input-settle = 0`, now lands on that same decoded top-level file-select state as well
-- That means the next stronger discriminator does not live in the current filemenu globals.
-- The best currently proven discriminator is now window/animation-side state, not the panel globals.
-- A staged local `.srm` does not change that on the current authority state, because the loaded file-select savestate restores its own empty-slot RAM over the staged savefile.
-- The save-backed remint tooling now exists for both title screen and file select, including a cold-boot file-select remint path that avoids loading any preexisting savestate during bootstrap.
-- The current local staged Paper Mario `.srm` is now treated as non-authoritative / low-value for populated-slot testing.
-  - repeated save-backed remint attempts still verify:
-    - `selected_slot_has_data = false`
-    - `FILE_MENU_MAIN`
-    - `state_init_file_select` / `state_step_file_select`
-  - local inspection also shows the `.srm` is not trivially empty, but it does not currently behave like a meaningful populated-slot source for Paper Mario file-select semantics
-  - the current working assumption is that this `.srm` is not useful beyond very early intro progression and should not be treated as evidence that save ingestion is broadly broken
-  - immediate planning consequence: do not block deeper Paper Mario/hi-res work on making this specific `.srm` populate file-select slots
-  - future populated-slot probing should use either:
-    - a newly generated known-good Paper Mario save source
-    - or stronger state-driven fixtures instead of this local `.srm`
-- The strongest current non-save deeper-state path now comes from the title-screen authority, not file select.
-  - a bounded title-timeout sweep now proves the authority can deterministically leave `state_init_title_screen` / `state_step_title_screen` without any savefile dependency
-  - current observed checkpoints from the authoritative title state are:
-    - `900` stepped frames -> `state_init_enter_demo` / `state_step_enter_world`
-    - `960` stepped frames -> `state_init_world` / `state_step_world`, `kmr_03`, `entry 5`
-    - `1020` stepped frames -> `state_init_world` / `state_step_world`, `kmr_03`, `entry 5`
-    - `1200` stepped frames -> `state_init_battle` / `state_step_battle`, `kmr_03`, `entry 0`
-    - `1500` stepped frames -> `state_init_world` / `state_step_world`, `kmr_06`, `entry 3`
-  - visually, those bundles are no longer menu-only:
-    - `960` frames lands on a Goomba scene
-    - `1500` frames lands on a Koopa flight scene
-  - immediate planning consequence: broader Paper Mario hi-res evidence no longer depends on populated-slot save data
-- The current deterministic file-select branch ladder is clearer even without valid panel addresses:
-  - direct one-frame `START` or `A` from the authoritative file-select state both collapse to the same first deeper branch after the current long settle
-  - that first deeper branch is `89cb1bddd5c2dd2a62b063210af11c2324eca04d3060e746042edc0323b00e8e`
-  - from that branch, `A` produces `674bbf51ab0c985d16088aedd373d2bd7d3d8fdc5f1e12020858f322e7073732`
-  - from that branch, `A -> A` and `A -> START` both collapse to `fece26f3ac694b9cbf9c395c10a4cb0543499cdc8eb2aa9beaacb896c2acd1ad`
-  - from that branch, `START -> START` collapses to `86d3d0a9f7db600bdc0f0f4b8ec29d9c7ff1418a7e7c7ac346dc9a710c2dd3a7`
-  - all currently observed branches still report `filemenu_currentMenu = FILE_MENU_MAIN`
-  - the first deeper `authority + A` branch currently preserves the same safe top-level panel predicates as the authority state, but it is now distinguished by the tracked `gWindows` update-function snapshots
-  - with the current shorter two-pulse probe path, `authority + A + A`, `authority + A + START`, and `authority + START + START` now converge to the same semantic window hash `d118c7cf5dbe96413ffe53150084c70a6c3f2bf4b7e8d96959735bb466d48576`
-  - that converged state still reports `state_init_file_select` / `state_step_file_select`, `FILE_MENU_MAIN`, and the same safe panel predicates, so it tightens the search tree without yet proving a real confirm/menu-mode transition
-  - none of those paths leave `state_init_file_select` / `state_step_file_select` yet
-- The input-probe scenario now supports explicit `--step-chunk-frames`, and the savefile-backed branch reproduces byte-identically with `30`-frame chunks instead of one-frame stepping
-- On the heavier hi-res path, `WAIT_STATUS_FRAME` is now the authoritative progress signal for chunked probe steps; missing `STEP_FRAME` log acknowledgements are downgraded to warnings because they can lag or disappear without breaking the fixture-relative frame clock
-- Paired `off` and `on` scenario runs are now verified directly from the tracked scenario entrypoints on the corrected ParaLLEl path
-- The Vulkan descriptor-indexing gate on this machine is now fixed for tracked runs: the context recovers the required feature bits through a Vulkan 1.2 feature-query fallback, and hi-res startup no longer disables itself on capability grounds
-- The tracked hi-res pack-path override bug is now fixed: `PARALLEL_RDP_HIRES_CACHE_PATH` takes precedence over the core's default system-directory path during runtime resolution
-- The hi-res replacement loader now accepts a direct `.hts` pack path as well as a cache directory, so the tracked Paper Mario pack loads without requiring scenario-side path hacks
-- Current `on`-mode title and file-select bundles now show a loaded hi-res provider with real keying activity instead of a disabled/no-op path
-- Tracked Paper Mario scenario bundles now record requested/used authority mode and active state hashes
-- There is now a dedicated file-select remint helper for intentionally rebuilding the authoritative state from the bootstrap path
-- Paper Mario fixture lineage is now explicit in a machine-readable authority graph at `tools/fixtures/paper-mario-authority-graph.yaml`
-- The next ladder target, `hos_05 ENTRY_3`, is now modeled explicitly as a planned fixture even though its bootstrap route and authoritative state are not minted yet
-- The tracked RetroArch adapter now enforces serial runtime launches with a lock in addition to the existing process check
-- The tracked adapter can now snapshot core memory directly into bundle traces with `SNAPSHOT_CORE_MEMORY`
-- The local RetroArch build now falls back to `RETRO_MEMORY_SYSTEM_RAM` for `READ_CORE_MEMORY` when a core does not publish a libretro memory map
-- The tracked title-screen and file-select fixtures now decode an empirical vanilla Paper Mario US `gGameStatus` slice from `0x800740aa` into `traces/paper-mario-game-status.json`
-- The Paper Mario semantic JSON now records a SHA-256 for that raw window plus an explicit empirical phase guess for the proven title-screen and file-select authorities
-- The tracked title-screen and file-select fixtures now also snapshot symbol-backed vanilla globals for `CurGameMode` (`0x80151700`) and map-transition state (`0x800A0944`) on every authoritative run
-- The corrected authoritative title-screen state now reports clean `CurGameMode` title callbacks: `state_init_title_screen` / `state_step_title_screen`
-- The corrected authoritative file-select state now reports clean `CurGameMode` file-select callbacks: `state_init_file_select` / `state_step_file_select`
-- The canonical steady-state title-screen capture hash is now `42e501afb2548a5067bc034578c5bcebf0bf2a40f612bbcc94972af716ad6ff2`
-- The canonical steady-state file-select capture hash is now `6fa8688b382fa1e6f0323f054861a85f593d2d47ca737bb78448e3f268ca63e3`
-- The embedded shader header now has a matching legacy-generation path again: the tracked shader pack was regenerated with an older `slangmosh` contract compatible with this branch, after the newer generator proved incompatible with the local Granite runtime API
-- The current branch now has a minimal active replacement path for tracked fixtures: lookup results are decoded, uploaded as sampled images, assigned descriptor indices, and threaded into tile/shader state for the rasterizer path
-- The latest verified `on`-mode title-screen run preserves steady-state semantics while loading the hi-res pack successfully and reporting `lookups=196 hits=178 misses=18 provider=on`
-- The latest verified `on`-mode file-select run also preserves steady-state semantics while loading the hi-res pack successfully and reporting `lookups=165 hits=82 misses=83 provider=on`
-- `on` and `off` are no longer pixel-identical on the strict fixtures: the current title-screen `on` hash is `ba91ffce0cc7b6053568c0a7774bf0ae80825c95d95fce89ba4a9f79c62b9d16`, and the current file-select `on` hash is `8a90f7874bd797a186ff85d488033dc332b2a75f5bec91ad33ca8246e6be7730`
-- Raw-pixel comparison now confirms real visible divergence on both fixtures while semantic state stays locked: title-screen `AE=3412580`, `RMSE=0.267821`; file-select `AE=1289800`, `RMSE=0.0928543`
-- The tracked title-screen and file-select scenarios can now verify known-good `on` hashes as well as `off`, so the current visible-hires milestone is enforced directly by the scenario layer instead of only by manual comparison
-- Hi-res bundle traces now collapse raw hit/miss log spam into stable bucket summaries, so strict-fixture comparisons can track repeated uncovered classes instead of diffing whole RetroArch logs
-- Current strict-fixture bucket summaries already show the next likely cleanup targets: title misses collapse to 5 unique buckets, while file-select misses collapse to 6 and are dominated by repeated `mode=block fmt=2 siz=2 wh=64x1 fs=514 tile=7` misses
-- Hi-res bundle traces now also cross-check miss keys against the active `.hts` pack index, and the current strict-fixture result is narrower than an art-coverage claim: the logged title/file misses are unmatched in the local pack index under the current checksum generation, not present under some other `formatsize`
-- That evidence does not yet prove the creator omitted those replacements; it still leaves room for a different pack revision or a checksum/path mismatch between our current runtime keying and the pack's intended replacement identity
-- The renderer now has a temporary hi-res debug filter path driven by `PARALLEL_RDP_HIRES_FILTER_ALLOW_TILE`, `PARALLEL_RDP_HIRES_FILTER_ALLOW_BLOCK`, and `PARALLEL_RDP_HIRES_FILTER_SIGNATURES`, so strict fixtures can suppress a chosen replacement class without changing the normal architecture
-- The scenario layer now supports `RUNTIME_ENV_OVERRIDE` and `DISABLE_SCREENSHOT_VERIFY=1` for controlled experimental runs that intentionally diverge from the locked strict hashes
-- Scenario runtime env files are now auto-exported while sourcing, so `PARALLEL_RDP_*` debug toggles reliably reach the RetroArch/core child process during controlled experiments
-- The first controlled filter experiment is now recorded on the title screen: suppressing `mode=tile fmt=2 siz=1 wh=296x6 fs=258 tile=7` yields `filtered=66`, keeps `state_init_title_screen` / `state_step_title_screen`, and produces filtered hash `654fe6a57bca20d337272304fac66216c474b7eeeea5d3d494cae73a47862e1a`
-- File-select filter experiments now show the same shared `mode=tile fmt=2 siz=1 wh=296x6 fs=258 tile=7` class is the main visual driver there as well: suppressing it yields `filtered=33` and moves the frame much closer to baseline `off` than baseline `on`
-- The dominant file-select-specific hit class, `mode=tile fmt=3 siz=1 wh=16x8 fs=259 tile=7`, is secondary by comparison: suppressing it yields `filtered=44` but only a small pixel shift relative to baseline `on`, which points at a narrower UI/detail contribution
-- The coarse mode-level title experiment is now decisive: disabling all tile replacements (`allow_tile=0`) yields `hits=0`, `filtered=178`, and reproduces the baseline `off` title-screen hash exactly, so the current visible hi-res path is fully explained by tile-hit replacement classes rather than some hidden side effect
-- The local pack has now been cross-checked against the `v4.0.1` release set, and the active test pack was swapped from the older local candidate (`2018570744` bytes / `15159` entries / `14774f23...`) to `PM64K-NWO401` (`2016964616` bytes / `15168` entries / `ae2030e4...`) with the old payload backed up locally
-- That swap produced an unexpectedly strict result on the tracked fixtures: title-screen and file-select `on` captures, semantic state, and hi-res hit/miss telemetry are byte-identical before and after the pack change
-- So for the current strict scenes, the remaining misses are not explained by “we were simply on the wrong pack revision”; either both revisions behave the same there, or the unresolved cases sit outside the actual delta between those releases
-- The hi-res evidence layer now distinguishes a narrower class than full checksum absence: on the strict file-select bundle, 8 miss events / 7 unique keys are present in the pack under the same low-32 texture CRC but a different palette half
-- Those palette-variant misses are concentrated in the smaller CI tile classes, not the dominant block class: `mode=tile fmt=2 siz=1 wh=8x16 fs=258 tile=7` and `mode=tile fmt=2 siz=1 wh=32x16 fs=258 tile=7`
-- Runtime debug logs now expose `pal=` and `pcrc=` on hi-res key lines, and the current file-select palette-variant misses all show `pal=0`; the mismatch is therefore not explained by a non-zero palette bank, but by a deeper palette-CRC identity mismatch
-- The new CI palette probe has now ruled out the most obvious variants for those file-select misses: changing the inferred entry count, using a legacy aggregate bank-hash scheme, and probing legacy per-bank hash/CRC32 candidates all fail to produce a pack hit while keeping the strict file-select hash stable at `8a90f7874bd797a186ff85d488033dc332b2a75f5bec91ad33ca8246e6be7730`
-- The logged candidate palette CRCs for the representative CI misses also do not line up with the active pack's stored high-32 variants for the same low-32 texture CRCs, which makes the remaining likely fault line the TLUT shadow/update semantics rather than one more small hash-formula tweak
-- The CI probe is now augmented with low-32 pack-family diagnostics that do not alter lookup behavior:
-  - the representative `32x16` file-select family (`low32=2a1be0a4`) is generic-only and dimension-uniform: `2` generic entries, `2` palette variants, `1` replacement-dimension family (`640x160`)
-  - the representative ambiguous `8x16` family (`low32=42779bdd`) is also generic-only but much broader: `17` generic entries, `17` palette variants, `3` replacement-dimension families, and no entry matching the current exact palette CRC
-  - that split matches the earlier live fallback experiments: `replacement-dims-unique` is directionally reasonable for part of the CI class, while the broader `8x16` family still needs a better discriminator than a permissive low-32 alias
-- Two more CI hypotheses are now explicitly ruled out on the same strict file-select fixture without changing the default path:
-  - the ambiguous `8x16` miss only samples `19` palette indices across a `0..102` range, and the `32x16` miss samples `53` indices across `0..238`, but hashing only the sparse used-index set still does not produce a pack hit
-  - hashing the emulated loaded TLUT words from `tlut_tmem_shadow` also does not produce pack hits for those same misses, whether using the current entry-count view or the sparse used-index view
-  - together, those negatives mean the remaining CI gap is probably not one more small palette-CRC formula bug; it is more likely an identity-model mismatch that will need either a constrained compatibility tier or a cleaner imported pack representation
-- There is now a dedicated offline pack-family analyzer at [hires_pack_family_report.py](/home/auro/code/parallel-n64/tools/hires_pack_family_report.py), and it confirms the current split on the strict file-select bundle:
-  - the representative `32x16` family (`low32=2a1be0a4`) is a plausible constrained compatibility candidate and classifies as `compat-repl-dims-unique`
-  - the representative `8x16` family (`low32=42779bdd`) classifies as `ambiguous-import-or-policy`
-  - that is the strongest current evidence that the inherited Glide-era pack identity is itself part of the problem, and that an imported internal pack format is now a first-class design path rather than a fallback idea
-- There is now a migration-oriented scaffold at [hires_pack_migrate.py](/home/auro/code/parallel-n64/tools/hires_pack_migrate.py) plus a first design note at [HIRES_PACK_IMPORT_MODEL.md](/home/auro/code/parallel-n64/docs/plans/HIRES_PACK_IMPORT_MODEL.md), so legacy-pack import is now a tracked Phase 1 workstream rather than just an open-ended idea
-- The migration scaffold now emits the first imported-index format for selected families, separating:
-  - imported `records`
-  - explicit `compatibility_aliases`
-  - `unresolved_families`
-- That imported index now also groups compatibility and ambiguous legacy families into explicit dimension-led `variant_groups`, so import-time policy can operate on concrete legacy clusters instead of flat low-32 families
-- The first strict file-select imported-index result is now concrete:
-  - the constrained `2a1be0a4/fs258` family collapses to one compatibility variant group, `640x160`
-  - the ambiguous `42779bdd/fs258` family remains unresolved but is now split into three explicit variant groups, `64x64`, `120x120`, and `144x144`
-- Those imported compatibility/unresolved entries now also carry strict-bundle `observed_runtime_context`, including runtime mode, runtime `wh`, observed palette CRC, sparse palette-usage data, and the emulated-TMEM palette view that originally exposed the family
-- Those same imported entries now also carry `selector_policy`, so the current import output can already distinguish deterministic compatibility families from unresolved families that still need a manual import decision
-- There is now a first explicit import-policy layer at [hires_pack_import_policy.json](/home/auro/code/parallel-n64/tools/hires_pack_import_policy.json), which currently:
-  - locks the deterministic `2a1be0a4/fs258 -> 640x160` case
-  - locks the deterministic probe-backed `dd798ca8/fs258 -> 560x160` case
-  - treats the broader `8x16/fs258` neighborhood as a per-low32 policy problem, not a single family-wide dimension choice
-  - now records non-binding low32-specific suggestions for the currently observed strict file-select set:
-    - `42779bdd -> 64x64`
-    - `469bad6f -> 120x120`
-    - `5464fdf1 -> 384x512`
-    - `53302ad5 -> 120x120`
-  - records why the earlier family-wide `120x120` suggestion was overturned by stronger mixed-selector evidence
-  - records what new evidence would overturn each of the current low32-specific suggestions
-- There is now a first non-committal review path at [hires_pack_review.py](/home/auro/code/parallel-n64/tools/hires_pack_review.py), so strict import slices can be inspected as review artifacts before we treat the imported index as a settled format
-- That review path now also ranks candidate variant groups against the current observed runtime context and attached policy, so we can state why one ambiguous candidate looks stronger or weaker without turning that into runtime behavior
-- The review tool can now also emit a focused side-by-side decision sheet for one ambiguous family via `--focus-policy-key`
-- There is now a first imported-subset emitter at [hires_pack_emit_subset.py](/home/auro/code/parallel-n64/tools/hires_pack_emit_subset.py), so we can inspect a concrete ParaLLEl-owned slice for selected strict families without treating the full imported format as settled
-- That emitter now also supports review-only `--variant-selection` overrides, so one ambiguous family can be materialized three different ways without changing the tracked policy file
-- The first review-only variant subsets now exist locally for `legacy-low32-42779bdd-fs258`:
-  - `120x120` subset: `7` records
-  - `144x144` subset: `1` record
-  - `64x64` subset: `9` records
-- There is now a first subset-comparison tool at [hires_pack_compare_subsets.py](/home/auro/code/parallel-n64/tools/hires_pack_compare_subsets.py), so those review-only variants can be summarized side by side instead of inspected one JSON file at a time
-- The first local subset comparison still usefully describes the trade space for `legacy-low32-42779bdd-fs258`:
-  - `120x120`: `7` records, total `12576` bytes
-  - `144x144`: `1` record, total `2054` bytes
-  - `64x64`: `9` records, total `16034` bytes
-  - but that comparison is now secondary to stronger live mixed-selector evidence across the full strict `8x16` low32 set
-- There is now also a debug-only runtime selector path for ambiguous CI families:
-  - `PARALLEL_RDP_HIRES_CI_SELECT=low32:formatsize:widthxheight[;...]`
-  - it exists only to preview candidate variant groups on strict fixtures without changing default runtime policy
-  - applying one shared candidate across the full strict file-select `8x16` low32 set still differentiates the simple family-wide options materially:
-    - `all-120x120`: `90 hits / 75 misses`, `AE_vs_any=6214`
-    - `all-144x144`: `90 hits / 75 misses`, `AE_vs_any=11560`
-    - `all-64x64`: `88 hits / 77 misses`, `AE_vs_any=15054`
-  - but the stronger result now comes from a mixed low32-specific preview, not a shared family-wide choice:
-    - `42779bdd:258:64x64`
-    - `469bad6f:258:120x120`
-    - `5464fdf1:258:384x512`
-    - `53302ad5:258:120x120`
-  - that mixed selector reproduces the broad `low32_any` control exactly on the strict file-select fixture:
-    - hash `2f00a7eb6c0c592a363fca987981d6eb6e6d5a43c9cac0d337c8f444282b18c8`
-    - `hits=90 / misses=75`
-    - `AE_vs_any=0`
-  - the design implication is now explicit: the imported selector model likely needs per-low32 granularity for this neighborhood instead of a single shared dimension rule
-- The current CI import-model evidence is still narrow, but it is broader than the original strict pair:
-  - the strict file-select authority still surfaces two families:
-    - `2a1be0a4/fs258/32x16 -> 640x160`
-    - `42779bdd/fs258/8x16 -> {120x120, 144x144, 64x64}`
-  - a deterministic `right` input probe from that same authority now adds a third family:
-    - `dd798ca8/fs258/28x16 -> 560x160`
-  - repeated nearby menu probes now confirm that this local branch is still a three-family neighborhood:
-    - `right x2` changes the captured frame again but does not add a fourth CI family
-    - `down -> right` also changes the captured frame but still collapses to the same three CI families
-  - a matching `down` input probe changes the captured file-select frame but does not add a new CI family
-  - a deeper savefile-backed `START` branch is now also reproducible:
-    - repeated runs land on screenshot hash `89cb1bddd5c2dd2a62b063210af11c2324eca04d3060e746042edc0323b00e8e`
-    - the semantic window stays locked to `state_init_file_select` / `state_step_file_select`
-    - this is a deeper file-select/menu branch point, not yet a gameplay/world fixture
-  - deeper `on`-mode menu probes from that same branch are now verified too:
-    - `savefile-start -> right` lands on screenshot hash `0302c029e4a221359158486baa7cfbda5984bb0dfc8eb51f9f68fd98f18a305c`
-    - `savefile-start -> down` lands on screenshot hash `61ec2cb8d1e964356d4010395e29aa3ba7b1e6b2bf9980bd27d2bc225c8a547f`
-    - both still stay in `state_init_file_select` / `state_step_file_select` with `entryID=11`
-    - both still expose the same three CI families (`42779bdd`, `2a1be0a4`, `dd798ca8`)
-  - so the current import evidence is no longer “only two families,” but it is still entirely tied to file-select-state exploration rather than broader game coverage
-- The richer strict file-select CI probe now also logs tile-state provenance per low32/palette context instead of collapsing all `8x16` cases under one coarse signature
-- That probe adds an important negative result for the ambiguous `8x16` strict file-select neighborhood:
-  - `42779bdd`, `469bad6f`, `5464fdf1`, and `53302ad5` all share the same observed tile-state shape
-  - they all log as `tile=7 off=0 stride=8 key_xy=0x0 mask_s=0 shift_s=0 mask_t=0 shift_t=0 flags=5 clamp_s=1 clamp_t=1`
-  - only the texel-side low32 identity and source address differ across those four cases
-  - that means tile-state metadata is not the missing discriminator for this neighborhood on the strict file-select fixture
-  - the current evidence therefore leans further toward per-low32 import/policy handling for this class, rather than one more tile-state-based runtime rule
-- The latest `n64_docs` research now points at a broader exact-identity gap than “one more CRC tweak”:
-  - the authoritative object is likely the post-load sampled tile, not the raw upload blob
-  - `SetTile`, `SetTileSize`, TMEM address/line, and load provenance are part of texture meaning
-  - CI4/CI8 and TLUT handling need a more logical palette view than the current raw/expanded shadow path
-  - copy / texrect / BG-copy / framebuffer-derived content should be treated as explicit provenance classes, not silently folded into authored replacement lookup
-- The concrete next-step execution plan from that research is now tracked in [N64 Identity Breakthrough Plan](/home/auro/code/parallel-n64/docs/plans/N64_IDENTITY_BREAKTHROUGH_PLAN.md).
-- The first provenance-evidence pass is now live in strict hi-res bundles:
-  - `traces/hires-evidence.json` now records per-lookup provenance classes, source classes, and cycle/TLUT/framebuffer context
-  - the first verified strict file-select `on` bundle (`20260326-provenance-check`) shows all `165` hi-res lookups as `authored-rdram`, not framebuffer-derived
-  - that same bundle splits into `34` `copy-cycle`, `75` `loadblock`, and `56` `loadtile` provenance-class events
-  - the dominant unresolved `64x1 fs514` miss is now explicitly classified as authored-RDRAM `loadblock`, which narrows it away from copy/framebuffer confusion
-  - the major visible `296x6 fs258` replacement driver is now explicitly classified as authored-RDRAM `copy-cycle`, which is a more concrete target than “tile hit” alone
-- The next draw-side pass is now live in strict bundles too:
-  - `traces/hires-evidence.json` now records `draw_usage`, so per-draw hi-res activity is classified by `triangle`, `texrect`, `texrect-flip`, `fill-rect`, and `fill-triangle`
-  - the verified strict file-select `on` draw-class bundle (`20260326-draw-class-check`) records `252` hi-res draw-usage lines:
-    - `194` `texrect`
-    - `53` `triangle`
-    - `5` `fill-rect`
-  - its strongest visible replacement bucket is `draw_class=texrect cycle=copy copy=1 ... texel0_hit=1 texel1_hit=1` with `68` events
-  - the matching strict title-screen draw-class bundle shows the same structure more strongly:
-    - `370` hi-res draw-usage lines
-    - `254` `texrect`
-    - `106` `triangle`
-    - `10` `fill-rect`
-    - strongest bucket: the same copy-mode texrect hit pattern with `136` events
-  - current implication: the visible early-scene hi-res path is not just “tile replacement”; it is strongly texrect-driven, especially in copy mode
-- The first sampler-state pass is now live in strict bundles as well:
-  - `traces/hires-evidence.json` now records `sampler_usage`, which groups draw-time tile state into repeated sampled-object regimes
-  - the verified strict file-select sampler bundle (`20260326-sampler-check-2`) shows the top visible copy-mode texrect bucket collapsing to one repeated regime:
-    - `fmt=2 siz=1 stride=296 sl=0 tl=0 sh=1180 th=20`
-    - `mask_s/t=0`, `shift_s/t=0`
-    - `clamp_s/t=1`, `mirror_s/t=0`
-    - `66` events
-  - the verified strict title-screen sampler bundle (`20260326-sampler-check`) shows that same copy-mode texrect regime even more strongly:
-    - same `fmt=2 siz=1 stride=296 sl=0 tl=0 sh=1180 th=20`
-    - same clamp/mirror/mask/shift state
-    - `132` events
-  - title screen also has a second large non-copy texrect regime:
-    - `fmt=0 siz=3 stride=400 sl=0 tl=0 sh=796 th=4`
-    - same fully clamped, unmasked window style
-    - `106` events
-  - current implication: the early visible path is concentrated in a few repeated texrect sampler windows rather than a broad spread of sampler-state variants
-- The next link is now explicit on strict file select: those sampler regimes can be tied back to concrete lookup families
-  - the verified texel-link bundle (`20260326-texel-link-check`) shows the dominant no-hit texrect regime is not abstract:
-    - `draw_class=texrect cycle=1cycle`
-    - same `60x60` clamped window as before
-    - `texel0_fs=514`, `texel0_w=64`, `texel0_h=1`
-    - `70` events
-    - this is the dominant `64x1 fs514` block miss family showing up directly in a repeated texrect draw regime
-  - the same bundle also shows a smaller mixed texrect regime:
-    - `draw_class=texrect cycle=2cycle`
-    - same `60x60` clamped window
-    - `texel0_fs=258`, `texel0_w=8`, `texel0_h=16` with `texel0_hit=0`
-    - `texel1_fs=259`, `texel1_w=16`, `texel1_h=8` with `texel1_hit=1`
-    - `16` events
-    - this is the ambiguous `8x16 fs258` CI family surfacing directly in the same early menu neighborhood
-  - practical implication: the remaining early missing-texture problem is no longer “some texrect issue”; it is concretely split between:
-    - the dominant `64x1 fs514` block family in a repeated texrect regime
-    - the smaller ambiguous `8x16 fs258` CI family in another repeated texrect regime
-  - newer Tier 2/runtime comparison tightens that further:
-    - the larger `2cycle` `8x16` bucket is an inactive-slot caution (`uses_texel0=0`) next to an active `texel1` hit, so it should not be weighted like a live sampled miss
-    - the active unresolved `8x16` target is now the much smaller `1cycle` texel0 bucket, not the larger inactive-slot bucket
-- The first direct RDRAM probe of that dominant `64x1 fs514` family is now captured in [hires-block-family-report.md](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select-block-family-probe/on/20260326-live-1/traces/hires-block-family-report.md):
-  - it is produced by the new [paper-mario-file-select-block-family-probe.sh](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-file-select-block-family-probe.sh) scenario and [hires_block_family_probe.py](/home/auro/code/parallel-n64/tools/hires_block_family_probe.py) analyzer
-  - `70` miss events collapse to `21` unique low-32 keys and `21` unique RDRAM addresses
-  - the dominant address delta is `0x80`, which exactly matches the observed row span of `128` bytes for this family
-  - those addresses also form exact contiguous `64x2`, `64x3`, and `64x4` row runs
-  - there are no exact duplicate row payloads among the captured rows
-  - every captured row has the same broad envelope: long zero padding at the front and back, with active bytes concentrated roughly in the `0x18..0x6b` range
-  - reconstructing those exact row runs as larger `64xN` surfaces still produces no pack-backed low-32 families, and neither do the simple area-preserving reinterpretations of those runs
-  - the analyzer now also ties those same miss keys back to two repeated draw-side texrect regimes:
-    - `70` events in `draw=texrect cycle=1cycle fmt=2 siz=0 stride=8 sl=0 tl=0 sh=60 th=60 ...`
-    - `24` events in `draw=texrect cycle=2cycle fmt=2 siz=0 stride=8 sl=0 tl=0 sh=60 th=60 ...`
-  - practical implication: the dominant miss is not just “a `64x1` block upload with no pack hit”; it is a `64x1 fs514` loadblock upload feeding a sampled draw-side `CI4` texrect object, which makes the current raw-upload exact key visibly misaligned with the sampled N64 object
-- The first focused `CI16/CI32 + TLUT` diagnostic pass is now live in the strict file-select probe bundle at [20260326-ci32-tlut-probe](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260326-ci32-tlut-probe):
-  - the old CI palette path effectively had no view of this family:
-    - `entries=0`
-    - `pcrc=00000000`
-    - logical-view palette candidates also stay `0`
-  - the new `ci32-tlut` probe now derives a normalized sampled-object candidate for that class:
-    - example dominant family at `addr=0x2effd0`: `group_low32=a1b60295`, `group_pcrc=0440c3f1`
-    - broader `64x1` families now show nonzero `group_low32` / `group_pcrc` pairs and nonzero used-entry ranges, instead of the old dead `pcrc=0` path
-  - none of those normalized `ci32-tlut` candidates hit the current pack yet
-  - an offline pack-index cross-check now shows those normalized `ci32-tlut` low-32 candidates are absent across all formatsizes in the active pack, not just absent under `fs=514`
-  - practical implication: this family is still unresolved, but we now have direct proof that the current exact path was hashing ignored or non-authoritative bits for this class, and that the next keying experiment should target the sampled-object view rather than raw upload bytes
-- That same upload-vs-sampled-object mismatch now appears to generalize beyond the block class:
-  - the visible ambiguous `8x16 fs258` CI family still keys on upload as `fmt=2 siz=1`
-  - but its repeated draw-side texrect regime samples it through `fmt=2 siz=0 stride=8 sl=0 tl=0 sh=60 th=60 ...`
-  - practical implication: the current exact-key problem is broader than one `CI16/CI32` edge case; the repeated early Paper Mario texrect misses are likely telling us that ParaLLEl replacement identity needs to be centered on the sampled TMEM/tile object, not just the upload blob
-- The first direct sampled-TMEM/tile exact-key probe is now live on the strict file-select bundle at [20260327-sampled-object-probe](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260327-sampled-object-probe):
-  - the new env gate is `PARALLEL_RDP_HIRES_SAMPLED_OBJECT_PROBE=1`
-  - it enables host-visible TMEM and logs draw-time sampled-object candidates for texrect CI misses without changing the strict `on` frame hash (`8a90f7874bd797a186ff85d488033dc332b2a75f5bec91ad33ca8246e6be7730`)
-  - the new structured artifact is [hires-sampled-object-review.md](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260327-sampled-object-probe/traces/hires-sampled-object-review.md), produced by [hires_sampled_object_review.py](/home/auro/code/parallel-n64/tools/hires_sampled_object_review.py)
-  - the dominant `64x1 fs514` upload family now collapses to one sampled draw-side object:
-    - `draw=texrect cycle=1cycle fmt=2 siz=0 off=0 stride=8 wh=16x16 fs=2`
-    - upload family: `ab53409b` / `pcrc=00000000`
-    - sampled key: `7064585c`
-    - sampled entry/sparse palette CRCs: `a1c4a352` / `7ff0e39c`
-  - the visible `32x16 fs258` CI neighborhood also collapses to one sampled draw-side object:
-    - `draw=texrect cycle=1cycle fmt=2 siz=0 off=0 stride=32 wh=64x16 fs=2`
-    - upload family: `2a1be0a4` / `pcrc=5c7e801a`
-    - sampled key: `c139c1c0`
-    - sampled entry/sparse palette CRCs: `80038dc8` / `7ff2e39c`
-  - both sampled objects use only `2` palette indices, and neither sampled key exists anywhere in the current pack index
-  - practical implication: the pack and runtime are still speaking legacy upload-family identity, while the more accurate ParaLLEl exact object is the sampled TMEM/tile object; legacy pack transport now needs an explicit alias path from upload families to sampled-object canonical IDs
-  - the migration tooling now carries that bridge explicitly when sampled bundle data exists: [20260327-sampled-import-index.json](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260327-sampled-import-index.json) records `canonical_sampled_objects` for the deterministic `2a1be0a4/fs2` family
-  - that same emitted index now preserves the dominant missing upload family as a first-class unresolved transport case: `legacy-low32-ab53409b-fs2`, reason `missing-active-pool`, with canonical sampled object `sampled-fmt2-siz0-off0-stride8-wh16x16-fs2-low327064585c`
-  - the sampled-bundle import workflow is now usable directly through [hires_pack_review.py](/home/auro/code/parallel-n64/tools/hires_pack_review.py) and [hires_pack_emit_subset.py](/home/auro/code/parallel-n64/tools/hires_pack_emit_subset.py) with explicit `--low32/--formatsize` seeds; the current review artifacts are [20260327-sampled-review.md](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260327-sampled-review.md) and [20260327-sampled-subset.json](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260327-sampled-subset.json)
-  - that workflow now also has an explicit legacy-vs-canonical comparison artifact via [hires_pack_compare_views.py](/home/auro/code/parallel-n64/tools/hires_pack_compare_views.py): [20260327-sampled-legacy-vs-canonical.md](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260327-sampled-legacy-vs-canonical.md) and [20260327-sampled-canonical-projection.json](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260327-sampled-canonical-projection.json)
-  - the imported index itself now carries this bridge directly through `canonical_records` and `legacy_transport_aliases`, so the canonical view is no longer derived only at review time
-  - `canonical_records[*].transport_candidates` now embeds the transported replacement payload metadata for deterministic sampled-object cases, which is the first concrete canonical imported-record shape rather than only a linked report view
-  - that deterministic slice can now be emitted as a future-importer-facing binding artifact through [`tools/hires_pack_emit_bindings.py`](/home/auro/code/parallel-n64/tools/hires_pack_emit_bindings.py), while unresolved sampled-object transport stays explicit instead of being guessed at runtime
-  - a new loader-oriented handoff tool, [`tools/hires_pack_emit_loader_manifest.py`](/home/auro/code/parallel-n64/tools/hires_pack_emit_loader_manifest.py), now flattens those deterministic bindings into the asset/source fields the current replacement loader already consumes, without forcing a JSON parser decision in C++ yet
-  - [`tools/hires_pack_materialize_package.py`](/home/auro/code/parallel-n64/tools/hires_pack_materialize_package.py) now materializes that deterministic slice into a real package directory with extracted PNG assets and a package manifest, so the imported transport result can be inspected directly
-  - [`tools/hires_pack_emit_binary_package.py`](/home/auro/code/parallel-n64/tools/hires_pack_emit_binary_package.py) now turns that materialized package into a parser-friendly `PHRB` v2 binary with fixed-width tables, a string table, raw RGBA blobs, and numeric sampled-object identity fields, which is a more realistic future runtime handoff than JSON + PNG
-  - [`tools/hires_pack_inspect_binary_package.py`](/home/auro/code/parallel-n64/tools/hires_pack_inspect_binary_package.py) now round-trips both `PHRB` v1 and v2 packages back into JSON for verification, so the binary handoff remains inspectable before we add any runtime parser
-  - that package manifest now records decoded `pixel_sha256` values, `alpha_normalized_pixel_sha256` values, and duplicate-pixel groups; on the current deterministic `2a1be0a4 -> c139c1c0` slice, the two legacy transport candidates remain distinct even after alpha-normalized hashing, so importer policy should continue treating them as separate transported assets until stronger evidence justifies collapse
-- The current exact-key audit artifact is now [N64 Exact Key Delta Sheet](/home/auro/code/parallel-n64/docs/plans/N64_EXACT_KEY_DELTA_SHEET.md).
-- [`tools/hires_miss_review.py`](/home/auro/code/parallel-n64/tools/hires_miss_review.py) now correlates pack-review miss families against `sampler_usage`, so miss review can distinguish active texel-slot gaps from inactive-slot bookkeeping buckets on strict fixtures:
-  - on the strict file-select sampled-object bundle, `mode=tile fmt=2 siz=1 wh=8x16 fs=258 tile=7` has `6` direct miss events, but its sampler contexts split into `4` active `texrect/1cycle uses_texel0=1` uses and `16` inactive-slot `texrect/2cycle uses_texel0=0` sightings
-  - practical implication: future CI-format decisions should be shaped by the smaller active `1cycle` `8x16` gap, not by the larger inactive-slot `2cycle` bucket
-- The first Tier 2 Paper Mario static scan is now live via [`tools/paper_mario_tier2_static_scan.py`](/home/auro/code/parallel-n64/tools/paper_mario_tier2_static_scan.py), with the latest comparison artifact at [20260328-negative-space/report.md](/home/auro/code/parallel-n64/artifacts/paper-mario-tier2-static-scan/20260328-negative-space/report.md):
-  - it source-links the dominant `64x1 fs514` file-select miss to the upstream `gDPLoadTextureBlock_4b` filemenu message path, which statically explains the `LoadBlock` transport shape and the sampled `16x16 CI4` object the runtime probe already observed
-  - it source-links the ambiguous `8x16 fs258` family to the `gDPLoadTextureTile_4b` filemenu message branch, but only as a medium-confidence structural match: the strict runtime side is split between a small active `1cycle` texel0 bucket and a larger `2cycle` inactive-slot bucket where the live sample comes from `texel1`
-  - upstream `msg_data.c` now adds an important constraint there: `MsgCharsetMenu` advertises canonical `texSize = { 16, 16 }`, so the active strict-runtime `8x16` family is unlikely to be a literal menu-font texSize and should be treated as a clipped/subrect transport view or a different tiled-CI4 path until proven otherwise
-  - it source-links the title-screen striped texrect path directly to `kmr_21`, where `200x2 RGBA32` strips are authored explicitly
-  - it also records the filemenu copy-arrow display list as a useful negative control: `64x16 IA4`, not one of the active CI4 families
-  - the newer negative-space scan now rules out the easiest upstream false leads on the active strict file-select path too:
-    - the active `filemenu_main_hudScripts` CI assets are `16x16`, `32x16`, and `64x16`, not a clean `8x16` main-menu match
-    - the active filemenu window-style texrect controls are `IA8 16x8` and `RGBA32 16x16`, so they should stay format-class controls rather than being mixed into the active CI/TLUT gap
-    - `draw_ci_image_with_clipping` remains a useful subrect-transport reference, but the current upstream scan only finds it in message/sign/letter-style callers, not as an obvious strict file-select main-menu caller
-  - practical implication: the scanner is now also recovering first native-field hints from those exact callsites (`tmem_offset=0`, render tile `0`, macro-derived line/tile-size examples), and the next Tier 2 step should stay focused on upload-side subrect versus sampled-side logical-object mapping rather than re-discovering fields or broad asset families with more heuristics
-  - the first native-field comparison pass is now in the same Tier 2 artifact:
-    - the `64x1 -> 16x16 CI4` filemenu message family matches the recovered static fields exactly on the strict file-select bundle (`offset=0`, base tile `0`, `sl/tl/sh/th = 0/0/60/60`)
-    - the smaller `8x16` family does not: the static tiled path predicts `sh=28`, while the runtime bucket is still `sh=60`
-    - the runtime side is now split more carefully too:
-      - the small active `1cycle` texel0 bucket is still a real native-field delta
-      - the larger `2cycle` bucket is an inactive-slot caution (`uses_texel0=0`) and should not drive canonical mapping by itself
-    - practical implication: the dominant block/CI4 bridge is now source-backed all the way through native-field comparison, while the small active `8x16` path still needs deeper `SetTileSize` / texel-combine-path explanation rather than looser fallback rules
-- The new direct strict-state probe of the active `8x16 fs258` family is now captured at [hires-tile-family-report.md](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select-tile-family-probe/on/20260328-105848/traces/hires-tile-family-report.md):
-  - it is produced by the new [paper-mario-file-select-tile-family-probe.sh](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-file-select-tile-family-probe.sh) scenario using the same [hires_block_family_probe.py](/home/auro/code/parallel-n64/tools/hires_block_family_probe.py) analyzer
-  - the family collapses to `5` unique addresses / `5` unique low32 keys
-  - no address delta matches the observed `8`-byte row size
-  - every captured `8`-byte row at those source addresses is all-zero, including one duplicate-zero group spanning all five addresses
-  - the same family still maps back to the known draw-side texrect regimes, so the zero-row result is not a missing-probe bug; it is part of the current transport mismatch
-  - the companion neighborhood scan at [hires-tile-family-neighborhood.md](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select-tile-family-probe/on/20260328-105848/traces/hires-tile-family-neighborhood.md) shows non-zero bytes consistently nearby those all-zero anchors, which strengthens the parent-surface/subrect-transport interpretation
-  - the upgraded parent-surface checks in the main report now narrow that further:
-    - same-start `16x16 CI4` candidates reproduce the active low-32 families directly (`42779bdd`, `469bad6f`, `5464fdf1`, `53302ad5`, `75fee641`)
-    - shifted starts at `-0x40`, `-0x20`, and `-0x10` all fall out of the active pack pool for those same families
-    - same-start parent transport is therefore the useful next canonicalization target, not a wider shifted-start search
-  - the import/review tooling now carries those same-start parent-surface candidates as review-only canonical transport hints in the dedicated slice at [20260328-tile-parent/review.md](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-tile-parent/review.md)
-  - that slice still materializes through the same handoff toolchain:
-    - [subset.json](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-tile-parent/subset.json)
-    - [bindings.json](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-tile-parent/bindings.json)
-    - [loader-manifest.json](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-tile-parent/loader-manifest.json)
-    - [package.phrb](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-tile-parent/package.phrb)
-    - [package-inspect.json](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-tile-parent/package-inspect.json)
-    - current result: `0` deterministic bindings and `5` unresolved/review-only transport cases
-    - the former `legacy-low32-75fee641-fs258` slice is now explicitly downgraded to `review-only` because its same-start parent-surface hint is not runtime-ready canonical identity
-    - every same-start `16x16 CI4` hint now records one real sampled-object proxy from the source sampled bundle, `sampled-fmt2-siz0-off0-stride8-wh16x16-fs2-low327064585c`, and the low-32 mismatch is recorded explicitly
-    - `PHRB` is still version `2` and still carries numeric canonical sampled identity (`sampled_low32`, `sampled_entry_pcrc`, `sampled_sparse_pcrc`) alongside the fixed-size record fields
-    - verified sampled slice: [20260327-sampled-package-inspect.json](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260327-sampled-package-inspect.json) still round-trips nonzero sampled identity (`c139c1c0`, `80038dc8`, `7ff2e39c`) through the binary handoff
-    - practical implication: package format is no longer the blocker for a canonical runtime consumer; the active blocker is choosing runtime-ready sampled identity instead of overpromoting transport hints
-- That lookup-timing seam is now partially closed in a debug-only path:
-  - the renderer can now compute sampled CI texrect identity at draw time and consult a canonical sampled-object package when `PARALLEL_RDP_HIRES_SAMPLED_OBJECT_LOOKUP=1` is enabled
-  - the scenario wrappers now honor `PARALLEL_RDP_HIRES_CACHE_PATH` overrides and patch bundle metadata to record the actual loaded package path/hash, so canonical-package runs are no longer mislabeled as default `.hts` runs
-  - the tile-parent package path is now intentionally empty at runtime (`record_count=0`) because those records are transport-hint-only and should not be emitted as runtime-ready bindings yet
-  - the earlier negative control remains instructive: when the tile-parent slice was forced through as a package, it loaded correctly but produced `0` sampled-object exact hits because the hinted low-32 (`75fee641`) did not match the real strict sampled probes (`7064585c` and `c139c1c0`)
-  - the first true exact-hit runtime proof now comes from narrowed single-candidate canonical packages for `sampled-fmt2-siz0-off0-stride32-wh64x16-fs2-low32c139c1c0`:
-    - [20260328-sampled-c139-opt1](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260328-sampled-c139-opt1) loads `1` canonical record / `2` exact keys from its `.phrb`, logs sampled-object exact hits for `c139c1c0`, and lands on screenshot hash `831cd6a7dff2d44654c854dbbcd91d13071cf49d6622f9141084780b47bf2b32`
-    - [20260328-sampled-c139-opt2](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260328-sampled-c139-opt2) proves the same plumbing with the alternate transported payload and lands on screenshot hash `fe478b418acc9aeabcaa8fc5815732e31df3f6fb6cd66e5c5b9a9b28c7b3fc51`
-    - both runs preserve the strict file-select semantic state and prove the current blocker has moved again: canonical sampled-object lookup is real, but multi-candidate transport still needs to be resolved tool-side before default runtime consumption
-  - early image-distance checks rank `opt1` ahead of `opt2` as the current provisional transport candidate for `c139c1c0` on strict file select:
-    - `opt1` vs `off`: `AE=15477373`, `RMSE=7.279824`
-    - `opt2` vs `off`: `AE=21871595`, `RMSE=10.306369`
-    - `opt1` vs legacy strict `on`: `AE=133638636`, `RMSE=21.760134`
-    - `opt2` vs legacy strict `on`: `AE=140020278`, `RMSE=22.949551`
-    - this is only a provisional ranking, not proof that `opt1` is the final correct art choice
-  - there is now a dedicated tool-side narrowing step at [`tools/hires_pack_select_transport.py`](/home/auro/code/parallel-n64/tools/hires_pack_select_transport.py), so selecting one transported payload from a multi-candidate canonical record can stay outside the runtime and remain reproducible
-  - that narrowing step now has a tracked policy source too: [`tools/hires_pack_transport_policy.json`](/home/auro/code/parallel-n64/tools/hires_pack_transport_policy.json) now carries both:
-    - `transport_families` for the earlier legacy-family narrowing path
-    - `transport_proxies` for the new sampled-proxy-centered path
-  - the new proxy-centered bridge is first-class in tooling:
-    - [`tools/hires_pack_proxy_review.py`](/home/auro/code/parallel-n64/tools/hires_pack_proxy_review.py) now treats runtime-ready sampled canonical records as proxies directly, not only hint-linked proxies
-    - [`tools/hires_pack_emit_proxy_bindings.py`](/home/auro/code/parallel-n64/tools/hires_pack_emit_proxy_bindings.py) emits proxy-centered bindings and unresolved proxy transport cases
-    - [20260328-sampled-proxy](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-sampled-proxy) materializes the first proxy-selected `c139c1c0` package slice
-    - [20260328-tile-parent-proxy](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-tile-parent-proxy) makes the unresolved `7064585c` proxy pool explicit as one runtime-ready sampled object with `62` transport candidates from five collapsed hint families
-  - the sampled-object exact-lookup revalidation blocker is now resolved:
-    - the root cause was frontend-side: `PARALLEL_RDP_HIRES_SAMPLED_OBJECT_LOOKUP=1` was not enabling host-visible TMEM, even though the draw-side sampled-object exact path requires CPU-visible TMEM backing
-    - [`mupen64plus-video-paraLLEl/rdp.cpp`](/home/auro/code/parallel-n64/mupen64plus-video-paraLLEl/rdp.cpp) now enables host-visible TMEM for lookup-only mode as well as probe mode
-    - strict lookup-only reruns now reproduce the historical `c139c1c0` exact-hit path again for both:
-      - the old family-selected package: [20260328-old-c139-lookup-only-fixed](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260328-old-c139-lookup-only-fixed)
-      - the proxy-selected package: [20260328-sampled-proxy-lookup-only-fixed](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260328-sampled-proxy-lookup-only-fixed)
-    - both bundles log `2` sampled-object exact hits for `c139c1c0` and land on the same screenshot hash `831cd6a7dff2d44654c854dbbcd91d13071cf49d6622f9141084780b47bf2b32`
-    - practical implication: proxy-centered packaging is no longer blocked by the runtime lookup seam for the deterministic `c139c1c0` slice; the remaining active blocker is transport selection for the unresolved sampled proxy `7064585c`
-  - the first focused combined previews for `7064585c` now exist at [20260328-7064585c-combined-previews](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-7064585c-combined-previews):
-    - each preview kept the proven `c139c1c0` binding and added one representative `7064585c` transported payload
-    - all six previews produced `14` sampled-object exact hits total: `12` for `7064585c` plus the shared `2` `c139c1c0` hits
-    - the first mixed-family preview ordering is still useful as a coarse bound: `16x16`, `120x120`, `144x144`, `384x512`, `64x64`, `96x96`
-    - the focused `469bad6f` sweep at [20260328-469bad6f-previews](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-469bad6f-previews) now narrows that further:
-      - all `10` candidates kept the same `14` exact-hit structure
-      - `16x16` no longer leads once the family is isolated
-      - strongest current candidates are `af028e08__120x120` and `81b32e31__120x120` by RMSE, with `c3984de7__120x120` lowest by AE
-      - `373fa1d0__120x120`, `e3394be6__120x120`, and `fa12dda5__120x120` collapse to the same final frame hash
-      - the asset-level comparison at [asset-comparison.md](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-469bad6f-previews/asset-comparison.md) reduces the effective review set further:
-        - `373fa1d0`, `e3394be6`, and `fa12dda5` are exact duplicates
-        - `af028e08` and `81b32e31` are near-duplicates
-        - `c3984de7` remains the strongest structurally distinct alternative
-      - the proxy-centered runtime review at [top3-runtime-review.md](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-469bad6f-previews/top3-runtime-review.md) sharpens that again:
-        - all three candidates keep the same `14` sampled-object exact-hit structure
-        - `c3984de7__120x120` is materially farther from the proven `c139` baseline than the other two
-        - `af028e08__120x120` and `81b32e31__120x120` remain extremely close in runtime output
-      - the provisional proxy selection is now runtime-composed too:
-        - package: [20260328-sampled-proxy-plus-706/package.phrb](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-sampled-proxy-plus-706/package.phrb)
-        - runtime proof: [20260328-sampled-proxy-plus-706](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260328-sampled-proxy-plus-706)
-        - the combined package reproduces the earlier `af028e08` preview hash `1a0719dfcba68736d09579d8fb1e6eb628cf62fa89544675f8d7ddffe70500bb` with `14` exact hits total
-      - the selected import path is now direct instead of hand-assembled:
-        - builder: [tools/hires_pack_build_selected_package.py](/home/auro/code/parallel-n64/tools/hires_pack_build_selected_package.py)
-        - tracked inputs: [20260327-sampled-import-index.json](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260327-sampled-import-index.json), [20260328-tile-parent/import-index.json](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-tile-parent/import-index.json), and [hires_pack_transport_policy.json](/home/auro/code/parallel-n64/tools/hires_pack_transport_policy.json)
-        - review pools are now explicit opt-ins via `--review-input` and `--review-pool-key`, which prevents title-only transport pools from silently leaking into file-select packages
-        - current regression diagnosis: the no-title builder briefly emitted `PHRB` v3 assets with implicit `selector_checksum64 = legacy_checksum64`; the old working package was `PHRB` v2 with zero selectors, so the new builder over-constrained lookup and collapsed to `off`
-        - current fix: selector checksums are now explicit-only through [hires_pack_emit_loader_manifest.py](/home/auro/code/parallel-n64/tools/hires_pack_emit_loader_manifest.py) and [hires_pack_emit_binary_package.py](/home/auro/code/parallel-n64/tools/hires_pack_emit_binary_package.py)
-        - old proof package revalidation: [20260328-selected-from-import-index-v2/package.phrb](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-selected-from-import-index-v2/package.phrb) still works on the current core and now verifies to hash `edb0c84ff65226ba7c37546bc06fd3bb3f78eb8965cfdf095659551e78d177de` with `13` sampled-object exact hits (`12` on `7064585c`, `1` on `c139c1c0`)
-        - rebuilt current proof package: [20260328-selected-no-title-v2/package.phrb](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-selected-no-title-v2/package.phrb)
-        - rebuilt live proof: [20260328-selected-no-title-v2-runtime](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260328-selected-no-title-v2-runtime)
-        - current result: the rebuilt v3 package reproduces the same strict runtime hash `edb0c84ff65226ba7c37546bc06fd3bb3f78eb8965cfdf095659551e78d177de` and the same `13` sampled-object exact hits as the old proof package, so the selected-builder path is stable again
-      - the same selected package is now also negatively validated on title screen:
-        - runtime proof: [20260328-selected-from-import-index-v2-runtime](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260328-selected-from-import-index-v2-runtime)
-        - current result: `0` sampled-object exact hits, `0/196` upload-side hits, and the frame collapses to the strict title `off` hash `42e501afb2548a5067bc034578c5bcebf0bf2a40f612bbcc94972af716ad6ff2`
-        - practical implication: the currently proven native import path is still file-select-shaped; it does not yet generalize to the visible title path
-      - the draw-side title sampled-object probe is now materially broader and more useful than the earlier `940cea6e`-only view:
-        - runtime proof: [20260328-title-sampled-probe-v4](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260328-title-sampled-probe-v4)
-        - review artifact: [20260328-title-sampled-transport-v4/review.md](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-title-sampled-transport-v4/review.md)
-        - current result: the visible title path now shows three major sampled-object families instead of one dominant strip plus noise:
-          - `940cea6e` -> `296x6` copy texrect with zeroed sampled palette CRCs
-          - `28916d63` -> the same `296x6` copy texrect once TLUT state is populated (`sampled_entry_pcrc=8be3a754`, `sampled_sparse_pcrc=0574791d`, `entry_count=256`, `used_count=14`)
-          - `7701ac09` -> `200x2` 1-cycle texrect with `53` transported `1600x16` candidates
-          - `148e68ee` remains the minor `296x2` copy family
-        - practical implication: the title path is no longer accurately modeled as one sampled strip; the same visible surface can require multiple canonical sampled keys depending on TLUT state and texrect regime
-      - the sampled transport review tooling now preserves canonical sampled-object identity directly, and the new [hires_pack_emit_probe_pool_binding.py](/home/auro/code/parallel-n64/tools/hires_pack_emit_probe_pool_binding.py) can turn one sampled review group into a review-only transport-pool binding without ad hoc scripts
-      - the new full native title package is now runtime-proven and materially stronger than the earlier partial pools:
-        - package: [20260328-title-combined-pools-v2-full/package.phrb](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-title-combined-pools-v2-full/package.phrb)
-        - runtime proof: [20260328-title-combined-pools-v2-full-runtime](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260328-title-combined-pools-v2-full-runtime)
-        - current result: `172` sampled-object exact hits total and screenshot hash `620692162a2fbf167ef6e4a468f3a56890d229e75cbfd828dc5ad56ffe73a85b`
-          - `106` hits on `7701ac09`
-          - `33` hits on `28916d63`
-          - `33` hits on `940cea6e`
-        - distance to strict legacy `on` is now much better than every earlier native title package:
-          - full combined pools vs legacy `on`: `AE=67829221`, `RMSE=22.04`
-          - earlier selector-aware `940` pool vs legacy `on`: `AE=381982996`, `RMSE=48.24`
-          - earlier partial combined pools vs legacy `on`: `AE=327399288`, `RMSE=44.69`
-          - single-candidate native vs legacy `on`: `AE=1076083334`, `RMSE=86.68`
-          - strict `off` equivalent vs legacy `on`: `AE=667376891`, `RMSE=59.14`
-        - policy-built title package: [20260328-selected-plus-title-v4/package.phrb](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-selected-plus-title-v4/package.phrb)
-        - policy-built title runtime proof: [20260328-selected-plus-title-v4-runtime](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260328-selected-plus-title-v4-runtime)
-        - corrected cache-path proof: [20260328-title-control-correct-cache](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260328-title-control-correct-cache)
-        - current result: the explicit-review-pool builder now reproduces the same strict title hash and the same `172` exact-hit structure as the older hand-built full-title package once the selected `PHRB` is actually loaded instead of the default `.hts`
-        - current merged-package note: visual inspection shows the merged package is better across all four comparison shots and adds visible content rather than obviously regressing earlier content
-        - active selected merged package: [20260328-selected-plus-title-v8-144x16-B-policy/package.phrb](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-selected-plus-title-v8-144x16-B-policy/package.phrb)
-        - active selected merged package proof: [20260328-selected-plus-title-v8-144x16-B-policy-runtime](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260328-selected-plus-title-v8-144x16-B-policy-runtime)
-        - merged file-select compatibility proof: [20260328-selected-plus-title-v8-144x16-B-policy-runtime](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260328-selected-plus-title-v8-144x16-B-policy-runtime)
-        - active correctness concern: the center-content `111` region still looks wrong or incomplete, but the active merged title center crop is byte-identical to the strict legacy `on` title reference, so it is not treated as a native import regression
-        - title-family isolation now narrows the active contributors and removes one redundant pool:
-          - `71c71cdd` alias experiments remain pixel-identical to the corrected title control: [20260328-title-71-alias-first-correct-cache](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260328-title-71-alias-first-correct-cache) and [20260328-title-71-alias-last-correct-cache](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260328-title-71-alias-last-correct-cache) both keep hash `620692162a2fbf167ef6e4a468f3a56890d229e75cbfd828dc5ad56ffe73a85b`; `alias-first` only raises sampled exact hits from `172` to `178`, so `71c71cdd` is not the current `111` cause
-          - removing `28916d63` yields the same title hash `620692162a2fbf167ef6e4a468f3a56890d229e75cbfd828dc5ad56ffe73a85b` and the same merged file-select hash `c5ac0f7558547aeb197552bbb1a0881c69f6d57ff1f17358d0d1753617d253e0`, so `28916d63` is now treated as redundant on the current strict fixtures
-          - primary visible-title contributors are now `7701ac09` and `940cea6e`
-          - `148e68ee` is now included as a safe zero-diff extension: it adds one exact sampled-object hit on both strict title and merged file-select without changing either frame hash
-          - `0f472c21` is now included as the TLUT-populated twin of that same minor 296x2 strip: it adds one exact sampled-object hit on strict title and keeps merged file-select byte-identical
-          - `0e89915a` and `1d234571` are now included as a provisional two-family `144x16` lower-strip pair via `legacy-2c8a8202-00000000-fs0-1440x160`: the policy-built package matches the hand-built `B` probe exactly, keeps merged file select byte-identical, and moves the affected title strip closer to legacy-on by AE while leaving the title center unchanged
-          - the provisional `144x16` lower-strip pair is now much better grounded: the refreshed Tier 2 scan [20260328-title-copyright/report.md](/home/auro/code/parallel-n64/artifacts/paper-mario-tier2-static-scan/20260328-title-copyright/report.md) shows the upstream non-JP copyright path in `state_title_screen.c` draws exactly two `144x16 IA8` chunks and matches the current runtime `144x16` sampled pair (`0e89915a`, `1d234571`) on native tile fields (`sh=572`, `th=60`)
-          - the separate `128x32` title seam is now source-backed too: `049201f4` and `ce437230` still have no pack candidates, but the refreshed Tier 2 scan [20260328-title-copyright/report.md](/home/auro/code/parallel-n64/artifacts/paper-mario-tier2-static-scan/20260328-title-copyright/report.md) now ties their shared `2048x1 fs515` upload family `dfe97266` to the non-PAL `Press Start` `128x32 IA8` loadblock path in `state_title_screen.c`, with matching native tile fields (`sh=508`, `th=124`)
-          - pack-side spot check now strengthens the transport-gap reading: the local `.hts` already contains five `1280x320` entries and three `1440x160` entries, so the low-complexity title IA8 work no longer looks like an obvious asset-absence problem
-          - practical implication: both low-complexity IA8 title seams are now source-attributed; the open work on `049201f4` / `ce437230` is transport/import coverage, not source discovery
-        - debugging implication: separate packages remain useful as controls, but the forward path is still one combined package
-        - practical implication: native title import is no longer blocked on whether the transport model can reproduce legacy-looking output; the next seam is tightening the active merged package around the remaining primary `7701ac09` / `940cea6e` title contributors, with the `144x16` lower-strip pair now promoted as a provisional policy-backed extension rather than an open probe
-    - practical implication: `af028e08` is now the tracked provisional transport choice for `7064585c`; `81b32e31` remains the nearest alternate, and `c3984de7` remains the strongest structurally distinct fallback
-  - strict bundle extraction now records sampled-object exact hits separately in [`tools/scenarios/lib/common.sh`](/home/auro/code/parallel-n64/tools/scenarios/lib/common.sh), so `traces/hires-evidence.json` can describe canonical lookup-only bundles without conflating them with the upload-side `Hi-res keying summary`
-  - practical implication: the active `8x16` strict gap should not be modeled as meaningful row-local upload bytes, which pushes the next resolver step toward same-start parent-tile/subrect transport and away from row-byte reinterpretation
-- The latest unstaged HLE-to-LLE conversion research in [hle-to-lle-conversion-plan.md](/home/auro/code/parallel-n64/docs/plans/hires-conversion-analysis/hle-to-lle-conversion-plan.md) and [palette-crc-transform-analysis.md](/home/auro/code/parallel-n64/docs/plans/hires-conversion-analysis/palette-crc-transform-analysis.md) is directionally useful, but it is now adopted in tracked planning with tighter guardrails:
-  - adopt the three-tier conversion split:
-    - pure-math bridge candidate generation
-    - ROM/display-list scan as the primary ambiguity resolver
-    - runtime observation only for edge cases
-  - treat direct legacy texture/palette CRC equality as bridge-input evidence, not proof of the final native canonical key
-  - keep sampled-object identity authoritative for native ParaLLEl lookup even when legacy upload-family CRCs bridge cleanly
-  - do not emit runtime-ready native records with guessed `tmem_offset`, `tmem_stride`, or sampled dimensions; partial conversions stay review-only until resolved by ROM scan or runtime evidence
-  - treat the entry-count palette-CRC identity path as a concrete validation target, not an established fact; it still needs strict-bundle proof against the current ParaLLEl shadows and logical palette views
-- The first logical-TLUT diagnostic pass is now live in strict CI probe bundles:
-  - `traces/hires-evidence.json` now records `ci_palette_probe.logical_views`
-  - on the verified strict file-select probe bundle (`20260326-logical-tlut-probe-2`), the ambiguous `8x16` CI families produce distinct active/alternate logical palette CRCs when `tlut_type` flips
-  - but neither the active nor alternate logical-view CRCs hit the current pack on that strict fixture
-  - current implication: the remaining CI gap is not explained by ignoring `tlut_type` alone
-- That makes legacy pack transport a real implementation path instead of only a planning statement
-- The new block-shape probe is now wired through the tracked file-select scenario and keeps the strict hash intact while logging alternate-shape diagnostics
-- That probe has already ruled out the dominant file-select miss as a simple hidden multi-line reinterpretation: `mode=block fmt=2 siz=2 wh=64x1 fs=514 tile=7` stays a plain `64x1` upload (`tmem_stride_words=0`) and finds no alternate-shape pack hit
-- The same probe does find alternate-shape hits for smaller non-dominant block misses, including `mode=block fmt=4 siz=2 wh=128x1 fs=516 tile=7 -> 4x32` and `mode=block fmt=0 siz=3 wh=1024x1 fs=768 tile=7 -> 32x32`
-- The tracked scenario filter path had a forwarding bug: runtime override files were setting the real `PARALLEL_RDP_HIRES_FILTER_*` names, but the scenario wrappers were only forwarding the older shorthand `HIRES_FILTER_*` aliases
-- That forwarding path is now fixed, and the corrected isolation runs materially narrow the current visible Phase 1 problem:
-  - strict file select with `allow_block=0` still reproduces the locked `on` hash `8a90f7874bd797a186ff85d488033dc332b2a75f5bec91ad33ca8246e6be7730` exactly, with `hits=82`, `misses=83`, `filtered=0`
-  - strict file select with `allow_tile=0` collapses to the baseline `off` hash `6fa8688b382fa1e6f0323f054861a85f593d2d47ca737bb78448e3f268ca63e3`, with `hits=0`, `misses=83`, `filtered=82`
-  - title screen with `allow_tile=0` still reproduces the baseline `off` hash `42e501afb2548a5067bc034578c5bcebf0bf2a40f612bbcc94972af716ad6ff2`, with `hits=0`, `misses=18`, `filtered=178`
-  - so the currently visible hi-res output on the tracked strict fixtures is tile-only
-  - the unresolved block misses are still real bookkeeping/identity gaps, but they are not contributing to the current strict file-select image
-- The current TLUT tracking path is correspondingly suspicious: `tlut_shadow` is still populated as a raw contiguous RDRAM copy on `LoadTLUT`, so the next correctness step is to verify whether that shadow actually matches the palette bytes/layout the replacement pack identity expects
-- `tlut_shadow` now patches the palette-shadow range by TMEM offset instead of overwriting and zeroing the whole 512-byte shadow on every partial `LoadTLUT`; on the strict file-select fixture that changes the CI palette CRCs materially but does not yet change the final frame or recover new pack hits
-- A blunt follow-up experiment, copying TLUT entries into the shadow with a naive 16-bit byte swap, regressed the strict file-select `on` result badly (`hits=48`, `misses=117`, hash `948a4fad87bba561d40cf683915c9d52d6273f1a15017f17885fd1a808a2afdd`), so the remaining issue is not solved by simply swapping palette bytes at the current shadow layer
-- The next likely fix boundary is therefore a more exact TMEM/TLUT model for replacement keying rather than one more small palette-CRC tweak: offset/persistence mattered, but exact palette representation still does not match the pack identity
-- The CI replacement evidence is now sharper than “palette mismatch exists”: a new low-32 diagnostic index proves the current strict file-select CI misses do have pack-backed candidates when keyed only by the low-32 texture CRC
-- That diagnostic result is now validated by live runtime experiments after fixing the scenario env-export bug:
-  - `PARALLEL_RDP_HIRES_CI_LOW32_FALLBACK=1` (`unique`) is a narrow real change, not a shell no-op
-  - it converts one unique `8x16` CI miss into a hit, moves file-select from `hits=82 misses=83` to `hits=84 misses=81`, and changes the frame hash to `d4661996bc280d4e6a6e1a4fa6dbabeadb47520c4b4b0241f9e2b20f489dcf4e`
-  - the pixel delta versus the strict `on` baseline is small (`15946` changed pixels, normalized average channel delta `0.000639`)
-  - `PARALLEL_RDP_HIRES_CI_LOW32_FALLBACK=3` (`replacement-dims-unique`) is a tighter middle ground
-  - it only accepts low-32 fallback when all candidate pack entries for that low-32 key agree on the replacement dimensions
-  - on strict file select it recovers the unambiguous `32x16` class and the single truly unique `8x16` case, moving file-select from `hits=82 misses=83` to `hits=86 misses=79` and changing the frame hash to `24274e62a18c436dc13570b6e51f7dc600b0de89d4aee56086cffd82248f797a`
-  - its pixel delta versus the strict `on` baseline sits where it should between `unique` and `any` (`139795` changed pixels, normalized average channel delta `0.005271`)
-  - after that tighter rule, the remaining palette-class misses collapse to the still-ambiguous `8x16` family, while the block classes remain unchanged
-  - `PARALLEL_RDP_HIRES_CI_LOW32_FALLBACK=2` (`any`) is a much broader real change
-  - it converts all current CI tile palette misses on the strict file-select fixture into hits, moves file-select from `hits=82 misses=83` to `hits=90 misses=75`, and changes the frame hash to `2f00a7eb6c0c592a363fca987981d6eb6e6d5a43c9cac0d337c8f444282b18c8`
-  - in that broader mode, the remaining unresolved strict file-select misses collapse entirely to the block classes, still dominated by `mode=block fmt=2 siz=2 wh=64x1 fs=514 tile=7`
-  - the pixel delta versus the strict `on` baseline is material but still bounded (`166168` changed pixels, normalized average channel delta `0.006020`), which makes it useful as a debug direction even though it is too permissive to treat as production behavior today
-- The current Phase 1 question is therefore narrower again:
-  - CI low-32 fallback is directionally capable of recovering pack-backed file-select replacements
-  - `replacement-dims-unique` is now the first concrete tighter candidate rule worth considering
-  - that rule has now also been promoted into an explicit opt-in compatibility tier: `PARALLEL_RDP_HIRES_CI_COMPAT=3`
-  - on the strict file-select authority, that compatibility tier reproduces the earlier `PARALLEL_RDP_HIRES_CI_LOW32_FALLBACK=3` result exactly: `hits=86`, `misses=79`, hash `24274e62a18c436dc13570b6e51f7dc600b0de89d4aee56086cffd82248f797a`
-  - on the strict title-screen authority, the same compatibility tier is a no-op and preserves the locked `on` hash `ba91ffce0cc7b6053568c0a7774bf0ae80825c95d95fce89ba4a9f79c62b9d16`
-  - that makes it the first production-shaped tier-2 CI candidate while keeping exact lookup as tier 1 and leaving the broader `any` mode debug-only
-  - a new focused review pass now makes the remaining strict file-select gap easier to reason about:
-    - `tools/hires_miss_review.py --bundle artifacts/paper-mario-file-select/on/20260325-ci-compat-repl-dims-unique --cache assets/PAPER MARIO_HIRESTEXTURES.hts`
-    - the dominant `mode=block fmt=2 siz=2 wh=64x1 fs=514 tile=7` class stays fully `absent-from-pack` across all `21` observed low-32 keys in the current pack index
-    - the remaining `8x16` CI class stays `present-generic-only` and `ambiguous-import-or-policy`, which confirms it belongs on the CI/import-policy track rather than the block track
-  - after the corrected filter-isolation runs, the active visible-design choice is narrower still:
-    - the immediate strict-fixture work is the tile/CI path, especially the ambiguous `8x16` family and the more exact CI/TLUT identity behind it
-    - the still-unmatched block classes remain a separate later track until a fixture proves they materially affect visible output
-- The latest full-docs N64 research pass materially strengthens that narrowing:
-  - the authoritative identity object appears to be the post-load sampled tile, not the raw upload blob
-  - `SetTile`, `SetTileSize`, and sampler-state fields are part of texture meaning, not just metadata
-  - CI/TLUT identity is more sampler-visible than a raw palette-upload view:
-    - CI4 and CI8 differ
-    - CI4 palette-bank selection matters
-    - `tlut_type` matters
-    - `LoadTLUT` expansion means logical palette entries matter more than expanded TMEM bytes
-  - copy / texrect / BG-copy paths are likely first-class provenance classes rather than normal texture draws
-  - framebuffer-derived textures are normal N64 behavior and should not be treated as authored replacement authority by default
-  - practical consequence: many apparent misses may be non-authoritative source classes or exact-identity mismatches rather than simple “missing pack data”
-- Cross-emulator research now gives the broad guardrails for that decision:
-  - the strongest relevant local references are `PCSX2`, `Dolphin`, `PPSSPP`, and `Flycast`
-  - the shared pattern is consistent: exact replacement identity remains authoritative, while broader compatibility matching lives in an explicit second tier with separate reporting and tighter constraints
-  - `PCSX2` is the clearest conceptual precedent for the current CI work: exact paletted lookup first, then an explicit palette-relaxed retry
-  - `Dolphin` strengthens the palette-model side of the argument: palette/TLUT identity should track the actually used palette span rather than a blunt full-shadow view
-  - `Flycast` reinforces bank-aware paletted identity, which maps well onto the current N64 CI4/CI8 problem
-  - `PPSSPP` reinforces the policy lesson: wildcard/alias-style fallback can exist, but it must remain explicit, constrained, and diagnosable
-  - the main design risk from those references is now explicit: hardening `low32_any` as production behavior would repeat the same permissive trap other emulators avoid
-  - the main positive direction from those references is also explicit: improve the exact CI/TLUT identity so it matches the effective palette semantics pack authors expect, then keep any broader lookup as a named compatibility tier rather than burying it inside the exact path
-  - the block/shape research is equally clear: other emulators do not broadly solve replacement misses with free-form runtime shape reinterpretation, and local N64 docs only justify such reinterpretation when the `LoadBlock` / `LoadTile` transfer semantics prove an equivalent layout
-  - that means the current generic block-shape search should remain diagnostic unless a documented `dxt` / interleave / wrap rule can justify turning a specific class into a real compatibility path
-- The current Phase 1 blocker has therefore moved again: replacement wiring is now visibly live, and the next task is to judge correctness versus corruption on the strict fixtures and tighten texel mapping / alias behavior where needed
-- The tracked adapter now supports a memory-based wait primitive, `WAIT_CORE_MEMORY_HEX`, so scenarios and probes can block on exact vanilla RAM signatures instead of sleep-only timing
-- The semantic JSON now also emits a decomp-backed `map_name_candidate` for KMR, HOS, and OSR area-local map indices
-- The corrected startup semantic values are stable for both tracked fixtures: `areaID=0 (AREA_KMR)`, `mapID=0`, `entryID=0`, `introPart=1`, `startupState=0`
-- A deeper savefile-backed probe now verifies deterministic long-step control from the file-select authority and settles reproducibly at `areaID=0 (AREA_KMR)`, `mapID=3`, `entryID=5`
-- Staging the local Paper Mario `.srm` does not change that deeper deterministic transition result, so missing external save RAM is no longer the leading explanation for the current semantic ambiguity
-- Paper Mario decomp research now shows `LOAD_FROM_FILE_SELECT` is handled specially in `kmr_02`, and KMR map IDs are area-local indices rather than direct map suffixes
-- In the current decomp-backed map ordering, that deeper probe's `mapID=3` corresponds to a `kmr_04` candidate, which directly highlights the remaining ambiguity: the candidate map name and the `kmr_02` file-select special case do not line up yet
-- That means the first save-backed gameplay transition is now semantically distinguishable from the startup/file-select fixtures, but its current `area/map/entry` tuple should still be treated as transition evidence rather than canonical scene identity, and it does not yet reach the planned `hos_05 ENTRY_3` target
-- A direct symbol-backed probe of that deeper transition shows `CurGameMode` callback pointers switch from the authority-state `logos` pair to the `intro` pair while `map_transition` remains idle, which strongly suggests the current `START` path is progressing through intro-state logic rather than a clean file-select-to-world handoff
-- A deterministic cold-boot trace still shows the vanilla callback path can move through `startup -> logos -> intro` under stepped automation, but the correct wall-clock title path is now proven: `boot -> wait 20s -> START once -> wait 5s`
-- The correct wall-clock file-select path is also proven: `load title state -> settle 3 -> hold START about 1s -> release -> wait 4s`, and authoritative reminting now stabilizes that target as a deterministic paused bootstrap path: `hold START for 60 frames -> advance to frame 303 -> save`
-- Direct snapshots of the raw `gGameStatus` button arrays are not yet a trustworthy input-delivery metric: they remain zero both in early boot probes and in later title-screen authority probes where `START` clearly affects behavior
-- The obvious shifted-symbol probes for deeper mode/menu state have been ruled out so far: the likely `CurGameModeID` window near `0x80195750` is zero in the tracked states, and a broad `0x80180000` region scan did not produce a valid title/file-select/world mode candidate
-- Tracked runtime scenarios now isolate save RAM inside each bundle, and savefile identity is explicit in bundle metadata instead of silently coming from `~/.config/retroarch/saves`
-- There is now an intentional helper to stage a local Paper Mario `.srm` into gitignored assets for future deeper fixtures
-- RetroArch `SAVE_STATE` is now understood as an asynchronous task path; tracked authority minting requires `WAIT_SAVE_STATE`, and save operations must be sequenced ahead of screenshot tasks to avoid blocking-task contention
-- `run-build.sh` is the authoritative local build entrypoint because it carries the ParaLLEl build flags and auto-cleans when flag fingerprints change
+- The repo is in the Phase 1 runtime/package shift inside the Phase 0/1 backbone.
+- The controlling execution document is [Hi-Res Runtime Primary Plan](/home/auro/code/parallel-n64/docs/plans/hires_runtime_primary_plan.md).
+- Implementation is active against that plan, not just staged for it.
+- Paper Mario remains the only active authority game.
 
-- The source-backed title `Press Start` seam is now a tracked sampled-object transport path instead of an unattributed miss:
-  - new seeded review tool: [tools/hires_seed_review_pool.py](/home/auro/code/parallel-n64/tools/hires_seed_review_pool.py)
-  - seeded review artifact: [20260329-title-press-start-seeded/review.md](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-press-start-seeded/review.md)
-  - it carries the two unresolved sampled title objects, `049201f4` and `ce437230`, forward with a source-backed `1280x320` candidate pool from the active Paper Mario pack
-  - the first seeded pass proved an important negative result: all five `1280x320` candidates were complete no-ops under legacy selector mode, so this seam was blocked by selector policy rather than by missing assets alone
-  - `tools/hires_pack_emit_probe_pool_binding.py` now supports `--selector-mode zero`, and `tools/hires_pack_build_selected_package.py` now threads that selector mode from review-pool policy into the selected-package builder
-  - that unlocked the seam immediately:
-    - representative manual proof: [20260329-press-start-09e981b2-zero-selector-runtime-v2](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260329-press-start-09e981b2-zero-selector-runtime-v2)
-    - exact hits now fire on both sampled objects:
-      - `049201f4`
-      - `ce437230`
-    - title hash becomes `ac266300c4bb14375c61994bff90368591067578d857ab5e6f7c10d85921c920`
-  - full zero-selector title sweep: [runtime-summary.md](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-press-start-zero-selector/runtime-summary.md)
-    - all five source-backed `1280x320` candidates now hit both sampled objects exactly once
-    - current movement ranking against the active merged title package is:
-      - `09e981b2`
-      - `0a9b8a27`
-      - `54a98809`
-      - `ea70d9d5`
-      - `e6ce790e`
-    - current changed-region montage: [changed-region-montage.png](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-press-start-zero-selector/changed-region-montage.png)
-  - the transport policy now records a provisional zero-selector choice for both sampled objects:
-    - `sampled-low32-049201f4-fs259`
-    - `sampled-low32-ce437230-fs259`
-    - selected candidate: `legacy-09e981b2-0001abdc-fs0-1280x320`
-    - selector mode: `zero`
-  - policy-built package proof: [20260329-selected-plus-title-v8-press-start-09e/package.phrb](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-selected-plus-title-v8-press-start-09e/package.phrb)
-    - title runtime proof: [20260329-selected-plus-title-v8-press-start-09e-runtime](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260329-selected-plus-title-v8-press-start-09e-runtime)
-    - file-select runtime proof: [20260329-selected-plus-title-v8-press-start-09e-runtime](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260329-selected-plus-title-v8-press-start-09e-runtime)
-    - current result:
-      - title policy package is byte-identical to the manual zero-selector proof (`ac266300...`) and still logs one exact hit on each sampled `128x32` title object
-      - file select stays byte-identical to the previous active merged file-select package (`2b55962a...`) and logs no `049201f4` / `ce437230` hits
-  - practical implication: `Press Start` is now the first tracked case where the right native transport is source-backed but not upload-selector-backed, so zero-selector review-pool transport is now a real, bounded tool in the import model rather than a theoretical escape hatch
-  - broader validation now passed on the first non-menu timeout slice: [20260329-title-timeout-960-v8-press-start-09e](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/on/20260329-title-timeout-960-v8-press-start-09e) reaches `state_init_world` / `state_step_world` at `kmr_03 entry 5` with `sampled_object_probe.exact_hit_count = 0`, so the current zero-selector `Press Start` seam remains title-only across that world transition probe
-  - that earlier provisional selection is now demoted in merged-package use: removing the whole `128x32` pair from the `v28` merged package yields [20260330-selected-plus-title-v29-drop-press-start/package.phrb](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260330-selected-plus-title-v29-drop-press-start/package.phrb), which is byte-identical to the validated [20260330-title-ablation-minus-128x32](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260330-title-ablation-minus-128x32) control package
-    - strict title improves sharply toward legacy `on`: hash `0a4ab3b92965de412998d94eca82ce6d4e134392fe2243befd481a716bc341c0`, legacy-on distance `AE 69618` vs `260598` for `v28`
-    - strict file select stays byte-identical to `v28`: [20260330-file-control-minus-128x32](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260330-file-control-minus-128x32) -> hash `9221491f729b2e11a678456362f25c9d28b820b75297e26e373931978b48eb93`
-    - broader non-menu validation still stays safe: [20260330-v29-timeout-960/validation-summary.md](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260330-v29-timeout-960/validation-summary.md) matches the `960`-frame off baseline exactly at `4bd3929dabff3ffb1b7e03a9c10d8ce50e9b6d0f067825d3a788c48a41b6fc62`
-  - practical implication: the `049201f4` / `ce437230` `Press Start` pair remains source-backed and review-worthy, but it is no longer an active merged-package transport choice until a zero-selector candidate beats the `v29` review-only baseline
+### Current Paper Mario Runtime Lanes
 
-- The large title `7701ac09` 1-cycle strip pool is now structurally constrained by a source-order stripe review:
-  - tool: [tools/hires_title_stripe_sequence.py](/home/auro/code/parallel-n64/tools/hires_title_stripe_sequence.py)
-  - artifact: [20260329-title-stripe-sequence/sequence.md](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-stripe-sequence/sequence.md)
-  - active title bundle shows exactly `56` sequential `200x2 RGBA32` upload stripes with dominant address delta `0x640`, matching the upstream `kmr_21` `TitleImage[1600 * i]` loop
-  - the runtime walk has `54` unique upload keys: one unresolved key, `71c71cdd`, repeats at sequence `0`, `1`, and `55`, while the remaining `53` unique stripes align with the current `53` transported candidates in the `7701ac09` pool
-  - practical implication: the big title pool is much closer to an ordered title-surface mapping problem than an arbitrary replacement bag; the next narrowing step should focus on the repeated edge-key and source-order transport rather than more broad candidate hunting
-- The `296x6` title copy-strip pool is now constrained the same way:
-  - artifact: [20260329-title-copy-strip-sequence/sequence.md](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-copy-strip-sequence/sequence.md)
-  - ordered surface map: [20260329-title-copy-strip-surface-map/map.md](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-copy-strip-surface-map/map.md)
-  - ordered surface manifest: [20260329-title-copy-strip-surface-map/manifest.md](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-copy-strip-surface-map/manifest.md)
-  - the active title bundle shows `33` sequential `296x6` upload strips with dominant delta `0x6f0`, and `29` unique upload keys
-  - one key, `5c66840b2eb5c22e`, repeats at sequence `0` and `29-32`, while the remaining `29` unique keys line up with the current `29` transported candidates in the `940cea6e` pool
-  - the ordered surface map now proves all `33` sequence slots resolve to transported replacements; the repeated edge key is reused intentionally rather than left unresolved
-  - practical implication: the main title copy-strip contributor is already representable as an ordered title surface, while the main `7701ac09` stripe pool is narrowed to just three repeated unresolved edge slots for `71c71cdd`
-  - next implication: these title contributors can now be expressed as ordered surfaces instead of ad hoc review pools, which is the clearest current bridge into a cleaner native import format
-- A first ordered-surface package is now emitted tool-side: [20260329-title-surface-package-v2/surface-package.json](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-surface-package-v2/surface-package.json)
-  - tool: [tools/hires_build_surface_package.py](/home/auro/code/parallel-n64/tools/hires_build_surface_package.py)
-  - format id: `phrs-surface-package-v2`
-  - current contents: `surface-7701ac09` with `53` replacements and `3` unresolved edge slots, plus `surface-940cea6e` with `29` replacements and `0` unresolved slots
-  - practical implication: the native-format path now has a concrete `surface + ordered slots + referenced assets` artifact instead of only review/manifold intermediates
+- Promoted enriched full-cache `PHRB` baseline:
+  - default authority path and current default conformance baseline
+  - current converter state: `368` canonical-only families in `134` grouped reviews
+  - current runtime-overlay state: `15` bindings / `13` unresolved overlay families
+- Zero-config compat-only full-cache `PHRB` fallback:
+  - maintained only through explicit override or the dedicated zero-config refresh lane
+  - current converter state: `8620` runtime-ready compat records and `372` deferred compat records
+- Tracked review-only reduction lane:
+  - current best converter-side ambiguity reduction proof, explicitly non-default
+  - current converter state: `302` canonical-only families in `75` grouped reviews
+  - current review-only shaping state: `66` tracked review selections and `19` bindings / `9` unresolved overlay families
+
+### Runtime Contract State
+
+- The provider now preserves structured `PHRB` identity at load time instead of discarding it.
+- Generic descriptor resolution, upload-time resolution, and CI low32 compat materialization now run through shared provider-owned typed resolution helpers instead of separate renderer fallback ladders.
+- The renderer keeps native sampled identity alive further into cache and decode paths instead of collapsing immediately back to checksum-shaped handling.
+- The selected-package `960` timeout lane is now a real native-runtime proof:
+  - `source_mode=phrb-only`
+  - `descriptor_paths(sampled=66 native_checksum=0 generic=0 compat=0)`
+  - current proof: [validation-summary.md](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260407-selected-package-timeout-current-contract/validation-summary.md)
+- The default Paper Mario authority fixtures now resolve only through promoted enriched full-cache `PHRB` artifacts by default and fail closed if no promoted enriched artifact exists.
+- Current default authority outcome:
+  - `source_mode=phrb-only`
+  - `entry_count=12754`
+  - `native_sampled_entry_count=503`
+  - sampled-only descriptor traffic on title screen, file select, and `kmr_03 ENTRY_5`
+
+### Converter State
+
+- `hts2phrb` is now canonical-package-first rather than binding-first.
+- The front door now supports:
+  - zero-config `--cache <pack>`
+  - bundle and validation-summary inputs
+  - enrichment-only `--context-bundle`
+  - explicit runtime-class gates
+  - `--reuse-existing`
+  - review-only duplicate / alias / review-profile overlays
+  - canonical loader/package emission plus optional runtime overlay
+- The current local full-cache Paper Mario front-door outcomes are:
+  - zero-context: `partial-runtime-package`, compat-only
+  - authority-context: `partial-runtime-package`, mixed-native-and-compat
+- Local converter breadth currently covers:
+  - the current Paper Mario legacy cache
+  - the repo-local pre-v401 Paper Mario legacy cache
+- There is still no non-Paper-Mario `.hts` or `.htc` pack available locally, so cross-game converter breadth is blocked on inputs, not tooling.
+
+### Validation State
+
+- Active strict fixtures:
+  - title screen
+  - file select
+  - `kmr_03 ENTRY_5`
+- Active runtime-conformance lanes:
+  - full-cache enriched authority validation
+  - full-cache zero-config refresh validation
+  - selected-package authority validation
+  - selected-package timeout validation
+  - selected-package timeout lookup-without-probe validation
+- Semantic hi-res evidence now participates in pass/fail on the active authorities.
+- The title-timeout lane remains the main no-save deeper-state review surface.
+
+### Deferred / Open Gaps
+
+- Broaden structured sampled-object lookup further across runtime without reopening deferred pool/source seams prematurely.
+- Reduce the remaining converter canonical-only residue (`302` families / `75` groups on the tracked review-only lane).
+- Reduce the remaining review-only overlay residue (`9` unresolved on the tracked review-only lane).
+- Keep `.phrb` authoritative while legacy formats remain explicit input/refresh paths.
+- Add cross-game breadth only after the runtime/converter gap narrows further.
+- Keep these items deferred until the core gap is smaller:
+  - `1b8530fb` runtime pool semantics
+  - source-backed triangle promotion
+  - auto-conversion
+  - second-game validation
+
+## Historical Context
+
+- The long Paper Mario probe chronology, ordered-surface bridge history, selected-package milestone trail, deferred seam evidence, and offline review workflows now live in [PAPER_MARIO_RUNTIME_RESEARCH.md](/home/auro/code/parallel-n64/docs/PAPER_MARIO_RUNTIME_RESEARCH.md).
+- Use that note when you need:
+  - file-select probe history
+  - title-timeout milestone history
+  - block/tile/CI family research notes
+  - older selected-package and title-surface bridge milestones
+  - detailed offline `hires_pack_*` and `hts2phrb` research workflows
 
 ## Locked Planning Backbone
 
@@ -926,18 +108,16 @@
 
 ## Current Planning Focus
 
-- The active planning question is no longer whether a ParaLLEl-owned hi-res format is justified.
-- The active planning question is what evidence threshold we require before committing to that format.
-- That threshold is now documented in [HIRES_FORMAT_CONFIDENCE_PLAN.md](/home/auro/code/parallel-n64/docs/plans/HIRES_FORMAT_CONFIDENCE_PLAN.md).
-- The next Paper Mario state-discovery execution path is now documented in [PAPER_MARIO_STATE_AND_FORMAT_PLAN.md](/home/auro/code/parallel-n64/docs/plans/PAPER_MARIO_STATE_AND_FORMAT_PLAN.md).
-- The current trusted-vs-advisory Paper Mario runtime signal split is documented in [PAPER_MARIO_SIGNAL_TABLE.md](/home/auro/code/parallel-n64/docs/plans/PAPER_MARIO_SIGNAL_TABLE.md).
-- The first explicit research phases in that plan are already producing concrete constraints:
-  - N64 docs are pointing us toward post-load sampled identity plus sampler state, not raw upload blobs or expanded-TMEM TLUT images.
-  - emulator comparison is reinforcing an exact-first model with explicit tiered compatibility, not wildcard-heavy runtime heuristics.
+- Keep the promoted enriched full-cache `PHRB` baseline green for title screen, file select, and `kmr_03 ENTRY_5`.
+- Continue provider-owned runtime-contract tightening and remove remaining checksum-shaped seams.
+- Continue reducing `hts2phrb` canonical-only ambiguity and overlay residue through bounded review-only policy.
+- Keep the zero-config compat-only fallback lane and the tracked review-only reduction lane explicit instead of conflating them with the promoted baseline.
+- Leave pool semantics, source-backed triangle promotion, auto-conversion, and second-game breadth deferred until the core runtime/converter gap narrows further.
+- Supporting planning docs still matter, but [Hi-Res Runtime Primary Plan](/home/auro/code/parallel-n64/docs/plans/hires_runtime_primary_plan.md) wins on sequencing and promotion order.
 
 ## Current Validation Scope
 
-- Paper Mario only
+- Paper Mario only.
 - First strict Phase 1 fixtures:
   - title screen
   - file select
@@ -954,15 +134,15 @@
 
 ## Locked Decisions
 
-- Savestates are the authority once available
-- Debug warps and scripted entry are acceptable before authoritative savestates exist
-- Fixture identity is locked to manifest, ROM identity, savestate identity, config snapshot, and expected capture points
-- Evidence bundles are required
-- Evidence bundles include final output plus lightweight intermediate evidence
-- Fallbacks and exclusions must report explicit reasons
-- `papermario-dx` is optional debug help, not the final correctness authority
-- Runtime asset support starts with the current Paper Mario pack
-- Preprocessing/import into a cleaner internal representation is allowed if it improves correctness and debugging
+- Savestates are the authority once available.
+- Debug warps and scripted entry are acceptable before authoritative savestates exist.
+- Fixture identity is locked to manifest, ROM identity, savestate identity, config snapshot, and expected capture points.
+- Evidence bundles are required.
+- Evidence bundles include final output plus lightweight intermediate evidence.
+- Fallbacks and exclusions must report explicit reasons.
+- `papermario-dx` is optional debug help, not the final correctness authority.
+- Runtime asset support starts with the current Paper Mario pack.
+- Preprocessing/import into a cleaner internal representation is allowed if it improves correctness and debugging.
 
 ## Corruption Definition For Phase 1
 
@@ -981,153 +161,4 @@
 
 ## Working Rule
 
-- classify issues using all available evidence: output, traces, logs, telemetry, fixture identity, and config state
-
-## Latest Ordered-Surface Bridge
-
-- [`tools/hires_compile_surface_package.py`](/home/auro/code/parallel-n64/tools/hires_compile_surface_package.py) now compiles `phrs-surface-package-v2` into ordinary `bindings.json`, `loader-manifest.json`, a materialized package dir, and a runtime-loadable `PHRB` package.
-- The first compiled ordered-surface runtime proof is [`20260329-title-surface-compiled/package.phrb`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-surface-compiled/package.phrb).
-  - It carries `2` canonical records: `surface-7701ac09` and `surface-940cea6e`.
-  - It preserves `1` unresolved metadata case for the repeated `7701ac09` edge slots (`71c71cdd`) instead of inventing selectors for them.
-  - Edge review artifact: [`20260329-title-surface-edge-review/review.md`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-surface-edge-review/review.md)
-    - result: all `3` unresolved `7701ac09` slots are edge-only (`seq 0`, `1`, and `55`)
-    - that edge classification now survives the compiled bindings and the direct selected-package builder as structured unresolved metadata
-- That compiled package is now runtime-proven on the strict fixtures:
-  - title proof: [`20260329-title-surface-compiled-runtime`](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260329-title-surface-compiled-runtime)
-    - hash `620692162a2fbf167ef6e4a468f3a56890d229e75cbfd828dc5ad56ffe73a85b`
-    - exact hits: `106` on `7701ac09`, `33` on `940cea6e`
-  - file-select cross-scene proof: [`20260329-title-surface-compiled-runtime`](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260329-title-surface-compiled-runtime)
-    - hash `9221491f729b2e11a678456362f25c9d28b820b75297e26e373931978b48eb93`
-    - exact hits: `33` on `940cea6e` only
-- Practical implication: ordered surfaces are no longer just an importer-side abstraction; they can already be compiled into the existing sampled-object `PHRB` runtime path, and `940cea6e` now looks like legitimate shared title/file-select content under that compiled selector model rather than a merge-only artifact.
-- The current active merged selected package is [`20260329-selected-plus-title-v20-policy-aliased/package.phrb`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-selected-plus-title-v20-policy-aliased/package.phrb).
-  - Build inputs:
-    - file-select base bindings from [`20260328-selected-no-title-v2/bindings.json`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-selected-no-title-v2/bindings.json)
-    - self-contained compiled ordered surfaces from [`20260329-title-surface-package-v2-noreview/surface-package.json`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-surface-package-v2-noreview/surface-package.json)
-    - self-contained grouped title seam surfaces from [`20260329-title-grouped-review-surfaces-v2-noreview/surface-package.json`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-grouped-review-surfaces-v2-noreview/surface-package.json)
-    - self-contained single-candidate strip surfaces from [`20260329-title-strip-review-surfaces-v2-noreview/surface-package.json`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-strip-review-surfaces-v2-noreview/surface-package.json)
-    - reintroduced title copy-strip alias binding from [`20260328-title-only-289/bindings.json`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260328-title-only-289/bindings.json)
-  - Runtime proofs:
-    - title: [`20260329-v19-edge-aliased-probe`](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260329-v19-edge-aliased-probe)
-      - hash `521539a34c40488bdfe987779a3c53ca1624c3eb985d362f6d1b7934d0064b31`
-      - exact hits: `106` on `7701ac09`, `33` on `28916d63`, `33` on `940cea6e`, plus `1` each on `049201f4`, `ce437230`, `0e89915a`, `1d234571`, `0f472c21`, and `148e68ee`
-      - delta vs [`20260329-selected-plus-title-v9-surface-runtime`](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260329-selected-plus-title-v9-surface-runtime): `AE=112032`, `RMSE=0.0700408`, concentrated in the lower copyright strip rather than the title center; diff artifact: [`20260329-title-v9-grouped-vs-surface/montage.png`](/home/auro/code/parallel-n64/artifacts/analysis/20260329-title-v9-grouped-vs-surface/montage.png)
-    - file select: [`20260329-v19-edge-aliased-probe`](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260329-v19-edge-aliased-probe)
-      - hash `c5ac0f7558547aeb197552bbb1a0881c69f6d57ff1f17358d0d1753617d253e0`
-      - exact hits remain anchored by `7064585c`, `c139c1c0`, and shared `940cea6e`, with the minor shared `148e68ee` strip also active
-- The strict scenario layer now auto-enables native sampled-object lookup/probe for `.phrb` caches in [`tools/scenarios/lib/common.sh`](/home/auro/code/parallel-n64/tools/scenarios/lib/common.sh).
-  - practical implication: strict `PHRB` reruns no longer silently validate the wrong path when only `PARALLEL_RDP_HIRES_CACHE_PATH` is overridden
-  - corrected fresh native reruns for the active v20 package now read:
-    - title: [`20260329-v20-autoenv-title`](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260329-v20-autoenv-title) -> hash `521539a34c40488bdfe987779a3c53ca1624c3eb985d362f6d1b7934d0064b31`, exact hits `184`, exact misses `104`
-  - a full-source rebuild proof now also exists without changing the tracked scene outputs:
-    - package: [`20260329-selected-plus-title-v22-add-press-start-fullsource/package.phrb`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-selected-plus-title-v22-add-press-start-fullsource/package.phrb)
-    - title: [`20260329-v22-autoenv-title`](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260329-v22-autoenv-title) -> hash `521539a34c40488bdfe987779a3c53ca1624c3eb985d362f6d1b7934d0064b31`, exact hits `184`, exact misses `104`
-    - file select: [`20260329-v22-autoenv-file`](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260329-v22-autoenv-file) -> hash `c5ac0f7558547aeb197552bbb1a0881c69f6d57ff1f17358d0d1753617d253e0`, exact hits `68`, exact misses `214`
-  - current interpretation: v22 is a reproducibility proof for the selected-package builder path, not a new promoted active package
-- Sampled-object miss telemetry is now split into selector-conflict misses versus unresolved misses.
-  - parser/tooling:
-    - [`tools/scenarios/lib/common.sh`](/home/auro/code/parallel-n64/tools/scenarios/lib/common.sh) now records `exact_conflict_miss_count` and `exact_unresolved_miss_count`
-    - [`tools/hires_sampled_selector_review.py`](/home/auro/code/parallel-n64/tools/hires_sampled_selector_review.py) emits a compact review artifact from any corrected native bundle
-  - corrected v20 native reruns now show the active path much more clearly:
-    - title: [`20260329-v20-autoenv-title-postclassify`](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260329-v20-autoenv-title-postclassify) -> exact hits `184`, raw exact misses `104`, conflict misses `104`, unresolved misses `0`
-    - file select: [`20260329-v20-autoenv-file-postclassify`](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260329-v20-autoenv-file-postclassify) -> exact hits `68`, raw exact misses `214`, conflict misses `34`, unresolved misses `180`
-  - the new review artifacts are:
-    - [title selector review](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260329-v20-autoenv-title-postclassify/traces/hires-sampled-selector-review.md)
-    - [file-select selector review](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260329-v20-autoenv-file-postclassify/traces/hires-sampled-selector-review.md)
-  - practical implication: the active merged native title path no longer has unresolved sampled-object misses on the strict fixture; the real remaining native selector gap is concentrated in the file-select `7064585c` family
-  - a richer policy-backed sampled alias path now exists for that `7064585c` seam:
-    - [`tools/hires_pack_emit_binding_aliases.py`](/home/auro/code/parallel-n64/tools/hires_pack_emit_binding_aliases.py) emits alternate canonical palette/selector records from an existing selected binding set
-    - [`tools/hires_pack_transport_policy.json`](/home/auro/code/parallel-n64/tools/hires_pack_transport_policy.json) now records four provisional `7064585c` alias records tied to the selected `af028e08` payload
-    - policy-built package: [`20260329-selected-plus-title-v23-706-aliases/package.phrb`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-selected-plus-title-v23-706-aliases/package.phrb)
-    - strict file select: [`20260329-v23-706-aliases-runtime`](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260329-v23-706-aliases-runtime) -> hash `3f779e572aea05188467acfbcab3f45f632a42d63cdeecb83536e30ef02c7c43`, exact hits `156`, conflict misses `34`, unresolved misses `4`
-    - strict title: [`20260329-v23-706-aliases-runtime`](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260329-v23-706-aliases-runtime) -> hash `521539a34c40488bdfe987779a3c53ca1624c3eb985d362f6d1b7934d0064b31`, exact hits `184`, conflict misses `104`, unresolved misses `0`
-  - that remaining `7872a318` seam is now formalized as a policy-backed synthetic transport bridge:
-    - [`tools/scenarios/paper-mario-file-select-block-family-probe.sh`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-file-select-block-family-probe.sh) now accepts general family selectors, which made the `fs768 1024x1` live probe reproducible instead of ad hoc
-    - [`tools/hires_pack_emit_transport_bridge_bindings.py`](/home/auro/code/parallel-n64/tools/hires_pack_emit_transport_bridge_bindings.py) emits selected synthetic bridge bindings directly from [`tools/hires_pack_transport_policy.json`](/home/auro/code/parallel-n64/tools/hires_pack_transport_policy.json)
-    - [`tools/hires_pack_build_selected_package.py`](/home/auro/code/parallel-n64/tools/hires_pack_build_selected_package.py) now folds `transport_synthetic_bridges` into the normal selected-package build path via `--bridge-key` plus `--cache`
-    - policy-built bridge bindings: [`20260329-7872-bridge-policy/bindings.json`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-7872-bridge-policy/bindings.json)
-    - the surface-policy path is now materially stronger too:
-      - [`tools/hires_apply_surface_transport_policy.py`](/home/auro/code/parallel-n64/tools/hires_apply_surface_transport_policy.py) now supports selector-mode overrides and surface clones in addition to slot aliases
-      - [`tools/hires_surface_transport_policy.json`](/home/auro/code/parallel-n64/tools/hires_surface_transport_policy.json) now keeps `surface-940cea6e` in `dual` selector mode but no longer clones the TLUT-populated `28916d63` copy strip, because that clone proved redundant on the current merged baseline
-      - policy-applied surface package: [`20260329-title-surface-package-v2-policy-updated/surface-package.json`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-surface-package-v2-policy-updated/surface-package.json)
-      - new active merged package: [`20260329-selected-plus-title-v26-tail-bridges/package.phrb`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-selected-plus-title-v26-tail-bridges/package.phrb)
-      - strict file select: [`20260329-v26-tail-bridges-runtime`](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260329-v26-tail-bridges-runtime) -> hash `3f779e572aea05188467acfbcab3f45f632a42d63cdeecb83536e30ef02c7c43`, exact hits `194`, conflict misses `0`, unresolved misses `0`
-      - strict title: [`20260329-v26-tail-bridges-runtime`](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260329-v26-tail-bridges-runtime) -> hash `1eca10ff973c12dce6a5eaae39952d55df033898cc227b35cfb12c759335f1e7`, exact hits `254`, conflict misses `0`, unresolved misses `0`
-      - title changed only inside the expected lower-strip/minor-strip region `(961,1658)-(1853,1801)` while file select stayed byte-identical to `v25`
-  - practical implication: the active strict native Paper Mario path is now exact-miss-free on both tracked fixtures; the remaining work is no longer selector cleanup, it is deciding whether the new lower-strip title result should be treated as the new merged baseline and then broadening beyond the strict fixtures
-  - that exact-miss-free state was not the final visual answer for file select: a focused current-package ablation shows the `7064585c` transport family is the main wrong visible choice in the merged `v26` package
-  - removing `706` from the active merged package yields [`20260329-selected-plus-title-v27-drop-706/package.phrb`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-selected-plus-title-v27-drop-706/package.phrb), which is byte-identical to the validated `minus-706` control package
-  - strict file select with that package: [`20260329-v26-ablation-minus-706`](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260329-v26-ablation-minus-706) -> hash `b5c854d9f3b642e2914d88a8c542e59977c4b42862ee1c285b13c6746ffb2a21`, exact hits `78`, exact misses `232`, but visual distance to legacy `on` improves sharply (`AE 46737511` vs `113409671` for `v26`)
-  - strict title is unchanged with `706` removed: [`20260329-minus-706-control`](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260329-minus-706-control) stays byte-identical to `v26` at `1eca10ff973c12dce6a5eaae39952d55df033898cc227b35cfb12c759335f1e7`
-  - direct `706` payload swaps inside the current `v26` package context confirm the same result: `81b32e31` is only marginally different from `v26`, while `c3984de7` and `e3314872` are much worse than leaving `706` unresolved
-  - practical implication: `7064585c` is now demoted back to unresolved transport policy. The active merged package should prefer visible correctness over forced exact-hit closure until a stronger discriminator exists for that sampled object.
-  - the same merged-package check now overturns the older `c139c1c0` selection too: removing `c139` from the cleaned `v27` package yields [`20260329-selected-plus-title-v28-drop-706-c139/package.phrb`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-selected-plus-title-v28-drop-706-c139/package.phrb), byte-identical to the validated `v27-minus-c139` control package
-  - strict file select with `v28`: [`20260329-v27-minus-c139`](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260329-v27-minus-c139) -> hash `9221491f729b2e11a678456362f25c9d28b820b75297e26e373931978b48eb93`, exact hits `72`, exact misses `244`, and legacy-on distance improves again (`AE 31260618`)
-  - strict title is still unchanged without `c139`: [`20260329-v27-minus-c139-control`](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260329-v27-minus-c139-control) stays byte-identical to `v26` / `v27` at `1eca10ff973c12dce6a5eaae39952d55df033898cc227b35cfb12c759335f1e7`
-  - the alternate `c139` payload (`ab0c7574`) does not rescue the family in merged use: [`20260329-v27-c139-alt`](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260329-v27-c139-alt) is worse than leaving `c139` unresolved (`AE 53131944` vs legacy-on)
-  - practical implication: the active merged package should now treat both `7064585c` and `c139c1c0` as unresolved review pools until a stronger selector model beats the unresolved case in the merged package context.
-  - the same merged-package check now overturns the older zero-selector `Press Start` selection too: removing the `049201f4` / `ce437230` pair from `v28` yields [`20260330-selected-plus-title-v29-drop-press-start/package.phrb`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260330-selected-plus-title-v29-drop-press-start/package.phrb), SHA-256 `da22d41f75816f783cfe4a24a9e807cd2f857c56201935d33e78d688e4ae30f3`
-  - strict title with `v29`: [`20260330-title-ablation-minus-128x32`](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260330-title-ablation-minus-128x32) -> hash `0a4ab3b92965de412998d94eca82ce6d4e134392fe2243befd481a716bc341c0`, exact hits `252`, exact misses `2`, and legacy-on distance improves sharply (`AE 69618` vs `260598` for `v28`)
-  - strict file select with `v29`: [`20260330-file-control-minus-128x32`](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260330-file-control-minus-128x32) stays byte-identical to `v28` at `9221491f729b2e11a678456362f25c9d28b820b75297e26e373931978b48eb93`
-  - practical implication: the active merged package should now treat `7064585c`, `c139c1c0`, and the `Press Start` `128x32` pair as unresolved review pools until a stronger selector model beats the review-only baseline in the merged package context.
-  - broader revalidation with [`20260330-v29-timeout-960/validation-summary.md`](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260330-v29-timeout-960/validation-summary.md) keeps the `960`-frame world slice byte-identical to `off` at hash `4bd3929dabff3ffb1b7e03a9c10d8ce50e9b6d0f067825d3a788c48a41b6fc62`, while the active package now reports `53996` sampled exact hits and `4752` exact misses there
-  - `28916d63` is now simplified the same way: removing its cloned ordered-surface record from `v29` yields [`20260330-selected-plus-title-v30-drop-289/package.phrb`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260330-selected-plus-title-v30-drop-289/package.phrb), SHA-256 `4c18e6d9d41236e5e419eb41708f3ba3198e21601e2786939398de862af44353`
-  - strict title with `v30`: [`20260330-title-minus-289-surface`](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260330-title-minus-289-surface) stays byte-identical to `v29` at `0a4ab3b92965de412998d94eca82ce6d4e134392fe2243befd481a716bc341c0`
-  - strict file select with `v30`: [`20260330-file-minus-289-surface`](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260330-file-minus-289-surface) stays byte-identical to `v29` at `9221491f729b2e11a678456362f25c9d28b820b75297e26e373931978b48eb93`
-  - broader revalidation with [`20260330-v30-timeout-960/validation-summary.md`](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260330-v30-timeout-960/validation-summary.md) still matches the `960`-frame off baseline exactly at `4bd3929dabff3ffb1b7e03a9c10d8ce50e9b6d0f067825d3a788c48a41b6fc62`
-  - practical implication: `28916d63` is now redundant on the current merged baseline, so the active package no longer needs the cloned TLUT-populated ordered-surface record
-  - 2026-04-06 update: that strict-fixture redundancy does not generalize to the later gameplay-expanded `1b85` package context; re-adding `28916d63` there revives the dropped strict title/file hashes without changing the `960` gameplay image, so the family is now explicit negative data in the current active package context rather than a promotion candidate
-  - the first real gameplay-native expansion now comes from the sampled copy-strip pool `1b8530fb`:
-    - probe review: [`20260330-timeout-960-sampled-transport/review.md`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260330-timeout-960-sampled-transport/review.md)
-    - new active merged package: [`20260330-selected-plus-timeout-960-v1-add-1b85/package.phrb`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260330-selected-plus-timeout-960-v1-add-1b85/package.phrb), SHA-256 `0960ccf25abe2d7bab71926c827378108bcb71a4facdf20cc65bf79d313e1407`
-    - strict title rerun: [`20260330-v31-add-1b85-strict-title`](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260330-v31-add-1b85-strict-title) stays pixel-identical to the selected baseline and legacy `.hts`
-    - strict file-select rerun: [`20260330-v31-add-1b85-strict-file`](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260330-v31-add-1b85-strict-file) stays pixel-identical to the selected baseline and legacy `.hts`
-    - broader validation:
-      - [`20260330-v31-legacy-timeout-960-add-1b85/validation-summary.md`](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260330-v31-legacy-timeout-960-add-1b85/validation-summary.md): `960` improves from `AE 123006470 / RMSE 20.2289` to `AE 1659865 / RMSE 1.3327`
-      - [`20260330-v31-legacy-timeout-rest-add-1b85/validation-summary.md`](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260330-v31-legacy-timeout-rest-add-1b85/validation-summary.md): `1200` improves from `AE 60128256 / RMSE 14.5891` to `AE 3599606 / RMSE 1.8233`, while `1500` remains visually unchanged
-    - practical implication: `1b8530fb` is the first sampled gameplay pool that should be carried forward in the active native package path; the next gameplay-native seam is no longer generic world coverage, but the next unresolved sampled family after this pool
-- Practical implication: the current active merged package is now self-contained at surface-package compile time too. It reproduces the same strict-scene runtime outputs even when the surface-package provenance `review_path` values are deliberately broken, so the merged title slice no longer depends on external review JSON during build or runtime.
-  - [`tools/scenarios/paper-mario-title-timeout-probe.sh`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-title-timeout-probe.sh) now mirrors the tracked strict scenarios by honoring `PARALLEL_RDP_HIRES_CACHE_PATH` overrides and patching the bundle metadata to the actual loaded package path.
-  - broader non-menu validation now passed on the first three deterministic timeout slices with the active v20 package:
-    - `960` frames: [`20260329-v19-timeout-full/on/timeout-960`](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260329-v19-timeout-full/on/timeout-960) reaches `state_init_world` / `state_step_world` at `kmr_03 entry 5` and lands byte-identical to the matching off baseline [`20260329-title-timeout-960-off-baseline`](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/off/20260329-title-timeout-960-off-baseline) with hash `4bd3929dabff3ffb1b7e03a9c10d8ce50e9b6d0f067825d3a788c48a41b6fc62`
-    - `1200` frames: [`20260329-v19-timeout-full/on/timeout-1200`](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260329-v19-timeout-full/on/timeout-1200) reaches `state_init_battle` / `state_step_battle` at `kmr_03 entry 0` and lands byte-identical to [`20260329-title-timeout-1200-off-baseline`](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/off/20260329-title-timeout-1200-off-baseline) with hash `0a8b82d3580391c275d4755d57e1c6fab1106c8cd5d1f23626b04088fe4c9a15`
-    - `1500` frames: [`20260329-v19-timeout-full/on/timeout-1500`](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260329-v19-timeout-full/on/timeout-1500) reaches `state_init_world` / `state_step_world` at `kmr_06 entry 3` and lands byte-identical to [`20260329-title-timeout-1500-off-baseline`](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/off/20260329-title-timeout-1500-off-baseline) with hash `ef7735c75e16dc83fc19b1a77dc10b7c249631e462de802af2ec86532385258d`
-  - corrected native timeout validation now shows the exact matcher is active on those deeper slices too, but not miss-free:
-    - [`20260329-title-timeout-960-v22-autoenv`](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/on/20260329-title-timeout-960-v22-autoenv) reports `sampled_object_probe.exact_hit_count = 39382` and `exact_miss_count = 33918` while staying byte-identical to `off`
-  - practical implication: the richer selector model is broad in exact-match telemetry but still incomplete, and the earlier `exact_miss_count = 0` title-timeout claim was a stale artifact from validating the wrong runtime path
-  - this broader check is now scripted through [`tools/scenarios/paper-mario-title-timeout-selected-package-validation.sh`](/home/auro/code/parallel-n64/tools/scenarios/paper-mario-title-timeout-selected-package-validation.sh); current summary artifact: [`20260329-v19-timeout-full/validation-summary.md`](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260329-v19-timeout-full/validation-summary.md)
-  - new native-path probe evidence: [`20260329-v19-edge-aliased-probe`](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260329-v19-edge-aliased-probe) plus the probe-only control [`20260329-selected-plus-title-v13-surface-v2-probe-runtime`](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260329-selected-plus-title-v13-surface-v2-probe-runtime) show that reintroducing `28916d63` is runtime-neutral on both strict scenes while improving title exact coverage from `145` to `178` and reducing title sampled-object exact misses from `176` to `110`.
-  - that flattened-selector ceiling is only partially resolved on the tracked title path: the current v20 package keeps the same strict title and file-select hashes as v14 while raising title exact coverage to `184`, but corrected native reruns still show `104` title sampled-object exact misses.
-  - the active selector model is now richer, narrower, and more reproducible: [`tools/hires_apply_surface_transport_policy.py`](/home/auro/code/parallel-n64/tools/hires_apply_surface_transport_policy.py) plus [`hires_surface_transport_policy.json`](/home/auro/code/parallel-n64/tools/hires_surface_transport_policy.json) now resolve the three repeated `71c71cdd` edge slots in `surface-7701ac09` onto the nearest validated neighbors, and the resulting policy-built `v20` package is byte-identical to the manually validated `v19` package (`f72eda2541ca900462d18ea8095c997a7826ce1abe569dc82ceb8c73b3e25c34`).
-  - practical implication: the first ordered-surface/runtime selector model did its job, and the active tracked package no longer needs runtime ordered fallback on `surface-7701ac09`; the resolved-edge policy path keeps title and file select byte-identical while collapsing the last three edge holes into explicit tracked transport.
-- Grouped review-pool seams can now also be materialized into static surface-package inputs through [`tools/hires_emit_review_pool_surfaces.py`](/home/auro/code/parallel-n64/tools/hires_emit_review_pool_surfaces.py).
-  - surface package: [`20260329-title-grouped-review-surfaces/surface-package.json`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-title-grouped-review-surfaces/surface-package.json)
-  - surfaceized selected package: [`20260329-selected-plus-title-v10-surfaceized/package.phrb`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260329-selected-plus-title-v10-surfaceized/package.phrb)
-  - runtime equivalence proofs:
-    - title: [`20260329-selected-plus-title-v10-surfaceized-runtime`](/home/auro/code/parallel-n64/artifacts/paper-mario-title-screen/on/20260329-selected-plus-title-v10-surfaceized-runtime) -> hash `521539a34c40488bdfe987779a3c53ca1624c3eb985d362f6d1b7934d0064b31`
-    - file select: [`20260329-selected-plus-title-v10-surfaceized-runtime`](/home/auro/code/parallel-n64/artifacts/paper-mario-file-select/on/20260329-selected-plus-title-v10-surfaceized-runtime) -> hash `c5ac0f7558547aeb197552bbb1a0881c69f6d57ff1f17358d0d1753617d253e0`
-  - note: the surfaceized `PHRB` hash differs from `v9-grouped`, but the emitted runtime records, exact-hit buckets, and strict-scene screenshots are identical
-- [`tools/hires_pack_build_selected_package.py`](/home/auro/code/parallel-n64/tools/hires_pack_build_selected_package.py) now accepts `--surface-package-input`, and rebuilding v9 through that direct path produces a byte-identical `PHRB` package (`55ad0bfb1792200625552f8344f687e236e62d69cf96c3447a11b0b3e34f35ab`) to the earlier manual compile-plus-merge flow.
-- The same builder now also accepts `--review-pool-group-key` via [`tools/hires_pack_transport_policy.json`](/home/auro/code/parallel-n64/tools/hires_pack_transport_policy.json).
-  - current groups: `title-press-start-128x32-pair` and `title-copyright-144x16-pair`
-  - zero-risk proof: rebuilding the current direct-surface package through `title-press-start-128x32-pair` reproduces the same `PHRB` hash `55ad0bfb1792200625552f8344f687e236e62d69cf96c3447a11b0b3e34f35ab` as the explicit per-key CLI
-## 2026-03-30 Sampled Gameplay Ordered-Surface Update
-
-- Generic sampled-side ordered-surface tooling now exists for gameplay seams:
-  - [`tools/hires_sampled_draw_sequence.py`](/home/auro/code/parallel-n64/tools/hires_sampled_draw_sequence.py)
-  - [`tools/hires_sampled_surface_map.py`](/home/auro/code/parallel-n64/tools/hires_sampled_surface_map.py)
-  - [`tools/hires_build_surface_package.py`](/home/auro/code/parallel-n64/tools/hires_build_surface_package.py) now supports `--canonical-bindings-input` so gameplay surface packages can inherit authoritative sampled-object identity from a proven binding set.
-- First gameplay ordered-surface proof:
-  - sequence: [`20260330-1b85-sampled-sequence/sequence.md`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260330-1b85-sampled-sequence/sequence.md)
-  - map: [`20260330-1b85-sampled-surface-map/map.md`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260330-1b85-sampled-surface-map/map.md)
-  - surface package: [`20260330-1b85-sampled-surface-package/surface-package.json`](/home/auro/code/parallel-n64/artifacts/hires-pack-review/20260330-1b85-sampled-surface-package/surface-package.json)
-  - result: `1b8530fb` resolves as a `34`-slot sampled-side ordered surface with `33/34` transported slots and one explicit right-edge unresolved tail slot `77e5f3760b110a9b`.
-  - updated stream-shape analysis now explains the runtime regression:
-    - `cyclic delta 1` dominates (`994` transitions), so the stream is mostly a rotating walk through the ordered candidates rather than a stable 34-slot batch
-    - the unresolved edge key `77e5f3760b110a9b` then dwells for a `33`-row repeated run before the stream rotates back into the ordered body
-- Runtime verdict is negative for promotion right now:
-  - `dual` surface package on the richer `v32` gameplay base keeps strict title/file pixel-identical to the current selected baseline, but regresses the `960` gameplay slice to `AE 34094281 / RMSE 10.8172`: [`20260330-v34-v32base-surface-1b85-timeout-960/validation-summary.md`](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260330-v34-v32base-surface-1b85-timeout-960/validation-summary.md)
-  - `ordered-only` regresses further to `AE 126937490 / RMSE 19.8116`: [`20260330-v35-v32base-surface-1b85-ordered-only-timeout-960/validation-summary.md`](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260330-v35-v32base-surface-1b85-ordered-only-timeout-960/validation-summary.md)
-- Practical implication:
-  - sampled-side ordered surfaces are now a strong import/review representation for gameplay seams
-  - but the flat `1b8530fb` selected binding remains the better runtime transport shape for the active gameplay package until the ordered-selector consumption model can represent rotating streams with edge dwell, not just fixed slot maps
+- Classify issues using all available evidence: output, traces, logs, telemetry, fixture identity, and config state.

@@ -76,8 +76,8 @@
 
 - Preserve ordered-surface runtime identity cleanly instead of synthetic selector hashes.
 - Reduce converter canonical-only ambiguity and overlay residue further.
-- Add non-Paper-Mario converter breadth once a local legacy pack exists.
-- Start second-game validation only after the runtime/converter picture is cleaner.
+- CI palette CRC parity for GlideN64-compat path (deferred — needed for CI-heavy games like SM64/OoT).
+- Budget-capped lazy loading for large packs (OoT 43K entries / 8.9GB crashes iGPU due to eager blob + per-entry duplication; `trim_to_budget()` stub exists but is unwired).
 
 ### Where Live State Lives
 
@@ -92,7 +92,8 @@ The following work is intentionally deferred and must stay explicit until promot
 - `1b8530fb` pool-preserving runtime semantics
 - Promotion of `7701ac09` review-only dedupe and alias shaping into the canonical selected-package build
 - Repo-wide auto-conversion from legacy packs to cached `PHRB`
-- Second-game validation and generality claims
+- CI palette CRC parity for GlideN64-compat draw-time fallback (needed for CI4/CI8 textures in SM64/OoT)
+- Budget-capped lazy loading / streaming for large PHRB packs (OoT 43K entries exceeds iGPU memory with current eager load)
 
 ## Core Decision
 
@@ -144,8 +145,8 @@ The project should not spend the next cycle on:
 - [ ] Preserve ordered-surface metadata as a runtime-native concept instead of selector hashes.
 - [x] Ship the first `hts2phrb` skeleton over the existing pipeline.
 - [x] Add `--context-dir` automatic enrichment discovery to `hts2phrb`.
-- [ ] Strengthen `hts2phrb` further: improve deferred family diagnostics, non-Paper-Mario proof.
-- [ ] Add at least one non-Paper-Mario zero-config converter proof.
+- [ ] Strengthen `hts2phrb` further: improve deferred family diagnostics.
+- [x] Add at least one non-Paper-Mario zero-config converter proof (SM64 Reloaded: 2530/2530 promotable, OoT Reloaded: 43266/43267 partial).
 - [x] Add representative-pack converter operational gates for timing, cache behavior, and output sizing.
 - [ ] Keep first-load `.hts` to cached `.phrb` auto-conversion disabled until default-path promotion, then add direct tests for it.
 

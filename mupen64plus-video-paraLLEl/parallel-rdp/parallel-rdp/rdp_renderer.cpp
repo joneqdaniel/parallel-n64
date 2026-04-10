@@ -1087,6 +1087,7 @@ void Renderer::set_replacement_provider(const ReplacementProvider *provider)
 	hires_descriptor_generic_compat_plain_resolutions = 0;
 	hires_descriptor_generic_unknown_plain_resolutions = 0;
 	hires_descriptor_compat_resolutions = 0;
+	hires_compat_draw_time_hits = 0;
 	hires_block_shape_probe_logged_hits.clear();
 	hires_block_shape_probe_logged_contexts.clear();
 	hires_ci_palette_probe_logged_hits.clear();
@@ -1205,12 +1206,13 @@ void Renderer::log_hires_summary() const
 	if (replacement_provider)
 	{
 		ReplacementProviderStats provider_stats = replacement_provider->get_stats();
-		LOGI("Hi-res keying summary: lookups=%llu hits=%llu misses=%llu filtered=%llu block_probe_hits=%llu provider=on entries=%u native_sampled=%u compat=%u sampled_index=%u sampled_dupe_keys=%u sampled_dupe_entries=%u sampled_families=%u compat_low32_families=%u sources(phrb=%u hts=%u htc=%u) descriptor_paths(sampled=%llu native_checksum=%llu generic=%llu compat=%llu) sampled_detail(family_singleton=%llu ordered_surface_singleton=%llu exact_selector=%llu) generic_detail(identity_assisted=%llu plain=%llu native=%llu compat=%llu unknown=%llu).\n",
+		LOGI("Hi-res keying summary: lookups=%llu hits=%llu misses=%llu filtered=%llu block_probe_hits=%llu compat_draw_hits=%llu provider=on entries=%u native_sampled=%u compat=%u sampled_index=%u sampled_dupe_keys=%u sampled_dupe_entries=%u sampled_families=%u compat_low32_families=%u sources(phrb=%u hts=%u htc=%u) descriptor_paths(sampled=%llu native_checksum=%llu generic=%llu compat=%llu) sampled_detail(family_singleton=%llu ordered_surface_singleton=%llu exact_selector=%llu) generic_detail(identity_assisted=%llu plain=%llu native=%llu compat=%llu unknown=%llu).\n",
 		     static_cast<unsigned long long>(hires_lookup_total),
 		     static_cast<unsigned long long>(hires_lookup_hits),
 		     static_cast<unsigned long long>(hires_lookup_misses),
 		     static_cast<unsigned long long>(hires_lookup_filtered),
 		     static_cast<unsigned long long>(hires_lookup_block_shape_probe_hits),
+		     static_cast<unsigned long long>(hires_compat_draw_time_hits),
 		     provider_stats.entry_count,
 		     provider_stats.native_sampled_entry_count,
 		     provider_stats.compat_entry_count,
@@ -2072,6 +2074,7 @@ void Renderer::draw_shaded_primitive(const TriangleSetup &setup, const Attribute
 					repl_state.repl_h = static_cast<uint16_t>(compat_repl_meta.repl_h);
 					repl_state.vk_image_index = compat_repl_meta.vk_image_index;
 					apply_hires_tile_binding(base_tile, repl_state);
+					hires_compat_draw_time_hits++;
 
 					if (hires_debug)
 					{

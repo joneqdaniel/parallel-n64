@@ -348,6 +348,7 @@ private:
 	uint64_t hires_descriptor_generic_compat_plain_resolutions = 0;
 	uint64_t hires_descriptor_generic_unknown_plain_resolutions = 0;
 	uint64_t hires_descriptor_compat_resolutions = 0;
+	uint64_t hires_compat_draw_time_hits = 0;
 	std::unordered_set<std::string> hires_block_shape_probe_logged_hits;
 	std::unordered_set<std::string> hires_block_shape_probe_logged_contexts;
 	std::unordered_set<std::string> hires_ci_palette_probe_logged_hits;

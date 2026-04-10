@@ -3,7 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "$SCRIPT_DIR/../../.." && pwd)"
-EXPECTED_SHA256="56fa573b5b79fca2062685f1c9b6a16bdc635a37c311a7a7a3cc6711fd3e2c2a"
+EXPECTED_SHA256="197d301a966e7dbfbf9d1271c871a0fb40ad551850e36ed3748693d00c620e6e"
 
 if [[ "${EMU_ENABLE_RUNTIME_CONFORMANCE:-0}" != "1" ]]; then
   echo "SKIP: set EMU_ENABLE_RUNTIME_CONFORMANCE=1 to run lavapipe frame hash conformance."

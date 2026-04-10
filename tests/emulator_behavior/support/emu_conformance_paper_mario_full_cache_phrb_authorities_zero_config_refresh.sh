@@ -83,10 +83,10 @@ expected = {
     "conversion_outcome": "partial-runtime-package",
     "requested_family_count": 8992,
     "package_manifest_record_count": 8992,
-    "package_manifest_runtime_ready_record_count": 8613,
+    "package_manifest_runtime_ready_record_count": 8620,
     "package_manifest_runtime_ready_native_sampled_record_count": 0,
-    "package_manifest_runtime_ready_compat_record_count": 8613,
-    "package_manifest_runtime_deferred_record_count": 379,
+    "package_manifest_runtime_ready_compat_record_count": 8620,
+    "package_manifest_runtime_deferred_record_count": 372,
     "unresolved_count": 0,
     "runtime_overlay_built": False,
     "runtime_overlay_reason": "no-runtime-context",
@@ -110,7 +110,7 @@ summary = json.loads(Path(sys.argv[1]).read_text())
 expected = {
     "title-screen": {
         "screenshot_sha256": "ba91ffce0cc7b6053568c0a7774bf0ae80825c95d95fce89ba4a9f79c62b9d16",
-        "entry_count": 12420,
+        "entry_count": 12427,
         "native_sampled_entry_count": 0,
         "entry_class": "compat-only",
         "descriptor_path_class": "compat-only",
@@ -118,7 +118,7 @@ expected = {
     },
     "file-select": {
         "screenshot_sha256": "8a90f7874bd797a186ff85d488033dc332b2a75f5bec91ad33ca8246e6be7730",
-        "entry_count": 12420,
+        "entry_count": 12427,
         "native_sampled_entry_count": 0,
         "entry_class": "compat-only",
         "descriptor_path_class": "compat-only",
@@ -126,7 +126,7 @@ expected = {
     },
     "kmr-03-entry-5": {
         "screenshot_sha256": "3a175a30d8154df34cd17d21eb8d6997ef12d6846bddf2b6c7f9c2074e0a215e",
-        "entry_count": 12420,
+        "entry_count": 12427,
         "native_sampled_entry_count": 0,
         "entry_class": "compat-only",
         "descriptor_path_class": "compat-only",

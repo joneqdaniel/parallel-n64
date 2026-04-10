@@ -28,10 +28,14 @@ research notes unless they explicitly say otherwise.
 
 ## Status
 
-- Phase 0 execution is active
-- The Paper Mario title screen scaffold is the first tracked fixture/scenario seed
-- Immediate runtime redirect sequence now follows:
-  - validation trust preflight
-  - first provider/loader preservation slice
-  - palette parity, `LoadBlock`, and `hts2phrb` skeleton work in parallel
-  - classification gate before default-path promotion
+- The repo is now in the Phase 1 runtime/package shift inside the Phase 0/1 backbone
+- The active strict Paper Mario authority fixtures are title screen, file select, and `kmr_03 ENTRY_5`
+- Current maintained lanes are:
+  - promoted enriched full-cache `PHRB` baseline
+  - zero-config compat-only full-cache fallback
+  - tracked review-only full-cache reduction lane
+- Immediate runtime/package work now follows:
+  - keep the promoted enriched full-cache `PHRB` baseline green
+  - continue provider-owned runtime-contract tightening
+  - continue reducing converter ambiguity and overlay residue through bounded review-only policy
+  - keep deferred pool/source-backed/runtime-breadth work explicit rather than reopening it opportunistically

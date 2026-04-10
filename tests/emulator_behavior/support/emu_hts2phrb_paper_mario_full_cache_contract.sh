@@ -5,7 +5,7 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "$SCRIPT_DIR/../../.." && pwd)"
 
 CACHE_PATH="${EMU_HTS2PHRB_PM64_CACHE_PATH:-$REPO_ROOT/assets/PAPER MARIO_HIRESTEXTURES.hts}"
-CONTEXT_ROOT="${EMU_HTS2PHRB_PM64_CONTEXT_ROOT:-$REPO_ROOT/artifacts/paper-mario-probes/validation/20260408-full-cache-phrb-authorities-authority-context-root-provenance-promoted-round2/validation-summary.json}"
+CONTEXT_ROOT="${EMU_HTS2PHRB_PM64_CONTEXT_ROOT:-$REPO_ROOT/artifacts/paper-mario-probes/validation/20260408-full-cache-phrb-authorities-authority-context-abs-summary-fresh/validation-summary.json}"
 
 if [[ ! -f "$CACHE_PATH" ]]; then
   echo "SKIP: Paper Mario legacy cache not found at $CACHE_PATH."
@@ -75,6 +75,11 @@ from pathlib import Path
 
 zero = json.loads(Path(sys.argv[1]).read_text())
 context = json.loads(Path(sys.argv[2]).read_text())
+
+# This contract intentionally locks the promoted baseline full-cache lanes:
+# - zero-context compat-only front-door output
+# - enriched authority-context baseline without the tracked review-only profile
+# The review-profile reduction lane has its own dedicated contract.
 
 expected_zero = {
     "conversion_outcome": "partial-runtime-package",

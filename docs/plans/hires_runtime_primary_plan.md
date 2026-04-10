@@ -50,7 +50,10 @@
 - The renderer has a real sampled-object exact-lookup seam in [`rdp_renderer.cpp`](/home/auro/code/parallel-n64/mupen64plus-video-paraLLEl/parallel-rdp/parallel-rdp/rdp_renderer.cpp).
 - The renderer now routes generic descriptor resolution, upload-time resolution, and CI low32 compat materialization through one shared typed provider-resolution helper instead of keeping those fallback ladders open-coded in separate branches.
 - The tooling now carries canonical sampled-object identity, ordered surfaces, policy-backed selection, and reproducible evidence artifacts.
-- The converter now splits unresolved import ambiguity into a canonical-only grouped review instead of one flat blocker count; on the current authority-context Paper Mario full-cache lane that residue is `134` review groups covering `368` canonical-only families, with `98` context-review groups and `36` manual-review groups.
+- The converter now carries three explicit Paper Mario full-cache lanes instead of one blurred “current” state:
+  - promoted enriched baseline: `368` canonical-only families in `134` grouped reviews with `15` bindings / `13` unresolved overlay families
+  - zero-config compat-only fallback: `8620` runtime-ready compat records and `372` deferred records
+  - tracked review-only reduction lane: `302` canonical-only families in `75` grouped reviews with `66` tracked review selections and `19` bindings / `9` unresolved overlay families
 - Validation and fixtures are much more disciplined than the earlier failed branch.
 - Using Paper Mario first is a reasonable bootstrap strategy because it currently has the deepest local evidence base.
 
@@ -60,7 +63,7 @@
 - `PHRB` stores richer identity than the loader actually uses.
 - The sampled-object exact path is still narrow and should be treated as scoped, not complete.
 - Validation is still too Paper-Mario-heavy and too shallow in runtime-class breadth to justify final architectural commitment or cross-game confidence.
-- There are still likely general legacy-pack miss classes that should be investigated directly at runtime, especially CI palette parity and `LoadBlock` sampled-shape mismatch.
+- CI palette parity and simple `LoadBlock` retry are no longer open “next step” investigations; they are classified and should stay fenced as bounded compatibility or rejected-default-path work unless new evidence reopens them.
 
 ## Current Implementation State
 
@@ -140,14 +143,14 @@
   - current outcome on that full local cache: `8992` requested families, `8992` canonical package records, `8620` runtime-ready package records, `372` runtime-deferred package records, `0` deterministic bindings, `0` transport-unresolved families, `runtime_overlay_built=false`, `runtime_overlay_reason=no-runtime-context`, `runtime_overlay_artifacts_emitted=false`, `conversion_outcome=partial-runtime-package`, one remaining blocker class (`canonical-only-families=372`), and a `1.94 GB` `PHRB`
   - the current full-cache timings now show the storage-model fix clearly: `materialize_package ≈ 272 ms`, `emit_binary_package ≈ 2.23 s`, `total ≈ 3.93 s`
   - the default zero-config output directory is now healthy again after the reuse-consistency fix: [`artifacts/hts2phrb/paper-mario-hirestextures-9fa7bc07-all-families/hts2phrb-report.json`](/home/auro/code/parallel-n64/artifacts/hts2phrb/paper-mario-hirestextures-9fa7bc07-all-families/hts2phrb-report.json) now also reads `partial-runtime-package` with the same `8620` runtime-ready records instead of the stale all-deferred `canonical-package-only` state, and the refreshed report now makes the class split explicit: `context_bundle_class=zero-context`, `package_manifest_runtime_ready_record_class=compat-only`, `0` runtime-ready native-sampled records, `8620` runtime-ready compat records, `package_manifest_runtime_deferred_record_class=compat-only`, and `372` deferred compat records
-  - zero-config full-cache authority proof is now explicit at [`artifacts/paper-mario-probes/validation/20260407-full-cache-phrb-authorities-default-artifact/validation-summary.json`](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260407-full-cache-phrb-authorities-default-artifact/validation-summary.json): title screen, file select, and `kmr_03 ENTRY_5` all pass with `provider=on`, `source_mode=phrb-only`, `entry_count=12420`, and `native_sampled_entry_count=0`
+  - the first zero-config full-cache authority proof is preserved at [`artifacts/paper-mario-probes/validation/20260407-full-cache-phrb-authorities-default-artifact/validation-summary.json`](/home/auro/code/parallel-n64/artifacts/paper-mario-probes/validation/20260407-full-cache-phrb-authorities-default-artifact/validation-summary.json); the maintained zero-config baseline is now the refresh lane, which keeps the same locked screenshot hashes and compat-only descriptor traffic with the current regenerated package shape (`entry_count=12427`, `native_sampled_entry_count=0`)
   - that same authority proof now records descriptor-path counts directly in the summary, and the current front-door package is unambiguously compat-path-backed (`title-screen compat=178`, `file-select compat=82`, `kmr_03 ENTRY_5 compat=112`, with `sampled=0`, `native_checksum=0`, `generic=0` on all three); the shared summary now also classifies that lane explicitly as `entry_class=compat-only` plus `descriptor_path_class=compat-only`
-  - the current recommended full-cache context-enriched converter proof now exists at [`artifacts/hts2phrb-review/20260408-pm64-all-families-authority-context-abs-summary/hts2phrb-report.json`](/home/auro/code/parallel-n64/artifacts/hts2phrb-review/20260408-pm64-all-families-authority-context-abs-summary/hts2phrb-report.json): a single `--context-bundle` authority summary still expands to `3` fixture bundles (`context_bundle_inputs=1`, `context_bundles=3`), `8992` requested families now collapse to `8883` package records with `28` canonical sampled records, `8515` runtime-ready package records, `368` canonical-only families, `15` deterministic bindings, and `13` unresolved overlay families; the refreshed report also shows the class split directly: `context_bundle_class=context-enriched`, `package_manifest_runtime_ready_record_class=mixed-native-and-compat`, `28` native-sampled records, `8487` compat records, `package_manifest_runtime_deferred_record_class=compat-only`, and `368` deferred compat records
+  - the promoted full-cache context-enriched baseline now lives at [`artifacts/hts2phrb-review/20260408-pm64-all-families-authority-context-abs-summary/hts2phrb-report.json`](/home/auro/code/parallel-n64/artifacts/hts2phrb-review/20260408-pm64-all-families-authority-context-abs-summary/hts2phrb-report.json): a single `--context-bundle` authority summary still expands to `3` fixture bundles (`context_bundle_inputs=1`, `context_bundles=3`), `8992` requested families collapse to `8883` package records with `28` canonical sampled records, `8515` runtime-ready package records, `368` canonical-only families, `15` deterministic bindings, and `13` unresolved overlay families; the refreshed report also shows the class split directly: `context_bundle_class=context-enriched`, `package_manifest_runtime_ready_record_class=mixed-native-and-compat`, `28` native-sampled records, `8487` compat records, `package_manifest_runtime_deferred_record_class=compat-only`, and `368` deferred compat records
   - the same artifact now also emits a dedicated runtime-overlay review at [`hts2phrb-runtime-overlay-review.md`](/home/auro/code/parallel-n64/artifacts/hts2phrb-review/20260408-pm64-all-families-authority-context-abs-summary/hts2phrb-runtime-overlay-review.md), so the remaining `13` overlay misses no longer travel as a dead counter; the report now splits that into `12` direct overlay cases plus `1` import-linked overlay case, and the hash review still shows the residue is genuinely divergent rather than a hidden auto-collapse case: `8` entries are `pixel-divergent-single-dim`, `5` are `pixel-divergent-multi-dim`, there are no zero-error decode failures, and the only exact cross-policy pairings are the two small `fs259` / `fs4` pairs (`identical_alpha_hash_case_count_counts = 0:9, 1:4`)
   - that overlay residue is now clustered instead of only counted: the current review resolves to `11` candidate-set clusters with size histogram `1=9`, `2=4`, blocker classes `candidate-set-equivalent=4`, `large-single-dim-cluster=3`, `large-multi-dim-cluster=1`, `small-single-dim-cluster=3`, `small-multi-dim-cluster=1`, and `linked-import-ambiguity=1`, plus action hints `candidate-set-review=4`, `manual-selection-review=4`, `defer-large-transport-cluster=4`, and `defer-to-import-family-work=1`
   - the same lane now also emits a grouped candidate-set review artifact at [`hts2phrb-runtime-overlay-candidate-set-review.md`](/home/auro/code/parallel-n64/artifacts/hts2phrb-review/20260408-pm64-all-families-authority-context-abs-summary/hts2phrb-runtime-overlay-candidate-set-review.md), so the repeated paired seams are exposed as the two real manual-review units (`dc6c6f7048c550ee` for the `fs259` pair and `ef3705c24cd65620` for the `fs4` pair) instead of four independent unresolved cases
   - the front-door report now mirrors that overlay matrix at top level (`runtime_overlay_unresolved_count`, `runtime_overlay_candidate_set_cluster_count`, cluster sizes, blocker classes, and action hints) instead of keeping it only in nested review JSON, so automation can read the current runtime-overlay state directly from `hts2phrb-report.json`
-  - there is now one tracked review-only reduction path for that residue: [`tools/hires_runtime_overlay_review_profile.json`](/home/auro/code/parallel-n64/tools/hires_runtime_overlay_review_profile.json), backed by [`tools/hires_runtime_overlay_review_transport_policy.json`](/home/auro/code/parallel-n64/tools/hires_runtime_overlay_review_transport_policy.json) plus [`tools/hires_canonical_family_selection_review.json`](/home/auro/code/parallel-n64/tools/hires_canonical_family_selection_review.json). The latest persistent proof at [`artifacts/hts2phrb-review/20260409-pm64-all-families-authority-context-overlay-review-profile/hts2phrb-report.json`](/home/auro/code/parallel-n64/artifacts/hts2phrb-review/20260409-pm64-all-families-authority-context-overlay-review-profile/hts2phrb-report.json) still reduces the overlay from `15` bindings / `13` unresolved to `19` bindings / `9` unresolved, keeps the top-level split at `8` direct overlay cases plus the same `1` import-linked case, and now also lowers exact-family canonical-only residue from `368` families in `134` canonical-only review groups to `302` families in `75` groups. The tracked canonical review set is now a proven sixty-six-family same-aspect/context-bundle batch, which also eliminates the `candidate-set-equivalent` blocker class and the grouped candidate-set review artifact entirely (`runtime_overlay_candidate_set_review_group_count=0`) while still passing strict full-cache authority conformance. The exact-scale same-aspect/context-bundle bucket is now exhausted, the tiny same-aspect pairs are now largely mined out, and the next remaining shallow boundary is the `3`-family same-aspect tier (`331b9e49`, `34d7d4ae`, `4d5c47c8`) before the larger clustered groups. It remains review-only until promotion gates intentionally absorb it.
+  - there is now one tracked review-only reduction path for that residue: [`tools/hires_runtime_overlay_review_profile.json`](/home/auro/code/parallel-n64/tools/hires_runtime_overlay_review_profile.json), backed by [`tools/hires_runtime_overlay_review_transport_policy.json`](/home/auro/code/parallel-n64/tools/hires_runtime_overlay_review_transport_policy.json) plus [`tools/hires_canonical_family_selection_review.json`](/home/auro/code/parallel-n64/tools/hires_canonical_family_selection_review.json). The latest persistent proof at [`artifacts/hts2phrb-review/20260409-pm64-all-families-authority-context-overlay-review-profile/hts2phrb-report.json`](/home/auro/code/parallel-n64/artifacts/hts2phrb-review/20260409-pm64-all-families-authority-context-overlay-review-profile/hts2phrb-report.json) reduces the promoted baseline from `15` bindings / `13` unresolved to `19` bindings / `9` unresolved, keeps the top-level split at `8` direct overlay cases plus the same `1` import-linked case, and lowers exact-family canonical-only residue from the promoted baseline's `368` families in `134` canonical-only review groups to `302` families in `75` groups. The tracked canonical review set is now a proven sixty-six-family same-aspect/context-bundle batch, which also eliminates the `candidate-set-equivalent` blocker class and the grouped candidate-set review artifact entirely (`runtime_overlay_candidate_set_review_group_count=0`) while still passing strict full-cache authority conformance. The exact-scale same-aspect/context-bundle bucket is exhausted, the tiny same-aspect pairs are now largely mined out, and the remaining shallow residue is now dominated by larger same-aspect and clustered groups. It remains review-only until promotion gates intentionally absorb it.
   - that reduced review-only lane now also emits a dedicated linked-import overlay review at [`hts2phrb-runtime-overlay-linked-import-review.md`](/home/auro/code/parallel-n64/artifacts/hts2phrb-review/20260409-pm64-all-families-authority-context-overlay-review-profile/hts2phrb-runtime-overlay-linked-import-review.md), so the only remaining non-deferred overlay blocker is explicit instead of buried inside the general unresolved matrix: `sampled-fmt2-siz0-off0-stride8-wh16x16-fs2-low327064585c` links to four `runtime-ready-package` unresolved import families (`5464fdf1:fs0`, `42779bdd:fs0`, `53302ad5:fs0`, `469bad6f:fs0`) with `62` transport candidates across six dimension buckets, and stays classified as `linked-import-ambiguity` / `defer-to-import-family-work`
   - the full-cache family inventory now also counts legacy `fs0` families absorbed into sampled canonical records through `asset_candidates`, so the front-door state no longer overstates missing families just because a sampled record owns multiple legacy uploads; current enriched inventory is `runtime-ready-package=8624`, `canonical-only=368`, and no longer reports the stale `115`-family `diagnostic-only` bucket. The paired unresolved-family review at [`hts2phrb-unresolved-family-review.md`](/home/auro/code/parallel-n64/artifacts/hts2phrb-review/20260408-pm64-all-families-authority-context-abs-summary/hts2phrb-unresolved-family-review.md) now makes the remaining blocker class explicit at two levels: all `372` unresolved import families are still `exact-family-ambiguous`, the runtime-state split is `canonical-only=368` plus `runtime-ready-package=4`, and the ambiguity shape is concentrated in just four variant-group counts (`2=259`, `3=52`, `4=60`, `5=1`)
   - the same lane now also emits [`hts2phrb-unresolved-family-runtime-ready-review.md`](/home/auro/code/parallel-n64/artifacts/hts2phrb-review/20260409-pm64-all-families-authority-context-overlay-review-profile/hts2phrb-unresolved-family-runtime-ready-review.md), which keeps the import-side half of the `7064585c` seam grouped as one runtime-ready unresolved-family review unit: four exact-authoritative imports tied to one sampled object and one linked overlay policy key, instead of four isolated “runtime-ready-package” lines in the bulk unresolved-family table
@@ -386,17 +389,15 @@ The project should not spend the next cycle on:
 
 ## Execution Order
 
-The intended order of work is:
+The intended remaining order of work is:
 
-1. Stabilize plan prerequisites and validation trust.
-2. Land the smallest useful runtime/provider seam slice.
-3. Run palette parity, `LoadBlock`, and converter-skeleton work in parallel.
-4. Classify those investigations before promoting either seam.
-5. Widen structured runtime lookup only where the classification and evidence say it is needed.
-6. Promote the generic `hts2phrb` front door on top of the improved internals.
-7. Prove the path across Paper Mario menu and non-menu authority scenes.
-8. Make `PHRB` the default runtime path only after the Paper Mario gate is met.
-9. Prove the same contract on a second game with a different runtime class profile.
+1. Keep the promoted enriched full-cache `PHRB` baseline green across title screen, file select, and `kmr_03 ENTRY_5`.
+2. Continue provider-owned runtime-contract tightening and remove remaining checksum-shaped seams where direct tests exist.
+3. Continue strengthening `hts2phrb` as the common-case front door without letting converter convenience outrun the runtime contract.
+4. Reduce canonical-only ambiguity and overlay residue through bounded review-only policy instead of new runtime heuristics.
+5. Keep the zero-config compat-only lane and the tracked review-only reduction lane explicit and non-default while those reductions remain unpromoted.
+6. Return to deferred pool/source-backed seams only after the runtime/converter gap is narrower.
+7. Start second-game validation only after the Paper Mario breadth and runtime-contract gates are genuinely cleaner.
 
 The key sequencing rule is:
 
@@ -408,14 +409,12 @@ The key sequencing rule is:
 
 If work starts now, the priority stack is:
 
-1. Make the active validation set trustworthy by resolving authority metadata drift, activating one non-menu Paper Mario authority fixture, and making semantic hi-res evidence participate in pass/fail.
-2. Fix the first provider/loader seam so `PHRB` is not reduced back to compatibility keys at load time.
-3. Add direct provider/package tests for that seam slice.
-4. Run the two highest-value investigations:
-   - CI palette parity
-   - `LoadBlock` sampled-shape reinterpretation
-5. In parallel, build the earliest safe `hts2phrb` skeleton over the improved internals.
-6. Capture classification results before allowing either seam into the canonical contract.
+1. Keep the promoted enriched full-cache `PHRB` baseline and its authority refresh lane green.
+2. Tighten the remaining runtime/provider seams that still behave checksum-first.
+3. Keep the zero-config compat-only lane green as an explicit fallback rather than a silent default.
+4. Reduce `hts2phrb` canonical-only ambiguity and overlay residue through bounded review-only policy and direct contracts.
+5. Keep the tracked review-only reduction lane reproducible, explicit, and non-default.
+6. Leave pool semantics, source-backed triangle promotion, and second-game breadth deferred until the core runtime/converter picture is cleaner.
 
 ## Phase A/A1 Execution Checklist
 
@@ -776,6 +775,10 @@ The project should not declare the native format/runtime seam ready until all of
 ## Immediate Next Step
 
 - The semantic hi-res gate, the first provider preservation slice, direct provider/package coverage, the earliest `hts2phrb` skeleton, the first CI palette pass, the first non-menu Paper Mario authority fixture, and the initial Phase B2 classifications are already in.
+- The repo now has three maintained Paper Mario full-cache lanes with distinct roles:
+  - promoted enriched baseline: default authority/conformance path
+  - zero-config compat-only fallback: explicit override or dedicated refresh lane only
+  - tracked review-only reduction lane: maintained converter-side ambiguity reduction proof, explicitly non-default
 - The provider now also separates native sampled records from explicit compat low32 families:
   - structured sampled lookup no longer depends on reverse scans over all entries
   - compat low32 fallbacks no longer use native `PHRB` sampled records as if they were compatibility families
@@ -795,20 +798,14 @@ The project should not declare the native format/runtime seam ready until all of
   - `28916d63` stays candidate-backed negative data, not an open transport mystery
 - The first negative-data package experiment is now settled:
   - `28916d63` add-back is rejected in the current active package context because it changes the strict title/file authorities while leaving the `960` gameplay image unchanged
-- The next open work is to apply those classifications to the runtime contract:
+- The next open work is now narrower and more current:
+  - keep the promoted enriched baseline green while removing remaining checksum-shaped runtime seams
+  - keep the zero-config compat-only fallback green without promoting it back into the default path
+  - keep reducing canonical-only ambiguity and overlay residue through the tracked review-only lane without pretending those reductions are already promoted
   - do not add simple `LoadBlock` retry behavior to the default path
   - do not keep widening palette CRC formula variants as if they were native identity fixes
-- Continue with targeted structured runtime/package work only where direct tests and current classifications support it:
   - do not keep treating candidate-free absent families as if they were one transport-policy tweak away from promotion
-  - use the new alternate-source review artifact to keep source-backed triangle work explicit and bounded, rather than letting it blur into runtime pool or duplicate-policy work
-  - do not treat zero-selector singleton promotion as safe for the triangle seam just because `91887078` is a one-candidate family; the first bounded probe is authority-regressing negative data, and the cross-scene review now proves the current candidate-free triangle families still lack a safe runtime discriminator even after adding file/world absence context
-  - treat `present-pool-selector-conflict` families like `1b8530fb` as a later runtime/pool-semantics task, not as a naive selector-alias task
-  - the smallest `1b8530fb` tail-slot alias experiment is now also explicit negative data for promotion: it stays authority-safe and hash-neutral, but only converts the seam into a much larger duplicate-selector problem
-  - the latest pool-stream diagnostics now make that deferment sharper: the active mapped set rotates across `33` unique observed selectors with no repeats, so the unresolved dwell remains an extra edge state outside the mapped set rather than another mapped-slot replay
-  - keep the generated `Pool Families` review artifact and the runtime seam register current when that deferment changes, so runtime pool work only resumes from explicit evidence rather than from stale memory
-  - use the explicit selected-package authority lane as the deeper bounded `PHRB` correctness proof alongside the promoted default full-cache Paper Mario authorities
-  - the `7701ac09` duplicate and broader asset-alias paths are now both proven as review-only offline package-shaping slices, and the tracked review profile keeps those steps reproducible without making them default-path behavior, so they no longer need to lead the next runtime step
-  - the next actionable package/runtime work now needs either a tighter source-backed selector/scene-bounding model for the triangle candidates or a real pool-preserving model for `1b8530fb`; `1b8530fb` pool work stays deferred until there is a real pool-preserving model instead of another selector-alias experiment
+  - keep source-backed triangle work, `1b8530fb` pool work, and `7701ac09` review-only shaping explicit and deferred until they clear their own promotion gates
 - Keep every skipped item in the deferred register above until it is either completed or explicitly rejected by a gate decision.
 
 ## Outcome

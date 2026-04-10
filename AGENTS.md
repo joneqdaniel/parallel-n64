@@ -25,10 +25,11 @@
 - Current plan sequence: Phase 0 tooling, Phase 1 hi-res replacement, Phase 2 scaling
 - Current controlling plan for the runtime/package shift: [Hi-Res Runtime Primary Plan](/home/auro/code/parallel-n64/docs/plans/hires_runtime_primary_plan.md)
 - Immediate execution order:
-  - validation trust and authority cleanup
-  - first provider/loader preservation slice for `PHRB`
-  - palette parity, `LoadBlock`, and `hts2phrb` skeleton work in parallel
-  - identity classification before default-path promotion
+  - keep the promoted enriched full-cache `PHRB` baseline green for title screen, file select, and `kmr_03 ENTRY_5`
+  - continue provider-owned runtime-contract tightening and remove remaining checksum-shaped seams
+  - continue reducing `hts2phrb` ambiguity and overlay residue through bounded review-only policy
+  - keep zero-config compat-only and review-only reduction lanes explicit and non-default
+  - leave pool semantics, source-backed triangle promotion, and second-game breadth deferred until the core runtime/converter gap narrows further
 - Validation scope is Paper Mario only until the first major milestone is stable
 - `feature off` must stay baseline-safe
 - Evidence bundles are required for fixture runs

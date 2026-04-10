@@ -12,7 +12,7 @@ The project is being run as an agent-first workflow:
 
 ## Current Status
 
-The project is now in Phase 0 execution.
+The repo is now in the Phase 1 runtime/package shift inside the Phase 0/1 backbone.
 
 The agreed backbone is:
 
@@ -20,19 +20,19 @@ The agreed backbone is:
 2. Phase 1: hi-res replacement without corruption
 3. Phase 2: scaling and sharpness work
 
-Current validation scope is Paper Mario only.
-The first strict Phase 1 fixtures are title screen and file select.
-The first tracked Phase 0 fixture and scenario are the Paper Mario title screen scaffold.
+Current validation scope is still Paper Mario only.
+The active strict authority fixtures are title screen, file select, and `kmr_03 ENTRY_5`.
+The repo-default authority path now prefers the promoted enriched full-cache `PHRB` artifact and fails closed if that promoted runtime artifact is missing.
 
 The current controlling execution plan for the hi-res runtime/package shift is
 [Hi-Res Runtime Primary Plan](/home/auro/code/parallel-n64/docs/plans/hires_runtime_primary_plan.md).
-The immediate sequence is:
+The current active sequence is:
 
-1. validation trust and authority cleanup
-2. first `PHRB` provider/loader preservation slice
-3. palette parity, `LoadBlock`, and `hts2phrb` skeleton work in parallel
-4. classification gate
-5. targeted runtime widening and only then default-path promotion
+1. keep the promoted enriched full-cache `PHRB` baseline green for the three active Paper Mario authority fixtures
+2. continue tightening the provider-owned runtime contract and remove remaining checksum-shaped renderer seams
+3. continue strengthening `hts2phrb` as the common-case front door and reduce converter ambiguity through bounded review-only policy
+4. keep the zero-config compat-only lane and the review-only reduction lane explicit and non-default
+5. leave pool-semantics, source-backed triangle promotion, and second-game breadth deferred until the core runtime/converter gap narrows further
 
 ## Start Here
 

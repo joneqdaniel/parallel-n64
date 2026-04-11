@@ -2233,19 +2233,20 @@ void Renderer::draw_shaded_primitive(const TriangleSetup &setup, const Attribute
 			return state;
 		};
 
-		auto reserve_ordered_surface_selector = [&](uint64_t checksum64, uint16_t formatsize) -> bool {
+		auto reserve_ordered_surface_selector = [&](uint32_t texture_crc, uint32_t palette_crc, uint16_t formatsize) -> bool {
 			if (ordered_surface_slot_reserved)
 				return true;
 			if (!replacement_provider)
 				return false;
-			uint32_t selector_count = replacement_provider->ordered_surface_selector_count(checksum64, formatsize);
+			uint32_t selector_count = replacement_provider->ordered_surface_selector_count(texture_crc, palette_crc, formatsize);
 			if (selector_count == 0)
 				return false;
+			const uint64_t checksum64 = detail::compose_hires_checksum64(texture_crc, palette_crc);
 			uint64_t cursor_key = make_hires_ordered_surface_cursor_key(checksum64, formatsize);
 			uint32_t &cursor = hires_ordered_surface_sequence_cursor[cursor_key];
 			uint32_t selector_index = cursor % selector_count;
 			cursor++;
-			ordered_surface_selector_checksum64 = replacement_provider->ordered_surface_selector_checksum64(checksum64, formatsize, selector_index);
+			ordered_surface_selector_checksum64 = replacement_provider->ordered_surface_selector_checksum64(texture_crc, palette_crc, formatsize, selector_index);
 			if (ordered_surface_selector_checksum64 == 0)
 				return false;
 			ordered_surface_slot_reserved = true;
@@ -2276,7 +2277,7 @@ void Renderer::draw_shaded_primitive(const TriangleSetup &setup, const Attribute
 			const char *resolved_reason = reason_exact;
 			if (lookup_hit && resolution.kind == ReplacementResolutionKind::SampledFamilySingleton)
 				resolved_reason = resolution.ordered_surface_singleton ? reason_ordered_surface : reason_family_unique;
-			if (!lookup_hit && reserve_ordered_surface_selector(checksum64, sampled_identity.formatsize))
+			if (!lookup_hit && reserve_ordered_surface_selector(sampled_identity.texture_crc, palette_crc, sampled_identity.formatsize))
 			{
 				lookup_hit = replacement_provider->resolve_reserved_ordered_surface_candidate(
 					uint32_t(base_meta.fmt),
@@ -4103,7 +4104,7 @@ bool Renderer::resolve_hires_sampled_replacement_descriptor(uint32_t sampled_fmt
 		return false;
 
 	HiresKey key = {};
-	key.checksum64 = resolved_checksum64;
+	key.checksum64 = 0; // Redundant for NativeSampled — sampled_low32 + sampled_palette_crc determine identity.
 	key.formatsize = formatsize;
 	key.selector_checksum64 = selector_checksum64;
 	key.source = HiresKeySource::NativeSampled;
@@ -5065,7 +5066,6 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 			HiresProviderDescriptorPathKind descriptor_path_kind = HiresProviderDescriptorPathKind::None;
 			ReplacementResolution resolution = {};
 			bool hit = replacement_provider->resolve_upload_candidate(
-				checksum64,
 				formatsize,
 				uint32_t(meta.fmt),
 				uint32_t(meta.size),
@@ -5593,8 +5593,7 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 							if (candidate_palette_crc == 0 || !replacement_provider)
 								return false;
 							ReplacementMeta candidate_meta = {};
-							const uint64_t candidate_checksum64 = detail::compose_hires_checksum64(texture_crc, candidate_palette_crc);
-							return replacement_provider->lookup(candidate_checksum64, formatsize, &candidate_meta);
+							return replacement_provider->probe_lookup(texture_crc, candidate_palette_crc, formatsize, &candidate_meta);
 						};
 						LOGI("Hi-res CI palette probe usage: mode=%s addr=0x%06x wh=%ux%u fs=%u used_count=%u used_min=%u used_max=%u mask_crc=%08x sparse_pcrc=%08x.\n",
 						     load_mode_to_string(info.mode),
@@ -5652,14 +5651,12 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 									sizeof(tlut_tmem_shadow),
 									tlut_shadow_valid,
 									ci32_usage);
-							const uint64_t ci32_group_checksum64 =
-									detail::compose_hires_checksum64(ci32_group_texture_crc, ci32_group_palette_crc);
 							ReplacementMeta ci32_group_meta = {};
 							const bool ci32_group_hit =
 									replacement_provider &&
 									ci32_group_texture_crc != 0 &&
 									ci32_group_palette_crc != 0 &&
-									replacement_provider->lookup(ci32_group_checksum64, formatsize, &ci32_group_meta);
+									replacement_provider->probe_lookup(ci32_group_texture_crc, ci32_group_palette_crc, formatsize, &ci32_group_meta);
 							LOGI("Hi-res CI palette probe ci32-tlut: mode=%s addr=0x%06x wh=%ux%u fs=%u used_count=%u used_min=%u used_max=%u group_low32=%08x group_pcrc=%08x group_hit=%u repl=%ux%u.\n",
 							     load_mode_to_string(info.mode),
 							     src_base_addr & 0x00ffffffu,
@@ -5716,19 +5713,19 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 						if (used_index_sparse_crc != 0)
 						{
 							ReplacementMeta candidate_meta = {};
-							if (replacement_provider->lookup(detail::compose_hires_checksum64(texture_crc, used_index_sparse_crc), formatsize, &candidate_meta))
+							if (replacement_provider->probe_lookup(texture_crc, used_index_sparse_crc, formatsize, &candidate_meta))
 								log_ci_palette_probe_hit("used-indices-sparse", used_index_sparse_crc, candidate_meta, int32_t(ci_palette_usage.used_count));
 						}
 						if (emulated_entry_crc != 0)
 						{
 							ReplacementMeta candidate_meta = {};
-							if (replacement_provider->lookup(detail::compose_hires_checksum64(texture_crc, emulated_entry_crc), formatsize, &candidate_meta))
+							if (replacement_provider->probe_lookup(texture_crc, emulated_entry_crc, formatsize, &candidate_meta))
 								log_ci_palette_probe_hit("emulated-tmem-entry-count", emulated_entry_crc, candidate_meta, int32_t(ci_palette_entries));
 						}
 						if (emulated_sparse_crc != 0)
 						{
 							ReplacementMeta candidate_meta = {};
-							if (replacement_provider->lookup(detail::compose_hires_checksum64(texture_crc, emulated_sparse_crc), formatsize, &candidate_meta))
+							if (replacement_provider->probe_lookup(texture_crc, emulated_sparse_crc, formatsize, &candidate_meta))
 								log_ci_palette_probe_hit("emulated-tmem-used-indices-sparse", emulated_sparse_crc, candidate_meta, int32_t(ci_palette_usage.used_count));
 						}
 					}
@@ -5753,7 +5750,7 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 								tlut_shadow_valid,
 								entries);
 						ReplacementMeta candidate_meta = {};
-						if (!replacement_provider->lookup(detail::compose_hires_checksum64(texture_crc, candidate_palette_crc), formatsize, &candidate_meta))
+						if (!replacement_provider->probe_lookup(texture_crc, candidate_palette_crc, formatsize, &candidate_meta))
 							continue;
 						log_ci_palette_probe_hit("entry-count", candidate_palette_crc, candidate_meta, int32_t(entries));
 					}
@@ -5776,7 +5773,7 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 								sizeof(tlut_shadow),
 								tlut_shadow_valid);
 						ReplacementMeta candidate_meta = {};
-						if (!replacement_provider->lookup(detail::compose_hires_checksum64(texture_crc, candidate_palette_crc), formatsize, &candidate_meta))
+						if (!replacement_provider->probe_lookup(texture_crc, candidate_palette_crc, formatsize, &candidate_meta))
 							continue;
 						log_ci_palette_probe_hit(legacy_scheme.scheme, candidate_palette_crc, candidate_meta, -1);
 					}
@@ -5789,7 +5786,7 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 								sizeof(tlut_tmem_shadow),
 								tlut_shadow_valid);
 						ReplacementMeta candidate_meta = {};
-						if (replacement_provider->lookup(detail::compose_hires_checksum64(texture_crc, candidate_palette_crc), formatsize, &candidate_meta))
+						if (replacement_provider->probe_lookup(texture_crc, candidate_palette_crc, formatsize, &candidate_meta))
 							log_ci_palette_probe_hit("legacy-tmem-hash", candidate_palette_crc, candidate_meta, -1);
 					}
 
@@ -5842,7 +5839,7 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 									sizeof(tlut_shadow),
 									tlut_shadow_valid);
 							ReplacementMeta candidate_meta = {};
-							if (!replacement_provider->lookup(detail::compose_hires_checksum64(texture_crc, candidate_palette_crc), formatsize, &candidate_meta))
+							if (!replacement_provider->probe_lookup(texture_crc, candidate_palette_crc, formatsize, &candidate_meta))
 								continue;
 
 							char scheme_name[64] = {};
@@ -5919,13 +5916,13 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 									tlut_shadow_valid);
 						}
 
+						ReplacementMeta candidate_meta = {};
+						if (!replacement_provider->probe_lookup(candidate_texture_crc, candidate_palette_crc, formatsize, &candidate_meta))
+							continue;
+
 						const uint64_t candidate_checksum64 = detail::compose_hires_checksum64(
 								candidate_texture_crc,
 								candidate_palette_crc);
-						ReplacementMeta candidate_meta = {};
-						if (!replacement_provider->lookup(candidate_checksum64, formatsize, &candidate_meta))
-							continue;
-
 						char probe_key[256] = {};
 						std::snprintf(probe_key, sizeof(probe_key),
 						              "%s->%ux%u:%016llx",

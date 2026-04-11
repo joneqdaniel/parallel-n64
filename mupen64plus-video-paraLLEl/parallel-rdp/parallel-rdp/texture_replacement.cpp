@@ -50,6 +50,11 @@ inline void append_unique_ordered_surface_selector(std::vector<uint64_t> &select
 	std::sort(selectors.begin(), selectors.end());
 }
 
+inline uint64_t compose_hires_checksum64(uint32_t texture_crc, uint32_t palette_crc)
+{
+	return (uint64_t(palette_crc) << 32) | uint64_t(texture_crc);
+}
+
 inline uint64_t compose_ordered_surface_index_key(uint64_t checksum64, uint16_t formatsize)
 {
 	return checksum64 ^ (uint64_t(formatsize) << 48);
@@ -934,21 +939,29 @@ bool ReplacementProvider::lookup(uint64_t checksum64, uint16_t formatsize, Repla
 	return lookup_with_selector(checksum64, formatsize, 0, out);
 }
 
+bool ReplacementProvider::probe_lookup(uint32_t texture_crc, uint32_t palette_crc,
+                                       uint16_t formatsize, ReplacementMeta *out) const
+{
+	return lookup(compose_hires_checksum64(texture_crc, palette_crc), formatsize, out);
+}
+
 uint64_t ReplacementProvider::ordered_surface_slot_selector_checksum64(uint32_t slot_index)
 {
 	return ORDERED_SURFACE_SELECTOR_TAG | uint64_t(slot_index);
 }
 
-uint32_t ReplacementProvider::ordered_surface_selector_count(uint64_t checksum64, uint16_t formatsize) const
+uint32_t ReplacementProvider::ordered_surface_selector_count(uint32_t texture_crc, uint32_t palette_crc, uint16_t formatsize) const
 {
+	const uint64_t checksum64 = compose_hires_checksum64(texture_crc, palette_crc);
 	auto it = ordered_surface_selectors_.find(compose_ordered_surface_index_key(checksum64, formatsize));
 	if (it == ordered_surface_selectors_.end())
 		return 0;
 	return uint32_t(it->second.size());
 }
 
-uint64_t ReplacementProvider::ordered_surface_selector_checksum64(uint64_t checksum64, uint16_t formatsize, uint32_t selector_index) const
+uint64_t ReplacementProvider::ordered_surface_selector_checksum64(uint32_t texture_crc, uint32_t palette_crc, uint16_t formatsize, uint32_t selector_index) const
 {
+	const uint64_t checksum64 = compose_hires_checksum64(texture_crc, palette_crc);
 	auto it = ordered_surface_selectors_.find(compose_ordered_surface_index_key(checksum64, formatsize));
 	if (it == ordered_surface_selectors_.end() || selector_index >= it->second.size())
 		return 0;
@@ -995,8 +1008,7 @@ bool ReplacementProvider::lookup_with_selector_and_identity(uint64_t checksum64,
 	return true;
 }
 
-bool ReplacementProvider::resolve_upload_candidate(uint64_t checksum64,
-                                                   uint16_t formatsize,
+bool ReplacementProvider::resolve_upload_candidate(uint16_t formatsize,
                                                    uint32_t sampled_fmt,
                                                    uint32_t sampled_siz,
                                                    uint32_t sampled_tex_offset,
@@ -1042,6 +1054,9 @@ bool ReplacementProvider::resolve_upload_candidate(uint64_t checksum64,
 			ReplacementResolutionKind::SampledExactSelector,
 			false,
 			out);
+
+	// Steps 3-4 (native-checksum, compat) need checksum64 — derive from sampled fields.
+	const uint64_t checksum64 = compose_hires_checksum64(sampled_low32, palette_crc);
 
 	const Entry *native_entry = find_native_entry(checksum64, formatsize, selector_checksum64);
 	if (native_entry)

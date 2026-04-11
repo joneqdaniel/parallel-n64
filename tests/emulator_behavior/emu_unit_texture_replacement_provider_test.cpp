@@ -658,7 +658,6 @@ int main()
 	ReplacementResolution upload_sampled_exact_resolution = {};
 	const uint64_t upload_checksum64 = (uint64_t(record.sampled_sparse_pcrc) << 32u) | uint64_t(record.sampled_low32);
 	check(provider.resolve_upload_candidate(
-		      upload_checksum64,
 		      record.formatsize,
 		      record.fmt,
 		      record.siz,
@@ -682,7 +681,6 @@ int main()
 
 	ReplacementResolution upload_wrong_selector_resolution = {};
 	bool upload_wrong_selector_hit = provider.resolve_upload_candidate(
-		upload_checksum64,
 		record.formatsize,
 		record.fmt,
 		record.siz,
@@ -1150,9 +1148,8 @@ int main()
 	      "legacy-only generic lookup helper should classify compat entries explicitly");
 	ReplacementResolution legacy_only_resolution = {};
 	check(legacy_only_provider.resolve_upload_candidate(
-	          mixed_checksum64,
 	          258,
-	          0, 0, 0, 0, 0, 0, 0, 0, 0,
+	          0, 0, 0, 0, 0, 0, mixed_sampled_low32, mixed_palette_crc, 0,
 	          &legacy_only_resolution),
 	      "upload candidate resolution should resolve legacy-only compat entries");
 	check(legacy_only_resolution.kind == ReplacementResolutionKind::GenericCompat,
@@ -1258,7 +1255,6 @@ int main()
 	      "family-singleton sampled lookup should preserve ordered-surface singleton replacement dimensions");
 	ReplacementResolution ordered_singleton_resolution = {};
 	check(ordered_singleton_provider.resolve_upload_candidate(
-	          ordered_singleton_checksum64,
 	          258,
 	          2,
 	          1,
@@ -1533,9 +1529,8 @@ int main()
 	      "generic lookup helper should report the native exact checksum and selector");
 	ReplacementResolution phrb_preference_resolution = {};
 	check(phrb_preference_provider.resolve_upload_candidate(
-	          phrb_preference_checksum64,
 	          258,
-	          0, 0, 0, 0, 0, 0, 0, 0, 0,
+	          0, 0, 0, 0, 0, 0, phrb_preference_sampled_low32, phrb_preference_palette_crc, 0,
 	          &phrb_preference_resolution),
 	      "upload candidate resolution should prefer native sampled PHRB entries over family-runtime compat duplicates");
 	check(phrb_preference_resolution.kind != ReplacementResolutionKind::GenericCompat &&

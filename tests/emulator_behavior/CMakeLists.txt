@@ -795,6 +795,18 @@ add_test(
 set_tests_properties(emu.conformance.paper_mario_selected_package_timeout_lookup_without_probe PROPERTIES SKIP_RETURN_CODE 77)
 
 add_test(
+  NAME emu.conformance.sm64_hires_boot
+  COMMAND bash "${CMAKE_CURRENT_SOURCE_DIR}/support/emu_conformance_sm64_hires_boot.sh"
+)
+set_tests_properties(emu.conformance.sm64_hires_boot PROPERTIES SKIP_RETURN_CODE 77)
+
+add_test(
+  NAME emu.conformance.oot_hires_boot
+  COMMAND bash "${CMAKE_CURRENT_SOURCE_DIR}/support/emu_conformance_oot_hires_boot.sh"
+)
+set_tests_properties(emu.conformance.oot_hires_boot PROPERTIES SKIP_RETURN_CODE 77)
+
+add_test(
   NAME emu.unit.test_runner_profile_contract
   COMMAND bash "${CMAKE_CURRENT_SOURCE_DIR}/support/emu_test_runner_profile_contract.sh"
 )

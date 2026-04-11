@@ -74,22 +74,25 @@
 
 ### Cross-Game Runtime State
 
-- **SM64 Reloaded** — first validated cross-game proof:
+- **SM64 Reloaded** — validated cross-game proof with boot conformance test:
   - HTS → `hts2phrb` → PHRB: 2530/2530 entries, `promotable-runtime-package`, zero unresolved, 1.5s conversion
-  - PHRB → runtime: 33,183 compat draw-time hits in 30s title screen boot (37 unique textures of 2530 in pack)
-  - Hit rate per draw: 66.7% (remainder are non-pack textures: UI, framebuffer effects)
-  - Format coverage: RGBA (fmt=0) and IA (fmt=3) both hitting; no CI textures in SM64 early gameplay
+  - PHRB → runtime: 6,599 compat draw-time hits in 30s title screen boot
+  - Format coverage: RGBA (fmt=0) and IA (fmt=3) both hitting; no CI textures in SM64 pack
   - GlideN64-compat CRC fallback auto-enabled via source mode `all`
-- **OoT Reloaded** — converter proof, runtime blocked by resource limits:
+  - Automated boot conformance test: `emu.conformance.sm64_hires_boot`
+- **OoT Reloaded** — validated cross-game proof with boot conformance test:
   - HTS → `hts2phrb` → PHRB: 43,266/43,267 entries, `partial-runtime-package`, 1 ambiguous family (`a388567b:fs258`)
-  - PHRB is 8.9GB; runtime load crashes at ~19K of 43K records on integrated GPU (Vulkan image allocation exhaustion)
-  - Converter pipeline is validated; runtime load requires dedicated GPU or streaming/budget support
+  - PHRB is 8.9GB; streaming load reads only metadata (~13.5MB), textures loaded on demand via file seek
+  - PHRB → runtime: 43,322 entries loaded, 46,751 compat draw-time hits in 45s boot
+  - CI palette CRC validated: 11,455 CI hits out of 23,368 CI attempts (49% hit rate; misses are pack coverage, not CRC mismatch)
+  - GPU budget/eviction available via `PARALLEL_RDP_HIRES_GPU_BUDGET_MB` env var (default unlimited)
+  - Automated boot conformance test: `emu.conformance.oot_hires_boot` (asserts CI hits > 0)
 - **GlideN64-compat RDRAM CRC**:
   - Root cause was parameter mismatch: our upload path computes Rice CRC with SetTextureImage params at load time; GlideN64 uses tile descriptor params at draw time
   - Draw-time fallback recomputes CRC using tile line stride, SetTileSize dimensions, and tile descriptor size enum
   - Gated behind source mode `all` (auto-enabled) or `PARALLEL_RDP_HIRES_GLIDEN64_COMPAT_CRC=1` env var
   - Does not fire for Paper Mario packs (source mode `phrb-only`) — prevents false-positive CRC32 collisions on TMEM-keyed packs
-  - CI palette CRC implemented (matching GlideN64's `checksum64 = (palette_crc << 32) | texture_crc`) but untested empirically
+  - CI palette CRC validated empirically on OoT (matching GlideN64's `checksum64 = (palette_crc << 32) | texture_crc`)
 
 ### Validation State
 
@@ -103,6 +106,8 @@
   - selected-package authority validation
   - selected-package timeout validation
   - selected-package timeout lookup-without-probe validation
+  - SM64 hi-res boot conformance (provider=on, compat_draw_hits > 0)
+  - OoT hi-res boot conformance (entries > 40K, CI hits > 0)
 - Semantic hi-res evidence now participates in pass/fail on the active authorities.
 - The title-timeout lane remains the main no-save deeper-state review surface.
 
@@ -112,7 +117,6 @@
 - Reduce the remaining converter canonical-only residue (`302` families / `75` groups on the tracked review-only lane).
 - Reduce the remaining review-only overlay residue (`9` unresolved on the tracked review-only lane).
 - Keep `.phrb` authoritative while legacy formats remain explicit input/refresh paths.
-- OoT runtime load requires dedicated GPU or streaming/budget support for 43K-entry packs.
 - Keep these items deferred until the core gap is smaller:
   - `1b8530fb` runtime pool semantics
   - source-backed triangle promotion
@@ -146,8 +150,8 @@
 ## Current Validation Scope
 
 - Paper Mario: primary authority game with strict conformance fixtures.
-- SM64: validated cross-game proof (boot test, no strict fixtures yet).
-- OoT: converter-validated, runtime blocked by integrated GPU resource limits.
+- SM64: validated cross-game proof with automated boot conformance test.
+- OoT: validated cross-game proof with automated boot conformance test (streaming load, CI palette CRC).
 - First strict Phase 1 fixtures:
   - title screen
   - file select

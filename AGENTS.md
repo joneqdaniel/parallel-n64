@@ -45,6 +45,20 @@
 - Adapters: [tools/adapters](/home/auro/code/parallel-n64/tools/adapters)
 - Plans: [docs/plans](/home/auro/code/parallel-n64/docs/plans)
 
+## Repo Boundaries
+- parallel-n64: planning source of truth, fixture metadata, scenario runners, adapters, evidence conventions, video-core implementation
+- RetroArch: frontend/tooling patch target for deterministic control, capture, reporting
+- papermario-dx: optional debug-only semantic reference (not final correctness authority)
+- Do not put emulator-specific renderer meaning into RetroArch
+- Keep cross-project orchestration in parallel-n64
+
+## Fixture And Evidence Contract
+- Each fixture is defined by: manifest, ROM identity, savestate identity, config snapshot, expected capture points
+- Steady-state fixture path: authoritative savestate -> settle 3 frames -> capture
+- Evidence bundles must include: final capture, fixture identity, config snapshot, ROM hash, savestate hash, authority mode, hi-res pack hash, relevant logs, hit/miss reporting, semantic traces
+- Corruption is always fail; explicit fallback is acceptable when the phase claims it
+- Evidence must be lightweight, comparable over time, and collected on every important run
+
 ## Working Rules
 - Prefer explicit classification: baseline issue, hi-res issue, scaling issue, or tooling/fixture issue
 - Treat `papermario-dx` as optional debug help, not final correctness authority

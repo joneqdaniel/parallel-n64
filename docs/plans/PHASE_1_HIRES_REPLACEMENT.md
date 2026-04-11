@@ -35,7 +35,7 @@
 - the hi-res provider now loads the Paper Mario pack and produces real hit/miss telemetry on both strict targets
 - the replacement path is now visibly active on both strict targets, and `on` / `off` no longer match at the raw-pixel level
 - the current Phase 1 blocker is no longer wiring; it is correctness: decide whether the visible deltas are the expected hi-res result or corruption, then tighten texel mapping / alias behavior until the strict fixtures are clean
-- the active exact-identity / provenance execution path is now spelled out in [N64 Identity Breakthrough Plan](/home/auro/code/parallel-n64/docs/plans/N64_IDENTITY_BREAKTHROUGH_PLAN.md)
+- the active exact-identity / provenance execution path is now captured in the Identity Architecture section of the [Hi-Res Runtime Primary Plan](/home/auro/code/parallel-n64/docs/plans/hires_runtime_primary_plan.md)
 - the latest unstaged HLE-to-LLE conversion research now changes the execution order for this phase without changing the architecture:
   - Tier 1 pure-math legacy-to-native bridge work should generate candidate mappings only
   - Tier 2 ROM/display-list scanning is now the preferred path for resolving `SetTile`, `SetTileSize`, `LoadTile`, and `LoadBlock` ambiguity

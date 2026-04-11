@@ -120,6 +120,46 @@ The project should not spend the next cycle on:
 - runtime lookup-mode matrices
 - `.hts` / `.htc` as long-term runtime formats
 
+## Identity Architecture
+
+The breakthrough is faithful sampled-object identity, not smarter wildcards.
+
+The authoritative texture object for replacement is the post-load sampled tile:
+
+- sampled format (`fmt/siz`, direct vs CI, TLUT type)
+- logical texel payload CRC
+- logical palette payload CRC (CI4 banked, CI8 direct)
+- tile window and sampler state (`SL/TL/SH/TH`, clamp/mirror/mask/shift)
+- TMEM base address and line/stride
+- upload provenance: `LoadTile` vs `LoadBlock`
+
+Key identity rules:
+
+- CI4 and CI8 have different palette semantics; CI4 depends on selected 16-entry bank, CI8 addresses TLUT directly
+- Palette identity is based on logical RDRAM-side entries, not expanded TMEM image
+- Copy-mode and texrect paths are draw uses, not different texture objects
+- Framebuffer-derived textures are not authored replacement authority by default
+- `LoadBlock` provenance (dxt, odd-line word swap) is diagnostic/exactness data even when sampled output may coincide with `LoadTile`
+
+## Import Model
+
+- Legacy Glide-era pack format is an input format; `PHRB` is the authoritative runtime format
+- Import preserves exact replacement identity separately from compatibility aliases
+- Ambiguous legacy families are made explicit at import time, not hidden at runtime
+- Classification tiers: `exact-authoritative`, `compat-unique`, `compat-repl-dims-unique`, `ambiguous-import-or-policy`, `missing-active-pool`
+- Conversion front door: `hts2phrb` — one command, legacy `.hts`/`.htc` in, `.phrb` out
+- Zero-config conversion works for most entries; ambiguous cases emit warnings rather than broadening runtime behavior
+- Runtime exact lookup stays tier 1; compatibility lookup is explicit tier 2
+
+## Format Confidence
+
+The `PHRB` format is live and validated across three games (Paper Mario, SM64, OoT). Remaining open confidence criteria:
+
+- Observed family set must extend beyond Paper Mario menu states into deeper gameplay (partially met via `kmr_03 ENTRY_5` and cross-game boot proofs)
+- Exact vs compatibility boundary must remain reviewable and not drift toward implicit broadening
+- Import tools must keep provenance traceable back to legacy checksums and assets
+- Unresolved families must stay visible, not quietly collapsed
+
 ## Execution Order
 
 1. Keep the promoted enriched full-cache `PHRB` baseline green across title screen, file select, and `kmr_03 ENTRY_5`.

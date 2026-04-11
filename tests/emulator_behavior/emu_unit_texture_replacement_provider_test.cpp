@@ -552,11 +552,11 @@ int main()
 	          asset.selector_checksum64,
 	          &compat_meta),
 	      "checksum lookup should still find later compat aliases");
-	check(provider.find_entry(
+	check(provider.find_compat_entry(
 	          sparse_checksum64,
 	          record.formatsize,
 	          asset.selector_checksum64)->source_path == dir + "/compat.hts",
-	      "checksum lookup should prefer the latest compat alias");
+	      "compat alias should be reachable via explicit compat lookup");
 	check(provider.compat_checksum_low32_index_.size() == 1,
 	      "compat aliases should populate the explicit compat low32 index");
 	check(provider.lookup_ci_low32_any(
@@ -566,7 +566,7 @@ int main()
 	          &compat_meta,
 	          &resolved_checksum64),
 	      "compat low32 fallback should resolve explicit compat aliases");
-	check(provider.find_entry(
+	check(provider.find_compat_entry(
 	          resolved_checksum64,
 	          record.formatsize,
 	          asset.selector_checksum64)->source_path == dir + "/compat.hts",
@@ -593,14 +593,14 @@ int main()
 	      "typed compat low32 resolution should preserve replacement dimensions");
 
 	ReplacementImage compat_image = {};
-	check(provider.decode_rgba8_with_selector(
+	check(provider.decode_rgba8_compat_with_selector(
 	          sparse_checksum64,
 	          record.formatsize,
 	          asset.selector_checksum64,
 	          &compat_image),
-	      "checksum decode should still resolve the latest compat alias");
+	      "compat decode should resolve the explicit compat alias");
 	check(!compat_image.rgba8.empty() && compat_image.rgba8[0] == 0xfe,
-	      "checksum decode should expose compat alias payload");
+	      "compat decode should expose compat alias payload");
 
 	ReplacementMeta native_meta = {};
 	check(provider.lookup_sampled_with_selector(
@@ -758,10 +758,10 @@ int main()
 	check(deferred_provider.load_cache_dir(deferred_dir), "provider should load directories with mixed runtime-ready and runtime-deferred PHRB files");
 	deferred_provider.set_enabled(true);
 	check(deferred_provider.entry_count() == 1, "runtime-deferred PHRB records should be ignored by the runtime loader");
-	const auto *deferred_entry = deferred_provider.find_entry(deferred_checksum64, 258);
+	const auto *deferred_entry = deferred_provider.find_any_entry(deferred_checksum64, 258, 0);
 	check(deferred_entry != nullptr, "runtime-ready PHRB record should still load");
 	check(deferred_entry->phrb_policy_key == "runtime-ready", "runtime-ready record should preserve its policy key");
-	check(deferred_provider.find_entry(uint64_t(deferred_low32), 258) == nullptr,
+	check(deferred_provider.find_any_entry(uint64_t(deferred_low32), 258, 0) == nullptr,
 	      "runtime-deferred record should not synthesize a runtime lookup entry");
 	ReplacementProviderStats deferred_stats = deferred_provider.get_stats();
 	check(deferred_stats.source_phrb_entry_count == 1, "runtime-deferred PHRB records should not count as loaded source entries");
@@ -946,7 +946,7 @@ int main()
 	check(mixed_all_provider.entry_count() == 2, "all-policy provider should load both native and compat entries");
 	check(mixed_all_provider.native_checksum_index_.size() == 1, "all-policy provider should keep a native checksum family index");
 	check(mixed_all_provider.compat_checksum_index_.size() == 1, "all-policy provider should keep a compat checksum family index");
-	const auto *mixed_entry = mixed_all_provider.find_entry(mixed_checksum64, 258);
+	const auto *mixed_entry = mixed_all_provider.find_any_entry(mixed_checksum64, 258, 0);
 	check(mixed_entry != nullptr, "all-policy provider should resolve duplicate checksum entries");
 	check(mixed_entry->source_path.find(".phrb") != std::string::npos,
 	      "all-policy directory load should still prefer PHRB entries over later-sorting legacy files");
@@ -1100,7 +1100,7 @@ int main()
 	default_provider.set_enabled(true);
 	check(default_provider.entry_count() == 1,
 	      "default provider load should prefer the native PHRB entry when mixed-source cache directories contain both formats");
-	check(default_provider.find_entry(mixed_checksum64, 258) != nullptr,
+	check(default_provider.find_any_entry(mixed_checksum64, 258, 0) != nullptr,
 	      "default provider load should still resolve the preferred native PHRB duplicate");
 	check(default_provider.find_compat_entry(mixed_checksum64, 258, 0) == nullptr,
 	      "default provider load should fence out compat entries in mixed-source auto mode");
@@ -1114,7 +1114,7 @@ int main()
 	      "phrb-only provider should load native entries from mixed-source cache directories");
 	phrb_only_provider.set_enabled(true);
 	check(phrb_only_provider.entry_count() == 1, "phrb-only provider should only load the native PHRB entry");
-	check(phrb_only_provider.find_entry(mixed_checksum64, 258) != nullptr,
+	check(phrb_only_provider.find_any_entry(mixed_checksum64, 258, 0) != nullptr,
 	      "phrb-only provider should still resolve the native PHRB duplicate");
 	check(phrb_only_provider.find_compat_entry(mixed_checksum64, 258, 0) == nullptr,
 	      "phrb-only provider should not expose compat entries");
@@ -1149,14 +1149,14 @@ int main()
 	check(legacy_only_source_class == ResolvedEntrySourceClass::Compat,
 	      "legacy-only generic lookup helper should classify compat entries explicitly");
 	ReplacementResolution legacy_only_resolution = {};
-	check(legacy_only_provider.resolve_with_selector(
+	check(legacy_only_provider.resolve_upload_candidate(
 	          mixed_checksum64,
 	          258,
-	          0,
+	          0, 0, 0, 0, 0, 0, 0, 0, 0,
 	          &legacy_only_resolution),
-	      "typed generic resolution should resolve legacy-only compat entries");
+	      "upload candidate resolution should resolve legacy-only compat entries");
 	check(legacy_only_resolution.kind == ReplacementResolutionKind::GenericCompat,
-	      "typed generic resolution should classify legacy-only compat entries explicitly");
+	      "upload candidate resolution should classify legacy-only compat entries explicitly");
 	check(!legacy_only_resolution.identity.valid,
 	      "typed generic resolution should not synthesize native identity for compat entries");
 	ReplacementProviderStats legacy_only_stats = legacy_only_provider.get_stats();
@@ -1170,7 +1170,7 @@ int main()
 	auto_provider.set_enabled(true);
 	check(auto_provider.entry_count() == 1,
 	      "auto provider should prefer the native PHRB entry when mixed-source cache directories contain both formats");
-	check(auto_provider.find_entry(mixed_checksum64, 258) != nullptr,
+	check(auto_provider.find_any_entry(mixed_checksum64, 258, 0) != nullptr,
 	      "auto provider should still resolve the preferred native PHRB duplicate");
 	check(auto_provider.find_compat_entry(mixed_checksum64, 258, 0) == nullptr,
 	      "auto provider should fence out compat entries when a mixed-source directory contains PHRB data");
@@ -1498,7 +1498,7 @@ int main()
 	      "native PHRB duplicate should remain visible explicitly");
 	check(phrb_preference_provider.find_compat_entry(phrb_preference_checksum64, 258, 0) != nullptr,
 	      "family-runtime PHRB duplicate should remain visible explicitly");
-	const auto *phrb_preference_entry = phrb_preference_provider.find_entry(phrb_preference_checksum64, 258);
+	const auto *phrb_preference_entry = phrb_preference_provider.find_any_entry(phrb_preference_checksum64, 258, 0);
 	check(phrb_preference_entry != nullptr, "generic entry lookup should still resolve the duplicate checksum");
 	check(phrb_preference_entry->has_native_sampled_identity,
 	      "generic entry lookup should prefer native sampled PHRB entries over later family-runtime compat records");
@@ -1532,16 +1532,17 @@ int main()
 	          phrb_preference_resolved_selector_checksum64 == 0,
 	      "generic lookup helper should report the native exact checksum and selector");
 	ReplacementResolution phrb_preference_resolution = {};
-	check(phrb_preference_provider.resolve_with_selector(
+	check(phrb_preference_provider.resolve_upload_candidate(
 	          phrb_preference_checksum64,
 	          258,
-	          0,
+	          0, 0, 0, 0, 0, 0, 0, 0, 0,
 	          &phrb_preference_resolution),
-	      "typed generic resolution should prefer native sampled PHRB entries over family-runtime compat duplicates");
-	check(phrb_preference_resolution.kind == ReplacementResolutionKind::GenericNativeIdentity,
-	      "typed generic resolution should classify native sampled winners distinctly");
+	      "upload candidate resolution should prefer native sampled PHRB entries over family-runtime compat duplicates");
+	check(phrb_preference_resolution.kind != ReplacementResolutionKind::GenericCompat &&
+	          phrb_preference_resolution.kind != ReplacementResolutionKind::None,
+	      "upload candidate resolution should not fall through to compat when native sampled exists");
 	check(phrb_preference_resolution.identity.valid,
-	      "typed generic resolution should preserve native sampled identity");
+	      "upload candidate resolution should preserve native sampled identity");
 	ReplacementMeta phrb_preference_compat_meta = {};
 	check(phrb_preference_provider.lookup_compat_with_selector(
 	          phrb_preference_checksum64,

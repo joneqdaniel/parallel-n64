@@ -4382,7 +4382,6 @@ bool Renderer::resolve_hires_provider_resolution_descriptor(const ::RDP::Replace
 	case ReplacementResolutionKind::CILow32Any:
 		return try_compat(resolution.resolved_selector_checksum64);
 
-	case ReplacementResolutionKind::GenericUnknown:
 	case ReplacementResolutionKind::None:
 		return false;
 	}
@@ -5138,7 +5137,6 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 					case ReplacementResolutionKind::CILow32ReplacementDimsUnique:
 					case ReplacementResolutionKind::CILow32Unique:
 					case ReplacementResolutionKind::CILow32Any:
-					case ReplacementResolutionKind::GenericUnknown:
 					case ReplacementResolutionKind::None:
 						break;
 					}

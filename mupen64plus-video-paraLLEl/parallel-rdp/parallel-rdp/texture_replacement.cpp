@@ -510,8 +510,6 @@ void ReplacementProvider::add_entry(Entry &&entry)
 	const size_t index = entries_.size();
 	entries_.push_back(std::move(entry));
 	const Entry &stored = entries_.back();
-	checksum_index_[stored.checksum64].push_back(index);
-	checksum_low32_index_[uint32_t(stored.checksum64 & 0xffffffffu)].push_back(index);
 	if (stored.has_native_sampled_identity)
 		native_checksum_index_[stored.checksum64].push_back(index);
 	else
@@ -566,10 +564,8 @@ void ReplacementProvider::clear()
 {
 	cache_dir_.clear();
 	entries_.clear();
-	checksum_index_.clear();
 	native_checksum_index_.clear();
 	compat_checksum_index_.clear();
-	checksum_low32_index_.clear();
 	compat_checksum_low32_index_.clear();
 	sampled_index_.clear();
 	sampled_duplicate_index_.clear();
@@ -684,9 +680,11 @@ bool ReplacementProvider::load_cache_dir(const std::string &path, CacheSourcePol
 	return !entries_.empty();
 }
 
-const ReplacementProvider::Entry *ReplacementProvider::find_entry(uint64_t checksum64, uint16_t formatsize) const
+const ReplacementProvider::Entry *ReplacementProvider::find_any_entry(uint64_t checksum64, uint16_t formatsize, uint64_t selector_checksum64) const
 {
-	return find_entry(checksum64, formatsize, 0);
+	if (const auto *native = find_native_entry(checksum64, formatsize, selector_checksum64))
+		return native;
+	return find_compat_entry(checksum64, formatsize, selector_checksum64);
 }
 
 const ReplacementProvider::Entry *ReplacementProvider::find_indexed_entry(const std::unordered_map<uint64_t, std::vector<size_t>> &index_map,
@@ -726,17 +724,6 @@ const ReplacementProvider::Entry *ReplacementProvider::find_indexed_entry(const 
 		return &entries_[indices.back()];
 
 	return nullptr;
-}
-
-const ReplacementProvider::Entry *ReplacementProvider::find_entry(uint64_t checksum64, uint16_t formatsize, uint64_t selector_checksum64) const
-{
-	const Entry *entry = find_indexed_entry(checksum_index_, checksum64, formatsize, selector_checksum64);
-	if (entry && !entry->has_native_sampled_identity && entry->is_runtime_family_compat)
-	{
-		if (const auto *native_entry = find_native_entry(checksum64, formatsize, selector_checksum64))
-			return native_entry;
-	}
-	return entry;
 }
 
 const ReplacementProvider::Entry *ReplacementProvider::find_native_entry(uint64_t checksum64, uint16_t formatsize, uint64_t selector_checksum64) const
@@ -973,7 +960,7 @@ bool ReplacementProvider::lookup_with_selector(uint64_t checksum64, uint16_t for
 	if (!enabled_ || !out)
 		return false;
 
-	const Entry *entry = find_entry(checksum64, formatsize, selector_checksum64);
+	const Entry *entry = find_any_entry(checksum64, formatsize, selector_checksum64);
 	if (!entry)
 		return false;
 
@@ -993,7 +980,7 @@ bool ReplacementProvider::lookup_with_selector_and_identity(uint64_t checksum64,
 	if (!enabled_ || !out)
 		return false;
 
-	const Entry *entry = find_entry(checksum64, formatsize, selector_checksum64);
+	const Entry *entry = find_any_entry(checksum64, formatsize, selector_checksum64);
 	if (!entry)
 		return false;
 
@@ -1006,27 +993,6 @@ bool ReplacementProvider::lookup_with_selector_and_identity(uint64_t checksum64,
 	if (resolved_selector_checksum64)
 		*resolved_selector_checksum64 = entry->selector_checksum64;
 	return true;
-}
-
-bool ReplacementProvider::resolve_with_selector(uint64_t checksum64,
-                                                uint16_t formatsize,
-                                                uint64_t selector_checksum64,
-                                                ReplacementResolution *out) const
-{
-	if (!enabled_ || !out)
-		return false;
-
-	const Entry *entry = find_entry(checksum64, formatsize, selector_checksum64);
-	if (!entry)
-		return false;
-
-	ReplacementResolutionKind kind = ReplacementResolutionKind::GenericUnknown;
-	if (entry->has_native_sampled_identity)
-		kind = ReplacementResolutionKind::GenericNativeIdentity;
-	else
-		kind = ReplacementResolutionKind::GenericCompat;
-
-	return populate_resolution_from_entry(entry, kind, false, out);
 }
 
 bool ReplacementProvider::resolve_upload_candidate(uint64_t checksum64,
@@ -1085,7 +1051,10 @@ bool ReplacementProvider::resolve_upload_candidate(uint64_t checksum64,
 			false,
 			out);
 
-	return resolve_with_selector(checksum64, formatsize, selector_checksum64, out);
+	const Entry *compat_entry = find_compat_entry(checksum64, formatsize, selector_checksum64);
+	if (!compat_entry)
+		return false;
+	return populate_resolution_from_entry(compat_entry, ReplacementResolutionKind::GenericCompat, false, out);
 }
 
 bool ReplacementProvider::resolve_sampled_candidate(uint32_t sampled_fmt,
@@ -2009,7 +1978,7 @@ bool ReplacementProvider::decode_rgba8_with_selector(uint64_t checksum64, uint16
 	if (!enabled_ || !out)
 		return false;
 
-	const Entry *entry = find_entry(checksum64, formatsize, selector_checksum64);
+	const Entry *entry = find_any_entry(checksum64, formatsize, selector_checksum64);
 	if (!entry)
 		return false;
 

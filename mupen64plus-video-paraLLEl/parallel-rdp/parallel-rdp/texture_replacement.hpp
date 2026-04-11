@@ -155,7 +155,6 @@ enum class ReplacementResolutionKind
 	CILow32ReplacementDimsUnique,
 	CILow32Unique,
 	CILow32Any,
-	GenericUnknown,
 };
 
 struct ReplacementResolution
@@ -196,10 +195,6 @@ public:
 	                                       ResolvedEntrySourceClass *resolved_source_class = nullptr,
 	                                       uint64_t *resolved_checksum64 = nullptr,
 	                                       uint64_t *resolved_selector_checksum64 = nullptr) const;
-	bool resolve_with_selector(uint64_t checksum64,
-	                           uint16_t formatsize,
-	                           uint64_t selector_checksum64,
-	                           ReplacementResolution *out) const;
 	bool resolve_upload_candidate(uint64_t checksum64,
 	                              uint16_t formatsize,
 	                              uint32_t sampled_fmt,
@@ -437,8 +432,7 @@ private:
 		size_t operator()(const SampledFamilyLookupKey &key) const;
 	};
 
-	const Entry *find_entry(uint64_t checksum64, uint16_t formatsize) const;
-	const Entry *find_entry(uint64_t checksum64, uint16_t formatsize, uint64_t selector_checksum64) const;
+	const Entry *find_any_entry(uint64_t checksum64, uint16_t formatsize, uint64_t selector_checksum64) const;
 	const Entry *find_native_entry(uint64_t checksum64, uint16_t formatsize, uint64_t selector_checksum64) const;
 	const Entry *find_compat_entry(uint64_t checksum64, uint16_t formatsize, uint64_t selector_checksum64) const;
 	const Entry *find_indexed_entry(const std::unordered_map<uint64_t, std::vector<size_t>> &index_map,
@@ -523,10 +517,8 @@ private:
 	bool enabled_ = false;
 	std::string cache_dir_;
 	std::vector<Entry> entries_;
-	std::unordered_map<uint64_t, std::vector<size_t>> checksum_index_;
 	std::unordered_map<uint64_t, std::vector<size_t>> native_checksum_index_;
 	std::unordered_map<uint64_t, std::vector<size_t>> compat_checksum_index_;
-	std::unordered_map<uint32_t, std::vector<size_t>> checksum_low32_index_;
 	std::unordered_map<uint32_t, std::vector<size_t>> compat_checksum_low32_index_;
 	std::unordered_map<SampledLookupKey, size_t, SampledLookupKeyHash> sampled_index_;
 	std::unordered_map<SampledLookupKey, uint32_t, SampledLookupKeyHash> sampled_duplicate_index_;

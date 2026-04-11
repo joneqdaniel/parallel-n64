@@ -54,7 +54,6 @@
 - Some checksum-shaped runtime seams still remain (compat fallback, native-checksum fallback).
 - The dead generic checksum-only descriptor path has been removed.
 - Converter ambiguity and overlay residue are reduced, but not eliminated.
-- Cross-game breadth is still missing.
 
 ## Current Implementation State
 
@@ -71,13 +70,19 @@
   - tracked review-only reduction lane
 - `hts2phrb` is canonical-package-first, operationally gated, and reproducible for the local Paper Mario legacy packs.
 - CI palette parity and simple `LoadBlock` retry are classified and no longer count as open architecture drivers.
+- Cross-game runtime is validated end-to-end:
+  - SM64 Reloaded: 2530 entries, 6599 compat draw-time hits in 30s boot, automated conformance test
+  - OoT Reloaded: 43322 entries from 8.9GB PHRB, 46751 compat draw-time hits in 45s boot, CI palette CRC working (49% CI hit rate = pack coverage), automated conformance test
+- PHRB streaming load eliminates monolithic blob duplication (OoT peak RAM: ~28GB → ~50MB).
+- O(n+m) asset iteration replaces O(n*m) nested loop for PHRB parsing.
+- GPU budget/eviction wired with LRU + descriptor recycling (`PARALLEL_RDP_HIRES_GPU_BUDGET_MB`).
+- GlideN64-compat CI palette CRC validated empirically on OoT; classifies as bounded compatibility helper.
 
 ### Still Open
 
 - Preserve ordered-surface runtime identity cleanly instead of synthetic selector hashes.
 - Reduce converter canonical-only ambiguity and overlay residue further.
-- CI palette CRC parity for GlideN64-compat path (deferred — needed for CI-heavy games like SM64/OoT).
-- Budget-capped lazy loading for large packs (OoT 43K entries / 8.9GB crashes iGPU due to eager blob + per-entry duplication; `trim_to_budget()` stub exists but is unwired).
+- Replace remaining checksum-shaped fallback seams with structured identity where evidence supports it.
 
 ### Where Live State Lives
 
@@ -92,8 +97,11 @@ The following work is intentionally deferred and must stay explicit until promot
 - `1b8530fb` pool-preserving runtime semantics
 - Promotion of `7701ac09` review-only dedupe and alias shaping into the canonical selected-package build
 - Repo-wide auto-conversion from legacy packs to cached `PHRB`
-- CI palette CRC parity for GlideN64-compat draw-time fallback (needed for CI4/CI8 textures in SM64/OoT)
-- Budget-capped lazy loading / streaming for large PHRB packs (OoT 43K entries exceeds iGPU memory with current eager load)
+
+### Completed and Classified (no longer deferred)
+
+- ~~CI palette CRC parity for GlideN64-compat draw-time fallback~~ — **Done.** Validated on OoT (11455 CI hits / 23368 CI attempts). Classifies as **bounded compatibility helper** (Phase B2). Gated behind source mode `all` / compat CRC env var. Does not affect Paper Mario packs (source mode `phrb-only`).
+- ~~Budget-capped lazy loading / streaming for large PHRB packs~~ — **Done.** Streaming metadata-only PHRB parse + GPU LRU eviction with descriptor recycling. OoT 43K entries loads in seconds on integrated GPU.
 
 ## Core Decision
 
@@ -120,7 +128,7 @@ The project should not spend the next cycle on:
 4. Reduce canonical-only ambiguity and overlay residue through bounded review-only policy instead of new runtime heuristics.
 5. Keep the zero-config compat-only lane and the tracked review-only reduction lane explicit and non-default while those reductions remain unpromoted.
 6. Return to deferred pool and source-backed seams only after the runtime/converter gap is narrower.
-7. Start second-game validation only after the Paper Mario breadth and runtime-contract gates are materially cleaner.
+7. ~~Start second-game validation only after the Paper Mario breadth and runtime-contract gates are materially cleaner.~~ Done: SM64 and OoT boot conformance tests pass.
 
 ## Immediate Priorities
 
@@ -147,6 +155,8 @@ The project should not spend the next cycle on:
 - [x] Add `--context-dir` automatic enrichment discovery to `hts2phrb`.
 - [ ] Strengthen `hts2phrb` further: improve deferred family diagnostics.
 - [x] Add at least one non-Paper-Mario zero-config converter proof (SM64 Reloaded: 2530/2530 promotable, OoT Reloaded: 43266/43267 partial).
+- [x] Validate cross-game runtime end-to-end with automated boot conformance tests (SM64: 6599 compat hits; OoT: 46751 compat hits including CI palette CRC).
+- [x] Implement streaming PHRB load and GPU budget/eviction for large cross-game packs.
 - [x] Add representative-pack converter operational gates for timing, cache behavior, and output sizing.
 - [ ] Keep first-load `.hts` to cached `.phrb` auto-conversion disabled until default-path promotion, then add direct tests for it.
 
@@ -257,10 +267,11 @@ This slice is intentionally smaller than a full runtime-key rewrite. Its job is 
 - If a partial fix helps, record the improvement, classify the remaining seam, and move on.
 - Do not let per-family debugging silently become default-path architecture work.
 
-### Investigation 1: CI Palette Parity
+### Investigation 1: CI Palette Parity — COMPLETE
 
 - Compare ParaLLEl CI palette inputs against legacy lookup expectations for the same runtime event.
 - Keep any improvement as explicit compatibility or import guidance unless it cleanly becomes native identity.
+- **Outcome:** GlideN64-compat CI palette CRC (`checksum64 = (palette_crc << 32) | texture_crc`) validated empirically on OoT Reloaded. 11,455 CI hits out of 23,368 CI attempts (49% hit rate). Misses are pack coverage gaps, not CRC parameter mismatches. Classifies as **bounded compatibility helper** — gated behind source mode `all` and compat CRC env var, does not affect native Paper Mario path.
 
 ### Investigation 2: `LoadBlock` Sampled-Shape Retry
 
@@ -296,8 +307,8 @@ After validation on the active Paper Mario fixtures, classify CI palette parity 
 
 ### Current Classification Outcomes
 
-- CI palette parity currently classifies as bounded compatibility or import guidance, not native identity.
-- Simple `LoadBlock` sampled-shape retry currently classifies as a dead end for the default runtime path.
+- **CI palette parity: bounded compatibility helper.** Validated on OoT with empirical CI hit data. Stays gated behind GlideN64-compat CRC mode. Does not affect native Paper Mario path or promote into canonical runtime identity.
+- **Simple `LoadBlock` sampled-shape retry: dead end** for the default runtime path.
 
 ### Exit Criteria
 
@@ -326,6 +337,12 @@ After validation on the active Paper Mario fixtures, classify CI palette parity 
 - Architectural changes are evaluated against runtime classes, not screenshot equality alone.
 - Semantic hi-res evidence is a real gate.
 - The native runtime contract has at least one non-Paper-Mario hi-res validation target before generality claims.
+
+### Current Phase C Status
+
+- Two non-Paper-Mario validation targets now exist: `emu.conformance.sm64_hires_boot` and `emu.conformance.oot_hires_boot`.
+- These are boot-level proofs (provider on, entries loaded, compat hits > 0, CI hits > 0 for OoT) — not strict fixture-level authority like the Paper Mario tests.
+- The second-game gate requirement ("at least one non-Paper-Mario hi-res validation target") is met at the boot-conformance level.
 
 ## Parallelism Rules
 
@@ -412,6 +429,7 @@ Do not declare the native runtime seam ready until all of the following are true
 - Keep removing remaining checksum-shaped runtime seams without reopening deferred pool or source-backed work.
 - Keep reducing converter ambiguity and overlay residue through the tracked review-only lane without silently promoting those reductions.
 - Keep the zero-config compat-only lane explicit and green as fallback.
+- Keep SM64 and OoT boot conformance tests green as cross-game regression gates.
 - Keep every skipped item in the deferred register above until it is completed or explicitly rejected by a gate decision.
 
 ## Outcome

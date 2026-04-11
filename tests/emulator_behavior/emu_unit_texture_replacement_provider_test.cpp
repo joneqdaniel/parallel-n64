@@ -529,6 +529,9 @@ int main()
 	          &ci_low32_any_resolution),
 	      "typed compat low32 resolution should ignore native sampled records");
 
+	// Capture checksum64 before add_entry() — the pointer into entries_ may be
+	// invalidated by vector reallocation.
+	const uint64_t sparse_checksum64 = structured_sparse_entry->checksum64;
 	ReplacementProvider::Entry compat_alias = entry;
 	compat_alias.source_path = dir + "/compat.hts";
 	compat_alias.phrb_policy_key.clear();
@@ -538,18 +541,19 @@ int main()
 	compat_alias.sampled_sparse_pcrc = 0;
 	compat_alias.has_native_sampled_identity = false;
 	compat_alias.inline_blob = true;
+	compat_alias.blob.resize(compat_alias.data_size);
 	compat_alias.blob[0] = 0xfe;
 	provider.add_entry(std::move(compat_alias));
 
 	ReplacementMeta compat_meta = {};
 	check(provider.lookup_with_selector(
-	          structured_sparse_entry->checksum64,
+	          sparse_checksum64,
 	          record.formatsize,
 	          asset.selector_checksum64,
 	          &compat_meta),
 	      "checksum lookup should still find later compat aliases");
 	check(provider.find_entry(
-	          structured_sparse_entry->checksum64,
+	          sparse_checksum64,
 	          record.formatsize,
 	          asset.selector_checksum64)->source_path == dir + "/compat.hts",
 	      "checksum lookup should prefer the latest compat alias");
@@ -590,7 +594,7 @@ int main()
 
 	ReplacementImage compat_image = {};
 	check(provider.decode_rgba8_with_selector(
-	          structured_sparse_entry->checksum64,
+	          sparse_checksum64,
 	          record.formatsize,
 	          asset.selector_checksum64,
 	          &compat_image),

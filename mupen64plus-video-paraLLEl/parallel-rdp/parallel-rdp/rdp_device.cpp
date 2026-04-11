@@ -272,6 +272,12 @@ CommandProcessor::CommandProcessor(Vulkan::Device &device_, void *rdram_ptr,
 
 	if (const char *env = getenv("PARALLEL_RDP_HIRES_GLIDEN64_COMPAT_CRC"))
 		renderer.set_hires_gliden64_compat_crc(strtol(env, nullptr, 0) > 0);
+	if (const char *env = getenv("PARALLEL_RDP_HIRES_GPU_BUDGET_MB"))
+	{
+		long mb = strtol(env, nullptr, 0);
+		if (mb > 0)
+			renderer.set_hires_gpu_budget_bytes(size_t(mb) * 1024u * 1024u);
+	}
 
 	const bool allow_tile = parse_optional_bool_env(getenv("PARALLEL_RDP_HIRES_FILTER_ALLOW_TILE"), true);
 	const bool allow_block = parse_optional_bool_env(getenv("PARALLEL_RDP_HIRES_FILTER_ALLOW_BLOCK"), true);

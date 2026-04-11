@@ -121,7 +121,7 @@ scenario_extract_hires_log_evidence() {
   local bundle_dir="$1"
   local output_path="$2"
 
-  python - "$bundle_dir" "$output_path" <<'PY'
+  python3 - "$bundle_dir" "$output_path" <<'PY'
 import json
 import re
 import sys
@@ -274,6 +274,8 @@ summary_re = re.compile(
     r"(?: filtered=(\d+))?"
     r"(?: block_probe_hits=(\d+))?"
     r"(?: compat_draw_hits=(\d+))?"
+    r"(?: compat_draw_ci_hits=(\d+))?"
+    r"(?: compat_draw_ci_attempts=(\d+))?"
     r" provider=(on|off)"
     r"(?: entries=(\d+) native_sampled=(\d+) compat=(\d+) sampled_index=(\d+)"
     r"(?: sampled_dupe_keys=(\d+) sampled_dupe_entries=(\d+))?"
@@ -845,49 +847,51 @@ for line in log_path.read_text(errors="replace").splitlines():
             "filtered": int(m.group(4) or 0),
             "block_probe_hits": int(m.group(5) or 0),
             "compat_draw_hits": int(m.group(6) or 0),
-            "provider": m.group(7),
+            "compat_draw_ci_hits": int(m.group(7) or 0),
+            "compat_draw_ci_attempts": int(m.group(8) or 0),
+            "provider": m.group(9),
         }
-        if m.group(8) is not None:
+        if m.group(10) is not None:
             source_counts = {
-                "phrb": int(m.group(16)),
-                "hts": int(m.group(17)),
-                "htc": int(m.group(18)),
+                "phrb": int(m.group(18)),
+                "hts": int(m.group(19)),
+                "htc": int(m.group(20)),
             }
-            summary["entry_count"] = int(m.group(8))
-            summary["native_sampled_entry_count"] = int(m.group(9))
-            summary["compat_entry_count"] = int(m.group(10))
-            summary["sampled_index_count"] = int(m.group(11))
-            summary["sampled_duplicate_key_count"] = int(m.group(12) or 0)
-            summary["sampled_duplicate_entry_count"] = int(m.group(13) or 0)
-            summary["sampled_family_count"] = int(m.group(14))
-            summary["compat_low32_family_count"] = int(m.group(15))
+            summary["entry_count"] = int(m.group(10))
+            summary["native_sampled_entry_count"] = int(m.group(11))
+            summary["compat_entry_count"] = int(m.group(12))
+            summary["sampled_index_count"] = int(m.group(13))
+            summary["sampled_duplicate_key_count"] = int(m.group(14) or 0)
+            summary["sampled_duplicate_entry_count"] = int(m.group(15) or 0)
+            summary["sampled_family_count"] = int(m.group(16))
+            summary["compat_low32_family_count"] = int(m.group(17))
             summary["source_counts"] = source_counts
-            if m.group(19) is not None:
+            if m.group(21) is not None:
                 summary["descriptor_path_counts"] = {
-                    "sampled": int(m.group(19)),
-                    "native_checksum": int(m.group(20)),
-                    "generic": int(m.group(21)),
-                    "compat": int(m.group(22)),
+                    "sampled": int(m.group(21)),
+                    "native_checksum": int(m.group(22)),
+                    "generic": int(m.group(23)),
+                    "compat": int(m.group(24)),
                 }
-            if m.group(23) is not None:
+            if m.group(25) is not None:
                 sampled_detail = {
-                    "sampled_family_singleton": int(m.group(23)),
-                    "sampled_ordered_surface_singleton": int(m.group(24)),
+                    "sampled_family_singleton": int(m.group(25)),
+                    "sampled_ordered_surface_singleton": int(m.group(26)),
                 }
-                if m.group(25) is not None:
-                    sampled_detail["sampled_exact_selector"] = int(m.group(25))
+                if m.group(27) is not None:
+                    sampled_detail["sampled_exact_selector"] = int(m.group(27))
                 summary["descriptor_path_detail_counts"] = sampled_detail
-            if m.group(26) is not None:
+            if m.group(28) is not None:
                 detail_counts = summary.get("descriptor_path_detail_counts") or {}
                 detail_counts.update({
-                    "generic_identity_assisted": int(m.group(26)),
-                    "generic_plain": int(m.group(27)),
+                    "generic_identity_assisted": int(m.group(28)),
+                    "generic_plain": int(m.group(29)),
                 })
-                if m.group(28) is not None:
+                if m.group(30) is not None:
                     detail_counts.update({
-                        "generic_native_plain": int(m.group(28)),
-                        "generic_compat_plain": int(m.group(29)),
-                        "generic_unknown_plain": int(m.group(30)),
+                        "generic_native_plain": int(m.group(30)),
+                        "generic_compat_plain": int(m.group(31)),
+                        "generic_unknown_plain": int(m.group(32)),
                     })
                 summary["descriptor_path_detail_counts"] = detail_counts
             if source_counts["phrb"] > 0 and source_counts["hts"] == 0 and source_counts["htc"] == 0:
@@ -1627,7 +1631,7 @@ scenario_verify_paper_mario_fixture() {
   local expected_init_symbol="$5"
   local expected_step_symbol="$6"
 
-  python - "$bundle_dir" "$output_path" "$fixture_id" "$expected_screenshot_sha256" "$expected_init_symbol" "$expected_step_symbol" <<'PY'
+  python3 - "$bundle_dir" "$output_path" "$fixture_id" "$expected_screenshot_sha256" "$expected_init_symbol" "$expected_step_symbol" <<'PY'
 import json
 import hashlib
 import os
@@ -2039,7 +2043,7 @@ scenario_decode_paper_mario_semantic_state() {
   local bundle_dir="$1"
   local output_path="$2"
 
-  python - "$bundle_dir" "$output_path" <<'PY'
+  python3 - "$bundle_dir" "$output_path" <<'PY'
 import json
 import hashlib
 import sys

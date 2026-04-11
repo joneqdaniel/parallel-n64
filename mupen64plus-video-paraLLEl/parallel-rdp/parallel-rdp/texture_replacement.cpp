@@ -2159,17 +2159,25 @@ bool ReplacementProvider::load_phrb(const std::string &path)
 		return false;
 	file.seekg(0, std::ios::beg);
 
-	std::vector<uint8_t> blob;
-	blob.resize(static_cast<size_t>(size));
-	if (!read_exact(file, blob))
-		return false;
-
+	// Read only the metadata portion (header + records + assets + string table).
+	// Blob data is left on disk and loaded on demand via read_blob() with inline_blob=false.
 	PHRBHeader header = {};
-	if (!read_pod_from_blob(blob, 0, header))
-		return false;
+	{
+		std::vector<uint8_t> header_buf(sizeof(PHRBHeader));
+		if (!read_exact(file, header_buf))
+			return false;
+		memcpy(&header, header_buf.data(), sizeof(PHRBHeader));
+	}
 	if (!phrb_magic_ok(header.magic) || (header.version != 2 && header.version != 3 && header.version != 4 && header.version != 5 && header.version != 6 && header.version != 7))
 		return false;
-	if (header.string_table_offset > header.blob_offset || header.blob_offset > blob.size())
+	if (header.string_table_offset > header.blob_offset || header.blob_offset > static_cast<size_t>(size))
+		return false;
+
+	// Read the metadata region: from after the header through end of string table (up to blob_offset).
+	const size_t metadata_size = static_cast<size_t>(header.blob_offset);
+	std::vector<uint8_t> blob(metadata_size);
+	file.seekg(0, std::ios::beg);
+	if (!read_exact(file, blob))
 		return false;
 
 	const bool version3 = header.version >= 3;
@@ -2184,14 +2192,14 @@ bool ReplacementProvider::load_phrb(const std::string &path)
 	}();
 	const uint8_t *string_blob = blob.data() + header.string_table_offset;
 	const size_t string_blob_size = size_t(header.blob_offset - header.string_table_offset);
-	const uint8_t *rgba_blob_base = blob.data() + header.blob_offset;
-	const size_t rgba_blob_size = size_t(blob.size() - header.blob_offset);
+	const size_t rgba_blob_size = size_t(static_cast<size_t>(size) - header.blob_offset);
 	uint32_t loaded_count = 0;
 
 	if (phrb_debug)
 		LOGI("Hi-res PHRB load: path=%s version=%u record_count=%u asset_count=%u string_table_bytes=%zu blob_bytes=%zu.\n",
 		     path.c_str(), header.version, header.record_count, header.asset_count, string_blob_size, rgba_blob_size);
 
+	uint32_t asset_base = 0;
 	for (uint32_t record_index = 0; record_index < header.record_count; record_index++)
 	{
 		PHRBRecordV2 record = {};
@@ -2236,6 +2244,7 @@ bool ReplacementProvider::load_phrb(const std::string &path)
 			if (phrb_debug)
 				LOGI("Hi-res PHRB record skipped: policy=%s runtime_ready=0 asset_candidates=%u.\n",
 				     policy_key.c_str(), record.asset_candidate_count);
+			asset_base += record.asset_candidate_count;
 			continue;
 		}
 
@@ -2256,12 +2265,12 @@ bool ReplacementProvider::load_phrb(const std::string &path)
 		                            uint64_t rgba_offset,
 		                            uint32_t rgba_size) {
 			Entry entry = {};
-			entry.source_path = path + "#" + policy_key;
+			entry.source_path = path;
 			entry.phrb_policy_key = policy_key;
 			entry.phrb_replacement_id = replacement_id;
 			entry.phrb_sampled_object_id = sampled_object_id;
 			entry.checksum64 = (uint64_t(palette_crc) << 32u) | uint64_t(record.sampled_low32);
-			entry.data_offset = 0;
+			entry.data_offset = uint64_t(header.blob_offset) + rgba_offset;
 			entry.data_size = rgba_size;
 			entry.width = width;
 			entry.height = height;
@@ -2282,9 +2291,7 @@ bool ReplacementProvider::load_phrb(const std::string &path)
 			entry.sampled_sparse_pcrc = record.sampled_sparse_pcrc;
 			entry.has_native_sampled_identity = true;
 			entry.is_hires = true;
-			entry.inline_blob = true;
-			entry.blob.assign(rgba_blob_base + rgba_offset,
-			                 rgba_blob_base + rgba_offset + rgba_size);
+			entry.inline_blob = false;
 			add_entry(std::move(entry));
 			loaded_count++;
 		};
@@ -2302,12 +2309,12 @@ bool ReplacementProvider::load_phrb(const std::string &path)
 			if (legacy_checksum64 == 0)
 				return;
 			Entry entry = {};
-			entry.source_path = path + "#" + policy_key;
+			entry.source_path = path;
 			entry.phrb_policy_key = policy_key;
 			entry.phrb_replacement_id = replacement_id;
 			entry.phrb_sampled_object_id = sampled_object_id;
 			entry.checksum64 = legacy_checksum64;
-			entry.data_offset = 0;
+			entry.data_offset = uint64_t(header.blob_offset) + rgba_offset;
 			entry.data_size = rgba_size;
 			entry.width = width;
 			entry.height = height;
@@ -2323,9 +2330,7 @@ bool ReplacementProvider::load_phrb(const std::string &path)
 			entry.has_native_sampled_identity = false;
 			entry.is_runtime_family_compat = true;
 			entry.is_hires = true;
-			entry.inline_blob = true;
-			entry.blob.assign(rgba_blob_base + rgba_offset,
-			                 rgba_blob_base + rgba_offset + rgba_size);
+			entry.inline_blob = false;
 			add_entry(std::move(entry));
 			loaded_count++;
 		};
@@ -2337,9 +2342,9 @@ bool ReplacementProvider::load_phrb(const std::string &path)
 			record.width == 0 &&
 			record.height == 0;
 
-		for (uint32_t asset_index = 0; asset_index < header.asset_count; asset_index++)
+		for (uint32_t ai = 0; ai < record.asset_candidate_count && (asset_base + ai) < header.asset_count; ai++)
 		{
-			uint32_t asset_record_index = 0;
+			const uint32_t asset_index = asset_base + ai;
 			uint32_t width = 0;
 			uint32_t height = 0;
 			uint32_t format = GL_RGBA8;
@@ -2358,7 +2363,6 @@ bool ReplacementProvider::load_phrb(const std::string &path)
 				asset_offset = size_t(header.asset_table_offset) + size_t(asset_index) * sizeof(PHRBAssetV7);
 				if (!read_pod_from_blob(blob, asset_offset, asset))
 					return false;
-				asset_record_index = asset.record_index;
 				width = asset.width;
 				height = asset.height;
 				format = asset.format;
@@ -2377,7 +2381,6 @@ bool ReplacementProvider::load_phrb(const std::string &path)
 				asset_offset = size_t(header.asset_table_offset) + size_t(asset_index) * sizeof(PHRBAssetV6);
 				if (!read_pod_from_blob(blob, asset_offset, asset))
 					return false;
-				asset_record_index = asset.record_index;
 				width = asset.width;
 				height = asset.height;
 				texture_format = asset.texture_format;
@@ -2395,7 +2398,6 @@ bool ReplacementProvider::load_phrb(const std::string &path)
 				asset_offset = size_t(header.asset_table_offset) + size_t(asset_index) * sizeof(PHRBAssetV5);
 				if (!read_pod_from_blob(blob, asset_offset, asset))
 					return false;
-				asset_record_index = asset.record_index;
 				width = asset.width;
 				height = asset.height;
 				texture_format = asset.texture_format;
@@ -2413,7 +2415,6 @@ bool ReplacementProvider::load_phrb(const std::string &path)
 				asset_offset = size_t(header.asset_table_offset) + size_t(asset_index) * sizeof(PHRBAssetV3);
 				if (!read_pod_from_blob(blob, asset_offset, asset))
 					return false;
-				asset_record_index = asset.record_index;
 				width = asset.width;
 				height = asset.height;
 				texture_format = asset.texture_format;
@@ -2430,7 +2431,6 @@ bool ReplacementProvider::load_phrb(const std::string &path)
 				asset_offset = size_t(header.asset_table_offset) + size_t(asset_index) * sizeof(PHRBAssetV2);
 				if (!read_pod_from_blob(blob, asset_offset, asset))
 					return false;
-				asset_record_index = asset.record_index;
 				width = asset.width;
 				height = asset.height;
 				texture_format = asset.texture_format;
@@ -2441,8 +2441,6 @@ bool ReplacementProvider::load_phrb(const std::string &path)
 				read_c_string_from_blob(string_blob, string_blob_size, asset.replacement_id_offset, replacement_id);
 			}
 
-			if (asset_record_index != record_index)
-				continue;
 			if (rgba_offset > rgba_blob_size || rgba_size > (rgba_blob_size - rgba_offset))
 				continue;
 			if (width == 0 || height == 0 || rgba_size == 0 || rgba_size > uint64_t(UINT32_MAX))
@@ -2536,6 +2534,7 @@ bool ReplacementProvider::load_phrb(const std::string &path)
 					rgba_offset,
 					rgba_size_u32);
 		}
+		asset_base += record.asset_candidate_count;
 
 		if (phrb_debug)
 		{

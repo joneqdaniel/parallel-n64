@@ -25,6 +25,7 @@
 #include "rdp_hires_ci_palette_policy.hpp"
 #include "rdp_hires_key_state_policy.hpp"
 #include "rdp_hires_lookup_policy.hpp"
+#include "rdp_hires_registry_policy.hpp"
 #include "rdp_hires_runtime_policy.hpp"
 #include "rdp_hires_state_policy.hpp"
 #include "texture_replacement.hpp"
@@ -1088,6 +1089,8 @@ void Renderer::set_replacement_provider(const ReplacementProvider *provider)
 	hires_descriptor_generic_unknown_plain_resolutions = 0;
 	hires_descriptor_compat_resolutions = 0;
 	hires_compat_draw_time_hits = 0;
+	hires_compat_draw_time_ci_attempts = 0;
+	hires_compat_draw_time_ci_hits = 0;
 	hires_block_shape_probe_logged_hits.clear();
 	hires_block_shape_probe_logged_contexts.clear();
 	hires_ci_palette_probe_logged_hits.clear();
@@ -1164,6 +1167,7 @@ void Renderer::begin_frame_context()
 {
 	hires_ordered_surface_sequence_cursor.clear();
 	hires_sampled_pool_stream_states.clear();
+	hires_resources.frame_tick++;
 }
 
 void Renderer::set_hires_ci_compatibility_mode(HiresCICompatibilityMode mode)
@@ -1198,6 +1202,11 @@ void Renderer::set_hires_gliden64_compat_crc(bool enable)
 		LOGI("Hi-res GlideN64-compat RDRAM CRC fallback enabled.\n");
 }
 
+void Renderer::set_hires_gpu_budget_bytes(size_t bytes)
+{
+	hires_resources.gpu_budget_bytes = bytes;
+}
+
 void Renderer::log_hires_summary() const
 {
 	if (!replacement_provider && !hires_debug)
@@ -1206,13 +1215,15 @@ void Renderer::log_hires_summary() const
 	if (replacement_provider)
 	{
 		ReplacementProviderStats provider_stats = replacement_provider->get_stats();
-		LOGI("Hi-res keying summary: lookups=%llu hits=%llu misses=%llu filtered=%llu block_probe_hits=%llu compat_draw_hits=%llu provider=on entries=%u native_sampled=%u compat=%u sampled_index=%u sampled_dupe_keys=%u sampled_dupe_entries=%u sampled_families=%u compat_low32_families=%u sources(phrb=%u hts=%u htc=%u) descriptor_paths(sampled=%llu native_checksum=%llu generic=%llu compat=%llu) sampled_detail(family_singleton=%llu ordered_surface_singleton=%llu exact_selector=%llu) generic_detail(identity_assisted=%llu plain=%llu native=%llu compat=%llu unknown=%llu).\n",
+		LOGI("Hi-res keying summary: lookups=%llu hits=%llu misses=%llu filtered=%llu block_probe_hits=%llu compat_draw_hits=%llu compat_draw_ci_hits=%llu compat_draw_ci_attempts=%llu provider=on entries=%u native_sampled=%u compat=%u sampled_index=%u sampled_dupe_keys=%u sampled_dupe_entries=%u sampled_families=%u compat_low32_families=%u sources(phrb=%u hts=%u htc=%u) descriptor_paths(sampled=%llu native_checksum=%llu generic=%llu compat=%llu) sampled_detail(family_singleton=%llu ordered_surface_singleton=%llu exact_selector=%llu) generic_detail(identity_assisted=%llu plain=%llu native=%llu compat=%llu unknown=%llu).\n",
 		     static_cast<unsigned long long>(hires_lookup_total),
 		     static_cast<unsigned long long>(hires_lookup_hits),
 		     static_cast<unsigned long long>(hires_lookup_misses),
 		     static_cast<unsigned long long>(hires_lookup_filtered),
 		     static_cast<unsigned long long>(hires_lookup_block_shape_probe_hits),
 		     static_cast<unsigned long long>(hires_compat_draw_time_hits),
+		     static_cast<unsigned long long>(hires_compat_draw_time_ci_attempts),
+		     static_cast<unsigned long long>(hires_compat_draw_time_ci_hits),
 		     provider_stats.entry_count,
 		     provider_stats.native_sampled_entry_count,
 		     provider_stats.compat_entry_count,
@@ -2039,6 +2050,10 @@ void Renderer::draw_shaded_primitive(const TriangleSetup &setup, const Attribute
 			base_meta, base_size,
 			tlut_shadow, tlut_shadow_valid);
 
+		const bool is_ci_compat_texture = (compat_checksum64 >> 32) != 0;
+		if (is_ci_compat_texture)
+			hires_compat_draw_time_ci_attempts++;
+
 		if (compat_checksum64 != 0)
 		{
 			const uint16_t compat_formatsize = formatsize_key(base_meta.fmt, base_meta.size);
@@ -2075,6 +2090,8 @@ void Renderer::draw_shaded_primitive(const TriangleSetup &setup, const Attribute
 					repl_state.vk_image_index = compat_repl_meta.vk_image_index;
 					apply_hires_tile_binding(base_tile, repl_state);
 					hires_compat_draw_time_hits++;
+					if (is_ci_compat_texture)
+						hires_compat_draw_time_ci_hits++;
 
 					if (hires_debug)
 					{
@@ -4017,6 +4034,51 @@ bool Renderer::init_hires_resources(unsigned requested_capacity)
 	return true;
 }
 
+uint32_t Renderer::allocate_hires_descriptor(size_t incoming_bytes)
+{
+	auto decision = detail::decide_hires_registry_budget(
+		hires_resources.gpu_resident_bytes, incoming_bytes,
+		hires_resources.gpu_budget_bytes,
+		true, !hires_resources.resident_images.empty());
+
+	if (decision == detail::HiresRegistryBudgetDecision::EvictOldestThenAdmit)
+	{
+		// Find the LRU resident image to evict.
+		auto best = hires_resources.resident_images.end();
+		for (auto it = hires_resources.resident_images.begin(); it != hires_resources.resident_images.end(); ++it)
+		{
+			if (best == hires_resources.resident_images.end() ||
+			    it->second.last_used_tick < best->second.last_used_tick)
+				best = it;
+		}
+		if (best != hires_resources.resident_images.end())
+		{
+			hires_resources.recycled_descriptors.push_back(best->second.descriptor_index);
+			hires_resources.gpu_resident_bytes -= best->second.resident_bytes;
+			hires_resources.resident_images.erase(best);
+		}
+	}
+	else if (decision == detail::HiresRegistryBudgetDecision::RejectOverBudget)
+		return 0xffffffffu;
+
+	// Reuse a recycled descriptor or allocate a new one.
+	uint32_t index;
+	if (!hires_resources.recycled_descriptors.empty())
+	{
+		index = hires_resources.recycled_descriptors.back();
+		hires_resources.recycled_descriptors.pop_back();
+	}
+	else
+	{
+		if (hires_resources.next_descriptor >= hires_resources.capacity)
+			return 0xffffffffu;
+		index = hires_resources.next_descriptor++;
+	}
+
+	hires_resources.gpu_resident_bytes += incoming_bytes;
+	return index;
+}
+
 bool Renderer::resolve_hires_compat_replacement_descriptor(uint64_t checksum64, uint16_t formatsize, ReplacementMeta &meta)
 {
 	return resolve_hires_compat_replacement_descriptor(checksum64, formatsize, 0, meta);
@@ -4056,6 +4118,7 @@ bool Renderer::resolve_hires_sampled_replacement_descriptor(uint32_t sampled_fmt
 	auto itr = hires_resources.resident_images.find(key);
 	if (itr != hires_resources.resident_images.end())
 	{
+		itr->second.last_used_tick = hires_resources.frame_tick;
 		hires_descriptor_sampled_resolutions++;
 		meta.vk_image_index = itr->second.descriptor_index;
 		meta.repl_w = itr->second.repl_w;
@@ -4063,7 +4126,7 @@ bool Renderer::resolve_hires_sampled_replacement_descriptor(uint32_t sampled_fmt
 		return true;
 	}
 
-	if (!hires_resources.bindless_pool || hires_resources.next_descriptor >= hires_resources.capacity)
+	if (!hires_resources.bindless_pool)
 		return false;
 
 	ReplacementImage replacement = {};
@@ -4083,6 +4146,11 @@ bool Renderer::resolve_hires_sampled_replacement_descriptor(uint32_t sampled_fmt
 	if (replacement.rgba8.empty() || replacement.meta.repl_w == 0 || replacement.meta.repl_h == 0)
 		return false;
 
+	const size_t texture_bytes = size_t(replacement.meta.repl_w) * size_t(replacement.meta.repl_h) * 4u;
+	const uint32_t descriptor_index = allocate_hires_descriptor(texture_bytes);
+	if (descriptor_index == 0xffffffffu)
+		return false;
+
 	zero_transparent_replacement_rgb(replacement.rgba8);
 
 	Vulkan::ImageInitialData initial = {};
@@ -4100,7 +4168,6 @@ bool Renderer::resolve_hires_sampled_replacement_descriptor(uint32_t sampled_fmt
 	if (!image)
 		return false;
 
-	const uint32_t descriptor_index = hires_resources.next_descriptor++;
 	hires_resources.bindless_pool->set_texture(descriptor_index, image->get_view());
 
 	HiresResidentImage resident = {};
@@ -4108,6 +4175,8 @@ bool Renderer::resolve_hires_sampled_replacement_descriptor(uint32_t sampled_fmt
 	resident.descriptor_index = descriptor_index;
 	resident.repl_w = static_cast<uint16_t>(replacement.meta.repl_w);
 	resident.repl_h = static_cast<uint16_t>(replacement.meta.repl_h);
+	resident.last_used_tick = hires_resources.frame_tick;
+	resident.resident_bytes = texture_bytes;
 	hires_resources.resident_images.emplace(key, std::move(resident));
 
 	hires_descriptor_sampled_resolutions++;
@@ -4148,6 +4217,7 @@ bool Renderer::resolve_hires_native_checksum_replacement_descriptor(uint64_t che
 	auto itr = hires_resources.resident_images.find(key);
 	if (itr != hires_resources.resident_images.end())
 	{
+		itr->second.last_used_tick = hires_resources.frame_tick;
 		record_native_checksum_detail();
 		meta.vk_image_index = itr->second.descriptor_index;
 		meta.repl_w = itr->second.repl_w;
@@ -4155,13 +4225,18 @@ bool Renderer::resolve_hires_native_checksum_replacement_descriptor(uint64_t che
 		return true;
 	}
 
-	if (!hires_resources.bindless_pool || hires_resources.next_descriptor >= hires_resources.capacity)
+	if (!hires_resources.bindless_pool)
 		return false;
 
 	ReplacementImage replacement = {};
 	if (!replacement_provider->decode_rgba8_native_with_selector(checksum64, formatsize, selector_checksum64, &replacement))
 		return false;
 	if (replacement.rgba8.empty() || replacement.meta.repl_w == 0 || replacement.meta.repl_h == 0)
+		return false;
+
+	const size_t texture_bytes = size_t(replacement.meta.repl_w) * size_t(replacement.meta.repl_h) * 4u;
+	const uint32_t descriptor_index = allocate_hires_descriptor(texture_bytes);
+	if (descriptor_index == 0xffffffffu)
 		return false;
 
 	zero_transparent_replacement_rgb(replacement.rgba8);
@@ -4181,7 +4256,6 @@ bool Renderer::resolve_hires_native_checksum_replacement_descriptor(uint64_t che
 	if (!image)
 		return false;
 
-	const uint32_t descriptor_index = hires_resources.next_descriptor++;
 	hires_resources.bindless_pool->set_texture(descriptor_index, image->get_view());
 
 	HiresResidentImage resident = {};
@@ -4189,6 +4263,8 @@ bool Renderer::resolve_hires_native_checksum_replacement_descriptor(uint64_t che
 	resident.descriptor_index = descriptor_index;
 	resident.repl_w = static_cast<uint16_t>(replacement.meta.repl_w);
 	resident.repl_h = static_cast<uint16_t>(replacement.meta.repl_h);
+	resident.last_used_tick = hires_resources.frame_tick;
+	resident.resident_bytes = texture_bytes;
 	hires_resources.resident_images.emplace(key, std::move(resident));
 
 	record_native_checksum_detail();
@@ -4329,6 +4405,7 @@ bool Renderer::resolve_hires_compat_replacement_descriptor(uint64_t checksum64, 
 	auto itr = hires_resources.resident_images.find(key);
 	if (itr != hires_resources.resident_images.end())
 	{
+		itr->second.last_used_tick = hires_resources.frame_tick;
 		hires_descriptor_compat_resolutions++;
 		meta.vk_image_index = itr->second.descriptor_index;
 		meta.repl_w = itr->second.repl_w;
@@ -4336,13 +4413,18 @@ bool Renderer::resolve_hires_compat_replacement_descriptor(uint64_t checksum64, 
 		return true;
 	}
 
-	if (!hires_resources.bindless_pool || hires_resources.next_descriptor >= hires_resources.capacity)
+	if (!hires_resources.bindless_pool)
 		return false;
 
 	ReplacementImage replacement = {};
 	if (!replacement_provider->decode_rgba8_compat_with_selector(checksum64, formatsize, selector_checksum64, &replacement))
 		return false;
 	if (replacement.rgba8.empty() || replacement.meta.repl_w == 0 || replacement.meta.repl_h == 0)
+		return false;
+
+	const size_t texture_bytes = size_t(replacement.meta.repl_w) * size_t(replacement.meta.repl_h) * 4u;
+	const uint32_t descriptor_index = allocate_hires_descriptor(texture_bytes);
+	if (descriptor_index == 0xffffffffu)
 		return false;
 
 	zero_transparent_replacement_rgb(replacement.rgba8);
@@ -4362,7 +4444,6 @@ bool Renderer::resolve_hires_compat_replacement_descriptor(uint64_t checksum64, 
 	if (!image)
 		return false;
 
-	const uint32_t descriptor_index = hires_resources.next_descriptor++;
 	hires_resources.bindless_pool->set_texture(descriptor_index, image->get_view());
 
 	HiresResidentImage resident = {};
@@ -4370,6 +4451,8 @@ bool Renderer::resolve_hires_compat_replacement_descriptor(uint64_t checksum64, 
 	resident.descriptor_index = descriptor_index;
 	resident.repl_w = static_cast<uint16_t>(replacement.meta.repl_w);
 	resident.repl_h = static_cast<uint16_t>(replacement.meta.repl_h);
+	resident.last_used_tick = hires_resources.frame_tick;
+	resident.resident_bytes = texture_bytes;
 	hires_resources.resident_images.emplace(key, std::move(resident));
 
 	hires_descriptor_compat_resolutions++;

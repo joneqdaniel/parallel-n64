@@ -155,6 +155,7 @@ public:
 	void set_hires_debug_ci_selectors(std::vector<CILow32DimsSelector> selectors);
 	void set_hires_debug_ci_low32_fallback(HiresDebugCILow32FallbackMode mode);
 	void set_hires_gliden64_compat_crc(bool enable);
+	void set_hires_gpu_budget_bytes(size_t bytes);
 	void log_hires_summary() const;
 
 	void set_blend_color(uint32_t color);
@@ -246,6 +247,7 @@ private:
 		NativeChecksum,
 		Compat,
 	};
+	uint32_t allocate_hires_descriptor(size_t incoming_bytes);
 	bool resolve_hires_compat_replacement_descriptor(uint64_t checksum64, uint16_t formatsize, ReplacementMeta &meta);
 	bool resolve_hires_compat_replacement_descriptor(uint64_t checksum64, uint16_t formatsize, uint64_t selector_checksum64, ReplacementMeta &meta);
 	bool resolve_hires_native_checksum_replacement_descriptor(uint64_t checksum64, uint16_t formatsize, uint64_t selector_checksum64, ReplacementMeta &meta, HiresNativeChecksumDetailClass detail_class = HiresNativeChecksumDetailClass::Exact);
@@ -349,6 +351,8 @@ private:
 	uint64_t hires_descriptor_generic_unknown_plain_resolutions = 0;
 	uint64_t hires_descriptor_compat_resolutions = 0;
 	uint64_t hires_compat_draw_time_hits = 0;
+	uint64_t hires_compat_draw_time_ci_attempts = 0;
+	uint64_t hires_compat_draw_time_ci_hits = 0;
 	std::unordered_set<std::string> hires_block_shape_probe_logged_hits;
 	std::unordered_set<std::string> hires_block_shape_probe_logged_contexts;
 	std::unordered_set<std::string> hires_ci_palette_probe_logged_hits;
@@ -597,6 +601,8 @@ private:
 		uint32_t descriptor_index = 0xffffffffu;
 		uint16_t repl_w = 0;
 		uint16_t repl_h = 0;
+		uint64_t last_used_tick = 0;
+		size_t resident_bytes = 0;
 	};
 
 	struct HiresResources
@@ -606,6 +612,10 @@ private:
 		std::unordered_map<HiresKey, HiresResidentImage, HiresKeyHasher> resident_images;
 		unsigned capacity = 0;
 		unsigned next_descriptor = 1;
+		std::vector<uint32_t> recycled_descriptors;
+		size_t gpu_resident_bytes = 0;
+		size_t gpu_budget_bytes = 0;
+		uint64_t frame_tick = 0;
 	} hires_resources;
 
 	void resolve_coherency_host_to_gpu(Vulkan::CommandBuffer &cmd);

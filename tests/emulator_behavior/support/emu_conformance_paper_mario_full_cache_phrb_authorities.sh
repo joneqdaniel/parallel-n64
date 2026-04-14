@@ -147,31 +147,51 @@ enforce_enriched_contract = bool(int(sys.argv[2]))
 enforce_zero_config_contract = bool(int(sys.argv[3]))
 fixtures = summary.get("fixtures") or []
 expected_screenshot_hashes = {
-    "title-screen": "0e854083b48ccf48e0a372e39ca439c17f0e66523423fb2c3b68b94181c72ad5",
-    "file-select": "43bd91dab1dfa4001365caee5ba03bc4ae1999fd012f5e943093615b4c858ca9",
-    "kmr-03-entry-5": "212ffb9329b8d78e608874e524534ca54505a26204abe78524ef8fca97a1b638",
+    "title-screen": "5da2429afbddfb37b15c5dcb598fa0cc4c3213fd7cddf6cfa5822047db99cb26",
+    "file-select": "b5649593babbd9d6e677cb750cf7fa62b4fbe3254e9108460b9e49fb2cb53f26",
+    "kmr-03-entry-5": "272bddd5e099b63d878521d33e4dcf0742d7a474117bbe81bc2d65fb1e8695ac",
+}
+enriched_expected = {
+    "title-screen": {
+        "native_sampled_entry_count": 503,
+        "entry_class": "mixed-native-and-compat",
+        "descriptor_path_class": "mixed-sampled-compat",
+        "descriptor_path_counts": {"sampled": 268, "native_checksum": 0, "generic": 0, "compat": 12},
+    },
+    "file-select": {
+        "native_sampled_entry_count": 503,
+        "entry_class": "mixed-native-and-compat",
+        "descriptor_path_class": "mixed-sampled-compat",
+        "descriptor_path_counts": {"sampled": 214, "native_checksum": 0, "generic": 0, "compat": 6},
+    },
+    "kmr-03-entry-5": {
+        "native_sampled_entry_count": 503,
+        "entry_class": "mixed-native-and-compat",
+        "descriptor_path_class": "mixed-sampled-compat",
+        "descriptor_path_counts": {"sampled": 182, "native_checksum": 0, "generic": 0, "compat": 74},
+    },
 }
 zero_config_expected = {
     "title-screen": {
-        "screenshot_sha256": "ba91ffce0cc7b6053568c0a7774bf0ae80825c95d95fce89ba4a9f79c62b9d16",
+        "screenshot_sha256": "1f3316eb7f9b239f64b85d04c7536052361571e329eda213128586464a07ec88",
         "native_sampled_entry_count": 0,
         "entry_class": "compat-only",
         "descriptor_path_class": "compat-only",
-        "descriptor_path_counts": {"sampled": 0, "native_checksum": 0, "generic": 0, "compat": 178},
+        "descriptor_path_counts": {"sampled": 0, "native_checksum": 0, "generic": 0, "compat": 190},
     },
     "file-select": {
-        "screenshot_sha256": "8a90f7874bd797a186ff85d488033dc332b2a75f5bec91ad33ca8246e6be7730",
+        "screenshot_sha256": "0e255168c2b3fb1310762aa746a43c8609e78b8fc97f374a794573b0b5a779cc",
         "native_sampled_entry_count": 0,
         "entry_class": "compat-only",
         "descriptor_path_class": "compat-only",
-        "descriptor_path_counts": {"sampled": 0, "native_checksum": 0, "generic": 0, "compat": 82},
+        "descriptor_path_counts": {"sampled": 0, "native_checksum": 0, "generic": 0, "compat": 92},
     },
     "kmr-03-entry-5": {
-        "screenshot_sha256": "3a175a30d8154df34cd17d21eb8d6997ef12d6846bddf2b6c7f9c2074e0a215e",
+        "screenshot_sha256": "778609c20795e00f50e801c46ed40e9aa33037b188524b854ae55c58c05bd1b2",
         "native_sampled_entry_count": 0,
         "entry_class": "compat-only",
         "descriptor_path_class": "compat-only",
-        "descriptor_path_counts": {"sampled": 0, "native_checksum": 0, "generic": 0, "compat": 112},
+        "descriptor_path_counts": {"sampled": 0, "native_checksum": 0, "generic": 0, "compat": 186},
     },
 }
 if not summary.get("all_passed"):
@@ -193,30 +213,35 @@ for fixture in fixtures:
         raise SystemExit(f"FAIL: fixture {fixture.get('label')} has no phrb-backed hi-res entries.")
     descriptor_paths = hires.get("descriptor_path_counts") or {}
     if enforce_enriched_contract:
+        enriched = enriched_expected.get(fixture.get("label"))
+        if enriched is None:
+            raise SystemExit(f"FAIL: unexpected fixture label for enriched contract: {fixture.get('label')!r}.")
         expected_hash = expected_screenshot_hashes.get(fixture.get("label"))
         if expected_hash and fixture.get("screenshot_sha256") != expected_hash:
             raise SystemExit(
                 f"FAIL: fixture {fixture.get('label')} expected screenshot hash {expected_hash}, "
                 f"got {fixture.get('screenshot_sha256')!r}."
             )
-        if int(hires.get("native_sampled_entry_count") or 0) < 1:
+        if int(hires.get("native_sampled_entry_count") or 0) != enriched["native_sampled_entry_count"]:
             raise SystemExit(
-                f"FAIL: fixture {fixture.get('label')} expected native sampled entries on the enriched full-cache lane."
+                f"FAIL: fixture {fixture.get('label')} expected native_sampled_entry_count="
+                f"{enriched['native_sampled_entry_count']} on the enriched full-cache lane, "
+                f"got {hires.get('native_sampled_entry_count')!r}."
             )
-        if hires.get("descriptor_path_class") != "sampled-only":
+        if hires.get("entry_class") != enriched["entry_class"]:
             raise SystemExit(
-                f"FAIL: fixture {fixture.get('label')} expected descriptor_path_class=sampled-only on the enriched full-cache lane, "
+                f"FAIL: fixture {fixture.get('label')} expected entry_class={enriched['entry_class']!r} on the enriched full-cache lane, "
+                f"got {hires.get('entry_class')!r}."
+            )
+        if hires.get("descriptor_path_class") != enriched["descriptor_path_class"]:
+            raise SystemExit(
+                f"FAIL: fixture {fixture.get('label')} expected descriptor_path_class={enriched['descriptor_path_class']!r} on the enriched full-cache lane, "
                 f"got {hires.get('descriptor_path_class')!r}."
             )
-        if int(descriptor_paths.get("generic") or 0) != 0:
+        if descriptor_paths != enriched["descriptor_path_counts"]:
             raise SystemExit(
-                f"FAIL: fixture {fixture.get('label')} expected generic descriptor traffic to be zero on the enriched full-cache lane, "
-                f"got {descriptor_paths.get('generic')!r}."
-            )
-        if int(descriptor_paths.get("compat") or 0) != 0:
-            raise SystemExit(
-                f"FAIL: fixture {fixture.get('label')} expected compat descriptor traffic to be zero on the enriched full-cache lane, "
-                f"got {descriptor_paths.get('compat')!r}."
+                f"FAIL: fixture {fixture.get('label')} expected descriptor_path_counts="
+                f"{enriched['descriptor_path_counts']!r} on the enriched full-cache lane, got {descriptor_paths!r}."
             )
     if enforce_zero_config_contract:
         zero_expected = zero_config_expected.get(fixture.get("label"))

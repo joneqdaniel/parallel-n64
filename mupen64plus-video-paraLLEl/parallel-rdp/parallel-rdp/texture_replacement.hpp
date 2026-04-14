@@ -84,8 +84,6 @@ struct ReplacementProviderStats
 	uint32_t sampled_family_count = 0;
 	uint32_t compat_low32_family_count = 0;
 	uint32_t source_phrb_entry_count = 0;
-	uint32_t source_hts_entry_count = 0;
-	uint32_t source_htc_entry_count = 0;
 };
 
 struct SampledDuplicateDiagnostics
@@ -173,18 +171,9 @@ struct ReplacementResolution
 class ReplacementProvider
 {
 public:
-	enum class CacheSourcePolicy
-	{
-		Auto,
-		All,
-		PHRBOnly,
-		LegacyOnly,
-	};
-
 	bool enabled() const;
 	void set_enabled(bool enable);
 	bool load_cache_dir(const std::string &path);
-	bool load_cache_dir(const std::string &path, CacheSourcePolicy policy);
 	bool has_compat_entries() const;
 	bool has_phrb_compat_entries() const;
 	bool lookup(uint64_t checksum64, uint16_t formatsize, ReplacementMeta *out) const;
@@ -480,8 +469,6 @@ private:
 	                                 uint32_t repl_h,
 	                                 CILow32ResolutionMode mode,
 	                                 bool *matched_preferred_palette = nullptr) const;
-	bool load_hts(const std::string &path);
-	bool load_htc(const std::string &path);
 	bool load_phrb(const std::string &path);
 	bool read_blob(const Entry &entry, std::vector<uint8_t> &blob) const;
 	bool decode_entry_rgba8(const Entry &entry, ReplacementImage *out) const;

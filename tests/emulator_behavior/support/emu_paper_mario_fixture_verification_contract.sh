@@ -34,7 +34,7 @@ cat > "$PASS_BUNDLE/traces/hires-evidence.json" <<'EOF'
 {
   "summary": {
     "provider": "on",
-    "source_mode": "mixed",
+    "source_mode": "phrb-only",
     "entry_count": 66,
     "native_sampled_entry_count": 65,
     "compat_entry_count": 1,
@@ -42,9 +42,7 @@ cat > "$PASS_BUNDLE/traces/hires-evidence.json" <<'EOF'
     "sampled_family_count": 4,
     "compat_low32_family_count": 1,
     "source_counts": {
-      "phrb": 65,
-      "hts": 1,
-      "htc": 0
+      "phrb": 66
     }
   },
   "provenance": {
@@ -63,7 +61,7 @@ EOF
 PASS_HASH="$(scenario_sha256_file "$PASS_BUNDLE/captures/capture.png")"
 (
   export EXPECTED_HIRES_SUMMARY_PROVIDER_ON="on"
-  export EXPECTED_HIRES_SUMMARY_SOURCE_MODE_ON="mixed"
+  export EXPECTED_HIRES_SUMMARY_SOURCE_MODE_ON="phrb-only"
   export EXPECTED_HIRES_MIN_SUMMARY_ENTRY_COUNT_ON="1"
   export EXPECTED_HIRES_MIN_SUMMARY_NATIVE_SAMPLED_ENTRY_COUNT_ON="1"
   export EXPECTED_HIRES_MIN_SUMMARY_SOURCE_PHRB_COUNT_ON="1"

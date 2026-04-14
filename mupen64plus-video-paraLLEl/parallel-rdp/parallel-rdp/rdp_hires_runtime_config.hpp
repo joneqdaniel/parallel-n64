@@ -12,11 +12,9 @@ struct HiresGlideN64CompatCRCOverride
 	bool enabled = false;
 };
 
-inline bool resolve_hires_gliden64_compat_crc_auto_enabled(bool source_mode_all_enabled,
-                                                           bool has_compat_entries,
-                                                           bool has_phrb_compat_entries)
+inline bool resolve_hires_gliden64_compat_crc_auto_enabled(bool has_phrb_compat_entries)
 {
-	return has_phrb_compat_entries || (source_mode_all_enabled && has_compat_entries);
+	return has_phrb_compat_entries;
 }
 
 inline HiresGlideN64CompatCRCOverride parse_hires_gliden64_compat_crc_override(const char *env)

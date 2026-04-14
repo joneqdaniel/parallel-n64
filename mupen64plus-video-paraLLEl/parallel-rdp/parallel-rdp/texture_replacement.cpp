@@ -14,7 +14,6 @@ namespace RDP
 {
 namespace
 {
-constexpr int32_t TXCACHE_FORMAT_VERSION = 0x08000000;
 constexpr uint32_t GL_TEXFMT_GZ = 0x80000000u;
 
 constexpr uint16_t GL_RGB = 0x1907;
@@ -255,21 +254,6 @@ inline bool read_exact(std::ifstream &file, std::vector<uint8_t> &blob)
 	return file.good();
 }
 
-inline bool gz_read_exact(gzFile fp, void *data, size_t size)
-{
-	auto *bytes = static_cast<uint8_t *>(data);
-	size_t offset = 0;
-	while (offset < size)
-	{
-		const unsigned chunk = static_cast<unsigned>(std::min<size_t>(size - offset, 1u << 20));
-		const int ret = gzread(fp, bytes + offset, chunk);
-		if (ret != int(chunk))
-			return false;
-		offset += chunk;
-	}
-	return true;
-}
-
 inline bool has_suffix(const std::string &name, const char *suffix)
 {
 	const size_t name_len = name.size();
@@ -292,37 +276,9 @@ inline bool has_suffix(const std::string &name, const char *suffix)
 	return true;
 }
 
-inline bool is_legacy_cache_path(const std::string &name)
-{
-	return has_suffix(name, ".hts") || has_suffix(name, ".htc");
-}
-
 inline bool is_phrb_cache_path(const std::string &name)
 {
 	return has_suffix(name, ".phrb");
-}
-
-inline int cache_source_priority(const std::string &path)
-{
-	return is_phrb_cache_path(path) ? 1 : 0;
-}
-
-inline bool cache_source_allowed_by_policy(const std::string &name, ReplacementProvider::CacheSourcePolicy policy)
-{
-	switch (policy)
-	{
-	case ReplacementProvider::CacheSourcePolicy::Auto:
-	case ReplacementProvider::CacheSourcePolicy::All:
-		return is_legacy_cache_path(name) || is_phrb_cache_path(name);
-
-	case ReplacementProvider::CacheSourcePolicy::PHRBOnly:
-		return is_phrb_cache_path(name);
-
-	case ReplacementProvider::CacheSourcePolicy::LegacyOnly:
-		return is_legacy_cache_path(name);
-	}
-
-	return false;
 }
 
 inline uint8_t expand_4_to_8(uint32_t v)
@@ -573,18 +529,10 @@ size_t ReplacementProvider::entry_count() const
 
 bool ReplacementProvider::load_cache_dir(const std::string &path)
 {
-	return load_cache_dir(path, CacheSourcePolicy::Auto);
-}
-
-bool ReplacementProvider::load_cache_dir(const std::string &path, CacheSourcePolicy policy)
-{
 	clear();
 	cache_dir_ = path;
 
 	std::vector<std::string> files;
-	std::vector<std::string> auto_candidates;
-	std::vector<std::string> auto_phrb_files;
-	std::vector<std::string> auto_legacy_files;
 	DIR *dir = opendir(path.c_str());
 	if (dir)
 	{
@@ -596,26 +544,13 @@ bool ReplacementProvider::load_cache_dir(const std::string &path, CacheSourcePol
 			if (ent->d_name[0] == '.')
 				continue;
 			const std::string name = ent->d_name;
-			if (policy == CacheSourcePolicy::Auto)
-			{
-				if (is_legacy_cache_path(name) || is_phrb_cache_path(name))
-					auto_candidates.push_back(path + "/" + name);
-				continue;
-			}
-			if (!cache_source_allowed_by_policy(name, policy))
+			if (!is_phrb_cache_path(name))
 				continue;
 			files.push_back(path + "/" + name);
 		}
 		closedir(dir);
 	}
-	else if (policy == CacheSourcePolicy::Auto)
-	{
-		if (is_legacy_cache_path(path) || is_phrb_cache_path(path))
-			files.push_back(path);
-		else
-			return false;
-	}
-	else if (cache_source_allowed_by_policy(path, policy))
+	else if (is_phrb_cache_path(path))
 	{
 		files.push_back(path);
 	}
@@ -624,51 +559,14 @@ bool ReplacementProvider::load_cache_dir(const std::string &path, CacheSourcePol
 		return false;
 	}
 
-	if (policy == CacheSourcePolicy::Auto && dir)
-	{
-		for (const auto &file : auto_candidates)
-		{
-			if (is_phrb_cache_path(file))
-				auto_phrb_files.push_back(file);
-			else if (is_legacy_cache_path(file))
-				auto_legacy_files.push_back(file);
-		}
-		files = !auto_phrb_files.empty() ? auto_phrb_files : auto_legacy_files;
-	}
-
 	auto sort_files = [](std::vector<std::string> &candidate_files) {
-		std::sort(candidate_files.begin(), candidate_files.end(), [](const std::string &a, const std::string &b) {
-			const int a_priority = cache_source_priority(a);
-			const int b_priority = cache_source_priority(b);
-			if (a_priority != b_priority)
-				return a_priority < b_priority;
-			return a < b;
-		});
+		std::sort(candidate_files.begin(), candidate_files.end());
 	};
 	sort_files(files);
-	sort_files(auto_phrb_files);
-	sort_files(auto_legacy_files);
 
-	auto load_files = [&](const std::vector<std::string> &candidate_files) {
-		for (const auto &file : candidate_files)
-		{
-			if (has_suffix(file, ".hts"))
-				load_hts(file);
-			else if (has_suffix(file, ".htc"))
-				load_htc(file);
-			else if (is_phrb_cache_path(file))
-				load_phrb(file);
-		}
-	};
-
-	load_files(files);
-
-	if (policy == CacheSourcePolicy::Auto && dir && entries_.empty() && !auto_phrb_files.empty() && !auto_legacy_files.empty())
-	{
-		clear();
-		cache_dir_ = path;
-		load_files(auto_legacy_files);
-	}
+	for (const auto &file : files)
+		if (is_phrb_cache_path(file))
+			load_phrb(file);
 
 	return !entries_.empty();
 }
@@ -2072,10 +1970,6 @@ ReplacementProviderStats ReplacementProvider::get_stats() const
 
 		if (entry.source_path.find(".phrb") != std::string::npos)
 			stats.source_phrb_entry_count++;
-		else if (entry.source_path.find(".hts") != std::string::npos)
-			stats.source_hts_entry_count++;
-		else if (entry.source_path.find(".htc") != std::string::npos)
-			stats.source_htc_entry_count++;
 	}
 
 	return stats;
@@ -2556,205 +2450,6 @@ bool ReplacementProvider::load_phrb(const std::string &path)
 	}
 
 	return loaded_count != 0;
-}
-
-bool ReplacementProvider::load_hts(const std::string &path)
-{
-	std::ifstream file(path, std::ifstream::in | std::ifstream::binary);
-	if (!file.good())
-		return false;
-
-	file.seekg(0, std::ifstream::end);
-	const uint64_t file_size = static_cast<uint64_t>(file.tellg());
-	file.seekg(0, std::ifstream::beg);
-	if (!file.good() || file_size < 16)
-		return false;
-
-	int32_t version = 0;
-	if (!read_exact(file, version))
-		return false;
-
-	bool old_version = false;
-	int64_t storage_pos = 0;
-	if (version == TXCACHE_FORMAT_VERSION)
-	{
-		int32_t config = 0;
-		if (!read_exact(file, config) || !read_exact(file, storage_pos))
-			return false;
-	}
-	else
-	{
-		old_version = true;
-		if (!read_exact(file, storage_pos))
-			return false;
-	}
-
-	if (storage_pos <= 0 || uint64_t(storage_pos) >= file_size)
-		return false;
-
-	file.seekg(storage_pos, std::ifstream::beg);
-	if (!file.good())
-		return false;
-
-	int32_t storage_size = 0;
-	if (!read_exact(file, storage_size) || storage_size <= 0)
-		return false;
-
-	struct IndexEntry
-	{
-		uint64_t checksum64 = 0;
-		uint64_t offset = 0;
-		uint16_t formatsize = 0;
-	};
-	std::vector<IndexEntry> index_entries;
-	index_entries.reserve(static_cast<size_t>(storage_size));
-	for (int32_t i = 0; i < storage_size; i++)
-	{
-		uint64_t key = 0;
-		int64_t packed = 0;
-		if (!read_exact(file, key) || !read_exact(file, packed))
-			return false;
-
-		IndexEntry index = {};
-		index.checksum64 = key;
-		index.offset = static_cast<uint64_t>(packed) & 0x0000ffffffffffffull;
-		index.formatsize = static_cast<uint16_t>((static_cast<uint64_t>(packed) >> 48) & 0xffffu);
-		index_entries.push_back(index);
-	}
-
-	for (const auto &index : index_entries)
-	{
-		if (index.offset >= file_size)
-			continue;
-
-		file.seekg(static_cast<std::streamoff>(index.offset), std::ifstream::beg);
-		if (!file.good())
-			continue;
-
-		Entry entry = {};
-		entry.source_path = path;
-		entry.checksum64 = index.checksum64;
-		entry.formatsize = index.formatsize;
-
-		if (!read_exact(file, entry.width) ||
-		    !read_exact(file, entry.height) ||
-		    !read_exact(file, entry.format) ||
-		    !read_exact(file, entry.texture_format) ||
-		    !read_exact(file, entry.pixel_type))
-			continue;
-
-		uint8_t is_hires = 0;
-		if (!read_exact(file, is_hires))
-			continue;
-		entry.is_hires = is_hires != 0;
-
-		uint16_t record_formatsize = 0;
-		if (!old_version && !read_exact(file, record_formatsize))
-			continue;
-		if (entry.formatsize == 0)
-			entry.formatsize = record_formatsize;
-
-		if (!read_exact(file, entry.data_size))
-			continue;
-		if (entry.data_size == 0)
-			continue;
-
-		const uint64_t data_offset = static_cast<uint64_t>(file.tellg());
-		if (data_offset + entry.data_size > file_size)
-			continue;
-
-		entry.data_offset = data_offset;
-		entry.inline_blob = false;
-		add_entry(std::move(entry));
-	}
-
-	return true;
-}
-
-bool ReplacementProvider::load_htc(const std::string &path)
-{
-	gzFile fp = gzopen(path.c_str(), "rb");
-	if (!fp)
-		return false;
-
-	int32_t version = 0;
-	if (!gz_read_exact(fp, &version, sizeof(version)))
-	{
-		gzclose(fp);
-		return false;
-	}
-
-	const bool old_version = version != TXCACHE_FORMAT_VERSION;
-	if (!old_version)
-	{
-		int32_t config = 0;
-		if (!gz_read_exact(fp, &config, sizeof(config)))
-		{
-			gzclose(fp);
-			return false;
-		}
-	}
-
-	for (;;)
-	{
-		Entry entry = {};
-		entry.source_path = path;
-		entry.inline_blob = true;
-
-		const int checksum_read = gzread(fp, &entry.checksum64, sizeof(entry.checksum64));
-		if (checksum_read == 0)
-			break;
-		if (checksum_read != int(sizeof(entry.checksum64)))
-		{
-			gzclose(fp);
-			return false;
-		}
-
-		if (!gz_read_exact(fp, &entry.width, sizeof(entry.width)) ||
-		    !gz_read_exact(fp, &entry.height, sizeof(entry.height)) ||
-		    !gz_read_exact(fp, &entry.format, sizeof(entry.format)) ||
-		    !gz_read_exact(fp, &entry.texture_format, sizeof(entry.texture_format)) ||
-		    !gz_read_exact(fp, &entry.pixel_type, sizeof(entry.pixel_type)))
-		{
-			gzclose(fp);
-			return false;
-		}
-
-		uint8_t is_hires = 0;
-		if (!gz_read_exact(fp, &is_hires, sizeof(is_hires)))
-		{
-			gzclose(fp);
-			return false;
-		}
-		entry.is_hires = is_hires != 0;
-
-		if (!old_version)
-		{
-			if (!gz_read_exact(fp, &entry.formatsize, sizeof(entry.formatsize)))
-			{
-				gzclose(fp);
-				return false;
-			}
-		}
-
-		if (!gz_read_exact(fp, &entry.data_size, sizeof(entry.data_size)) || entry.data_size == 0)
-		{
-			gzclose(fp);
-			return false;
-		}
-
-		entry.blob.resize(entry.data_size);
-		if (!gz_read_exact(fp, entry.blob.data(), entry.blob.size()))
-		{
-			gzclose(fp);
-			return false;
-		}
-
-		add_entry(std::move(entry));
-	}
-
-	gzclose(fp);
-	return true;
 }
 
 void ReplacementProvider::trim_to_budget(size_t bytes)

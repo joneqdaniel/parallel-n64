@@ -133,24 +133,26 @@ summary = json.loads(Path(sys.argv[1]).read_text())
 # Exact expectations: stable regardless of enrichment depth
 exact_fixture = {
     "title-screen": {
-        "screenshot_sha256": "0e854083b48ccf48e0a372e39ca439c17f0e66523423fb2c3b68b94181c72ad5",
-        "descriptor_path_class": "sampled-only",
+        "screenshot_sha256": "5da2429afbddfb37b15c5dcb598fa0cc4c3213fd7cddf6cfa5822047db99cb26",
+        "entry_class": "mixed-native-and-compat",
+        "descriptor_path_class": "mixed-sampled-compat",
+        "descriptor_path_counts": {"sampled": 430, "native_checksum": 0, "generic": 0, "compat": 12},
+        "native_sampled_entry_count": 651,
     },
     "file-select": {
-        "screenshot_sha256": "43bd91dab1dfa4001365caee5ba03bc4ae1999fd012f5e943093615b4c858ca9",
-        "descriptor_path_class": "sampled-only",
+        "screenshot_sha256": "b5649593babbd9d6e677cb750cf7fa62b4fbe3254e9108460b9e49fb2cb53f26",
+        "entry_class": "mixed-native-and-compat",
+        "descriptor_path_class": "mixed-sampled-compat",
+        "descriptor_path_counts": {"sampled": 242, "native_checksum": 0, "generic": 0, "compat": 6},
+        "native_sampled_entry_count": 651,
     },
     "kmr-03-entry-5": {
-        "screenshot_sha256": "212ffb9329b8d78e608874e524534ca54505a26204abe78524ef8fca97a1b638",
-        "descriptor_path_class": "sampled-only",
+        "screenshot_sha256": "272bddd5e099b63d878521d33e4dcf0742d7a474117bbe81bc2d65fb1e8695ac",
+        "entry_class": "mixed-native-and-compat",
+        "descriptor_path_class": "mixed-sampled-compat",
+        "descriptor_path_counts": {"sampled": 264, "native_checksum": 0, "generic": 0, "compat": 74},
+        "native_sampled_entry_count": 651,
     },
-}
-
-# Minimum bounds: grow as more enrichment context accumulates
-min_fixture = {
-    "title-screen":    {"native_sampled_entry_count": 503, "min_sampled": 268},
-    "file-select":     {"native_sampled_entry_count": 503, "min_sampled": 214},
-    "kmr-03-entry-5":  {"native_sampled_entry_count": 503, "min_sampled": 182},
 }
 
 fixtures = summary.get("fixtures") or []
@@ -161,7 +163,6 @@ if len(fixtures) != 3:
 for fixture in fixtures:
     label = fixture.get("label")
     fe = exact_fixture.get(label)
-    fm = min_fixture.get(label)
     if fe is None:
         raise SystemExit(f"FAIL: unexpected fixture label in refresh summary: {label!r}.")
     if not fixture.get("passed"):
@@ -177,10 +178,15 @@ for fixture in fixtures:
             f"FAIL: refresh fixture {label} expected source_mode=phrb-only, got {hires.get('source_mode')!r}."
         )
     native_sampled = int(hires.get("native_sampled_entry_count") or 0)
-    if native_sampled < fm["native_sampled_entry_count"]:
+    if native_sampled != fe["native_sampled_entry_count"]:
         raise SystemExit(
-            f"FAIL: refresh fixture {label} expected native_sampled_entry_count>="
-            f"{fm['native_sampled_entry_count']}, got {native_sampled}."
+            f"FAIL: refresh fixture {label} expected native_sampled_entry_count="
+            f"{fe['native_sampled_entry_count']}, got {native_sampled}."
+        )
+    if hires.get("entry_class") != fe["entry_class"]:
+        raise SystemExit(
+            f"FAIL: refresh fixture {label} expected entry_class="
+            f"{fe['entry_class']!r}, got {hires.get('entry_class')!r}."
         )
     if hires.get("descriptor_path_class") != fe["descriptor_path_class"]:
         raise SystemExit(
@@ -188,17 +194,11 @@ for fixture in fixtures:
             f"{fe['descriptor_path_class']!r}, got {hires.get('descriptor_path_class')!r}."
         )
     descriptor_paths = hires.get("descriptor_path_counts") or {}
-    sampled_count = int(descriptor_paths.get("sampled") or 0)
-    if sampled_count < fm["min_sampled"]:
+    if descriptor_paths != fe["descriptor_path_counts"]:
         raise SystemExit(
-            f"FAIL: refresh fixture {label} expected sampled>={fm['min_sampled']}, got {sampled_count}."
+            f"FAIL: refresh fixture {label} expected descriptor_path_counts="
+            f"{fe['descriptor_path_counts']!r}, got {descriptor_paths!r}."
         )
-    for zero_key in ("native_checksum", "generic", "compat"):
-        if int(descriptor_paths.get(zero_key) or 0) != 0:
-            raise SystemExit(
-                f"FAIL: refresh fixture {label} expected {zero_key}=0, "
-                f"got {descriptor_paths.get(zero_key)!r}."
-            )
 PY
 
 echo "emu_conformance_paper_mario_full_cache_phrb_authorities_refresh: PASS ($PACKAGE_PATH)"

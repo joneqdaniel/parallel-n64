@@ -45,21 +45,15 @@ static void test_compat_crc_resolution_prefers_explicit_override()
 	check(resolve_hires_gliden64_compat_crc_enabled({true, true}, false),
 	      "explicit env=1 should beat a missing auto-enable default");
 	check(!resolve_hires_gliden64_compat_crc_enabled({}, false),
-	      "pure native or legacy-only loads should stay compat-disabled by default");
+	      "pure native loads should stay compat-disabled by default");
 }
 
 static void test_compat_crc_auto_enable_matrix()
 {
-	check(!resolve_hires_gliden64_compat_crc_auto_enabled(false, false, false),
+	check(!resolve_hires_gliden64_compat_crc_auto_enabled(false),
 	      "pure native loads should not auto-enable compat CRC");
-	check(resolve_hires_gliden64_compat_crc_auto_enabled(false, true, true),
+	check(resolve_hires_gliden64_compat_crc_auto_enabled(true),
 	      "compat-bearing PHRB loads should auto-enable compat CRC");
-	check(!resolve_hires_gliden64_compat_crc_auto_enabled(false, true, false),
-	      "legacy compat entries outside source mode all should not auto-enable compat CRC");
-	check(resolve_hires_gliden64_compat_crc_auto_enabled(true, true, false),
-	      "mixed-source all mode should auto-enable compat CRC when legacy compat entries are active");
-	check(resolve_hires_gliden64_compat_crc_auto_enabled(true, true, true),
-	      "mixed-source all mode should still auto-enable compat CRC for compat-bearing PHRB loads");
 }
 }
 

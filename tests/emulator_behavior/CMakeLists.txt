@@ -31,11 +31,6 @@ add_test(
 )
 
 add_test(
-  NAME emu.support.hires_legacy_evidence_bundle_contract
-  COMMAND bash "${EMU_BEHAVIOR_SUPPORT_DIR}/emu_hires_legacy_evidence_bundle_contract.sh"
-)
-
-add_test(
   NAME emu.support.rdp_hires_zero_line_compat_gate_contract
   COMMAND bash "${EMU_BEHAVIOR_SUPPORT_DIR}/emu_rdp_hires_zero_line_compat_gate_contract.sh"
 )
@@ -53,11 +48,6 @@ add_test(
 add_test(
   NAME emu.support.paper_mario_title_timeout_selected_package_validation_contract
   COMMAND bash "${EMU_BEHAVIOR_SUPPORT_DIR}/emu_paper_mario_title_timeout_selected_package_validation_contract.sh"
-)
-
-add_test(
-  NAME emu.support.paper_mario_title_timeout_legacy_validation_contract
-  COMMAND bash "${EMU_BEHAVIOR_SUPPORT_DIR}/emu_paper_mario_title_timeout_legacy_validation_contract.sh"
 )
 
 add_test(

@@ -109,28 +109,28 @@ from pathlib import Path
 summary = json.loads(Path(sys.argv[1]).read_text())
 expected = {
     "title-screen": {
-        "screenshot_sha256": "ba91ffce0cc7b6053568c0a7774bf0ae80825c95d95fce89ba4a9f79c62b9d16",
+        "screenshot_sha256": "1f3316eb7f9b239f64b85d04c7536052361571e329eda213128586464a07ec88",
         "entry_count": 12427,
         "native_sampled_entry_count": 0,
         "entry_class": "compat-only",
         "descriptor_path_class": "compat-only",
-        "descriptor_path_counts": {"sampled": 0, "native_checksum": 0, "generic": 0, "compat": 178},
+        "descriptor_path_counts": {"sampled": 0, "native_checksum": 0, "generic": 0, "compat": 190},
     },
     "file-select": {
-        "screenshot_sha256": "8a90f7874bd797a186ff85d488033dc332b2a75f5bec91ad33ca8246e6be7730",
+        "screenshot_sha256": "0e255168c2b3fb1310762aa746a43c8609e78b8fc97f374a794573b0b5a779cc",
         "entry_count": 12427,
         "native_sampled_entry_count": 0,
         "entry_class": "compat-only",
         "descriptor_path_class": "compat-only",
-        "descriptor_path_counts": {"sampled": 0, "native_checksum": 0, "generic": 0, "compat": 82},
+        "descriptor_path_counts": {"sampled": 0, "native_checksum": 0, "generic": 0, "compat": 92},
     },
     "kmr-03-entry-5": {
-        "screenshot_sha256": "3a175a30d8154df34cd17d21eb8d6997ef12d6846bddf2b6c7f9c2074e0a215e",
+        "screenshot_sha256": "778609c20795e00f50e801c46ed40e9aa33037b188524b854ae55c58c05bd1b2",
         "entry_count": 12427,
         "native_sampled_entry_count": 0,
         "entry_class": "compat-only",
         "descriptor_path_class": "compat-only",
-        "descriptor_path_counts": {"sampled": 0, "native_checksum": 0, "generic": 0, "compat": 112},
+        "descriptor_path_counts": {"sampled": 0, "native_checksum": 0, "generic": 0, "compat": 186},
     },
 }
 

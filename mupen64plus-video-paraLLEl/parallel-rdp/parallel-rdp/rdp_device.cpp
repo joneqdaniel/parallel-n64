@@ -61,43 +61,6 @@ static bool parse_optional_bool_env(const char *env, bool fallback)
 	return strtol(env, nullptr, 0) > 0;
 }
 
-static ReplacementProvider::CacheSourcePolicy parse_hires_cache_source_policy_env(const char *env)
-{
-	if (!env || !*env)
-		return ReplacementProvider::CacheSourcePolicy::Auto;
-
-	std::string token(env);
-	for (char &c : token)
-	{
-		if (c >= 'A' && c <= 'Z')
-			c = char(c - 'A' + 'a');
-	}
-
-	if (token == "all")
-		return ReplacementProvider::CacheSourcePolicy::All;
-	if (token == "phrb-only" || token == "phrb")
-		return ReplacementProvider::CacheSourcePolicy::PHRBOnly;
-	if (token == "legacy-only" || token == "legacy")
-		return ReplacementProvider::CacheSourcePolicy::LegacyOnly;
-	return ReplacementProvider::CacheSourcePolicy::Auto;
-}
-
-static const char *hires_cache_source_policy_name(ReplacementProvider::CacheSourcePolicy policy)
-{
-	switch (policy)
-	{
-	case ReplacementProvider::CacheSourcePolicy::All:
-		return "all";
-	case ReplacementProvider::CacheSourcePolicy::PHRBOnly:
-		return "phrb-only";
-	case ReplacementProvider::CacheSourcePolicy::LegacyOnly:
-		return "legacy-only";
-	case ReplacementProvider::CacheSourcePolicy::Auto:
-	default:
-		return "auto";
-	}
-}
-
 static std::unordered_set<std::string> parse_hires_filter_signatures_env(const char *env)
 {
 	std::unordered_set<std::string> signatures;
@@ -973,32 +936,24 @@ void CommandProcessor::configure_hires_replacement(bool enable, const char *cach
 		return;
 	}
 
-	const auto cache_source_policy =
-		parse_hires_cache_source_policy_env(getenv("PARALLEL_RDP_HIRES_RUNTIME_SOURCE_MODE"));
-	const bool load_ok = replacement_provider.load_cache_dir(cache_path, cache_source_policy);
+	const bool load_ok = replacement_provider.load_cache_dir(cache_path);
 	outcome = detail::classify_hires_configure_outcome(enable, cache_path, load_ok);
 	if (outcome == detail::HiresConfigureOutcome::LoadFailed)
 	{
-		LOGW("Hi-res replacement cache load failed for path: %s (source mode %s)\n",
-		     cache_path, hires_cache_source_policy_name(cache_source_policy));
+		LOGW("Hi-res replacement cache load failed for path: %s\n", cache_path);
 		return;
 	}
 
-	LOGI("Hi-res replacement cache loaded: %zu entries from %s (source mode %s)\n",
-	     replacement_provider.entry_count(), cache_path,
-	     hires_cache_source_policy_name(cache_source_policy));
+	LOGI("Hi-res replacement cache loaded: %zu entries from %s\n",
+	     replacement_provider.entry_count(), cache_path);
 	if (detail::should_attach_hires_provider(outcome))
 		renderer.set_replacement_provider(&replacement_provider);
 
 	const bool compat_crc_auto_enabled = detail::resolve_hires_gliden64_compat_crc_auto_enabled(
-		cache_source_policy == ReplacementProvider::CacheSourcePolicy::All,
-		replacement_provider.has_compat_entries(),
 		replacement_provider.has_phrb_compat_entries());
 
-	// Auto-enable compat CRC for compat-bearing PHRB payloads, and for explicit
-	// mixed-source "all" mode loads that still expose legacy compat entries.
-	// Explicit env overrides still win, and pure native or legacy-only loads
-	// remain compat-disabled by default.
+	// Auto-enable compat CRC only for compat-bearing PHRB payloads.
+	// Explicit env overrides still win, and pure native loads remain compat-disabled by default.
 	renderer.set_hires_gliden64_compat_crc(
 		detail::resolve_hires_gliden64_compat_crc_enabled(hires_gliden64_compat_crc_override,
 		                                                 compat_crc_auto_enabled));

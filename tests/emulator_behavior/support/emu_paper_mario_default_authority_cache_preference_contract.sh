@@ -55,11 +55,11 @@ for scenario in "$TITLE_SCENARIO" "$FILE_SCENARIO" "$KMR_SCENARIO"; do
     "authority scenarios should default to the shared Paper Mario cache resolver"
 done
 
-require_pattern 'EXPECTED_SCREENSHOT_SHA256_ON="0e854083b48ccf48e0a372e39ca439c17f0e66523423fb2c3b68b94181c72ad5"' "$TITLE_ENV" \
+require_pattern 'EXPECTED_SCREENSHOT_SHA256_ON="5da2429afbddfb37b15c5dcb598fa0cc4c3213fd7cddf6cfa5822047db99cb26"' "$TITLE_ENV" \
   "title-screen runtime env should track the enriched full-cache PHRB authority hash"
-require_pattern 'EXPECTED_SCREENSHOT_SHA256_ON="43bd91dab1dfa4001365caee5ba03bc4ae1999fd012f5e943093615b4c858ca9"' "$FILE_ENV" \
+require_pattern 'EXPECTED_SCREENSHOT_SHA256_ON="b5649593babbd9d6e677cb750cf7fa62b4fbe3254e9108460b9e49fb2cb53f26"' "$FILE_ENV" \
   "file-select runtime env should track the enriched full-cache PHRB authority hash"
-require_pattern 'EXPECTED_SCREENSHOT_SHA256_ON="212ffb9329b8d78e608874e524534ca54505a26204abe78524ef8fca97a1b638"' "$KMR_ENV" \
+require_pattern 'EXPECTED_SCREENSHOT_SHA256_ON="272bddd5e099b63d878521d33e4dcf0742d7a474117bbe81bc2d65fb1e8695ac"' "$KMR_ENV" \
   "kmr_03 runtime env should track the enriched full-cache PHRB authority hash"
 
 for runtime_env in "$TITLE_ENV" "$FILE_ENV" "$KMR_ENV"; do

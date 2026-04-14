@@ -7,7 +7,6 @@ REPO_ROOT="$(cd -- "$SCRIPT_DIR/../../.." && pwd)"
 CACHE_PATH_DEFAULT="$REPO_ROOT/artifacts/hires-pack-review/20260330-selected-plus-timeout-960-v1-add-1b85/package.phrb"
 LOADER_MANIFEST_DEFAULT="$REPO_ROOT/artifacts/hires-pack-review/20260330-selected-plus-timeout-960-v1-add-1b85/loader-manifest.json"
 TRANSPORT_REVIEW_DEFAULT="$REPO_ROOT/artifacts/hires-pack-review/20260406-timeout-960-sampled-transport-next/review.json"
-ALT_SOURCE_CACHE_DEFAULT="$REPO_ROOT/assets/PAPER MARIO_HIRESTEXTURES.hts"
 TITLE_GUARD_EVIDENCE_DEFAULT="$REPO_ROOT/artifacts/paper-mario-probes/validation/20260406-201200-selected-package-authorities/title-screen/traces/hires-evidence.json"
 FILE_GUARD_EVIDENCE_DEFAULT="$REPO_ROOT/artifacts/paper-mario-probes/validation/20260406-201200-selected-package-authorities/file-select/traces/hires-evidence.json"
 WORLD_GUARD_EVIDENCE_DEFAULT="$REPO_ROOT/artifacts/paper-mario-probes/validation/20260406-201200-selected-package-authorities/kmr-03-entry-5/traces/hires-evidence.json"
@@ -23,7 +22,7 @@ EXPECTED_SAMPLED_DUPLICATE_ENTRIES_DEFAULT="1"
 CACHE_PATH="${EMU_RUNTIME_PM64_SELECTED_PHRB:-$CACHE_PATH_DEFAULT}"
 LOADER_MANIFEST="${EMU_RUNTIME_PM64_SELECTED_LOADER_MANIFEST:-$LOADER_MANIFEST_DEFAULT}"
 TRANSPORT_REVIEW="${EMU_RUNTIME_PM64_SELECTED_TRANSPORT_REVIEW:-$TRANSPORT_REVIEW_DEFAULT}"
-ALT_SOURCE_CACHE="${EMU_RUNTIME_PM64_SELECTED_ALT_SOURCE_CACHE:-$ALT_SOURCE_CACHE_DEFAULT}"
+ALT_SOURCE_CACHE="${EMU_RUNTIME_PM64_SELECTED_ALT_SOURCE_CACHE:-}"
 TITLE_GUARD_EVIDENCE="${EMU_RUNTIME_PM64_SELECTED_TIMEOUT_TITLE_GUARD_EVIDENCE:-$TITLE_GUARD_EVIDENCE_DEFAULT}"
 FILE_GUARD_EVIDENCE="${EMU_RUNTIME_PM64_SELECTED_TIMEOUT_FILE_GUARD_EVIDENCE:-$FILE_GUARD_EVIDENCE_DEFAULT}"
 WORLD_GUARD_EVIDENCE="${EMU_RUNTIME_PM64_SELECTED_TIMEOUT_WORLD_GUARD_EVIDENCE:-$WORLD_GUARD_EVIDENCE_DEFAULT}"
@@ -62,7 +61,7 @@ if [[ ! -f "$TRANSPORT_REVIEW" ]]; then
   echo "SKIP: selected-package transport review not found at $TRANSPORT_REVIEW."
   exit 77
 fi
-if [[ ! -f "$ALT_SOURCE_CACHE" ]]; then
+if [[ -n "$ALT_SOURCE_CACHE" && ! -f "$ALT_SOURCE_CACHE" ]]; then
   echo "SKIP: alternate-source cache not found at $ALT_SOURCE_CACHE."
   exit 77
 fi
@@ -154,14 +153,16 @@ scenario_cmd=(
   --bundle-root "$BUNDLE_ROOT" \
   --steps "960" \
   --loader-manifest "$LOADER_MANIFEST" \
-  --transport-review "$TRANSPORT_REVIEW" \
-  --alternate-source-cache "$ALT_SOURCE_CACHE"
+  --transport-review "$TRANSPORT_REVIEW"
   --package-manifest "$PACKAGE_MANIFEST"
   --pool-regression-flat-summary "$POOL_REGRESSION_FLAT_SUMMARY"
   --pool-regression-dual-summary "$POOL_REGRESSION_DUAL_SUMMARY"
   --pool-regression-ordered-summary "$POOL_REGRESSION_ORDERED_SUMMARY"
   --pool-regression-surface-package "$POOL_REGRESSION_SURFACE_PACKAGE"
 )
+if [[ -n "$ALT_SOURCE_CACHE" ]]; then
+  scenario_cmd+=(--alternate-source-cache "$ALT_SOURCE_CACHE")
+fi
 if [[ -f "$TITLE_GUARD_EVIDENCE" && -f "$FILE_GUARD_EVIDENCE" ]]; then
   scenario_cmd+=(--cross-scene-guard-evidence "title=$TITLE_GUARD_EVIDENCE")
   scenario_cmd+=(--cross-scene-guard-evidence "file=$FILE_GUARD_EVIDENCE")
@@ -203,7 +204,7 @@ if [[ ! -f "$SEAM_REGISTER_PATH" ]]; then
   echo "FAIL: selected-package timeout validation did not produce $SEAM_REGISTER_PATH." >&2
   exit 1
 fi
-if [[ ! -f "$ALT_REVIEW_PATH" ]]; then
+if [[ -n "$ALT_SOURCE_CACHE" && ! -f "$ALT_REVIEW_PATH" ]]; then
   echo "FAIL: selected-package timeout validation did not produce $ALT_REVIEW_PATH." >&2
   exit 1
 fi
@@ -211,7 +212,7 @@ if [[ -f "$TITLE_GUARD_EVIDENCE" && -f "$FILE_GUARD_EVIDENCE" && ! -f "$CROSS_SC
   echo "FAIL: selected-package timeout validation did not produce $CROSS_SCENE_REVIEW_PATH." >&2
   exit 1
 fi
-if [[ -f "$TITLE_GUARD_EVIDENCE" && -f "$FILE_GUARD_EVIDENCE" && ! -f "$ALT_ACTIVATION_REVIEW_PATH" ]]; then
+if [[ -n "$ALT_SOURCE_CACHE" && -f "$TITLE_GUARD_EVIDENCE" && -f "$FILE_GUARD_EVIDENCE" && ! -f "$ALT_ACTIVATION_REVIEW_PATH" ]]; then
   echo "FAIL: selected-package timeout validation did not produce $ALT_ACTIVATION_REVIEW_PATH." >&2
   exit 1
 fi
@@ -224,7 +225,7 @@ if [[ ! -f "$POOL_REGRESSION_REVIEW_PATH" ]]; then
   exit 1
 fi
 
-python3 - "$SUMMARY_PATH" "$REVIEW_PATH" "$POOL_REVIEW_PATH" "$SEAM_REGISTER_PATH" "$ALT_REVIEW_PATH" "$CROSS_SCENE_REVIEW_PATH" "$ALT_ACTIVATION_REVIEW_PATH" "$SAMPLED_DUPLICATE_REVIEW_PATH" "$POOL_REGRESSION_REVIEW_PATH" "$TITLE_GUARD_EVIDENCE" "$FILE_GUARD_EVIDENCE" "$WORLD_GUARD_EVIDENCE" "$EXPECTED_ON_HASH" "$EXPECTED_SAMPLED_DUPLICATE_KEYS" "$EXPECTED_SAMPLED_DUPLICATE_ENTRIES" <<'PY'
+python3 - "$SUMMARY_PATH" "$REVIEW_PATH" "$POOL_REVIEW_PATH" "$SEAM_REGISTER_PATH" "$ALT_REVIEW_PATH" "$CROSS_SCENE_REVIEW_PATH" "$ALT_ACTIVATION_REVIEW_PATH" "$SAMPLED_DUPLICATE_REVIEW_PATH" "$POOL_REGRESSION_REVIEW_PATH" "$TITLE_GUARD_EVIDENCE" "$FILE_GUARD_EVIDENCE" "$WORLD_GUARD_EVIDENCE" "$EXPECTED_ON_HASH" "$EXPECTED_SAMPLED_DUPLICATE_KEYS" "$EXPECTED_SAMPLED_DUPLICATE_ENTRIES" "$ALT_SOURCE_CACHE" <<'PY'
 import json
 import sys
 from pathlib import Path
@@ -233,7 +234,8 @@ summary = json.loads(Path(sys.argv[1]).read_text())
 review = json.loads(Path(sys.argv[2]).read_text())
 pool_review = json.loads(Path(sys.argv[3]).read_text())
 seam_register = json.loads(Path(sys.argv[4]).read_text())
-alternate_source_review = json.loads(Path(sys.argv[5]).read_text())
+alternate_source_review_path = Path(sys.argv[5])
+alternate_source_review = json.loads(alternate_source_review_path.read_text()) if alternate_source_review_path.is_file() else {}
 cross_scene_review_path = Path(sys.argv[6])
 alternate_source_activation_review_path = Path(sys.argv[7])
 sampled_duplicate_review_path = Path(sys.argv[8])
@@ -249,6 +251,7 @@ world_guard_present = Path(sys.argv[12]).is_file()
 expected_on_hash = sys.argv[13]
 expected_sampled_duplicate_keys = int(sys.argv[14])
 expected_sampled_duplicate_entries = int(sys.argv[15])
+alt_source_present = Path(sys.argv[16]).is_file() if sys.argv[16] else False
 cross_scene_review = json.loads(cross_scene_review_path.read_text()) if cross_scene_review_path.is_file() else {}
 
 steps = summary.get("steps") or []
@@ -372,11 +375,19 @@ if pool_review_status == "complete":
         raise SystemExit("FAIL: expected tail dwell to align with unresolved slot.")
 
 summary_counts = seam_register.get("summary") or {}
-if int(summary_counts.get("candidate_free_alt_source_available_count") or 0) < 1:
-    raise SystemExit(
-        "FAIL: expected runtime seam register to include alternate-source-ready candidate-free families, "
-        f"got {summary_counts!r}."
-    )
+candidate_free_alt_source_available_count = int(summary_counts.get("candidate_free_alt_source_available_count") or 0)
+if alt_source_present:
+    if candidate_free_alt_source_available_count < 1:
+        raise SystemExit(
+            "FAIL: expected runtime seam register to include alternate-source-ready candidate-free families, "
+            f"got {summary_counts!r}."
+        )
+else:
+    if candidate_free_alt_source_available_count != 0:
+        raise SystemExit(
+            "FAIL: expected runtime seam register alternate-source-ready family count to remain zero "
+            f"without an explicit alternate-source cache, got {summary_counts!r}."
+        )
 if int(summary_counts.get("candidate_free_review_bounded_probe_count") or 0) != 0:
     raise SystemExit(
         "FAIL: expected runtime seam register candidate_free_review_bounded_probe_count=0 for the "
@@ -398,8 +409,16 @@ for sampled_low32 in ("91887078", "6af0d9ca", "e0d4d0dc"):
     row = candidate_free.get(sampled_low32)
     if row is None:
         raise SystemExit(f"FAIL: expected runtime seam register to include candidate-free family {sampled_low32}.")
-    if int(row.get("alternate_source_candidate_count") or 0) < 1:
-        raise SystemExit(f"FAIL: expected alternate-source candidates for {sampled_low32}, got {row!r}.")
+    alt_candidate_count = int(row.get("alternate_source_candidate_count") or 0)
+    if alt_source_present:
+        if alt_candidate_count < 1:
+            raise SystemExit(f"FAIL: expected alternate-source candidates for {sampled_low32}, got {row!r}.")
+    else:
+        if alt_candidate_count != 0:
+            raise SystemExit(
+                "FAIL: expected no alternate-source candidates without an explicit alternate-source cache, "
+                f"got {row!r}."
+            )
 duplicate_family = next((row for row in seam_register.get("sampled_duplicate_families") or [] if row.get("sampled_low32") == "7701ac09"), None)
 if expected_sampled_duplicate_keys > 0:
     if duplicate_family is None:
@@ -424,18 +443,23 @@ if (pool_regression_review.get("recommendation") or {}).get("pool_follow_up") !=
 if [case.get("label") for case in (pool_regression_review.get("cases") or [])] != ["flat", "dual", "ordered-only"]:
     raise SystemExit(f"FAIL: unexpected pool regression cases {pool_regression_review!r}.")
 
-alt_groups = {str((group.get("signature") or {}).get("sampled_low32") or "").lower(): group for group in alternate_source_review.get("groups") or []}
-expected_alt_counts = {"91887078": 1, "6af0d9ca": 7, "e0d4d0dc": 5}
-for sampled_low32, expected_count in expected_alt_counts.items():
-    group = alt_groups.get(sampled_low32)
-    if group is None:
-        raise SystemExit(f"FAIL: expected alternate-source review to include {sampled_low32}.")
-    seeded = group.get("seeded_transport_pool") or {}
-    if int(seeded.get("candidate_count") or 0) != expected_count:
-        raise SystemExit(
-            f"FAIL: expected alternate-source review candidate_count={expected_count} for {sampled_low32}, "
-            f"got {seeded.get('candidate_count')!r}."
-        )
+if alt_source_present:
+    alt_groups = {str((group.get("signature") or {}).get("sampled_low32") or "").lower(): group for group in alternate_source_review.get("groups") or []}
+    expected_alt_counts = {"91887078": 1, "6af0d9ca": 7, "e0d4d0dc": 5}
+    for sampled_low32, expected_count in expected_alt_counts.items():
+        group = alt_groups.get(sampled_low32)
+        if group is None:
+            raise SystemExit(f"FAIL: expected alternate-source review to include {sampled_low32}.")
+        seeded = group.get("seeded_transport_pool") or {}
+        if int(seeded.get("candidate_count") or 0) != expected_count:
+            raise SystemExit(
+                f"FAIL: expected alternate-source review candidate_count={expected_count} for {sampled_low32}, "
+                f"got {seeded.get('candidate_count')!r}."
+            )
+else:
+    if alternate_source_review.get("json_path") or alternate_source_review.get("group_count") or alternate_source_review.get("available_group_count") or alternate_source_review.get("total_candidate_count") or (alternate_source_review.get("groups") or []):
+        raise SystemExit(f"FAIL: unexpected alternate-source review payload without explicit alternate-source cache: {alternate_source_review!r}.")
+
 if guard_paths_present:
     activation_summary = step.get("alternate_source_activation_review") or {}
     cross_scene_summary = step.get("sampled_cross_scene_review") or {}
@@ -447,37 +471,41 @@ if guard_paths_present:
         raise SystemExit(f"FAIL: expected cross-scene review families in summary, got {cross_scene_summary!r}.")
     if len(cross_scene_review.get("families") or []) < 1:
         raise SystemExit(f"FAIL: expected cross-scene review payload, got {cross_scene_review!r}.")
-    if len(activation_families) < 3:
-        raise SystemExit(f"FAIL: expected activation review families in summary, got {activation_summary!r}.")
-    if len(alternate_source_activation_review.get("families") or []) < 3:
-        raise SystemExit(
-            "FAIL: expected alternate-source activation review payload to cover the triangle trio, "
-            f"got {alternate_source_activation_review!r}."
-        )
-    if int((activation_summary.get("summary") or {}).get("review_bounded_probe_count") or 0) != 0:
-        raise SystemExit(f"FAIL: unexpected activation review summary {activation_summary!r}.")
-    if int((activation_summary.get("summary") or {}).get("shared_scene_blocked_count") or 0) < 3:
-        raise SystemExit(f"FAIL: expected shared-scene blocked activation review families, got {activation_summary!r}.")
-    activation_by_low32 = {
-        str(row.get("sampled_low32") or "").lower(): row
-        for row in activation_families
-    }
-    activation_payload_by_low32 = {
-        str(row.get("sampled_low32") or "").lower(): row
-        for row in (alternate_source_activation_review.get("families") or [])
-    }
-    for sampled_low32 in ("91887078", "6af0d9ca", "e0d4d0dc"):
-        summary_row = activation_by_low32.get(sampled_low32)
-        payload_row = activation_payload_by_low32.get(sampled_low32)
-        if summary_row is None or payload_row is None:
+    if alt_source_present:
+        if len(activation_families) < 3:
+            raise SystemExit(f"FAIL: expected activation review families in summary, got {activation_summary!r}.")
+        if len(alternate_source_activation_review.get("families") or []) < 3:
             raise SystemExit(
-                f"FAIL: expected activation review to include {sampled_low32}, "
-                f"got summary={activation_summary!r} payload={alternate_source_activation_review!r}."
+                "FAIL: expected alternate-source activation review payload to cover the triangle trio, "
+                f"got {alternate_source_activation_review!r}."
             )
-        if summary_row.get("activation_status") != "shared-scene-source-backed-candidates":
-            raise SystemExit(f"FAIL: unexpected activation summary row for {sampled_low32}: {summary_row!r}.")
-        if payload_row.get("activation_status") != "shared-scene-source-backed-candidates":
-            raise SystemExit(f"FAIL: unexpected activation payload row for {sampled_low32}: {payload_row!r}.")
+        if int((activation_summary.get("summary") or {}).get("review_bounded_probe_count") or 0) != 0:
+            raise SystemExit(f"FAIL: unexpected activation review summary {activation_summary!r}.")
+        if int((activation_summary.get("summary") or {}).get("shared_scene_blocked_count") or 0) < 3:
+            raise SystemExit(f"FAIL: expected shared-scene blocked activation review families, got {activation_summary!r}.")
+        activation_by_low32 = {
+            str(row.get("sampled_low32") or "").lower(): row
+            for row in activation_families
+        }
+        activation_payload_by_low32 = {
+            str(row.get("sampled_low32") or "").lower(): row
+            for row in (alternate_source_activation_review.get("families") or [])
+        }
+        for sampled_low32 in ("91887078", "6af0d9ca", "e0d4d0dc"):
+            summary_row = activation_by_low32.get(sampled_low32)
+            payload_row = activation_payload_by_low32.get(sampled_low32)
+            if summary_row is None or payload_row is None:
+                raise SystemExit(
+                    f"FAIL: expected activation review to include {sampled_low32}, "
+                    f"got summary={activation_summary!r} payload={alternate_source_activation_review!r}."
+                )
+            if summary_row.get("activation_status") != "shared-scene-source-backed-candidates":
+                raise SystemExit(f"FAIL: unexpected activation summary row for {sampled_low32}: {summary_row!r}.")
+            if payload_row.get("activation_status") != "shared-scene-source-backed-candidates":
+                raise SystemExit(f"FAIL: unexpected activation payload row for {sampled_low32}: {payload_row!r}.")
+    else:
+        if activation_summary.get("json_path") or activation_summary.get("markdown_path") or (activation_summary.get("summary") or {}) or activation_families or alternate_source_activation_review:
+            raise SystemExit(f"FAIL: unexpected alternate-source activation review payload without explicit alternate-source cache: {activation_summary!r} / {alternate_source_activation_review!r}.")
     if world_guard_present and "world" not in (cross_scene_summary.get("guard_labels") or []):
         raise SystemExit(f"FAIL: expected world guard label in cross-scene summary, got {cross_scene_summary!r}.")
     if expected_sampled_duplicate_keys > 0:

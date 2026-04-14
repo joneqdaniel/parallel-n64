@@ -60,15 +60,9 @@ scenario_configure_hires_runtime_env_for_cache() {
   suffix="${suffix,,}"
 
   if [[ "$suffix" == "phrb" ]]; then
-    export PARALLEL_RDP_HIRES_RUNTIME_SOURCE_MODE="${PARALLEL_RDP_HIRES_RUNTIME_SOURCE_MODE:-phrb-only}"
     export PARALLEL_RDP_HIRES_SAMPLED_OBJECT_LOOKUP="${PARALLEL_RDP_HIRES_SAMPLED_OBJECT_LOOKUP:-1}"
     export PARALLEL_RDP_HIRES_SAMPLED_OBJECT_PROBE="${PARALLEL_RDP_HIRES_SAMPLED_OBJECT_PROBE:-1}"
-  elif [[ "$suffix" == "hts" || "$suffix" == "htc" ]]; then
-    export PARALLEL_RDP_HIRES_RUNTIME_SOURCE_MODE="${PARALLEL_RDP_HIRES_RUNTIME_SOURCE_MODE:-legacy-only}"
-    export PARALLEL_RDP_HIRES_SAMPLED_OBJECT_LOOKUP="${PARALLEL_RDP_HIRES_SAMPLED_OBJECT_LOOKUP:-0}"
-    export PARALLEL_RDP_HIRES_SAMPLED_OBJECT_PROBE="${PARALLEL_RDP_HIRES_SAMPLED_OBJECT_PROBE:-0}"
   else
-    export PARALLEL_RDP_HIRES_RUNTIME_SOURCE_MODE="${PARALLEL_RDP_HIRES_RUNTIME_SOURCE_MODE:-auto}"
     export PARALLEL_RDP_HIRES_SAMPLED_OBJECT_LOOKUP="${PARALLEL_RDP_HIRES_SAMPLED_OBJECT_LOOKUP:-0}"
     export PARALLEL_RDP_HIRES_SAMPLED_OBJECT_PROBE="${PARALLEL_RDP_HIRES_SAMPLED_OBJECT_PROBE:-0}"
   fi
@@ -905,14 +899,7 @@ for line in log_path.read_text(errors="replace").splitlines():
                         "generic_unknown_plain": int(m.group(32)),
                     })
                 summary["descriptor_path_detail_counts"] = detail_counts
-            if source_counts["phrb"] > 0 and source_counts["hts"] == 0 and source_counts["htc"] == 0:
-                summary["source_mode"] = "phrb-only"
-            elif source_counts["phrb"] == 0 and (source_counts["hts"] > 0 or source_counts["htc"] > 0):
-                summary["source_mode"] = "legacy-only"
-            elif source_counts["phrb"] > 0 and (source_counts["hts"] > 0 or source_counts["htc"] > 0):
-                summary["source_mode"] = "mixed"
-            else:
-                summary["source_mode"] = "unknown"
+            summary["source_mode"] = "phrb-only" if source_counts["phrb"] > 0 else "unknown"
             summary["entry_class"] = classify_entry_class(
                 summary.get("native_sampled_entry_count"),
                 summary.get("compat_entry_count"),

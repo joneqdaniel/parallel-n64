@@ -354,7 +354,7 @@
       - exact lookup still runs first and remains authoritative
       - the compatibility tier only engages for CI misses after exact lookup fails
       - on the strict file-select fixture it reproduces the earlier `PARALLEL_RDP_HIRES_CI_LOW32_FALLBACK=3` result exactly: `hits=86`, `misses=79`, hash `24274e62a18c436dc13570b6e51f7dc600b0de89d4aee56086cffd82248f797a`
-      - on the strict title-screen fixture it is a verified no-op and preserves the locked `on` hash `ba91ffce0cc7b6053568c0a7774bf0ae80825c95d95fce89ba4a9f79c62b9d16`
+      - on the strict title-screen fixture it is a verified no-op and preserves the locked `on` hash `1f3316eb7f9b239f64b85d04c7536052361571e329eda213128586464a07ec88`
       - this is now the best current production-shaped candidate for tier-2 CI compatibility, while the broader `low32_any` path remains debug-only
     - there is now a focused miss-review tool for the remaining strict-bundle gap:
       - `tools/hires_miss_review.py --bundle <strict-on-bundle> --cache assets/PAPER MARIO_HIRESTEXTURES.hts`
@@ -364,7 +364,7 @@
       - that makes the next implementation split clearer: block-class investigation is now a separate track from CI/import-policy cleanup
     - the tracked scenario filter path had a forwarding bug, so the older `allow_tile` / `allow_block` isolation runs were not authoritative until the wrappers were fixed to forward the real `PARALLEL_RDP_HIRES_FILTER_*` names
     - after fixing that wrapper bug, the corrected isolation runs materially narrow the active visible problem:
-      - strict file select with `allow_block=0` is a verified no-op and still lands on the locked `on` hash `8a90f7874bd797a186ff85d488033dc332b2a75f5bec91ad33ca8246e6be7730`
+      - strict file select with `allow_block=0` is a verified no-op and still lands on the locked `on` hash `0e255168c2b3fb1310762aa746a43c8609e78b8fc97f374a794573b0b5a779cc`
       - strict file select with `allow_tile=0` collapses to the baseline `off` hash `6fa8688b382fa1e6f0323f054861a85f593d2d47ca737bb78448e3f268ca63e3`
       - title screen with `allow_tile=0` still collapses to the baseline `off` hash `42e501afb2548a5067bc034578c5bcebf0bf2a40f612bbcc94972af716ad6ff2`
       - so the currently visible hi-res output on the strict fixtures is tile-only

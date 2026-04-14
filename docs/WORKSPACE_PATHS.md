@@ -43,11 +43,11 @@ If that changes later, this file should become the source of truth for local pat
 - local testing and research assets: `/home/auro/code/parallel-n64/assets`
   Notes: gitignored, machine-local, currently used for ROMs and hi-res texture assets.
   Current contents:
-  - `PAPER MARIO_HIRESTEXTURES.hts` — authority Paper Mario pack (Rice CRC, old format `0x40a20000`)
-  - `SUPER MARIO 64_HIRESTEXTURES.hts` — SM64 Reloaded v2.6.0 HD (Rice CRC, GlideN64 format `0x08000000`, 2530 entries)
-  - `THE LEGEND OF ZELDA_HIRESTEXTURES.hts` — OoT Reloaded v11.0.0 HD (Rice CRC, GlideN64 format `0x08000000`, 43267 entries)
+  - `PAPER MARIO_HIRESTEXTURES.hts` — legacy Paper Mario import input for manual `hts2phrb` conversion (not a supported runtime pack)
+  - `SUPER MARIO 64_HIRESTEXTURES.hts` — legacy SM64 import input for manual `hts2phrb` conversion
+  - `THE LEGEND OF ZELDA_HIRESTEXTURES.hts` — legacy OoT import input for manual `hts2phrb` conversion
   - `Paper Mario (USA).zip`, `Super Mario 64 (USA).zip`, `Legend of Zelda, The - Ocarina of Time (USA).zip` — ROMs
-  Note: GlideN64 HTS packs use Rice CRC computed from RDRAM. The GlideN64-compat draw-time CRC fallback (auto-enabled via source mode `all`) resolves this mismatch at runtime. SM64 confirmed working end-to-end (HTS → PHRB → runtime hits, 6599 compat hits in 30s boot). OoT confirmed working end-to-end (43K entries, 8.9GB PHRB, streaming metadata-only load, 46751 compat hits including CI palette CRC in 45s boot).
+  Note: runtime loading is `.phrb` only. Legacy GlideN64 HTS packs use Rice CRC computed from RDRAM and must be converted manually with `hts2phrb` before use at runtime. The GlideN64-compat draw-time CRC fallback now auto-enables from loaded PHRB compat entries. SM64 confirmed working end-to-end (HTS → PHRB → runtime hits, 6599 compat hits in 30s boot). OoT confirmed working end-to-end (43K entries, 8.9GB PHRB, streaming metadata-only load, 46751 compat hits including CI palette CRC in 45s boot).
 
 - generated workflow artifacts: `/home/auro/code/parallel-n64/artifacts`
   Notes: gitignored except for the tracked README.

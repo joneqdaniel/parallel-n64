@@ -3,6 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "$SCRIPT_DIR/../.." && pwd)"
+source "$SCRIPT_DIR/lib/common.sh"
 
 CACHE_PATH="${PARALLEL_RDP_HIRES_CACHE_PATH:-}"
 BUNDLE_ROOT=""
@@ -135,6 +136,9 @@ if [[ ! -f "$CACHE_PATH" ]]; then
   echo "Selected package not found: $CACHE_PATH" >&2
   exit 2
 fi
+if ! scenario_require_phrb_runtime_cache "$CACHE_PATH"; then
+  exit 2
+fi
 if [[ -n "$LOADER_MANIFEST_PATH" && ! -f "$LOADER_MANIFEST_PATH" ]]; then
   echo "Loader manifest not found: $LOADER_MANIFEST_PATH" >&2
   exit 2
@@ -191,7 +195,6 @@ for step in $STEP_LIST; do
       --run
 
     PARALLEL_RDP_HIRES_CACHE_PATH="$CACHE_PATH" \
-    PARALLEL_RDP_HIRES_RUNTIME_SOURCE_MODE="${PARALLEL_RDP_HIRES_RUNTIME_SOURCE_MODE:-phrb-only}" \
     PARALLEL_RDP_HIRES_SAMPLED_OBJECT_LOOKUP=1 \
     DISABLE_SCREENSHOT_VERIFY=1 \
     "$SCRIPT_DIR/paper-mario-title-timeout-probe.sh" \
@@ -418,8 +421,6 @@ for off_dir in sorted((bundle_root / 'off').iterdir()):
         raise SystemExit(f'expected on-bundle hi-res provider to be "on" in {on_dir}, found {hires_summary.get("provider")!r}')
     if hires_summary.get('source_mode') != 'phrb-only':
         raise SystemExit(f'expected selected-package source_mode=phrb-only in {on_dir}, found {hires_summary.get("source_mode")!r}')
-    if hires_summary.get('source_policy') != 'phrb-only':
-        raise SystemExit(f'expected selected-package source_policy=phrb-only in {on_dir}, found {hires_summary.get("source_policy")!r}')
     if int(hires_summary.get('native_sampled_entry_count') or 0) < 1:
         raise SystemExit(f'expected native sampled entries in {on_dir}, found {hires_summary.get("native_sampled_entry_count")!r}')
     if int((hires_summary.get('source_counts') or {}).get('phrb') or 0) < 1:
@@ -617,8 +618,6 @@ for step in summary['steps']:
     summary_line = f'- Hi-res summary: provider `{hires_summary.get("provider")}`'
     if hires_summary.get('source_mode') is not None:
         summary_line += f', source mode `{hires_summary.get("source_mode")}`'
-    if hires_summary.get('source_policy') is not None:
-        summary_line += f', source policy `{hires_summary.get("source_policy")}`'
     if hires_summary.get('entry_count') is not None:
         summary_line += (
             f', entries `{hires_summary.get("entry_count")}`'

@@ -5,7 +5,7 @@ REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../../.." && pwd)"
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT
 
-CACHE_PATH="$TMP_DIR/package.phrb"
+CACHE_PATH="$TMP_DIR/package.PHRB"
 printf 'phrb' > "$CACHE_PATH"
 
 write_fixture_bundle() {

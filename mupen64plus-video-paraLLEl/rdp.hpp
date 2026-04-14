@@ -31,7 +31,6 @@ extern bool synchronous, divot_filter, gamma_dither, vi_aa, vi_scale, dither_fil
 extern bool native_texture_lod, native_tex_rect;
 extern bool hires_textures;
 extern unsigned hires_filter, hires_srgb;
-extern unsigned hires_source_mode;
 extern std::string hires_cache_path;
 
 void complete_frame();

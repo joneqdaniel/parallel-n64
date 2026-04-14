@@ -108,7 +108,6 @@ timeout --signal=INT --kill-after=15 600s \
   --run
 
 PARALLEL_RDP_HIRES_CACHE_PATH="$CACHE_PATH" \
-PARALLEL_RDP_HIRES_RUNTIME_SOURCE_MODE=phrb-only \
 PARALLEL_RDP_HIRES_SAMPLED_OBJECT_LOOKUP=1 \
 PARALLEL_RDP_HIRES_SAMPLED_OBJECT_PROBE=0 \
 timeout --signal=INT --kill-after=15 600s \
@@ -153,8 +152,6 @@ if summary.get("provider") != "on":
     raise SystemExit(f"FAIL: expected provider=on, got {summary.get('provider')!r}.")
 if summary.get("source_mode") != "phrb-only":
     raise SystemExit(f"FAIL: expected source_mode=phrb-only, got {summary.get('source_mode')!r}.")
-if summary.get("source_policy") != "phrb-only":
-    raise SystemExit(f"FAIL: expected source_policy=phrb-only, got {summary.get('source_policy')!r}.")
 if int(summary.get("native_sampled_entry_count") or 0) < 1:
     raise SystemExit(f"FAIL: expected native sampled entries, got {summary.get('native_sampled_entry_count')!r}.")
 if int((summary.get("source_counts") or {}).get("phrb") or 0) < 1:

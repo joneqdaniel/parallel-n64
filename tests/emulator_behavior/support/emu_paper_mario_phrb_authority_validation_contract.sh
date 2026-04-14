@@ -19,12 +19,12 @@ require_pattern() {
   fi
 }
 
-require_pattern 'PARALLEL_RDP_HIRES_RUNTIME_SOURCE_MODE="${PARALLEL_RDP_HIRES_RUNTIME_SOURCE_MODE:-phrb-only}"' \
-  "shared PHRB authority runner should default runtime source mode to phrb-only"
-require_pattern 'EXPECTED_HIRES_SUMMARY_SOURCE_POLICY_ON="$EXPECTED_SOURCE_POLICY"' \
-  "shared PHRB authority runner should pass through expected source policy"
-require_pattern 'f"- Expected source policy: `{expected_source_policy}`"' \
-  "shared PHRB authority markdown summary should include expected source policy"
+require_pattern 'source "$SCRIPT_DIR/lib/common.sh"' \
+  "shared PHRB authority runner should source the shared scenario helpers"
+require_pattern 'if ! scenario_require_phrb_runtime_cache "$CACHE_PATH"; then' \
+  "shared PHRB authority runner should use the shared case-insensitive PHRB validator"
+require_pattern 'f"- Expected source mode: `{expected_source_mode}`"' \
+  "shared PHRB authority markdown summary should include expected source mode"
 require_pattern 'f"- Descriptor detail: native checksum exact `' \
   "shared PHRB authority markdown summary should include native checksum descriptor detail"
 require_pattern '("title-screen", "paper-mario-title-screen")' \

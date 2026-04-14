@@ -26,13 +26,18 @@ add_test(
 )
 
 add_test(
-  NAME emu.support.libretro_hires_source_mode_contract
-  COMMAND bash "${EMU_BEHAVIOR_SUPPORT_DIR}/emu_libretro_hires_source_mode_contract.sh"
+  NAME emu.support.hires_capability_runtime_contract
+  COMMAND bash "${EMU_BEHAVIOR_SUPPORT_DIR}/emu_hires_capability_runtime_contract.sh"
 )
 
 add_test(
-  NAME emu.support.hires_capability_source_policy_contract
-  COMMAND bash "${EMU_BEHAVIOR_SUPPORT_DIR}/emu_hires_capability_source_policy_contract.sh"
+  NAME emu.support.hires_legacy_evidence_bundle_contract
+  COMMAND bash "${EMU_BEHAVIOR_SUPPORT_DIR}/emu_hires_legacy_evidence_bundle_contract.sh"
+)
+
+add_test(
+  NAME emu.support.rdp_hires_zero_line_compat_gate_contract
+  COMMAND bash "${EMU_BEHAVIOR_SUPPORT_DIR}/emu_rdp_hires_zero_line_compat_gate_contract.sh"
 )
 
 add_test(
@@ -48,6 +53,11 @@ add_test(
 add_test(
   NAME emu.support.paper_mario_title_timeout_selected_package_validation_contract
   COMMAND bash "${EMU_BEHAVIOR_SUPPORT_DIR}/emu_paper_mario_title_timeout_selected_package_validation_contract.sh"
+)
+
+add_test(
+  NAME emu.support.paper_mario_title_timeout_legacy_validation_contract
+  COMMAND bash "${EMU_BEHAVIOR_SUPPORT_DIR}/emu_paper_mario_title_timeout_legacy_validation_contract.sh"
 )
 
 add_test(
@@ -375,6 +385,16 @@ target_include_directories(emu_unit_seed_policy_test PRIVATE
 target_compile_features(emu_unit_seed_policy_test PRIVATE cxx_std_17)
 add_test(NAME emu.unit.seed_policy COMMAND emu_unit_seed_policy_test)
 
+add_executable(emu_unit_rdp_hires_compat_crc_override_test
+  emu_unit_rdp_hires_compat_crc_override_test.cpp
+)
+target_include_directories(emu_unit_rdp_hires_compat_crc_override_test PRIVATE
+  "${CMAKE_SOURCE_DIR}"
+  "${CMAKE_SOURCE_DIR}/mupen64plus-video-paraLLEl/parallel-rdp/parallel-rdp"
+)
+target_compile_features(emu_unit_rdp_hires_compat_crc_override_test PRIVATE cxx_std_17)
+add_test(NAME emu.unit.rdp_hires_compat_crc_override COMMAND emu_unit_rdp_hires_compat_crc_override_test)
+
 add_executable(emu_unit_texture_replacement_provider_test
   emu_unit_texture_replacement_provider_test.cpp
   "${CMAKE_SOURCE_DIR}/mupen64plus-video-paraLLEl/parallel-rdp/parallel-rdp/texture_replacement.cpp"
@@ -532,15 +552,6 @@ target_include_directories(emu_unit_rdp_device_capability_policy_test PRIVATE
 )
 target_compile_features(emu_unit_rdp_device_capability_policy_test PRIVATE cxx_std_17)
 add_test(NAME emu.unit.rdp_device_capability_policy COMMAND emu_unit_rdp_device_capability_policy_test)
-
-add_executable(emu_unit_rdp_hires_cache_source_policy_test
-  emu_unit_rdp_hires_cache_source_policy_test.cpp
-)
-target_include_directories(emu_unit_rdp_hires_cache_source_policy_test PRIVATE
-  "${CMAKE_SOURCE_DIR}"
-)
-target_compile_features(emu_unit_rdp_hires_cache_source_policy_test PRIVATE cxx_std_17)
-add_test(NAME emu.unit.rdp_hires_cache_source_policy COMMAND emu_unit_rdp_hires_cache_source_policy_test)
 
 add_executable(emu_unit_rdp_memory_path_policy_test
   emu_unit_rdp_memory_path_policy_test.cpp

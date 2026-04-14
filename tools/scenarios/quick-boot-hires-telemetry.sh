@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Quick boot test: launch a game with an HTS pack, run for N seconds,
+# Quick boot test: launch a game with a PHRB pack, run for N seconds,
 # capture the hi-res keying summary telemetry on shutdown.
 #
 # Usage:
 #   tools/scenarios/quick-boot-hires-telemetry.sh \
 #     --rom "assets/Super Mario 64 (USA).zip" \
-#     --pack "assets/SUPER MARIO 64_HIRESTEXTURES.hts" \
+#     --pack "artifacts/hts2phrb/sm64/package.phrb" \
 #     [--seconds 30]
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -42,8 +42,13 @@ fi
 if [[ ! -f "$PACK_PATH" ]]; then
   echo "Pack not found: $PACK_PATH" >&2; exit 1
 fi
+pack_suffix="${PACK_PATH##*.}"
+pack_suffix="${pack_suffix,,}"
+if [[ "$pack_suffix" != "phrb" ]]; then
+  echo "--pack must point to a .phrb package. Convert legacy .hts/.htc input with hts2phrb first." >&2; exit 1
+fi
 
-# Backup and patch core options to enable hirestex with legacy-only source mode
+# Backup and patch core options to enable hirestex
 OPT_BACKUP="${RETROARCH_OPT_FILE}.boot-test-backup"
 cp "$RETROARCH_OPT_FILE" "$OPT_BACKUP"
 restore_opts() {
@@ -56,7 +61,6 @@ trap restore_opts EXIT
 
 sed -i \
   -e 's/parallel-n64-parallel-rdp-hirestex = "[^"]*"/parallel-n64-parallel-rdp-hirestex = "enabled"/' \
-  -e 's/parallel-n64-parallel-rdp-hirestex-source-mode = "[^"]*"/parallel-n64-parallel-rdp-hirestex-source-mode = "all"/' \
   -e 's/parallel-n64-gfxplugin = "[^"]*"/parallel-n64-gfxplugin = "parallel"/' \
   "$RETROARCH_OPT_FILE"
 
@@ -73,7 +77,6 @@ echo ""
 # Launch RetroArch with the pack path override
 PARALLEL_RDP_HIRES_CACHE_PATH="$PACK_PATH" \
 PARALLEL_RDP_HIRES_DEBUG=1 \
-PARALLEL_RDP_HIRES_GLIDEN64_COMPAT_CRC=1 \
   "$RETROARCH_BIN" \
   -L "$CORE_PATH" \
   "$ROM_PATH" \
@@ -101,6 +104,6 @@ echo "=== Hi-Res Keying Summary ==="
 grep -i "Hi-res keying summary" "$LOG_FILE" || echo "(no keying summary found)"
 echo ""
 echo "=== Hi-Res Load/Config Lines ==="
-grep -i "Hi-res\|hires\|texture.*replacement\|load.*cache\|PHRB\|\.hts\|\.htc" "$LOG_FILE" | head -30 || echo "(no hi-res lines found)"
+grep -i "Hi-res\|hires\|texture.*replacement\|load.*cache\|PHRB\|\.phrb" "$LOG_FILE" | head -30 || echo "(no hi-res lines found)"
 echo ""
 echo "Full log: $LOG_FILE"

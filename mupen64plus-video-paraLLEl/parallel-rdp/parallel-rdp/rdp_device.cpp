@@ -21,7 +21,7 @@
  */
 
 #include "rdp_device.hpp"
-#include "rdp_hires_cache_source_policy.hpp"
+#include "rdp_hires_runtime_config.hpp"
 #include "rdp_common.hpp"
 #include "rdp_hires_runtime_policy.hpp"
 #include "rdp_memory_path_policy.hpp"
@@ -59,6 +59,43 @@ static bool parse_optional_bool_env(const char *env, bool fallback)
 	if (!env || !*env)
 		return fallback;
 	return strtol(env, nullptr, 0) > 0;
+}
+
+static ReplacementProvider::CacheSourcePolicy parse_hires_cache_source_policy_env(const char *env)
+{
+	if (!env || !*env)
+		return ReplacementProvider::CacheSourcePolicy::Auto;
+
+	std::string token(env);
+	for (char &c : token)
+	{
+		if (c >= 'A' && c <= 'Z')
+			c = char(c - 'A' + 'a');
+	}
+
+	if (token == "all")
+		return ReplacementProvider::CacheSourcePolicy::All;
+	if (token == "phrb-only" || token == "phrb")
+		return ReplacementProvider::CacheSourcePolicy::PHRBOnly;
+	if (token == "legacy-only" || token == "legacy")
+		return ReplacementProvider::CacheSourcePolicy::LegacyOnly;
+	return ReplacementProvider::CacheSourcePolicy::Auto;
+}
+
+static const char *hires_cache_source_policy_name(ReplacementProvider::CacheSourcePolicy policy)
+{
+	switch (policy)
+	{
+	case ReplacementProvider::CacheSourcePolicy::All:
+		return "all";
+	case ReplacementProvider::CacheSourcePolicy::PHRBOnly:
+		return "phrb-only";
+	case ReplacementProvider::CacheSourcePolicy::LegacyOnly:
+		return "legacy-only";
+	case ReplacementProvider::CacheSourcePolicy::Auto:
+	default:
+		return "auto";
+	}
 }
 
 static std::unordered_set<std::string> parse_hires_filter_signatures_env(const char *env)
@@ -270,8 +307,8 @@ CommandProcessor::CommandProcessor(Vulkan::Device &device_, void *rdram_ptr,
 			renderer.set_hires_debug_ci_low32_fallback(HiresDebugCILow32FallbackMode::Off);
 	}
 
-	if (const char *env = getenv("PARALLEL_RDP_HIRES_GLIDEN64_COMPAT_CRC"))
-		renderer.set_hires_gliden64_compat_crc(strtol(env, nullptr, 0) > 0);
+	hires_gliden64_compat_crc_override =
+		detail::parse_hires_gliden64_compat_crc_override(getenv("PARALLEL_RDP_HIRES_GLIDEN64_COMPAT_CRC"));
 	if (const char *env = getenv("PARALLEL_RDP_HIRES_GPU_BUDGET_MB"))
 	{
 		long mb = strtol(env, nullptr, 0);
@@ -919,12 +956,12 @@ void CommandProcessor::set_quirks(const Quirks &quirks_)
 	enqueue_command(2, words);
 }
 
-void CommandProcessor::configure_hires_replacement(bool enable, const char *cache_path,
-                                                   ReplacementProvider::CacheSourcePolicy cache_source_policy)
+void CommandProcessor::configure_hires_replacement(bool enable, const char *cache_path)
 {
 	replacement_provider.clear();
 	replacement_provider.set_enabled(enable);
 	renderer.set_replacement_provider(nullptr);
+	renderer.set_hires_gliden64_compat_crc(false);
 
 	auto outcome = detail::classify_hires_configure_outcome(enable, cache_path, false);
 	if (outcome == detail::HiresConfigureOutcome::Disabled)
@@ -936,27 +973,35 @@ void CommandProcessor::configure_hires_replacement(bool enable, const char *cach
 		return;
 	}
 
+	const auto cache_source_policy =
+		parse_hires_cache_source_policy_env(getenv("PARALLEL_RDP_HIRES_RUNTIME_SOURCE_MODE"));
 	const bool load_ok = replacement_provider.load_cache_dir(cache_path, cache_source_policy);
 	outcome = detail::classify_hires_configure_outcome(enable, cache_path, load_ok);
 	if (outcome == detail::HiresConfigureOutcome::LoadFailed)
 	{
 		LOGW("Hi-res replacement cache load failed for path: %s (source mode %s)\n",
-		     cache_path, detail::hires_cache_source_policy_name(cache_source_policy));
+		     cache_path, hires_cache_source_policy_name(cache_source_policy));
 		return;
 	}
 
 	LOGI("Hi-res replacement cache loaded: %zu entries from %s (source mode %s)\n",
 	     replacement_provider.entry_count(), cache_path,
-	     detail::hires_cache_source_policy_name(cache_source_policy));
+	     hires_cache_source_policy_name(cache_source_policy));
 	if (detail::should_attach_hires_provider(outcome))
 		renderer.set_replacement_provider(&replacement_provider);
 
-	// Auto-enable GlideN64-compat RDRAM CRC fallback when source mode is "all".
-	// Source mode "all" is the expected mode for GlideN64 community packs (SM64, OoT, etc.)
-	// which use Rice CRC computed from RDRAM with tile-descriptor parameters at draw time.
-	// The env var PARALLEL_RDP_HIRES_GLIDEN64_COMPAT_CRC still overrides this for testing.
-	if (cache_source_policy == ReplacementProvider::CacheSourcePolicy::All)
-		renderer.set_hires_gliden64_compat_crc(true);
+	const bool compat_crc_auto_enabled = detail::resolve_hires_gliden64_compat_crc_auto_enabled(
+		cache_source_policy == ReplacementProvider::CacheSourcePolicy::All,
+		replacement_provider.has_compat_entries(),
+		replacement_provider.has_phrb_compat_entries());
+
+	// Auto-enable compat CRC for compat-bearing PHRB payloads, and for explicit
+	// mixed-source "all" mode loads that still expose legacy compat entries.
+	// Explicit env overrides still win, and pure native or legacy-only loads
+	// remain compat-disabled by default.
+	renderer.set_hires_gliden64_compat_crc(
+		detail::resolve_hires_gliden64_compat_crc_enabled(hires_gliden64_compat_crc_override,
+		                                                 compat_crc_auto_enabled));
 }
 
 void CommandProcessor::set_vi_register(VIRegister reg, uint32_t value)

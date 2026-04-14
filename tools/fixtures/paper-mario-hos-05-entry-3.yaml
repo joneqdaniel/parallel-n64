@@ -9,7 +9,7 @@ description: >
 content:
   rom_path: assets/Paper Mario (USA).zip
   core: parallel_n64
-  hires_pack_path: assets/PAPER MARIO_HIRESTEXTURES.hts
+  hires_pack_path: artifacts/hts2phrb-review/20260408-pm64-all-families-authority-context-abs-summary/package.phrb
 
 entry:
   method: savestate
@@ -27,7 +27,7 @@ authority:
 requirements:
   assets:
     - assets/Paper Mario (USA).zip
-    - assets/PAPER MARIO_HIRESTEXTURES.hts
+    - artifacts/hts2phrb-review/20260408-pm64-all-families-authority-context-abs-summary/package.phrb
   environment:
     - RetroArch must be available at the canonical local path in docs/WORKSPACE_PATHS.md
     - A deterministic route from file select to `hos_05 ENTRY_3` must be defined before this fixture becomes runnable

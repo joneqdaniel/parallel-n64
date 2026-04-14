@@ -1,4 +1,5 @@
 #include "mupen64plus-video-paraLLEl/parallel-rdp/parallel-rdp/rdp_hires_ci_palette_policy.hpp"
+#include "mupen64plus-video-paraLLEl/parallel-rdp/parallel-rdp/rdp_hires_texture_layout.hpp"
 
 #include <array>
 #include <cstdint>
@@ -281,6 +282,54 @@ static void test_ci4_raw_palette_crc_matches_legacy_contract()
 	check(sparse_crc == expected_sparse_crc, "CI4 sparse CRC should pack only used raw TLUT entries");
 }
 
+static void test_ci4_row_bytes_round_up_for_odd_width()
+{
+	check(RDP::detail::compute_hires_texture_row_bytes(0, TextureSize::Bpp4) == 0u,
+	      "CI4 row bytes should keep zero-width textures at zero bytes");
+	check(RDP::detail::compute_hires_texture_row_bytes(1, TextureSize::Bpp4) == 1u,
+	      "CI4 row bytes should round width=1 up to one byte");
+	check(RDP::detail::compute_hires_texture_row_bytes(3, TextureSize::Bpp4) == 2u,
+	      "CI4 row bytes should round odd widths up instead of truncating");
+	check(RDP::detail::compute_hires_texture_row_bytes(5, TextureSize::Bpp4) == 3u,
+	      "CI4 row bytes should keep rounding odd widths up");
+	check(RDP::detail::compute_hires_texture_row_bytes(3, TextureSize::Bpp8) == 3u,
+	      "CI8 row bytes should stay width-sized");
+}
+
+static void test_ci4_odd_width_stride_reaches_second_row_palette_indices()
+{
+	const std::array<uint8_t, 4> ci4_texels = {
+		uint8_t((0x1u << 4u) | 0x2u),
+		uint8_t((0x3u << 4u) | 0x0u),
+		uint8_t((0x4u << 4u) | 0x5u),
+		uint8_t((0xfu << 4u) | 0x0u),
+	};
+
+	const uint32_t row_stride = RDP::detail::compute_hires_texture_row_bytes(3u, TextureSize::Bpp4);
+	check(row_stride == 2u, "CI4 odd-width textures should reserve two bytes per row");
+
+	const auto usage = RDP::detail::compute_hires_ci_palette_usage(
+		TextureSize::Bpp4,
+		ci4_texels.data(),
+		ci4_texels.size(),
+		0,
+		3,
+		2,
+		row_stride);
+	check(usage.valid, "CI4 odd-width usage should remain valid");
+	check(usage.max_index == 15u, "CI4 odd-width usage should scan the second row at the rounded stride");
+
+	const uint32_t entries = RDP::detail::compute_hires_ci_palette_entry_count(
+		TextureSize::Bpp4,
+		ci4_texels.data(),
+		ci4_texels.size(),
+		0,
+		3,
+		2,
+		row_stride);
+	check(entries == 16u, "CI4 odd-width entry count should reflect second-row max index coverage");
+}
+
 static void test_tmem_palette_crc_tracks_sampled_object_view()
 {
 	std::array<uint8_t, 512> tlut_shadow = {};
@@ -353,6 +402,8 @@ int main()
 {
 	test_ci8_raw_palette_crc_matches_legacy_contract();
 	test_ci4_raw_palette_crc_matches_legacy_contract();
+	test_ci4_row_bytes_round_up_for_odd_width();
+	test_ci4_odd_width_stride_reaches_second_row_palette_indices();
 	test_tmem_palette_crc_tracks_sampled_object_view();
 
 	std::cout << "emu_unit_hires_ci_palette_policy_test: PASS" << std::endl;

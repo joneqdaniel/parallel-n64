@@ -78,7 +78,7 @@ if [[ -z "$BUNDLE_DIR" ]]; then
 fi
 
 ROM_PATH="$REPO_ROOT/assets/Paper Mario (USA).zip"
-PACK_PATH="$REPO_ROOT/assets/PAPER MARIO_HIRESTEXTURES.hts"
+PACK_PATH="${PARALLEL_RDP_HIRES_CACHE_PATH:-$REPO_ROOT/assets/PAPER MARIO_HIRESTEXTURES.hts}"
 RETROARCH_PATH="/home/auro/code/RetroArch"
 MANIFEST="$REPO_ROOT/tools/fixtures/paper-mario-title-screen.yaml"
 PAPER_MARIO_SEMANTIC_JSON_REL="traces/paper-mario-game-status.json"
@@ -138,6 +138,9 @@ fi
 scenario_source_runtime_env "$RUNTIME_ENV"
 
 PACK_PATH="${PARALLEL_RDP_HIRES_CACHE_PATH:-$PACK_PATH}"
+if [[ -n "${PARALLEL_RDP_HIRES_CACHE_PATH:-}" ]]; then
+  scenario_require_phrb_runtime_cache "$PACK_PATH"
+fi
 scenario_configure_hires_runtime_env_for_cache "$PACK_PATH"
 PACK_SHA256="$(scenario_sha256_file "$PACK_PATH")"
 

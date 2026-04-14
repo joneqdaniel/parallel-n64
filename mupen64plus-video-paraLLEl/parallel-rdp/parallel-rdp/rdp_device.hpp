@@ -29,6 +29,7 @@
 #include "video_interface.hpp"
 #include "rdp_renderer.hpp"
 #include "rdp_common.hpp"
+#include "rdp_hires_runtime_config.hpp"
 #include "command_ring.hpp"
 #include "worker_thread.hpp"
 #include "texture_replacement.hpp"
@@ -136,8 +137,7 @@ public:
 	void enqueue_command_direct(unsigned num_words, const uint32_t *words);
 
 	void set_quirks(const Quirks &quirks);
-	void configure_hires_replacement(bool enable, const char *cache_path,
-	                                 ReplacementProvider::CacheSourcePolicy policy);
+	void configure_hires_replacement(bool enable, const char *cache_path);
 
 	// Interact with memory.
 	void *begin_read_rdram();
@@ -225,6 +225,7 @@ private:
 	bool is_supported = false;
 	bool is_host_coherent = true;
 	bool timestamp = false;
+	detail::HiresGlideN64CompatCRCOverride hires_gliden64_compat_crc_override = {};
 
 	friend class Renderer;
 

@@ -41,7 +41,8 @@
 - The default Paper Mario authority fixtures now resolve only through promoted enriched full-cache `PHRB` artifacts by default and fail closed if no promoted enriched artifact exists.
 - The upload-path resolution cascade now includes a sampled-exact-selector step between the singleton-family check and the checksum fallback.
 - The PHRB self-test now validates the sampled index instead of the checksum index.
-- `.phrb` is the default runtime source mode; `.hts`/`.htc` require explicit opt-in via core option or env var.
+- `.phrb` is the only runtime format. HTS/HTC loading, CacheSourcePolicy, and source-mode core options have been removed from the runtime. Legacy formats are import-only via `hts2phrb`.
+- GlideN64-compat draw-time CRC is auto-enabled when loaded PHRB contains compat entries (`has_compat_entries()`), with no source-mode gating required.
 - The dead generic checksum-only descriptor path (`resolve_hires_replacement_descriptor`) has been removed.
 - The authority refresh now uses `--context-dir` to automatically discover all local validation summaries as enrichment sources.
 - Current default authority outcome:
@@ -78,7 +79,7 @@
   - HTS → `hts2phrb` → PHRB: 2530/2530 entries, `promotable-runtime-package`, zero unresolved, 1.5s conversion
   - PHRB → runtime: 6,599 compat draw-time hits in 30s title screen boot
   - Format coverage: RGBA (fmt=0) and IA (fmt=3) both hitting; no CI textures in SM64 pack
-  - GlideN64-compat CRC fallback auto-enabled via source mode `all`
+  - GlideN64-compat CRC auto-enabled from loaded PHRB compat entries
   - Automated boot conformance test: `emu.conformance.sm64_hires_boot`
 - **OoT Reloaded** — validated cross-game proof with boot conformance test:
   - HTS → `hts2phrb` → PHRB: 43,266/43,267 entries, `partial-runtime-package`, 1 ambiguous family (`a388567b:fs258`)
@@ -90,8 +91,8 @@
 - **GlideN64-compat RDRAM CRC**:
   - Root cause was parameter mismatch: our upload path computes Rice CRC with SetTextureImage params at load time; GlideN64 uses tile descriptor params at draw time
   - Draw-time fallback recomputes CRC using tile line stride, SetTileSize dimensions, and tile descriptor size enum
-  - Gated behind source mode `all` (auto-enabled) or `PARALLEL_RDP_HIRES_GLIDEN64_COMPAT_CRC=1` env var
-  - Does not fire for Paper Mario packs (source mode `phrb-only`) — prevents false-positive CRC32 collisions on TMEM-keyed packs
+  - Auto-enabled when loaded PHRB contains compat entries (`has_compat_entries()`); `PARALLEL_RDP_HIRES_GLIDEN64_COMPAT_CRC=1` env var remains as debug override
+  - Does not fire for packs with only native sampled entries — prevents false-positive CRC32 collisions on TMEM-keyed packs
   - CI palette CRC validated empirically on OoT (matching GlideN64's `checksum64 = (palette_crc << 32) | texture_crc`)
 
 ### Validation State

@@ -3,6 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "$SCRIPT_DIR/../.." && pwd)"
+source "$SCRIPT_DIR/lib/common.sh"
 
 CACHE_PATH="${PARALLEL_RDP_HIRES_CACHE_PATH:-}"
 BUNDLE_ROOT=""
@@ -101,6 +102,9 @@ if [[ -z "$CACHE_PATH" ]]; then
 fi
 if [[ ! -f "$CACHE_PATH" ]]; then
   echo "Selected package not found: $CACHE_PATH" >&2
+  exit 2
+fi
+if ! scenario_require_phrb_runtime_cache "$CACHE_PATH"; then
   exit 2
 fi
 if [[ -z "$INPUT_MASK" && -z "$INPUT_SEQUENCE" ]]; then

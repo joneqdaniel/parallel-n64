@@ -60,23 +60,6 @@ inline uint64_t compose_ordered_surface_index_key(uint64_t checksum64, uint16_t 
 	return checksum64 ^ (uint64_t(formatsize) << 48);
 }
 
-inline int cache_source_priority(const std::string &path)
-{
-	const char suffix[] = ".phrb";
-	if (path.size() < sizeof(suffix) - 1)
-		return 0;
-	const size_t base = path.size() - (sizeof(suffix) - 1);
-	for (size_t i = 0; i < sizeof(suffix) - 1; i++)
-	{
-		char a = path[base + i];
-		char b = suffix[i];
-		if (a >= 'A' && a <= 'Z')
-			a = char(a - 'A' + 'a');
-		if (a != b)
-			return 0;
-	}
-	return 1;
-}
 
 
 #pragma pack(push, 1)
@@ -317,6 +300,11 @@ inline bool is_legacy_cache_path(const std::string &name)
 inline bool is_phrb_cache_path(const std::string &name)
 {
 	return has_suffix(name, ".phrb");
+}
+
+inline int cache_source_priority(const std::string &path)
+{
+	return is_phrb_cache_path(path) ? 1 : 0;
 }
 
 inline bool cache_source_allowed_by_policy(const std::string &name, ReplacementProvider::CacheSourcePolicy policy)
@@ -664,9 +652,9 @@ bool ReplacementProvider::load_cache_dir(const std::string &path, CacheSourcePol
 	auto load_files = [&](const std::vector<std::string> &candidate_files) {
 		for (const auto &file : candidate_files)
 		{
-			if (is_legacy_cache_path(file) && has_suffix(file, ".hts"))
+			if (has_suffix(file, ".hts"))
 				load_hts(file);
-			else if (is_legacy_cache_path(file) && has_suffix(file, ".htc"))
+			else if (has_suffix(file, ".htc"))
 				load_htc(file);
 			else if (is_phrb_cache_path(file))
 				load_phrb(file);
@@ -683,6 +671,22 @@ bool ReplacementProvider::load_cache_dir(const std::string &path, CacheSourcePol
 	}
 
 	return !entries_.empty();
+}
+
+bool ReplacementProvider::has_compat_entries() const
+{
+	return !compat_checksum_index_.empty();
+}
+
+bool ReplacementProvider::has_phrb_compat_entries() const
+{
+	for (const auto &entry : entries_)
+	{
+		if (!entry.has_native_sampled_identity && is_phrb_cache_path(entry.source_path))
+			return true;
+	}
+
+	return false;
 }
 
 const ReplacementProvider::Entry *ReplacementProvider::find_any_entry(uint64_t checksum64, uint16_t formatsize, uint64_t selector_checksum64) const
@@ -2553,10 +2557,6 @@ bool ReplacementProvider::load_phrb(const std::string &path)
 
 	return loaded_count != 0;
 }
-void ReplacementProvider::trim_to_budget(size_t bytes)
-{
-	memory_budget_bytes_ = bytes;
-}
 
 bool ReplacementProvider::load_hts(const std::string &path)
 {
@@ -2756,4 +2756,10 @@ bool ReplacementProvider::load_htc(const std::string &path)
 	gzclose(fp);
 	return true;
 }
+
+void ReplacementProvider::trim_to_budget(size_t bytes)
+{
+	memory_budget_bytes_ = bytes;
+}
+
 }

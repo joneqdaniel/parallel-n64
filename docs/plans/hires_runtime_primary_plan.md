@@ -33,9 +33,9 @@
   - [`docs/PROJECT_STATE.md`](/home/auro/code/parallel-n64/docs/PROJECT_STATE.md)
 - Historical and research docs may stay, but they should not compete with this plan for authority.
 - User-facing repo story must stay coherent:
-  - runtime target: `PHRB`
-  - legacy import path: `.hts` / `.htc`
-  - public front door: `hts2phrb`
+  - runtime format: `PHRB` (the only format loaded at runtime; HTS/HTC/CacheSourcePolicy removed)
+  - legacy import path: `.hts` / `.htc` via `hts2phrb`
+  - compat CRC: auto-enabled when loaded PHRB contains compat entries
   - auto-conversion only after promotion gates
 
 ## Current Assessment
@@ -52,8 +52,12 @@
 
 - Structured sampled-object identity is not yet the primary runtime key across the full renderer.
 - Some checksum-shaped runtime seams still remain (compat fallback, native-checksum fallback).
-- The dead generic checksum-only descriptor path has been removed.
 - Converter ambiguity and overlay residue are reduced, but not eliminated.
+
+### What Has Been Removed
+
+- HTS/HTC runtime loading, `CacheSourcePolicy` enum, source-mode core option, and all associated frontend plumbing.
+- The dead generic checksum-only descriptor path (`resolve_hires_replacement_descriptor`).
 
 ## Current Implementation State
 
@@ -100,7 +104,7 @@ The following work is intentionally deferred and must stay explicit until promot
 
 ### Completed and Classified (no longer deferred)
 
-- ~~CI palette CRC parity for GlideN64-compat draw-time fallback~~ — **Done.** Validated on OoT (11455 CI hits / 23368 CI attempts). Classifies as **bounded compatibility helper** (Phase B2). Gated behind source mode `all` / compat CRC env var. Does not affect Paper Mario packs (source mode `phrb-only`).
+- ~~CI palette CRC parity for GlideN64-compat draw-time fallback~~ — **Done.** Validated on OoT (11455 CI hits / 23368 CI attempts). Classifies as **bounded compatibility helper** (Phase B2). Auto-enabled when loaded PHRB contains compat entries. Does not affect packs with only native sampled entries.
 - ~~Budget-capped lazy loading / streaming for large PHRB packs~~ — **Done.** Streaming metadata-only PHRB parse + GPU LRU eviction with descriptor recycling. OoT 43K entries loads in seconds on integrated GPU.
 
 ## Core Decision
@@ -111,7 +115,7 @@ The project should continue on the current imported-format and sampled-object pa
 2. Keep compatibility logic explicit and secondary.
 3. Continue reducing converter ambiguity without inventing new runtime heuristics.
 4. Broaden validation only after the runtime and converter picture is clearer.
-5. Treat legacy formats as import inputs, not long-term runtime formats.
+5. ~~Treat legacy formats as import inputs, not long-term runtime formats.~~ Done: HTS/HTC loading removed from runtime. Legacy formats are import-only via `hts2phrb`.
 
 The project should not spend the next cycle on:
 
@@ -183,19 +187,19 @@ The `PHRB` format is live and validated across three games (Paper Mario, SM64, O
 - [x] Preserve structured `PHRB` identity at load time instead of discarding it.
 - [x] Separate native sampled records from compat low32 families in provider internals.
 - [x] Add direct provider/package coverage for the preserved-identity seam.
-- [x] Make runtime source policy explicit and thread it through runtime entrypoints.
-- [x] Narrow explicit selected-package runtime lanes to `phrb-only` by policy.
+- [x] ~~Make runtime source policy explicit and thread it through runtime entrypoints.~~ Superseded: `CacheSourcePolicy` removed entirely. PHRB is the only runtime format.
+- [x] ~~Narrow explicit selected-package runtime lanes to `phrb-only` by policy.~~ Superseded: no policy matrix — PHRB-only is the only mode.
 - [x] Widen structured sampled-object lookup beyond the current exact seam only where direct tests exist.
 - [x] Remove the dead generic checksum-only descriptor path (`resolve_hires_replacement_descriptor`).
 - [ ] Replace remaining checksum-shaped fallback seams with structured identity where evidence supports it.
-- [x] Make `.phrb` the only production runtime source.
-- [x] Move `.hts` / `.htc` to import-only status for the default runtime path.
+- [x] Make `.phrb` the only production runtime source. HTS/HTC loading code, `load_hts()`/`load_htc()`, and all legacy format support removed from runtime.
+- [x] Move `.hts` / `.htc` to import-only status. Source-mode core option and `CacheSourcePolicy` removed from frontend.
 - [ ] Preserve ordered-surface metadata as a runtime-native concept instead of selector hashes.
 - [x] Ship the first `hts2phrb` skeleton over the existing pipeline.
 - [x] Add `--context-dir` automatic enrichment discovery to `hts2phrb`.
 - [ ] Strengthen `hts2phrb` further: improve deferred family diagnostics.
 - [x] Add at least one non-Paper-Mario zero-config converter proof (SM64 Reloaded: 2530/2530 promotable, OoT Reloaded: 43266/43267 partial).
-- [x] Validate cross-game runtime end-to-end with automated boot conformance tests (SM64: 6599 compat hits; OoT: 46751 compat hits including CI palette CRC).
+- [x] Validate cross-game runtime end-to-end with automated boot conformance tests (SM64: 6599 compat hits; OoT: 46751 compat hits including CI palette CRC). Compat CRC now auto-enables from loaded PHRB via `has_compat_entries()`.
 - [x] Implement streaming PHRB load and GPU budget/eviction for large cross-game packs.
 - [x] Add representative-pack converter operational gates for timing, cache behavior, and output sizing.
 - [ ] Keep first-load `.hts` to cached `.phrb` auto-conversion disabled until default-path promotion, then add direct tests for it.
@@ -311,7 +315,7 @@ This slice is intentionally smaller than a full runtime-key rewrite. Its job is 
 
 - Compare ParaLLEl CI palette inputs against legacy lookup expectations for the same runtime event.
 - Keep any improvement as explicit compatibility or import guidance unless it cleanly becomes native identity.
-- **Outcome:** GlideN64-compat CI palette CRC (`checksum64 = (palette_crc << 32) | texture_crc`) validated empirically on OoT Reloaded. 11,455 CI hits out of 23,368 CI attempts (49% hit rate). Misses are pack coverage gaps, not CRC parameter mismatches. Classifies as **bounded compatibility helper** — gated behind source mode `all` and compat CRC env var, does not affect native Paper Mario path.
+- **Outcome:** GlideN64-compat CI palette CRC (`checksum64 = (palette_crc << 32) | texture_crc`) validated empirically on OoT Reloaded. 11,455 CI hits out of 23,368 CI attempts (49% hit rate). Misses are pack coverage gaps, not CRC parameter mismatches. Classifies as **bounded compatibility helper** — auto-enabled when loaded PHRB contains compat entries, does not affect packs with only native sampled entries.
 
 ### Investigation 2: `LoadBlock` Sampled-Shape Retry
 
@@ -347,7 +351,7 @@ After validation on the active Paper Mario fixtures, classify CI palette parity 
 
 ### Current Classification Outcomes
 
-- **CI palette parity: bounded compatibility helper.** Validated on OoT with empirical CI hit data. Stays gated behind GlideN64-compat CRC mode. Does not affect native Paper Mario path or promote into canonical runtime identity.
+- **CI palette parity: bounded compatibility helper.** Validated on OoT with empirical CI hit data. Auto-enabled when loaded PHRB contains compat entries. Does not affect packs with only native sampled entries or promote into canonical runtime identity.
 - **Simple `LoadBlock` sampled-shape retry: dead end** for the default runtime path.
 
 ### Exit Criteria
@@ -442,10 +446,11 @@ No new behavior should be promoted to the default runtime path unless all of the
 
 ## What Not To Revive
 
-- runtime lookup-mode matrix
+- runtime lookup-mode matrix (CacheSourcePolicy and source-mode core options have been removed)
 - ownership and consumer policy explosion
 - frontend-exposed heuristic controls as product features
 - permissive reinterpretation as the normal path
+- `.hts` / `.htc` runtime loading (removed; legacy formats are import-only via `hts2phrb`)
 
 ## Decision Gates
 

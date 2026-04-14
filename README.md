@@ -23,6 +23,7 @@ The agreed backbone is:
 Current validation scope is still Paper Mario only.
 The active strict authority fixtures are title screen, file select, and `kmr_03 ENTRY_5`.
 The repo-default authority path now prefers the promoted enriched full-cache `PHRB` artifact and fails closed if that promoted runtime artifact is missing.
+Runtime hi-res loading is `.phrb` only. Legacy `.hts` / `.htc` packs are manual `hts2phrb` conversion inputs, not supported runtime inputs.
 
 The current controlling execution plan for the hi-res runtime/package shift is
 [Hi-Res Runtime Primary Plan](/home/auro/code/parallel-n64/docs/plans/hires_runtime_primary_plan.md).

@@ -6,6 +6,7 @@
 
 namespace RDP::detail
 {
+// Compatibility shim for stale dependency files and older includes.
 inline ReplacementProvider::CacheSourcePolicy configured_hires_cache_source_policy(unsigned mode)
 {
 	switch (mode)

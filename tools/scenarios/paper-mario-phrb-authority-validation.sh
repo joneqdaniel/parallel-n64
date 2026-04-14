@@ -3,13 +3,13 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "$SCRIPT_DIR/../.." && pwd)"
+source "$SCRIPT_DIR/lib/common.sh"
 
 CACHE_PATH="${PARALLEL_RDP_HIRES_CACHE_PATH:-}"
 BUNDLE_ROOT=""
 RUN_PROBES=1
 SUMMARY_TITLE="Paper Mario PHRB Authority Validation"
 EXPECTED_SOURCE_MODE="phrb-only"
-EXPECTED_SOURCE_POLICY="phrb-only"
 MIN_NATIVE_SAMPLED_COUNT=0
 
 usage() {
@@ -23,7 +23,6 @@ Options:
   --reuse                        Reuse existing bundles instead of rerunning probes
   --summary-title TEXT           Markdown title for the validation summary
   --expected-source-mode MODE    Expected hi-res summary source_mode (default: phrb-only)
-  --expected-source-policy MODE  Expected hi-res summary source_policy (default: phrb-only)
   --min-native-sampled-count N   Minimum native sampled entry count required per fixture (default: 0)
   -h, --help                     Show this help
 USAGE
@@ -50,10 +49,6 @@ while (($#)); do
       shift
       EXPECTED_SOURCE_MODE="${1:-}"
       ;;
-    --expected-source-policy)
-      shift
-      EXPECTED_SOURCE_POLICY="${1:-}"
-      ;;
     --min-native-sampled-count)
       shift
       MIN_NATIVE_SAMPLED_COUNT="${1:-}"
@@ -77,6 +72,9 @@ if [[ -z "$CACHE_PATH" ]]; then
 fi
 if [[ ! -f "$CACHE_PATH" ]]; then
   echo "PHRB package not found: $CACHE_PATH" >&2
+  exit 2
+fi
+if ! scenario_require_phrb_runtime_cache "$CACHE_PATH"; then
   exit 2
 fi
 
@@ -112,7 +110,6 @@ for fixture in "${FIXTURES[@]}"; do
     cat > "$runtime_env_override" <<EOF
 source "$runtime_env_source"
 EXPECTED_HIRES_SUMMARY_SOURCE_MODE_ON="$EXPECTED_SOURCE_MODE"
-EXPECTED_HIRES_SUMMARY_SOURCE_POLICY_ON="$EXPECTED_SOURCE_POLICY"
 EXPECTED_HIRES_MIN_SUMMARY_ENTRY_COUNT_ON="1"
 EXPECTED_HIRES_MIN_SUMMARY_NATIVE_SAMPLED_ENTRY_COUNT_ON="$MIN_NATIVE_SAMPLED_COUNT"
 EXPECTED_HIRES_MIN_SUMMARY_SOURCE_PHRB_COUNT_ON="1"
@@ -120,7 +117,6 @@ EOF
 
     RUNTIME_ENV_OVERRIDE="$runtime_env_override" \
     PARALLEL_RDP_HIRES_CACHE_PATH="$CACHE_PATH" \
-    PARALLEL_RDP_HIRES_RUNTIME_SOURCE_MODE="${PARALLEL_RDP_HIRES_RUNTIME_SOURCE_MODE:-phrb-only}" \
     DISABLE_SCREENSHOT_VERIFY=1 \
     "$REPO_ROOT/$scenario_path" \
       --mode on \
@@ -135,7 +131,7 @@ EOF
   fi
 done
 
-python3 - "$CACHE_PATH" "$BUNDLE_ROOT" "$SUMMARY_TITLE" "$EXPECTED_SOURCE_MODE" "$EXPECTED_SOURCE_POLICY" "$MIN_NATIVE_SAMPLED_COUNT" <<'PY'
+python3 - "$CACHE_PATH" "$BUNDLE_ROOT" "$SUMMARY_TITLE" "$EXPECTED_SOURCE_MODE" "$MIN_NATIVE_SAMPLED_COUNT" <<'PY'
 import hashlib
 import json
 import sys
@@ -145,8 +141,7 @@ cache_path = Path(sys.argv[1])
 bundle_root = Path(sys.argv[2])
 summary_title = sys.argv[3]
 expected_source_mode = sys.argv[4]
-expected_source_policy = sys.argv[5]
-min_native_sampled_count = int(sys.argv[6])
+min_native_sampled_count = int(sys.argv[5])
 
 fixtures = [
     ("title-screen", "paper-mario-title-screen"),
@@ -159,7 +154,6 @@ summary = {
     "cache_sha256": hashlib.sha256(cache_path.read_bytes()).hexdigest(),
     "summary_title": summary_title,
     "expected_source_mode": expected_source_mode,
-    "expected_source_policy": expected_source_policy,
     "min_native_sampled_count": min_native_sampled_count,
     "all_passed": True,
     "fixtures": [],
@@ -185,7 +179,6 @@ for label, fixture_id in fixtures:
         "hires_summary": {
             "provider": actual.get("hires_summary_provider"),
             "source_mode": actual.get("hires_summary_source_mode"),
-            "source_policy": actual.get("hires_summary_source_policy"),
             "entry_count": actual.get("hires_summary_entry_count"),
             "native_sampled_entry_count": actual.get("hires_summary_native_sampled_entry_count"),
             "compat_entry_count": actual.get("hires_summary_compat_entry_count"),
@@ -216,7 +209,6 @@ md = [
     f"- Cache: `{cache_path}`",
     f"- Cache SHA-256: `{summary['cache_sha256']}`",
     f"- Expected source mode: `{expected_source_mode}`",
-    f"- Expected source policy: `{expected_source_policy}`",
     f"- Minimum native sampled count: `{min_native_sampled_count}`",
     f"- All passed: `{str(summary['all_passed']).lower()}`",
     "",
@@ -234,7 +226,7 @@ for fixture in summary["fixtures"]:
         f"- Passed: `{str(fixture['passed']).lower()}`",
         f"- Screenshot hash: `{fixture['screenshot_sha256']}`",
         f"- Semantic: `{fixture['init_symbol']}` / `{fixture['step_symbol']}`",
-        f"- Hi-res summary: provider `{hires.get('provider')}`, source mode `{hires.get('source_mode')}`, source policy `{hires.get('source_policy')}`, entries `{hires.get('entry_count')}`, native sampled `{hires.get('native_sampled_entry_count')}`, compat entries `{hires.get('compat_entry_count')}`, entry class `{hires.get('entry_class')}`, source PHRB `{hires.get('source_phrb_count')}`",
+        f"- Hi-res summary: provider `{hires.get('provider')}`, source mode `{hires.get('source_mode')}`, entries `{hires.get('entry_count')}`, native sampled `{hires.get('native_sampled_entry_count')}`, compat entries `{hires.get('compat_entry_count')}`, entry class `{hires.get('entry_class')}`, source PHRB `{hires.get('source_phrb_count')}`",
         f"- Descriptor paths: sampled `{descriptor_paths.get('sampled', 0)}`, native checksum `{descriptor_paths.get('native_checksum', 0)}`, generic `{descriptor_paths.get('generic', 0)}`, compat `{descriptor_paths.get('compat', 0)}`, class `{hires.get('descriptor_path_class')}`",
         f"- Sampled exact hits: `{probe.get('exact_hit_count')}`",
         f"- Sampled conflict misses: `{probe.get('exact_conflict_miss_count')}`",

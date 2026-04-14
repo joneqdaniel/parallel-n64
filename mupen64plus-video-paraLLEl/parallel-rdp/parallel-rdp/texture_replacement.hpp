@@ -185,6 +185,8 @@ public:
 	void set_enabled(bool enable);
 	bool load_cache_dir(const std::string &path);
 	bool load_cache_dir(const std::string &path, CacheSourcePolicy policy);
+	bool has_compat_entries() const;
+	bool has_phrb_compat_entries() const;
 	bool lookup(uint64_t checksum64, uint16_t formatsize, ReplacementMeta *out) const;
 	bool probe_lookup(uint32_t texture_crc, uint32_t palette_crc, uint16_t formatsize, ReplacementMeta *out) const;
 	bool lookup_with_selector(uint64_t checksum64, uint16_t formatsize, uint64_t selector_checksum64, ReplacementMeta *out) const;

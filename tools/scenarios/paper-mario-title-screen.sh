@@ -191,6 +191,7 @@ else
   scenario_source_runtime_env "$RUNTIME_ENV"
 
   PACK_PATH="${PARALLEL_RDP_HIRES_CACHE_PATH:-$PACK_PATH}"
+  scenario_require_phrb_runtime_cache "$PACK_PATH"
   scenario_configure_hires_runtime_env_for_cache "$PACK_PATH"
   PACK_SHA256="$(scenario_sha256_file "$PACK_PATH")"
 

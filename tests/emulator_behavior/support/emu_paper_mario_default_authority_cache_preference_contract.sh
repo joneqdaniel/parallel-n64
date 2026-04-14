@@ -65,8 +65,6 @@ require_pattern 'EXPECTED_SCREENSHOT_SHA256_ON="212ffb9329b8d78e608874e524534ca5
 for runtime_env in "$TITLE_ENV" "$FILE_ENV" "$KMR_ENV"; do
   require_pattern 'EXPECTED_HIRES_SUMMARY_SOURCE_MODE_ON="phrb-only"' "$runtime_env" \
     "runtime envs should require phrb-only source mode on the promoted authority lane"
-  require_pattern 'EXPECTED_HIRES_SUMMARY_SOURCE_POLICY_ON="auto"' "$runtime_env" \
-    "runtime envs should require the default auto source policy on the promoted authority lane"
   require_pattern 'EXPECTED_HIRES_MIN_SUMMARY_NATIVE_SAMPLED_ENTRY_COUNT_ON="1"' "$runtime_env" \
     "runtime envs should require native sampled entries on the promoted authority lane"
   require_pattern 'EXPECTED_HIRES_MIN_SUMMARY_SOURCE_PHRB_COUNT_ON="1"' "$runtime_env" \

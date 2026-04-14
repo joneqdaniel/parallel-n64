@@ -156,10 +156,6 @@ for fixture in fixtures:
         raise SystemExit(
             f"FAIL: zero-config refresh fixture {label} expected source_mode=phrb-only, got {hires.get('source_mode')!r}."
         )
-    if hires.get("source_policy") != "phrb-only":
-        raise SystemExit(
-            f"FAIL: zero-config refresh fixture {label} expected source_policy=phrb-only, got {hires.get('source_policy')!r}."
-        )
     if int(hires.get("entry_count") or 0) != fixture_expected["entry_count"]:
         raise SystemExit(
             f"FAIL: zero-config refresh fixture {label} expected entry_count="

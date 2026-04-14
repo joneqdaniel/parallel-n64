@@ -126,7 +126,7 @@ PY
 )"
 
 ROM_PATH="$REPO_ROOT/assets/Paper Mario (USA).zip"
-PACK_PATH="$REPO_ROOT/assets/PAPER MARIO_HIRESTEXTURES.hts"
+PACK_PATH="${PARALLEL_RDP_HIRES_CACHE_PATH:-$(scenario_default_paper_mario_hires_cache "$REPO_ROOT")}"
 RETROARCH_PATH="/home/auro/code/RetroArch"
 AUTHORITATIVE_STATE_PATH=""
 AUTHORITATIVE_STATE_SHA256="missing"
@@ -170,6 +170,9 @@ if (( DRY_RUN )); then
 fi
 
 scenario_source_runtime_env "$RUNTIME_ENV"
+
+PACK_PATH="${PARALLEL_RDP_HIRES_CACHE_PATH:-$PACK_PATH}"
+scenario_require_phrb_runtime_cache "$PACK_PATH"
 
 if [[ ! -f "${AUTHORITATIVE_STATE_PATH:-}" ]]; then
   echo "[scenario] authoritative file-select state is required." >&2

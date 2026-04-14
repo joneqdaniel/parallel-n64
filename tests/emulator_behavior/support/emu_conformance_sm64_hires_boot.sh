@@ -73,12 +73,10 @@ trap cleanup EXIT
 
 sed -i \
   -e 's/parallel-n64-parallel-rdp-hirestex = "[^"]*"/parallel-n64-parallel-rdp-hirestex = "enabled"/' \
-  -e 's/parallel-n64-parallel-rdp-hirestex-source-mode = "[^"]*"/parallel-n64-parallel-rdp-hirestex-source-mode = "all"/' \
   -e 's/parallel-n64-gfxplugin = "[^"]*"/parallel-n64-gfxplugin = "parallel"/' \
   "$RETROARCH_OPT_FILE"
 
 PARALLEL_RDP_HIRES_CACHE_PATH="$CACHE_PATH" \
-PARALLEL_RDP_HIRES_GLIDEN64_COMPAT_CRC=1 \
   "$RETROARCH_BIN" \
   --verbose \
   --config "$RETROARCH_BASE_CONFIG" \

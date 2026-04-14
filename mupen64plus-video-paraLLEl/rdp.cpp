@@ -11,7 +11,6 @@
 #include "z64.h"
 #include "parallel-rdp/parallel-rdp/rdp_hires_runtime_policy.hpp"
 #include "parallel-rdp/parallel-rdp/rdp_hires_capability_policy.hpp"
-#include "parallel-rdp/parallel-rdp/rdp_hires_cache_source_policy.hpp"
 #include <assert.h>
 #include <stdlib.h>
 
@@ -47,7 +46,6 @@ bool synchronous, divot_filter, gamma_dither, vi_aa, vi_scale, dither_filter, in
 bool hires_textures = false;
 unsigned hires_filter = 1;
 unsigned hires_srgb = 0;
-unsigned hires_source_mode = 0;
 string hires_cache_path;
 
 void process_commands()
@@ -252,13 +250,10 @@ bool init()
 	frontend->set_quirks(quirks);
 
 	hires_cache_path = detail::resolve_hires_cache_path(hires_cache_path, getenv("PARALLEL_RDP_HIRES_CACHE_PATH"));
-	const auto cache_source_policy =
-		detail::resolve_hires_cache_source_policy(hires_source_mode, getenv("PARALLEL_RDP_HIRES_RUNTIME_SOURCE_MODE"));
-
 	if (hires_textures)
 	{
 		log_cb(RETRO_LOG_INFO,
-		       "Hi-res capability check: descriptor_indexing=%u runtime_descriptor_array=%u sampled_image_array_non_uniform_indexing=%u descriptor_binding_variable_descriptor_count=%u descriptor_binding_partially_bound=%u descriptor_binding_update_after_bind=%u maxDescriptorSetUpdateAfterBindSampledImages=%u cache_path=%s source_mode=%s.\n",
+		       "Hi-res capability check: descriptor_indexing=%u runtime_descriptor_array=%u sampled_image_array_non_uniform_indexing=%u descriptor_binding_variable_descriptor_count=%u descriptor_binding_partially_bound=%u descriptor_binding_update_after_bind=%u maxDescriptorSetUpdateAfterBindSampledImages=%u cache_path=%s.\n",
 		       hires_support.descriptor_indexing ? 1u : 0u,
 		       hires_support.runtime_descriptor_array ? 1u : 0u,
 		       hires_support.sampled_image_array_non_uniform_indexing ? 1u : 0u,
@@ -266,8 +261,7 @@ bool init()
 		       hires_support.descriptor_binding_partially_bound ? 1u : 0u,
 		       hires_support.descriptor_binding_update_after_bind ? 1u : 0u,
 		       max_hires_update_after_bind_sampled_images,
-		       hires_cache_path.empty() ? "<empty>" : hires_cache_path.c_str(),
-		       detail::hires_cache_source_policy_name(cache_source_policy));
+		       hires_cache_path.empty() ? "<empty>" : hires_cache_path.c_str());
 	}
 
 	if (hires_textures && !hires_capabilities_ok)
@@ -282,12 +276,11 @@ bool init()
 	if (hires_capabilities_ok)
 	{
 		log_cb(RETRO_LOG_INFO,
-		       "Hi-res textures enabled (path=%s, filter=%u, srgb_mode=%u, source_mode=%s).\n",
-		       hires_cache_path.c_str(), hires_filter, hires_srgb,
-		       detail::hires_cache_source_policy_name(cache_source_policy));
+		       "Hi-res textures enabled (path=%s, filter=%u, srgb_mode=%u).\n",
+		       hires_cache_path.c_str(), hires_filter, hires_srgb);
 	}
 
-	frontend->configure_hires_replacement(hires_capabilities_ok, hires_cache_path.c_str(), cache_source_policy);
+	frontend->configure_hires_replacement(hires_capabilities_ok, hires_cache_path.c_str());
 
 	timeline_value = 0;
 	pending_timeline_value = 0;

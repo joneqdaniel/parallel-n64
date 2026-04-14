@@ -3,6 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "$SCRIPT_DIR/../.." && pwd)"
+source "$SCRIPT_DIR/lib/common.sh"
 
 CACHE_PATH="${PARALLEL_RDP_HIRES_CACHE_PATH:-}"
 BUNDLE_ROOT=""
@@ -59,6 +60,9 @@ if [[ -z "$CACHE_PATH" ]]; then
 fi
 if [[ ! -f "$CACHE_PATH" ]]; then
   echo "Selected package not found: $CACHE_PATH" >&2
+  exit 2
+fi
+if ! scenario_require_phrb_runtime_cache "$CACHE_PATH"; then
   exit 2
 fi
 
@@ -137,14 +141,26 @@ for legacy_dir in sorted((bundle_root / 'legacy').iterdir()):
     total_sq = sum(((i % 256) ** 2) * v for i, v in enumerate(hist))
     count = legacy_img.size[0] * legacy_img.size[1] * 4
 
+    legacy_hires = json.loads((legacy_dir / 'traces' / 'hires-evidence.json').read_text())
     selected_semantic = json.loads((selected_dir / 'traces' / 'paper-mario-game-status.json').read_text())
     selected_hires = json.loads((selected_dir / 'traces' / 'hires-evidence.json').read_text())
+    legacy_summary = legacy_hires.get('summary') or {}
+    selected_summary = selected_hires.get('summary') or {}
+    legacy_source_mode = legacy_summary.get('source_mode')
+    if int(legacy_summary.get('entry_count') or 0) < 1:
+        raise SystemExit(f'legacy bundle {legacy_dir} did not load any hi-res entries')
+    if legacy_source_mode not in ('legacy-only', 'mixed'):
+        raise SystemExit(
+            f'legacy bundle {legacy_dir} expected source_mode legacy-only/mixed, found {legacy_source_mode!r}'
+        )
     selected_probe = selected_hires.get('sampled_object_probe', {})
 
     summary['steps'].append({
         'step_frames': step,
         'legacy_bundle': str(legacy_dir),
         'selected_bundle': str(selected_dir),
+        'legacy_hires_summary': legacy_summary,
+        'selected_hires_summary': selected_summary,
         'legacy_hash': legacy_hash,
         'selected_hash': selected_hash,
         'matches_legacy': legacy_hash == selected_hash,
@@ -181,6 +197,8 @@ for step in summary['steps']:
         f'- Matches legacy: `{str(step["matches_legacy"]).lower()}`',
         f'- Legacy hash: `{step["legacy_hash"]}`',
         f'- Selected hash: `{step["selected_hash"]}`',
+        f'- Legacy hi-res source mode: `{step["legacy_hires_summary"].get("source_mode")}` with `{step["legacy_hires_summary"].get("entry_count")}` entries',
+        f'- Selected hi-res source mode: `{step["selected_hires_summary"].get("source_mode")}` with `{step["selected_hires_summary"].get("entry_count")}` entries',
         f'- AE: `{step["ae"]}`',
         f'- RMSE: `{step["rmse"]}`',
         f'- Semantic: `{step["semantic"]["init_symbol"]}` / `{step["semantic"]["step_symbol"]}`, map `{step["semantic"]["map_name_candidate"]}`, entry `{step["semantic"]["entry_id"]}`',

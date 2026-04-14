@@ -75,7 +75,6 @@ static_assert(sizeof(PHRBHeader) == 32, "PHRBHeader must stay packed on disk.");
 static_assert(sizeof(PHRBRecordV4) == 56, "PHRBRecordV4 must stay packed on disk.");
 static_assert(sizeof(PHRBAssetV7) == 76, "PHRBAssetV7 must stay packed on disk.");
 
-constexpr int32_t TXCACHE_FORMAT_VERSION = 0x08000000;
 constexpr uint16_t GL_RGB = 0x1907;
 constexpr uint16_t GL_RGBA = 0x1908;
 constexpr uint16_t GL_UNSIGNED_BYTE = 0x1401;
@@ -83,6 +82,7 @@ constexpr uint16_t GL_UNSIGNED_SHORT_5_6_5 = 0x8363;
 constexpr uint32_t GL_RGB8 = 0x8051;
 constexpr uint32_t GL_RGBA8 = 0x8058;
 constexpr uint32_t PHRB_RECORD_FLAG_RUNTIME_READY = 1u << 0;
+constexpr int32_t TXCACHE_FORMAT_VERSION = 0x08000000;
 
 static void check(bool condition, const char *message)
 {
@@ -117,47 +117,81 @@ static void write_file(const std::string &path, const std::vector<uint8_t> &data
 }
 
 template <typename T>
-static void gz_write_exact(gzFile fp, const T &value)
+static void append_bytes(std::vector<uint8_t> &data, const T &value)
 {
-	check(gzwrite(fp, &value, unsigned(sizeof(T))) == int(sizeof(T)), "failed to write temporary HTC record");
+	const auto *bytes = reinterpret_cast<const uint8_t *>(&value);
+	data.insert(data.end(), bytes, bytes + sizeof(T));
 }
 
-static void gz_write_bytes(gzFile fp, const void *data, size_t size)
+static void write_legacy_hts(const std::string &path,
+                             uint64_t checksum64,
+                             uint16_t formatsize,
+                             uint32_t width,
+                             uint32_t height,
+                             uint32_t format,
+                             uint16_t texture_format,
+                             uint16_t pixel_type,
+                             const std::vector<uint8_t> &blob)
 {
-	check(gzwrite(fp, data, unsigned(size)) == int(size), "failed to write temporary HTC payload");
+	const int32_t version = TXCACHE_FORMAT_VERSION;
+	const int32_t config = 0;
+	const int64_t storage_pos = 16;
+	const int32_t storage_size = 1;
+	const uint64_t record_offset = 16 + 4 + 8 + 8;
+	const int64_t packed = int64_t(record_offset | (uint64_t(formatsize) << 48u));
+	const uint8_t is_hires = 1;
+	const uint32_t data_size = uint32_t(blob.size());
+
+	std::vector<uint8_t> data;
+	append_bytes(data, version);
+	append_bytes(data, config);
+	append_bytes(data, storage_pos);
+	append_bytes(data, storage_size);
+	append_bytes(data, checksum64);
+	append_bytes(data, packed);
+	append_bytes(data, width);
+	append_bytes(data, height);
+	append_bytes(data, format);
+	append_bytes(data, texture_format);
+	append_bytes(data, pixel_type);
+	append_bytes(data, is_hires);
+	append_bytes(data, formatsize);
+	append_bytes(data, data_size);
+	data.insert(data.end(), blob.begin(), blob.end());
+
+	write_file(path, data);
 }
 
-static void write_htc_file(const std::string &path,
-                           uint64_t checksum64,
-                           uint16_t formatsize,
-                           uint32_t width,
-                           uint32_t height,
-                           const std::vector<uint8_t> &rgba)
+static void write_legacy_htc(const std::string &path,
+                             uint64_t checksum64,
+                             uint16_t formatsize,
+                             uint32_t width,
+                             uint32_t height,
+                             uint32_t format,
+                             uint16_t texture_format,
+                             uint16_t pixel_type,
+                             const std::vector<uint8_t> &blob)
 {
 	gzFile fp = gzopen(path.c_str(), "wb");
 	check(fp != nullptr, "failed to open temporary HTC file");
 
 	const int32_t version = TXCACHE_FORMAT_VERSION;
 	const int32_t config = 0;
-	const uint32_t format = GL_RGBA8;
-	const uint16_t texture_format = GL_RGBA;
-	const uint16_t pixel_type = GL_UNSIGNED_BYTE;
 	const uint8_t is_hires = 1;
-	const uint32_t data_size = uint32_t(rgba.size());
+	const uint32_t data_size = uint32_t(blob.size());
 
-	gz_write_exact(fp, version);
-	gz_write_exact(fp, config);
-	gz_write_exact(fp, checksum64);
-	gz_write_exact(fp, width);
-	gz_write_exact(fp, height);
-	gz_write_exact(fp, format);
-	gz_write_exact(fp, texture_format);
-	gz_write_exact(fp, pixel_type);
-	gz_write_exact(fp, is_hires);
-	gz_write_exact(fp, formatsize);
-	gz_write_exact(fp, data_size);
-	gz_write_bytes(fp, rgba.data(), rgba.size());
-
+	check(gzwrite(fp, &version, sizeof(version)) == int(sizeof(version)), "failed to write HTC version");
+	check(gzwrite(fp, &config, sizeof(config)) == int(sizeof(config)), "failed to write HTC config");
+	check(gzwrite(fp, &checksum64, sizeof(checksum64)) == int(sizeof(checksum64)), "failed to write HTC checksum");
+	check(gzwrite(fp, &width, sizeof(width)) == int(sizeof(width)), "failed to write HTC width");
+	check(gzwrite(fp, &height, sizeof(height)) == int(sizeof(height)), "failed to write HTC height");
+	check(gzwrite(fp, &format, sizeof(format)) == int(sizeof(format)), "failed to write HTC format");
+	check(gzwrite(fp, &texture_format, sizeof(texture_format)) == int(sizeof(texture_format)), "failed to write HTC texture format");
+	check(gzwrite(fp, &pixel_type, sizeof(pixel_type)) == int(sizeof(pixel_type)), "failed to write HTC pixel type");
+	check(gzwrite(fp, &is_hires, sizeof(is_hires)) == int(sizeof(is_hires)), "failed to write HTC is_hires");
+	check(gzwrite(fp, &formatsize, sizeof(formatsize)) == int(sizeof(formatsize)), "failed to write HTC formatsize");
+	check(gzwrite(fp, &data_size, sizeof(data_size)) == int(sizeof(data_size)), "failed to write HTC data size");
+	check(gzwrite(fp, blob.data(), unsigned(blob.size())) == int(blob.size()), "failed to write HTC payload");
 	check(gzclose(fp) == Z_OK, "failed to close temporary HTC file");
 }
 
@@ -260,19 +294,7 @@ int main()
 	if (const char *load_path = std::getenv("PARALLEL_N64_PROVIDER_LOAD_CACHE_PATH"))
 	{
 		ReplacementProvider provider;
-		ReplacementProvider::CacheSourcePolicy policy = ReplacementProvider::CacheSourcePolicy::Auto;
-		if (const char *policy_env = std::getenv("PARALLEL_N64_PROVIDER_LOAD_CACHE_POLICY"))
-		{
-			const std::string value = policy_env;
-			if (value == "auto")
-				policy = ReplacementProvider::CacheSourcePolicy::Auto;
-			else if (value == "phrb-only")
-				policy = ReplacementProvider::CacheSourcePolicy::PHRBOnly;
-			else if (value == "legacy-only")
-				policy = ReplacementProvider::CacheSourcePolicy::LegacyOnly;
-		}
-
-		if (!provider.load_cache_dir(load_path, policy))
+		if (!provider.load_cache_dir(load_path))
 		{
 			std::cerr << "FAIL: provider could not load cache path " << load_path << std::endl;
 			return 1;
@@ -285,8 +307,6 @@ int main()
 			<< " native_sampled=" << stats.native_sampled_entry_count
 			<< " compat=" << stats.compat_entry_count
 			<< " phrb=" << stats.source_phrb_entry_count
-			<< " hts=" << stats.source_hts_entry_count
-			<< " htc=" << stats.source_htc_entry_count
 			<< std::endl;
 		return 0;
 	}
@@ -398,6 +418,7 @@ int main()
 	check(provider.sampled_index_.size() == 4, "sampled lookup index should contain both palette aliases for both selectors");
 	check(provider.sampled_family_index_.size() == 2, "sampled family index should collapse selectors into palette families");
 	check(provider.compat_checksum_low32_index_.empty(), "native PHRB entries should not populate compat low32 families");
+	check(!provider.has_phrb_compat_entries(), "pure native PHRB inputs should not trigger compat-bearing runtime auto-enable");
 
 	const auto *structured_sparse_entry = provider.find_sampled_entry(
 		record.fmt,
@@ -533,7 +554,7 @@ int main()
 	// invalidated by vector reallocation.
 	const uint64_t sparse_checksum64 = structured_sparse_entry->checksum64;
 	ReplacementProvider::Entry compat_alias = entry;
-	compat_alias.source_path = dir + "/compat.hts";
+	compat_alias.source_path = dir + "/compat.phrb";
 	compat_alias.phrb_policy_key.clear();
 	compat_alias.phrb_sampled_object_id.clear();
 	compat_alias.sampled_palette_crc = 0;
@@ -555,7 +576,7 @@ int main()
 	check(provider.find_compat_entry(
 	          sparse_checksum64,
 	          record.formatsize,
-	          asset.selector_checksum64)->source_path == dir + "/compat.hts",
+	          asset.selector_checksum64)->source_path == dir + "/compat.phrb",
 	      "compat alias should be reachable via explicit compat lookup");
 	check(provider.compat_checksum_low32_index_.size() == 1,
 	      "compat aliases should populate the explicit compat low32 index");
@@ -569,7 +590,7 @@ int main()
 	check(provider.find_compat_entry(
 	          resolved_checksum64,
 	          record.formatsize,
-	          asset.selector_checksum64)->source_path == dir + "/compat.hts",
+	          asset.selector_checksum64)->source_path == dir + "/compat.phrb",
 	      "compat low32 fallback should stay inside the compat alias pool");
 	check(provider.resolve_ci_low32_candidate(
 	          record.sampled_low32,
@@ -651,9 +672,10 @@ int main()
 	check(stats.sampled_duplicate_entry_count == 0, "provider stats should report zero sampled duplicate entries for unique inputs");
 	check(stats.sampled_family_count == 2, "provider stats should report sampled family count");
 	check(stats.compat_low32_family_count == 1, "provider stats should report compat low32 family count");
-	check(stats.source_phrb_entry_count == 4, "provider stats should report PHRB-backed entries");
-	check(stats.source_hts_entry_count == 1, "provider stats should report HTS-backed entries");
-	check(stats.source_htc_entry_count == 0, "provider stats should not invent HTC-backed entries");
+	check(stats.source_phrb_entry_count == 5, "provider stats should report PHRB-backed entries");
+	check(stats.source_hts_entry_count == 0, "provider stats should report zero HTS-backed entries for pure PHRB inputs");
+	check(stats.source_htc_entry_count == 0, "provider stats should report zero HTC-backed entries for pure PHRB inputs");
+	check(provider.has_phrb_compat_entries(), "compat-bearing PHRB inputs should be detectable for runtime auto-enable");
 
 	ReplacementResolution upload_sampled_exact_resolution = {};
 	const uint64_t upload_checksum64 = (uint64_t(record.sampled_sparse_pcrc) << 32u) | uint64_t(record.sampled_low32);
@@ -696,6 +718,53 @@ int main()
 	      (upload_wrong_selector_resolution.kind != ReplacementResolutionKind::SampledExactSelector &&
 	       upload_wrong_selector_resolution.kind != ReplacementResolutionKind::SampledFamilySingleton),
 	      "upload candidate resolution should not resolve via sampled paths when the selector does not match");
+
+	const std::string legacy_cache_dir = make_temp_dir();
+	const uint64_t legacy_checksum64 = 0x5566778811223344ull;
+	const uint16_t legacy_formatsize = 258;
+	const std::vector<uint8_t> legacy_blob = {
+		0x11, 0x22, 0x33, 0xff,
+	};
+	const std::string legacy_hts_path = legacy_cache_dir + "/legacy.hts";
+	const std::string legacy_htc_path = legacy_cache_dir + "/legacy.htc";
+	write_legacy_hts(legacy_hts_path, legacy_checksum64, legacy_formatsize, 1, 1, GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE, legacy_blob);
+	write_legacy_htc(legacy_htc_path, legacy_checksum64, legacy_formatsize, 1, 1, GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE, legacy_blob);
+
+	ReplacementProvider legacy_hts_provider;
+	check(legacy_hts_provider.load_cache_dir(legacy_hts_path),
+	      "provider should load legacy HTS cache files");
+	legacy_hts_provider.set_enabled(true);
+	ReplacementProviderStats legacy_hts_stats = legacy_hts_provider.get_stats();
+	check(legacy_hts_stats.entry_count == 1, "legacy HTS cache should produce one entry");
+	check(legacy_hts_stats.compat_entry_count == 1, "legacy HTS cache should classify entries as compat");
+	check(legacy_hts_stats.native_sampled_entry_count == 0, "legacy HTS cache should not synthesize native sampled identities");
+	check(legacy_hts_stats.source_phrb_entry_count == 0, "legacy HTS cache should not report PHRB-backed entries");
+	check(legacy_hts_stats.source_hts_entry_count == 1, "legacy HTS cache should report HTS-backed entries");
+	check(legacy_hts_stats.source_htc_entry_count == 0, "legacy HTS cache should not report HTC-backed entries");
+	check(!legacy_hts_provider.has_phrb_compat_entries(), "legacy HTS cache should not look like a compat-bearing PHRB load");
+	ReplacementImage legacy_hts_image = {};
+	check(legacy_hts_provider.decode_rgba8(legacy_checksum64, legacy_formatsize, &legacy_hts_image),
+	      "legacy HTS cache should decode through exact checksum lookup");
+	check(legacy_hts_image.rgba8 == legacy_blob,
+	      "legacy HTS cache should preserve RGBA payload bytes");
+
+	ReplacementProvider legacy_htc_provider;
+	check(legacy_htc_provider.load_cache_dir(legacy_htc_path, ReplacementProvider::CacheSourcePolicy::LegacyOnly),
+	      "provider should load legacy HTC cache files under legacy-only policy");
+	legacy_htc_provider.set_enabled(true);
+	ReplacementProviderStats legacy_htc_stats = legacy_htc_provider.get_stats();
+	check(legacy_htc_stats.entry_count == 1, "legacy HTC cache should produce one entry");
+	check(legacy_htc_stats.compat_entry_count == 1, "legacy HTC cache should classify entries as compat");
+	check(legacy_htc_stats.source_phrb_entry_count == 0, "legacy HTC cache should not report PHRB-backed entries");
+	check(legacy_htc_stats.source_hts_entry_count == 0, "legacy HTC cache should not report HTS-backed entries");
+	check(legacy_htc_stats.source_htc_entry_count == 1, "legacy HTC cache should report HTC-backed entries");
+	check(!legacy_htc_provider.has_phrb_compat_entries(), "legacy HTC cache should not look like a compat-bearing PHRB load");
+	ReplacementImage legacy_htc_image = {};
+	check(legacy_htc_provider.decode_rgba8(legacy_checksum64, legacy_formatsize, &legacy_htc_image),
+	      "legacy HTC cache should decode through exact checksum lookup");
+	check(legacy_htc_image.rgba8 == legacy_blob,
+	      "legacy HTC cache should preserve RGBA payload bytes");
+	remove_tree(legacy_cache_dir);
 
 	const std::string deferred_dir = make_temp_dir();
 	const uint32_t deferred_palette_crc = 0x1234abcdU;
@@ -837,6 +906,9 @@ int main()
 	check(family_stats.native_sampled_entry_count == 0, "family stats should not count family stubs as native sampled entries");
 	check(family_stats.compat_entry_count == 1, "family stats should count family stubs as compat entries");
 	check(family_stats.source_phrb_entry_count == 1, "family stats should count the loaded family PHRB entry");
+	check(family_stats.source_hts_entry_count == 0, "family stats should not count HTS-backed entries");
+	check(family_stats.source_htc_entry_count == 0, "family stats should not count HTC-backed entries");
+	check(family_provider.has_phrb_compat_entries(), "family-runtime PHRB records should trigger compat-bearing PHRB detection");
 	remove_tree(family_dir);
 
 	const std::string legacy_payload_dir = make_temp_dir();
@@ -913,8 +985,8 @@ int main()
 	};
 	write_single_asset_phrb(
 		mixed_dir + "/a-native.phrb",
-		"native-priority",
-		"native-priority-replacement",
+		"mixed-native",
+		"mixed-native-replacement",
 		"sampled-fmt2-siz1-off32-stride16-wh2x2-fs258-low320badbeef",
 		2,
 		1,
@@ -929,57 +1001,34 @@ int main()
 		2,
 		2,
 		mixed_native_rgba);
-	write_htc_file(
+	write_legacy_htc(
 		mixed_dir + "/z-compat.htc",
 		mixed_checksum64,
 		258,
 		4,
 		1,
+		GL_RGBA8,
+		GL_RGBA,
+		GL_UNSIGNED_BYTE,
 		mixed_compat_rgba);
 
 	ReplacementProvider mixed_all_provider;
 	check(mixed_all_provider.load_cache_dir(mixed_dir, ReplacementProvider::CacheSourcePolicy::All),
-	      "explicit all-policy provider should still load mixed-source cache directories");
+	      "all-policy provider should load mixed-source cache directories");
 	mixed_all_provider.set_enabled(true);
-	check(mixed_all_provider.entry_count() == 2, "all-policy provider should load both native and compat entries");
-	check(mixed_all_provider.native_checksum_index_.size() == 1, "all-policy provider should keep a native checksum family index");
-	check(mixed_all_provider.compat_checksum_index_.size() == 1, "all-policy provider should keep a compat checksum family index");
-	const auto *mixed_entry = mixed_all_provider.find_any_entry(mixed_checksum64, 258, 0);
-	check(mixed_entry != nullptr, "all-policy provider should resolve duplicate checksum entries");
-	check(mixed_entry->source_path.find(".phrb") != std::string::npos,
-	      "all-policy directory load should still prefer PHRB entries over later-sorting legacy files");
+	check(mixed_all_provider.entry_count() == 2, "all-policy provider should keep both native and compat entries active");
+	check(mixed_all_provider.has_compat_entries(),
+	      "all-policy mixed-source loads should report active compat entries");
+	check(!mixed_all_provider.has_phrb_compat_entries(),
+	      "all-policy mixed-source loads should not misclassify legacy compat entries as PHRB compat");
 	const auto *mixed_native_entry = mixed_all_provider.find_native_entry(mixed_checksum64, 258, 0);
-	check(mixed_native_entry != nullptr, "all-policy provider should expose the native duplicate explicitly");
+	check(mixed_native_entry != nullptr, "all-policy provider should expose the native PHRB duplicate");
 	check(mixed_native_entry->source_path.find(".phrb") != std::string::npos,
-	      "all-policy native duplicate lookup should resolve the PHRB entry");
+	      "all-policy native lookup should keep the PHRB-backed entry");
 	const auto *mixed_compat_entry = mixed_all_provider.find_compat_entry(mixed_checksum64, 258, 0);
-	check(mixed_compat_entry != nullptr, "all-policy provider should expose the compat duplicate explicitly");
+	check(mixed_compat_entry != nullptr, "all-policy provider should expose the legacy compat duplicate");
 	check(mixed_compat_entry->source_path.find(".htc") != std::string::npos,
-	      "all-policy compat duplicate lookup should resolve the legacy entry");
-	ReplacementMeta mixed_native_meta = {};
-	NativeSampledIdentity mixed_native_identity = {};
-	check(mixed_all_provider.lookup_native_with_selector(
-	          mixed_checksum64,
-	          258,
-	          0,
-	          &mixed_native_meta,
-	          &mixed_native_identity,
-	          &resolved_checksum64),
-	      "mixed-source native lookup should resolve duplicate checksum entries");
-	check(mixed_native_identity.valid, "mixed-source native lookup should preserve structured sampled identity");
-	check(mixed_native_identity.sampled_fmt == 2 && mixed_native_identity.sampled_siz == 1,
-	      "mixed-source native lookup should report sampled format/size");
-	check(mixed_native_identity.sampled_tex_offset == 32 && mixed_native_identity.sampled_stride == 16,
-	      "mixed-source native lookup should report sampled offset/stride");
-	check(mixed_native_identity.sampled_width == 2 && mixed_native_identity.sampled_height == 2,
-	      "mixed-source native lookup should report sampled dimensions");
-	check(mixed_native_identity.sampled_low32 == mixed_sampled_low32 &&
-	          mixed_native_identity.sampled_palette_crc == mixed_palette_crc,
-	      "mixed-source native lookup should report sampled checksum identity");
-	check(mixed_native_identity.formatsize == 258 && mixed_native_identity.selector_checksum64 == 0,
-	      "mixed-source native lookup should preserve formatsize and selector");
-	check(resolved_checksum64 == mixed_checksum64,
-	      "mixed-source native lookup should report the resolved checksum");
+	      "all-policy compat lookup should keep the legacy-backed entry");
 	ReplacementMeta mixed_lookup_meta = {};
 	NativeSampledIdentity mixed_lookup_identity = {};
 	ResolvedEntrySourceClass mixed_lookup_source_class = ResolvedEntrySourceClass::Unknown;
@@ -991,191 +1040,30 @@ int main()
 	          &mixed_lookup_identity,
 	          &mixed_lookup_source_class,
 	          &resolved_checksum64),
-	      "mixed-source generic lookup helper should resolve duplicate checksum entries");
-	check(mixed_lookup_meta.repl_w == 2 && mixed_lookup_meta.repl_h == 2,
-	      "mixed-source generic lookup helper should preserve the winning replacement dimensions");
+	      "mixed-source generic lookup should still prefer the native PHRB entry");
 	check(mixed_lookup_source_class == ResolvedEntrySourceClass::Native,
-	      "mixed-source generic lookup helper should classify the winning PHRB entry as native");
+	      "mixed-source generic lookup should classify the winning entry as native");
 	check(mixed_lookup_identity.valid,
-	      "mixed-source generic lookup helper should preserve native sampled identity for the winning PHRB entry");
-	check(mixed_lookup_identity.sampled_low32 == mixed_sampled_low32 &&
-	          mixed_lookup_identity.sampled_palette_crc == mixed_palette_crc,
-	      "mixed-source generic lookup helper should expose the winning sampled checksum identity");
-	check(resolved_checksum64 == mixed_checksum64,
-	      "mixed-source generic lookup helper should report the resolved checksum");
-	uint64_t mixed_resolved_selector_checksum64 = 0xffffffffu;
-	check(mixed_all_provider.lookup_sampled_family_unique(
-	          2,
-	          1,
-	          32,
-	          16,
-	          2,
-	          2,
-	          mixed_sampled_low32,
-	          mixed_palette_crc,
-	          258,
-	          &mixed_native_meta,
-	          &resolved_checksum64,
-	          &mixed_resolved_selector_checksum64),
-	      "family-unique sampled lookup should resolve singleton native sampled families");
-	check(mixed_resolved_selector_checksum64 == 0,
-	      "family-unique sampled lookup should preserve the singleton selector");
-	check(resolved_checksum64 == mixed_checksum64,
-	      "family-unique sampled lookup should preserve the singleton checksum");
-	bool mixed_ordered_surface_singleton = true;
-	check(mixed_all_provider.lookup_sampled_family_singleton(
-	          2,
-	          1,
-	          32,
-	          16,
-	          2,
-	          2,
-	          mixed_sampled_low32,
-	          mixed_palette_crc,
-	          258,
-	          &mixed_native_meta,
-	          &resolved_checksum64,
-	          &mixed_resolved_selector_checksum64,
-	          &mixed_ordered_surface_singleton),
-	      "family-singleton sampled lookup should continue to resolve plain singleton native sampled families");
-	check(mixed_resolved_selector_checksum64 == 0,
-	      "family-singleton sampled lookup should preserve the singleton selector");
-	check(!mixed_ordered_surface_singleton,
-	      "family-singleton sampled lookup should not classify plain singletons as ordered-surface families");
-	check(resolved_checksum64 == mixed_checksum64,
-	      "family-singleton sampled lookup should preserve the singleton checksum");
+	      "mixed-source generic lookup should preserve the winning native sampled identity");
 	ReplacementMeta mixed_compat_meta = {};
 	check(mixed_all_provider.lookup_compat_with_selector(mixed_checksum64, 258, 0, &mixed_compat_meta),
-	      "all-policy compat lookup should resolve duplicate checksum entries");
+	      "all-policy compat lookup should still resolve the legacy compat duplicate");
 	check(mixed_compat_meta.repl_w == 4 && mixed_compat_meta.repl_h == 1,
-	      "all-policy compat lookup should preserve compat replacement dimensions");
-	ReplacementImage mixed_image = {};
-	check(mixed_all_provider.decode_rgba8(mixed_checksum64, 258, &mixed_image),
-	      "all-policy checksum decode should resolve duplicate entries");
-	check(!mixed_image.rgba8.empty() && mixed_image.rgba8[0] == mixed_native_rgba[0],
-	      "all-policy checksum decode should prefer the native PHRB payload");
-	ReplacementImage mixed_native_image = {};
-	check(mixed_all_provider.decode_rgba8_native_with_selector(mixed_checksum64, 258, 0, &mixed_native_image),
-	      "all-policy native decode should resolve the PHRB duplicate explicitly");
-	check(!mixed_native_image.rgba8.empty() && mixed_native_image.rgba8[0] == mixed_native_rgba[0],
-	      "all-policy native decode should expose the PHRB payload");
-	ReplacementImage mixed_compat_image = {};
-	check(mixed_all_provider.decode_rgba8_compat_with_selector(mixed_checksum64, 258, 0, &mixed_compat_image),
-	      "all-policy compat decode should resolve the legacy duplicate explicitly");
-	check(!mixed_compat_image.rgba8.empty() && mixed_compat_image.rgba8[0] == mixed_compat_rgba[0],
-	      "all-policy compat decode should expose the legacy payload");
-	ReplacementMeta mixed_compat_low32_meta = {};
-	check(mixed_all_provider.lookup_ci_low32_unique(uint32_t(mixed_checksum64 & 0xffffffffu), 258, &mixed_compat_low32_meta),
-	      "compat low32 unique lookup should still resolve the compat duplicate in all-policy mixed-source caches");
-	check(mixed_compat_low32_meta.repl_w == 4 && mixed_compat_low32_meta.repl_h == 1,
-	      "compat low32 unique lookup should stay inside the compat pool even when a native duplicate exists");
-	ReplacementResolution mixed_ci_low32_resolution = {};
-	check(mixed_all_provider.resolve_ci_low32_candidate(
-	          uint32_t(mixed_checksum64 & 0xffffffffu),
-	          258,
-	          0,
-	          0,
-	          0,
-	          CILow32ResolutionMode::Unique,
-	          &mixed_ci_low32_resolution),
-	      "typed compat low32 unique resolution should still resolve the compat duplicate in mixed-source caches");
-	check(mixed_ci_low32_resolution.kind == ReplacementResolutionKind::CILow32Unique,
-	      "typed compat low32 unique resolution should preserve the unique classification");
-	check(mixed_ci_low32_resolution.source_class == ResolvedEntrySourceClass::Compat,
-	      "typed compat low32 unique resolution should stay inside the compat pool");
-	check(mixed_ci_low32_resolution.meta.repl_w == 4 && mixed_ci_low32_resolution.meta.repl_h == 1,
-	      "typed compat low32 unique resolution should preserve compat replacement dimensions");
+	      "all-policy compat lookup should preserve legacy compat replacement dimensions");
 	ReplacementProviderStats mixed_stats = mixed_all_provider.get_stats();
-	check(mixed_stats.entry_count == 2, "all-policy stats should report total entry count");
-	check(mixed_stats.native_sampled_entry_count == 1, "all-policy stats should preserve native sampled entry count");
-	check(mixed_stats.compat_entry_count == 1, "all-policy stats should preserve compat entry count");
-	check(mixed_stats.source_phrb_entry_count == 1, "all-policy stats should preserve PHRB source count");
-	check(mixed_stats.source_htc_entry_count == 1, "all-policy stats should preserve HTC source count");
-
-	ReplacementProvider default_provider;
-	check(default_provider.load_cache_dir(mixed_dir),
-	      "default provider load should now use auto source policy for mixed-source cache directories");
-	default_provider.set_enabled(true);
-	check(default_provider.entry_count() == 1,
-	      "default provider load should prefer the native PHRB entry when mixed-source cache directories contain both formats");
-	check(default_provider.find_any_entry(mixed_checksum64, 258, 0) != nullptr,
-	      "default provider load should still resolve the preferred native PHRB duplicate");
-	check(default_provider.find_compat_entry(mixed_checksum64, 258, 0) == nullptr,
-	      "default provider load should fence out compat entries in mixed-source auto mode");
-	ReplacementProviderStats default_stats = default_provider.get_stats();
-	check(default_stats.source_phrb_entry_count == 1, "default load stats should preserve the preferred PHRB source count");
-	check(default_stats.source_htc_entry_count == 0, "default load stats should exclude HTC-backed entries in mixed-source auto mode");
-	check(default_stats.compat_entry_count == 0, "default load stats should exclude compat entries in mixed-source auto mode");
-
-	ReplacementProvider phrb_only_provider;
-	check(phrb_only_provider.load_cache_dir(mixed_dir, ReplacementProvider::CacheSourcePolicy::PHRBOnly),
-	      "phrb-only provider should load native entries from mixed-source cache directories");
-	phrb_only_provider.set_enabled(true);
-	check(phrb_only_provider.entry_count() == 1, "phrb-only provider should only load the native PHRB entry");
-	check(phrb_only_provider.find_any_entry(mixed_checksum64, 258, 0) != nullptr,
-	      "phrb-only provider should still resolve the native PHRB duplicate");
-	check(phrb_only_provider.find_compat_entry(mixed_checksum64, 258, 0) == nullptr,
-	      "phrb-only provider should not expose compat entries");
-	ReplacementProviderStats phrb_only_stats = phrb_only_provider.get_stats();
-	check(phrb_only_stats.source_phrb_entry_count == 1, "phrb-only stats should preserve only the PHRB source count");
-	check(phrb_only_stats.source_htc_entry_count == 0, "phrb-only stats should exclude HTC-backed entries");
-	check(phrb_only_stats.compat_entry_count == 0, "phrb-only stats should exclude compat entries");
-
-	ReplacementProvider legacy_only_provider;
-	check(legacy_only_provider.load_cache_dir(mixed_dir, ReplacementProvider::CacheSourcePolicy::LegacyOnly),
-	      "legacy-only provider should load legacy entries from mixed-source cache directories");
-	legacy_only_provider.set_enabled(true);
-	check(legacy_only_provider.entry_count() == 1, "legacy-only provider should only load the legacy entry");
-	check(legacy_only_provider.find_native_entry(mixed_checksum64, 258, 0) == nullptr,
-	      "legacy-only provider should not expose native entries");
-	check(legacy_only_provider.find_compat_entry(mixed_checksum64, 258, 0) != nullptr,
-	      "legacy-only provider should still expose the legacy compat entry");
-	ReplacementMeta legacy_only_lookup_meta = {};
-	NativeSampledIdentity legacy_only_identity = {};
-	ResolvedEntrySourceClass legacy_only_source_class = ResolvedEntrySourceClass::Unknown;
-	check(legacy_only_provider.lookup_with_selector_and_identity(
-	          mixed_checksum64,
-	          258,
-	          0,
-	          &legacy_only_lookup_meta,
-	          &legacy_only_identity,
-	          &legacy_only_source_class,
-	          &resolved_checksum64),
-	      "legacy-only generic lookup helper should still resolve compat entries");
-	check(!legacy_only_identity.valid,
-	      "legacy-only generic lookup helper should not synthesize native sampled identity for compat entries");
-	check(legacy_only_source_class == ResolvedEntrySourceClass::Compat,
-	      "legacy-only generic lookup helper should classify compat entries explicitly");
-	ReplacementResolution legacy_only_resolution = {};
-	check(legacy_only_provider.resolve_upload_candidate(
-	          258,
-	          0, 0, 0, 0, 0, 0, mixed_sampled_low32, mixed_palette_crc, 0,
-	          &legacy_only_resolution),
-	      "upload candidate resolution should resolve legacy-only compat entries");
-	check(legacy_only_resolution.kind == ReplacementResolutionKind::GenericCompat,
-	      "upload candidate resolution should classify legacy-only compat entries explicitly");
-	check(!legacy_only_resolution.identity.valid,
-	      "typed generic resolution should not synthesize native identity for compat entries");
-	ReplacementProviderStats legacy_only_stats = legacy_only_provider.get_stats();
-	check(legacy_only_stats.source_phrb_entry_count == 0, "legacy-only stats should exclude PHRB-backed entries");
-	check(legacy_only_stats.source_htc_entry_count == 1, "legacy-only stats should preserve HTC-backed entries");
-	check(legacy_only_stats.compat_entry_count == 1, "legacy-only stats should preserve compat entries");
+	check(mixed_stats.source_phrb_entry_count == 1, "all-policy stats should preserve the PHRB source count");
+	check(mixed_stats.source_htc_entry_count == 1, "all-policy stats should preserve the HTC source count");
+	check(mixed_stats.compat_entry_count == 1, "all-policy stats should preserve the compat source count");
 
 	ReplacementProvider auto_provider;
 	check(auto_provider.load_cache_dir(mixed_dir, ReplacementProvider::CacheSourcePolicy::Auto),
-	      "auto provider should load supported entries from mixed-source cache directories");
+	      "auto provider should prefer PHRB when mixed-source directories contain runtime-ready PHRB data");
 	auto_provider.set_enabled(true);
-	check(auto_provider.entry_count() == 1,
-	      "auto provider should prefer the native PHRB entry when mixed-source cache directories contain both formats");
-	check(auto_provider.find_any_entry(mixed_checksum64, 258, 0) != nullptr,
-	      "auto provider should still resolve the preferred native PHRB duplicate");
-	check(auto_provider.find_compat_entry(mixed_checksum64, 258, 0) == nullptr,
-	      "auto provider should fence out compat entries when a mixed-source directory contains PHRB data");
-	ReplacementProviderStats auto_stats = auto_provider.get_stats();
-	check(auto_stats.source_phrb_entry_count == 1, "auto stats should preserve the preferred PHRB source count");
-	check(auto_stats.source_htc_entry_count == 0, "auto stats should exclude HTC-backed entries from mixed-source directories");
-	check(auto_stats.compat_entry_count == 0, "auto stats should exclude compat entries in mixed-source auto mode");
+	check(auto_provider.entry_count() == 1, "auto provider should fence out legacy compat duplicates when PHRB data is available");
+	check(!auto_provider.has_compat_entries(), "auto provider should keep compat disabled in preferred-PHRB mixed-source loads");
+	check(!auto_provider.has_phrb_compat_entries(), "auto provider should not report compat-bearing PHRB state for pure native loads");
 	remove_tree(mixed_dir);
+
 
 	const std::string ordered_singleton_dir = make_temp_dir();
 	const uint32_t ordered_singleton_palette_crc = 0x13572468u;
@@ -1373,60 +1261,6 @@ int main()
 	      "ordered-surface singleton sampled decode should preserve the payload");
 	remove_tree(ordered_singleton_dir);
 
-	const std::string auto_fallback_dir = make_temp_dir();
-	const uint32_t auto_fallback_palette_crc = 0x0badc0deu;
-	const uint32_t auto_fallback_sampled_low32 = 0x00c0ffeeu;
-	const uint64_t auto_fallback_checksum64 =
-		(uint64_t(auto_fallback_palette_crc) << 32u) | uint64_t(auto_fallback_sampled_low32);
-	const std::vector<uint8_t> auto_fallback_compat_rgba = {
-		0xaa, 0x10, 0x20, 0xff,
-		0xbb, 0x30, 0x40, 0xff,
-		0xcc, 0x50, 0x60, 0xff,
-		0xdd, 0x70, 0x80, 0xff,
-	};
-	write_single_asset_phrb(
-		auto_fallback_dir + "/deferred.phrb",
-		"auto-deferred-record",
-		"auto-deferred-replacement",
-		"sampled-fmt2-siz1-off48-stride16-wh2x2-fs258-low3200c0ffee",
-		2,
-		1,
-		48,
-		16,
-		2,
-		2,
-		258,
-		auto_fallback_sampled_low32,
-		auto_fallback_palette_crc,
-		0,
-		2,
-		2,
-		auto_fallback_compat_rgba,
-		0);
-	write_htc_file(
-		auto_fallback_dir + "/fallback.htc",
-		auto_fallback_checksum64,
-		258,
-		2,
-		2,
-		auto_fallback_compat_rgba);
-
-	ReplacementProvider auto_fallback_provider;
-	check(auto_fallback_provider.load_cache_dir(auto_fallback_dir, ReplacementProvider::CacheSourcePolicy::Auto),
-	      "auto provider should fall back to legacy entries when mixed-source directories only contain deferred or unusable PHRB records");
-	auto_fallback_provider.set_enabled(true);
-	check(auto_fallback_provider.entry_count() == 1,
-	      "auto fallback provider should load the legacy entry when no runtime-ready PHRB records are available");
-	check(auto_fallback_provider.find_compat_entry(auto_fallback_checksum64, 258, 0) != nullptr,
-	      "auto fallback provider should expose the legacy compat entry after the PHRB lane fails empty");
-	ReplacementProviderStats auto_fallback_stats = auto_fallback_provider.get_stats();
-	check(auto_fallback_stats.source_phrb_entry_count == 0,
-	      "auto fallback stats should not count deferred PHRB records that failed to load");
-	check(auto_fallback_stats.source_htc_entry_count == 1,
-	      "auto fallback stats should preserve the legacy source count after fallback");
-	check(auto_fallback_stats.compat_entry_count == 1,
-	      "auto fallback stats should preserve compat entries after fallback");
-	remove_tree(auto_fallback_dir);
 
 	const std::string phrb_preference_dir = make_temp_dir();
 	const uint32_t phrb_preference_palette_crc = 0x2468ace0u;

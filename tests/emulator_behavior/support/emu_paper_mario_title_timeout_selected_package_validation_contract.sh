@@ -5,7 +5,7 @@ REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../../.." && pwd)"
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT
 
-CACHE_PATH="$TMP_DIR/package.phrb"
+CACHE_PATH="$TMP_DIR/package.PHRB"
 printf 'phrb' > "$CACHE_PATH"
 ALT_SOURCE_CACHE_PATH="$REPO_ROOT/assets/PAPER MARIO_HIRESTEXTURES.hts"
 if [[ ! -f "$ALT_SOURCE_CACHE_PATH" ]]; then
@@ -50,7 +50,6 @@ hires = {
     "summary": {
         "provider": "on",
         "source_mode": "phrb-only",
-        "source_policy": "phrb-only",
         "entry_count": 195,
         "native_sampled_entry_count": 195,
         "compat_entry_count": 0,
@@ -329,8 +328,6 @@ step = steps[0]
 hires = step.get("hires_summary") or {}
 if hires.get("source_mode") != "phrb-only":
     raise SystemExit(f"FAIL: unexpected source mode {hires.get('source_mode')!r}.")
-if hires.get("source_policy") != "phrb-only":
-    raise SystemExit(f"FAIL: unexpected source policy {hires.get('source_policy')!r}.")
 if hires.get("native_sampled_entry_count") != 195:
     raise SystemExit(f"FAIL: unexpected native sampled count {hires.get('native_sampled_entry_count')!r}.")
 descriptor_path_counts = step.get("descriptor_path_counts") or {}
@@ -391,8 +388,6 @@ if pool_regression.get("json_path"):
         raise SystemExit(f"FAIL: unexpected pool regression cases in {case_metrics!r}.")
 if "source mode `phrb-only`" not in markdown:
     raise SystemExit("FAIL: markdown summary missing source mode line.")
-if "source policy `phrb-only`" not in markdown:
-    raise SystemExit("FAIL: markdown summary missing source policy line.")
 if "descriptor paths sampled `66` / native checksum `0` / generic `0` / compat `0`" not in markdown:
     raise SystemExit("FAIL: markdown summary missing descriptor path counts.")
 if "Sampled duplicate keys: `1` buckets, `1` log lines" not in markdown:

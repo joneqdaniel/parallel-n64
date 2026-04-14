@@ -28,6 +28,7 @@
 #include "rdp_hires_registry_policy.hpp"
 #include "rdp_hires_runtime_policy.hpp"
 #include "rdp_hires_state_policy.hpp"
+#include "rdp_hires_texture_layout.hpp"
 #include "texture_replacement.hpp"
 #include "texture_keying.hpp"
 #include "rdp_device_capability_policy.hpp"
@@ -100,14 +101,9 @@ static const char *get_hires_debug_filter_reason(const HiresDebugFilterState &fi
 	return nullptr;
 }
 
-static uint32_t compute_hires_texture_row_bytes(uint32_t width, TextureSize size)
-{
-	return (width << unsigned(size)) >> 1;
-}
-
 static uint32_t compute_hires_texture_total_bytes(uint32_t width, uint32_t height, TextureSize size)
 {
-	return compute_hires_texture_row_bytes(width, size) * height;
+	return detail::compute_hires_texture_row_bytes(width, size) * height;
 }
 
 static uint32_t compute_hires_texture_source_span_bytes(uint32_t row_stride_bytes, uint32_t row_bytes, uint32_t height)
@@ -167,7 +163,7 @@ static HiresSampledObjectIdentity compute_hires_sampled_object_identity(const Ti
 	if (!compute_hires_tile_size_pixels(size, identity.width_pixels, identity.height_pixels))
 		return identity;
 
-	identity.row_stride_bytes = meta.stride != 0 ? meta.stride : compute_hires_texture_row_bytes(identity.width_pixels, meta.size);
+	identity.row_stride_bytes = meta.stride != 0 ? meta.stride : detail::compute_hires_texture_row_bytes(identity.width_pixels, meta.size);
 	if (identity.row_stride_bytes == 0)
 		return identity;
 
@@ -294,7 +290,13 @@ static uint64_t compute_gliden64_compat_checksum64(
 	if (meta.size == TextureSize::Bpp32)
 		bpl <<= 1;
 	if (bpl == 0)
-		return 0;
+	{
+		// Fallback: compute stride from tile dimensions (matches GlideN64 for zero-line tiles)
+		uint32_t computed_bpl = detail::compute_hires_texture_row_bytes(tile_width, meta.size);
+		if (computed_bpl == 0)
+			return 0;
+		bpl = computed_bpl;
+	}
 
 	// GlideN64 uses the tile descriptor's size (meta.size), not SetTextureImage's size.
 	// For IA textures, SetTextureImage.size may be 16bpp while tile.size is 8bpp.
@@ -2042,7 +2044,7 @@ void Renderer::draw_shaded_primitive(const TriangleSetup &setup, const Attribute
 	if (!replacement_tiles[base_tile].hit &&
 	    hires_gliden64_compat_crc_enabled &&
 	    replacement_provider && cpu_rdram && rdram_size > 0 &&
-	    hires_rdram_load_addr[base_tile] != 0 && base_meta.stride != 0)
+	    hires_rdram_load_addr[base_tile] != 0)
 	{
 		const uint64_t compat_checksum64 = compute_gliden64_compat_checksum64(
 			cpu_rdram, rdram_size,
@@ -2057,12 +2059,14 @@ void Renderer::draw_shaded_primitive(const TriangleSetup &setup, const Attribute
 		if (compat_checksum64 != 0)
 		{
 			const uint16_t compat_formatsize = formatsize_key(base_meta.fmt, base_meta.size);
+			const uint32_t compat_low32 = uint32_t(compat_checksum64 & 0xffffffffu);
+			const uint32_t compat_palette_crc = uint32_t(compat_checksum64 >> 32u);
 			ReplacementResolution compat_resolution = {};
 			bool compat_hit = replacement_provider->resolve_upload_candidate(
-				compat_checksum64, compat_formatsize,
+				compat_formatsize,
 				uint32_t(base_meta.fmt), uint32_t(base_meta.size),
 				base_meta.offset, base_meta.stride,
-				0, 0, 0, 0, 0, &compat_resolution);
+				0, 0, compat_low32, compat_palette_crc, 0, &compat_resolution);
 
 			if (compat_hit)
 			{
@@ -5019,7 +5023,7 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 				const bool tlut_enabled = (raster_flags & RASTERIZATION_TLUT_BIT) != 0;
 				const bool tlut_type = (raster_flags & RASTERIZATION_TLUT_TYPE_BIT) != 0;
 				const bool copy_cycle = (raster_flags & RASTERIZATION_COPY_BIT) != 0;
-				const uint32_t source_row_bytes = compute_hires_texture_row_bytes(key_width_pixels, info.size);
+				const uint32_t source_row_bytes = detail::compute_hires_texture_row_bytes(key_width_pixels, info.size);
 				const uint32_t source_span_bytes = compute_hires_texture_source_span_bytes(
 						row_stride_bytes, source_row_bytes, key_height_pixels);
 				const bool overlaps_color_fb = ranges_overlap_u32(
@@ -5881,7 +5885,7 @@ void Renderer::load_tile_iteration(uint32_t tile, const LoadTileInfo &info, uint
 					     candidate_width > 0;
 					     candidate_width >>= 1u)
 					{
-						const uint32_t candidate_row_stride_bytes = compute_hires_texture_row_bytes(candidate_width, info.size);
+						const uint32_t candidate_row_stride_bytes = detail::compute_hires_texture_row_bytes(candidate_width, info.size);
 						if (candidate_row_stride_bytes == 0 || candidate_row_stride_bytes > total_bytes)
 							continue;
 						if ((total_bytes % candidate_row_stride_bytes) != 0)
